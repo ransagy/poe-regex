@@ -90,15 +90,26 @@ Reversibility guarantee + spec-concept TUI demo.
       `--experimental-ffi`; validated @opentui/core@0.5.1 API (Text/Box/Input/
       Select render + clean exit); pinned version; `demos/opentui-tui/` scaffold
       (package.json scripts, .gitignore, spike.mjs).
-- [ ] 2.2 Subprocess wrapper implementing the CLI contract (Bun.spawn /
-      child_process + JSON parse + exit codes).
-- [ ] 2.3 Layout per spec §7: game toggle; slot modes (Single dropdown /
+- [x] 2.2 Subprocess wrapper implementing the CLI contract (child_process +
+      JSON parse + exit codes): `src/engine.mjs` (`resolveBinary`, `run`,
+      `parseJson`, `listClasses`/`listMods`/`generate`/`explain`/`validate`);
+      `build:cli` publishes the AOT binary into `out/`.
+- [x] 2.3 Layout per spec §7: game toggle; slot modes (Single dropdown /
       Global / Multi checkbox -> per-slot query list); mod typeahead (Input +
       suggestions, client-side filter, Enter->Included / Tab->Excluded chips);
-      live generate preview; clipboard; capacity meter (green->orange->red);
-      explain panel (tokens + candidate mods).
-- [ ] 2.4 Logic tests with `node --test` (wrapper, tokenizer-free client state).
-- [ ] 2.5 Manual terminal verification.
+      live generate preview; clipboard (system tools + OSC52 fallback);
+      capacity meter (green->orange->red); explain panel (tokens + candidate
+      mods). Renderables are constructed directly (`new XRenderable(renderer,
+      ...)`) because the VNode factory proxies only replay queued calls at
+      materialization time. Enter is reported as `key.name === "return"` by the
+      keypress parser. Default base equipment is Ring (the alphabetically-first
+      class, AbyssJewel, has no explicit mods -> empty typeahead).
+- [x] 2.4 Logic tests with `node --test` (18 green: 9 engine wrapper incl.
+      `--limit`, 9 app state incl. `selectClass`/`generateTasks`).
+- [x] 2.5 Manual terminal verification: `test/smoke-pty.py` (python3 PTY driver
+      — boot labels, typeahead filter, Enter regenerates output + meter, Tab/E
+      explain panel, game toggle, clean exit; skips when no CLI binary).
+      `npm run test:smoke`.
 
 ## Phase 3 — Docs + CI
 
@@ -121,3 +132,13 @@ Reversibility guarantee + spec-concept TUI demo.
   case-insensitive matching (342 PoE2 pairs). Fingerprints are now unique under
   case-folded matching (SuffixIndex case-insensitive mode + folded per-class/
   union indexes + case-insensitive oracle). Not yet pushed.
+- 2026-08-10: Phase 1.6-1.7 done. Debug+Release 66 green, 0 warnings;
+  AOT/JIT parity verified; pushed `851d4ec` (Phase 1) + `c148e27` (plan mark).
+- 2026-08-10: Phase 2.2-2.5 done. `src/engine.mjs` subprocess wrapper,
+  `src/app.mjs` pure state, `src/clipboard.mjs`, `src/index.mjs` OpenTUI layout
+  (spec §7 + modes + typeahead + meter + explain + copy with OSC52 fallback),
+  18 `node --test` tests, `test/smoke-pty.py` PTY integration check. Key
+  findings: VNode factory proxies don't forward post-materialization mutations
+  (construct renderables directly); Enter parses as `key.name === "return"`;
+  AbyssJewel (alphabetically first class) has no explicit mods -> default to
+  Ring. `npm test` + `npm run test:smoke` green.

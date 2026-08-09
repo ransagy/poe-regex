@@ -7,7 +7,9 @@
   "scripts": {
     "spike": "node --experimental-ffi --disable-warning=ExperimentalWarning spike.mjs",
     "dev": "node --experimental-ffi --disable-warning=ExperimentalWarning src/index.mjs",
-    "test": "node --test --disable-warning=ExperimentalWarning test/"
+    "test": "node --test --disable-warning=ExperimentalWarning \"test/*.test.mjs\"",
+    "test:smoke": "python3 test/smoke-pty.py",
+    "build:cli": "dotnet publish ../../src/PoeRegex.Cli -c Release -p:PublishAot=true --output ../../out"
   },
   "dependencies": {
     "@opentui/core": "0.5.1"
