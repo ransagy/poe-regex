@@ -1,0 +1,93 @@
+# Project Plan & Work Log
+
+Persistent working plan for the PoE regex compiler project. Update this document
+as work progresses so it can be resumed after interruptions.
+
+## Status
+
+Repo: `https://github.com/ransagy/poe-regex` (private), branch `main`.
+Baseline: commit `91a147a` (CLI subprocess API). All prior phases (AOT releases,
+release workflow, docs) are complete and pushed.
+
+## Current objective
+
+Reversibility guarantee + spec-concept TUI demo.
+
+- **Phase 1 — Engine + CLI:** every query the engine produces must decompose back
+  to a candidate set that includes the mods it was built from (recall = 1),
+  ambiguity surfaced as candidate options. Includes a real bug fix (digit
+  placeholder leaking into queries) and a new global (no-class) mode.
+- **Phase 2 — TUI demo:** OpenTUI (Zig core, TS bindings) driving the CLI as a
+  subprocess, mirroring the original spec §7 layout plus slot modes
+  (single/global/multi) and a mod typeahead with autocomplete.
+- **Phase 3 — Docs + CI:** document `explain`, extend smoke-test JSON assertions.
+
+## Decisions (confirmed by maintainer)
+
+- Fix the digit-placeholder bug in this pass.
+- Explain matching is case-insensitive; candidate semantics = AND-intersection.
+- TUI lives in-repo under `demos/opentui-tui/`.
+- Multi-slot selection emits a per-slot query list (no experimental class
+  alternation).
+- Global (no slot) mode resolves catalog mods via union-corpus fingerprints.
+- Implementation order: engine+CLI first, TUI second.
+- TUI runtime: Node 26.4 + `--experimental-ffi` (already installed; no Bun).
+- De-risk OpenTUI with a hello-world spike before the full layout.
+- PoE2 50-char limit / lookahead policy divergences: OUT OF SCOPE (in-game
+  verify items per DESIGN §9).
+
+## Phase 1 — Engine + CLI (in progress)
+
+- [x] README: AI-disclosure note (bottom).
+- [x] This plan doc.
+- [ ] 1.1 `SuffixIndex`: shortest unique substring that avoids the digit
+      placeholder (prefer placeholder-free even if longer).
+- [ ] 1.1 `CompactionEngine.SelectFragment`: placeholder-free candidate first,
+      else placeholder->digit-regex + oracle validation, else
+      `unresolved-modifier` warning. Regression test + catalog sweep test
+      (no control char in any generated query).
+- [ ] 1.2 `EngineCorpus`: per-game union suffix index over all class patterns
+      (runtime, no catalog regen); `SelectFragment` null-class path uses it
+      (global mode resolves catalog mods).
+- [ ] 1.3 `Explainer` (`src/PoeRegex.Core/Explain/Explainer.cs`): quote-aware
+      tokenizer, placeholder wildcard, case-insensitive matching, token kinds
+      (included/excluded/class/keyword); candidate mods = matched-class mods
+      matched by EVERY included token minus excluded-token matches; reverse
+      pattern->mods index in `EngineCorpus`.
+- [ ] 1.4 CLI `explain --game <g> [--catalog <p>] [--class <id>] --query
+      "<regex>" [--json]` -> `{query, game, classes[], tokens[], mods[]}`;
+      source-gen records; same stdout/stderr/exit-code contract; help text.
+- [ ] 1.5 Reversibility test suite: exhaustive class x mod (recall=1), global,
+      sampled multi-mod combos (seeded), thresholds, exclusions, determinism,
+      precision-when-unambiguous.
+- [ ] 1.6 Full build + test run; AOT/JIT parity check.
+- [ ] 1.7 Commit + push Phase 1.
+
+## Phase 2 — OpenTUI demo (`demos/opentui-tui/`)
+
+- [ ] 2.1 Spike: hello-world `createCliRenderer` under Node 26.4 +
+      `--experimental-ffi`; validate @opentui/core API; pin version.
+- [ ] 2.2 Subprocess wrapper implementing the CLI contract (Bun.spawn /
+      child_process + JSON parse + exit codes).
+- [ ] 2.3 Layout per spec §7: game toggle; slot modes (Single dropdown /
+      Global / Multi checkbox -> per-slot query list); mod typeahead (Input +
+      suggestions, client-side filter, Enter->Included / Tab->Excluded chips);
+      live generate preview; clipboard; capacity meter (green->orange->red);
+      explain panel (tokens + candidate mods).
+- [ ] 2.4 Logic tests with `node --test` (wrapper, tokenizer-free client state).
+- [ ] 2.5 Manual terminal verification.
+
+## Phase 3 — Docs + CI
+
+- [ ] 3.1 USING-THE-ENGINE §12 + README: `explain` command/JSON shape.
+- [ ] 3.2 CI smoke: add `explain --json` to python3 JSON-parse assertions.
+
+## Reference
+
+- Original spec: `/home/ransagy/Downloads/poe-regex.md` (UI blueprint in §7).
+- Engine design: `docs/DESIGN.md`; integration: `docs/USING-THE-ENGINE.md`.
+- Build/publish: `docs/BUILDING.md`; policy: `CONTRIBUTING.md`, `NOTICE`.
+
+## Work log
+
+- (none yet for this objective)

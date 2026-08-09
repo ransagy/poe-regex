@@ -110,3 +110,10 @@ Nods and kudos to the projects that made this possible:
 MIT. This project is not affiliated with Grinding Gear Games; Path of Exile is a
 registered trademark of GGG. Derived catalog data is community extraction from
 RePoE (GGG-owned data) — see `NOTICE`.
+
+## AI disclosure
+
+AI assistance was used to generate and validate portions of this project. All
+generated code and content adhere to the project's licensing and sourcing policy
+(no reproduction of non-permissively licensed community content), and have been
+reviewed and verified by the project maintainer.
