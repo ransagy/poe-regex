@@ -33,10 +33,16 @@ poe-regex/
     catalogs/                      # checked-in, versioned: poe1.catalog.json, poe2.catalog.json
   docs/
     DESIGN.md
+    BUILDING.md
+    USING-THE-ENGINE.md
   NOTICE
   LICENSE
   README.md
 ```
+
+For consuming `PoeRegex.Core` as a library in your own project, see
+[`USING-THE-ENGINE.md`](USING-THE-ENGINE.md); for publishing the CLI, see
+[`BUILDING.md`](BUILDING.md).
 
 ## 3. Data Pipeline (`tools/PoeRegex.Data.Build`, dev-time)
 
