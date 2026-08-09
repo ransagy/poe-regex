@@ -69,7 +69,7 @@ Reversibility guarantee + spec-concept TUI demo.
 - [x] 1.6 Full build + test run (Debug + Release, 66 tests green, 0 warnings);
       AOT/JIT parity verified for `explain`/`generate`/`validate`/`list-mods`/
       `list-classes` --json on both games (identical stdout + exit codes).
-- [ ] 1.7 Commit + push Phase 1.
+- [x] 1.7 Commit + push Phase 1 (commit `851d4ec`, main).
 
 ## Phase 1 — additional discovered fix (in this pass)
 
