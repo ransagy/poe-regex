@@ -62,6 +62,10 @@ dotnet publish src/PoeRegex.Cli -c Release -r linux-x64 \
   clipboard — neither needs extra setup.
 - Everything else (catalogs, game rules) is self-contained in the binary.
 
+The OpenTUI demo (`demos/opentui-tui/`) publishes the CLI with the same AOT
+settings via `npm run build:cli` (outputs to the repo `out/` directory); see
+its README for build/test/run instructions.
+
 ## CI / GitHub Releases
 
 `.github/workflows/release.yml` builds all four platforms, runs the test suite,

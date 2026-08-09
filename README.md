@@ -65,6 +65,10 @@ Every command also supports `--json` for machine-readable stdout — that's the
 cross-language integration surface (Python, Node, shell, etc.). See
 [`docs/USING-THE-ENGINE.md`](docs/USING-THE-ENGINE.md#12-using-the-engine-from-any-language-the-cli-subprocess-contract).
 
+There's also an interactive terminal demo driving the engine through that
+contract: see [`demos/opentui-tui/`](demos/opentui-tui/README.md) (build, run,
+and controls).
+
 Exit codes: `0` ok, `1` error (including a query over the character limit),
 `2` usage error.
 
