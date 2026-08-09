@@ -1,6 +1,7 @@
 ﻿using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
+using PoeRegex.Core.Explain;
 
 namespace PoeRegex.Cli;
 
@@ -52,6 +53,7 @@ internal static class Program
             "list-classes" => RunListClasses(args[1..]),
             "list-mods" => RunListMods(args[1..]),
             "validate" => RunValidate(args[1..]),
+            "explain" => RunExplain(args[1..]),
             "-h" or "--help" or "help" => PrintHelp(),
             _ => Usage($"unknown command '{args[0]}'"),
         };
@@ -72,6 +74,8 @@ internal static class Program
               poe-regex list-mods --game <poe1|poe2> [--catalog <path>] [--class <id>]
                   [--search <text>] [--limit <n>] [--json]
               poe-regex validate --game <poe1|poe2> [--catalog <path>] --query "<regex>" [--json]
+            poe-regex explain --game <poe1|poe2> [--catalog <path>] [--class <id>]
+                  --query "<regex>" [--json]
 
             --json: emit machine-readable JSON on stdout (suitable for other
             programs and scripts); human text otherwise.
@@ -357,6 +361,104 @@ internal static class Program
                 Console.WriteLine($"warning: {diag.Code}: {diag.Message}");
             }
             Console.WriteLine($"ok: query is syntactically acceptable for {game.ToRuleKey()}");
+        }
+        return ExitOk;
+    }
+
+    // ---- explain ----
+
+    private static int RunExplain(string[] args)
+    {
+        var game = GameTarget.PoE1;
+        string? catalogPath = null;
+        string? itemClass = null;
+        string? query = null;
+        var json = false;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
+                case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
+                case "--class": itemClass = GetValue(args, ref i, "--class"); break;
+                case "--query": query = GetValue(args, ref i, "--query"); break;
+                case "--json": json = true; break;
+                default: return Usage($"unknown option '{args[i]}'");
+            }
+        }
+        if (query is null) return Usage("explain requires --query");
+
+        var corpus = LoadCorpus(game, catalogPath);
+        var explainer = new Explainer(corpus);
+        var result = explainer.Explain(query, itemClass);
+
+        if (json)
+        {
+            var payload = new JsonExplainResult
+            {
+                Query = result.Query,
+                Game = result.Game,
+                Classes = result.Classes.Select(c => new JsonExplainClass { Id = c.Id, Name = c.Name }).ToList(),
+                Tokens = result.Tokens.Select(t => new JsonExplainToken
+                {
+                    Index = t.Index,
+                    Phrase = t.Phrase,
+                    Excluded = t.Excluded,
+                    Kind = t.Kind,
+                    Classes = t.Classes.ToList(),
+                    Matches = t.Matches.Select(m => new JsonExplainMatch
+                    {
+                        Class = m.Class,
+                        Line = m.Line,
+                        Pattern = m.Pattern,
+                        ModIds = m.ModIds.ToList(),
+                    }).ToList(),
+                }).ToList(),
+                Mods = result.Mods.Select(m => new JsonExplainMod
+                {
+                    Id = m.Id,
+                    Name = m.Name,
+                    Classes = m.Classes.ToList(),
+                    Phrases = m.Phrases.ToList(),
+                    Lines = m.Lines.Select(l => new JsonExplainLine { Class = l.Class, Line = l.Line }).ToList(),
+                }).ToList(),
+            };
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).JsonExplainResult));
+        }
+        else
+        {
+            Console.WriteLine($"query:  {result.Query}");
+            Console.WriteLine($"game:   {result.Game}");
+            if (result.Classes.Count > 0)
+            {
+                Console.WriteLine($"class:  {string.Join(", ", result.Classes.Select(c => $"{c.Id} ({c.Name})"))}");
+            }
+            else
+            {
+                Console.WriteLine("class:  (global - no class anchor)");
+            }
+            foreach (var t in result.Tokens)
+            {
+                Console.WriteLine($"  [{t.Kind}] {t.Phrase}{(t.Excluded ? " (excluded)" : "")} -> {t.Matches.Count} match(es)");
+                foreach (var m in t.Matches)
+                {
+                    var mods = m.ModIds.Count > 0 ? string.Join(",", m.ModIds) : "-";
+                    Console.WriteLine($"      {m.Class}\t{m.Line}\t{mods}");
+                }
+            }
+            if (result.Mods.Count == 0)
+            {
+                Console.WriteLine("candidate mods: (none)");
+            }
+            else
+            {
+                Console.WriteLine("candidate mods (must match every included phrase):");
+                foreach (var m in result.Mods)
+                {
+                    Console.WriteLine($"  {m.Id}\t{m.Name ?? ""}");
+                    foreach (var l in m.Lines) Console.WriteLine($"      {l.Class}\t{l.Line}");
+                }
+            }
         }
         return ExitOk;
     }

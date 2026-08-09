@@ -1,5 +1,6 @@
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
+using PoeRegex.Core.Search;
 
 namespace PoeRegex.Core.Tests;
 
@@ -64,5 +65,89 @@ public class CatalogPropertyTests
             var fp = corpus.ClassFingerprint(cls.Id);
             fp.Should().NotBeNullOrEmpty($"class {cls.Id} ({cls.Name}) needs a base fingerprint");
         }
+    }
+
+    /// <summary>
+    /// Regression guard for the digit-placeholder leak: no generated query may
+    /// contain the value token control character, and non-threshold single-mod
+    /// fragments must be plain literals (no unescaped regex metacharacters).
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Catalogs))]
+    public void EveryGeneratedSingleModQuery_IsLiteralAndSafe(GameTarget game)
+    {
+        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
+        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
+        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
+        var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
+
+        var checkedCount = 0;
+        foreach (var mod in corpus.Mods)
+        {
+            foreach (var cls in mod.Classes)
+            {
+                var result = compiler.Compile(QuerySpecification.For(game) with
+                {
+                    ItemClass = cls,
+                    IncludedModifiers = [new ModifierRequirement(mod.Id)],
+                });
+                result.Query.Should().NotContain(
+                    placeholder,
+                    $"query for {mod.Id} on {cls} must not contain the digit placeholder (got '{result.Query}')");
+                HasUnescapedMetachar(result.Query).Should().BeFalse(
+                    $"query for {mod.Id} on {cls} must not contain an unescaped regex metacharacter (got '{result.Query}')");
+                checkedCount++;
+            }
+        }
+        checkedCount.Should().BeGreaterThan(1000, "expected a meaningful number of queries to validate");
+    }
+
+    /// <summary>
+    /// Global (no class) queries resolve catalog mods to a union-corpus fingerprint:
+    /// no control char, no unescaped metacharacter, and the emitted fragment matches
+    /// at least one real copy-text line of the mod.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Catalogs))]
+    public void EveryGlobalQuery_ResolvesToAMatchingLiteral(GameTarget game)
+    {
+        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
+        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
+        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
+        var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
+
+        var checkedCount = 0;
+        foreach (var mod in corpus.Mods)
+        {
+            var result = compiler.Compile(QuerySpecification.For(game) with
+            {
+                IncludedModifiers = [new ModifierRequirement(mod.Id)],
+            });
+            if (result.Diagnostics.Any(d => d.Code == "unresolved-modifier")) continue;
+
+            result.Query.Should().NotContain(placeholder, $"global query for {mod.Id} must not contain the digit placeholder (got '{result.Query}')");
+            HasUnescapedMetachar(result.Query).Should().BeFalse($"global query for {mod.Id} must not contain an unescaped metacharacter (got '{result.Query}')");
+
+            var fragment = result.Query.Trim().Trim('"');
+            fragment.Should().NotBeNullOrEmpty($"global query for {mod.Id} must resolve to a fragment");
+            var matches = mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(sl.Line, fragment));
+            matches.Should().BeTrue($"global fragment '{fragment}' of {mod.Id} must match one of its copy-text lines");
+            checkedCount++;
+        }
+        checkedCount.Should().BeGreaterThan(1000, "expected most mods to resolve globally");
+    }
+
+    private static bool HasUnescapedMetachar(string s)
+    {
+        const string metachars = "|.+*?()[]{}$^";
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (metachars.IndexOf(c) < 0) continue;
+            if (i > 0 && s[i - 1] == '\\') continue; // escaped literal
+            if (c == '+' && i > 1 && s[i - 1] == 'd' && s[i - 2] == '\\') continue; // \d+ digit-run quantifier
+            return true;
+        }
+        return false;
     }
 }

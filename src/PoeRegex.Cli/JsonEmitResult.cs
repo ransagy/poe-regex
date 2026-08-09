@@ -54,6 +54,74 @@ public sealed record JsonValidateResult
     public JsonEmitDiagnostic? Warning { get; init; }
 }
 
+/// <summary>Named model for `explain --json` output (query reversal).</summary>
+public sealed record JsonExplainResult
+{
+    public required string Query { get; init; }
+
+    public required string Game { get; init; }
+
+    public required IReadOnlyList<JsonExplainClass> Classes { get; init; }
+
+    public required IReadOnlyList<JsonExplainToken> Tokens { get; init; }
+
+    public required IReadOnlyList<JsonExplainMod> Mods { get; init; }
+}
+
+public sealed record JsonExplainClass
+{
+    public required string Id { get; init; }
+
+    public required string Name { get; init; }
+}
+
+public sealed record JsonExplainToken
+{
+    public required int Index { get; init; }
+
+    public required string Phrase { get; init; }
+
+    public required bool Excluded { get; init; }
+
+    /// <summary>included | excluded | class | keyword</summary>
+    public required string Kind { get; init; }
+
+    public required IReadOnlyList<string> Classes { get; init; }
+
+    public required IReadOnlyList<JsonExplainMatch> Matches { get; init; }
+}
+
+public sealed record JsonExplainMatch
+{
+    public required string Class { get; init; }
+
+    public required string Line { get; init; }
+
+    public required string Pattern { get; init; }
+
+    public required IReadOnlyList<string> ModIds { get; init; }
+}
+
+public sealed record JsonExplainMod
+{
+    public required string Id { get; init; }
+
+    public string? Name { get; init; }
+
+    public required IReadOnlyList<string> Classes { get; init; }
+
+    public required IReadOnlyList<string> Phrases { get; init; }
+
+    public required IReadOnlyList<JsonExplainLine> Lines { get; init; }
+}
+
+public sealed record JsonExplainLine
+{
+    public required string Class { get; init; }
+
+    public required string Line { get; init; }
+}
+
 [JsonSerializable(typeof(JsonEmitResult))]
 [JsonSerializable(typeof(JsonEmitDiagnostic))]
 [JsonSerializable(typeof(JsonClassEntry))]
@@ -61,4 +129,10 @@ public sealed record JsonValidateResult
 [JsonSerializable(typeof(JsonModEntry))]
 [JsonSerializable(typeof(List<JsonModEntry>))]
 [JsonSerializable(typeof(JsonValidateResult))]
+[JsonSerializable(typeof(JsonExplainResult))]
+[JsonSerializable(typeof(JsonExplainClass))]
+[JsonSerializable(typeof(JsonExplainToken))]
+[JsonSerializable(typeof(JsonExplainMatch))]
+[JsonSerializable(typeof(JsonExplainMod))]
+[JsonSerializable(typeof(JsonExplainLine))]
 public sealed partial class CliJsonContext : JsonSerializerContext;

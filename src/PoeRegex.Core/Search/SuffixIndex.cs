@@ -25,11 +25,12 @@ public sealed class SuffixIndex
     private readonly int[] _lineStart;
     private readonly int[] _lineLength;
     private readonly string[] _corpus;
+    private readonly bool _caseInsensitive;
 
     private SuffixIndex(
         int[] s, int[] sa, int[] rank, int[] lcp, int[] lineOfRank,
         int[] prevDiff, int[] nextDiff, SparseTable rmq, int[] lineStart, int[] lineLength,
-        string[] corpus)
+        string[] corpus, bool caseInsensitive)
     {
         _n = s.Length;
         _s = s;
@@ -43,31 +44,43 @@ public sealed class SuffixIndex
         _lineStart = lineStart;
         _lineLength = lineLength;
         _corpus = corpus;
+        _caseInsensitive = caseInsensitive;
     }
 
-    /// <summary>The lines the index was built over.</summary>
+    /// <summary>The lines the index was built over (original case).</summary>
     public IReadOnlyList<string> ClassCorpus => _corpus;
 
-    public static SuffixIndex Build(IReadOnlyList<string> lines)
+    public static SuffixIndex Build(IReadOnlyList<string> lines) => Build(lines, caseInsensitive: false);
+
+    /// <summary>
+    /// Builds the index over the given lines. When <paramref name="caseInsensitive"/>
+    /// is true, uniqueness and matching are computed on the case-folded text, so a
+    /// returned fingerprint is unique under case-insensitive matching (and hence also
+    /// under case-sensitive matching). Fingerprints are always returned in the
+    /// original case of the source line.
+    /// </summary>
+    public static SuffixIndex Build(IReadOnlyList<string> lines, bool caseInsensitive)
     {
         // Alphabet: code points in 0..0x10FFFF, per-line terminators above that.
         const int terminatorBase = 1 << 21;
 
-        int[] lineStart = new int[lines.Count];
-        int[] lineLength = new int[lines.Count];
+        var fold = caseInsensitive ? FoldLines(lines) : lines;
+
+        int[] lineStart = new int[fold.Count];
+        int[] lineLength = new int[fold.Count];
         var total = 0;
-        for (var i = 0; i < lines.Count; i++)
+        for (var i = 0; i < fold.Count; i++)
         {
             lineStart[i] = total;
-            lineLength[i] = lines[i].Length;
-            total += lines[i].Length + 1; // content + unique terminator
+            lineLength[i] = fold[i].Length;
+            total += fold[i].Length + 1; // content + unique terminator
         }
 
         var s = new int[total];
         var pos = 0;
-        for (var i = 0; i < lines.Count; i++)
+        for (var i = 0; i < fold.Count; i++)
         {
-            foreach (var ch in lines[i]) s[pos++] = ch;
+            foreach (var ch in fold[i]) s[pos++] = ch;
             s[pos++] = terminatorBase + i; // unique terminator per line
         }
 
@@ -127,7 +140,7 @@ public sealed class SuffixIndex
             var l = 0;
             for (var p = 0; p < total; p++)
             {
-                while (l + 1 < lines.Count && p >= lineStart[l + 1]) l++;
+                while (l + 1 < fold.Count && p >= lineStart[l + 1]) l++;
                 lineOfPosition[p] = l;
             }
         }
@@ -153,7 +166,20 @@ public sealed class SuffixIndex
         // RMQ over lcp[1..n-1] (index 0 unused).
         var rmq = SparseTable.Build(lcp);
 
-        return new SuffixIndex(s, sa, rank, lcp, lineOfRank, prevDiff, nextDiff, rmq, lineStart, lineLength, lines.ToArray());
+        return new SuffixIndex(s, sa, rank, lcp, lineOfRank, prevDiff, nextDiff, rmq, lineStart, lineLength, lines.ToArray(), caseInsensitive);
+    }
+
+    private static IReadOnlyList<string> FoldLines(IReadOnlyList<string> lines)
+    {
+        var folded = new string[lines.Count];
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var src = lines[i];
+            var chars = new char[src.Length];
+            for (var j = 0; j < src.Length; j++) chars[j] = char.ToLowerInvariant(src[j]);
+            folded[i] = new string(chars);
+        }
+        return folded;
     }
 
     private int LcpBetweenRanks(int a, int b)
@@ -174,7 +200,16 @@ public sealed class SuffixIndex
     /// placeholder) candidates that avoid the value token. Returns null if the line
     /// is identical to another line and has no unique substring.
     /// </summary>
-    public string? ShortestUniqueSubstring(int lineIndex)
+    public string? ShortestUniqueSubstring(int lineIndex) =>
+        ShortestUniqueSubstring(lineIndex, avoidPlaceholder: false);
+
+    /// <summary>
+    /// Shortest unique substring of the given line, restricted to candidates that
+    /// avoid the digit placeholder when <paramref name="avoidPlaceholder"/> is true.
+    /// The placeholder-avoiding form may return a longer substring; it returns null
+    /// when no placeholder-free unique substring exists.
+    /// </summary>
+    public string? ShortestUniqueSubstring(int lineIndex, bool avoidPlaceholder)
     {
         var start = _lineStart[lineIndex];
         var len = _lineLength[lineIndex];
@@ -205,6 +240,7 @@ public sealed class SuffixIndex
             // entire remaining tail is shared with another line, so this offset
             // offers no unique substring at all.
             if (uniqueLen > len - offset) continue;
+            if (avoidPlaceholder && HasPlaceholder(start + offset, uniqueLen)) continue;
             if (uniqueLen >= bestLen)
             {
                 if (uniqueLen == bestLen)
@@ -231,9 +267,7 @@ public sealed class SuffixIndex
         }
 
         if (bestStart < 0 || bestLen > len) return null;
-        var chars = new char[bestLen];
-        for (var i = 0; i < bestLen; i++) chars[i] = (char)_s[bestStart + i];
-        return new string(chars);
+        return _corpus[lineIndex].Substring(bestStart - _lineStart[lineIndex], bestLen);
     }
 
     private bool HasPlaceholder(int pos, int length)
@@ -313,7 +347,8 @@ public sealed class SuffixIndex
             if (p >= _n) return -1; // suffix exhausted before fragment
             var sc = _s[p];
             if (sc == '\0') continue; // terminator region: treat as end
-            if (sc != fragment[i]) return sc.CompareTo(fragment[i]);
+            var fc = _caseInsensitive ? char.ToLowerInvariant(fragment[i]) : fragment[i];
+            if (sc != fc) return sc.CompareTo(fc);
         }
         return 0;
     }

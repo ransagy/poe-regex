@@ -55,8 +55,8 @@ public sealed class PoeRegexCompiler
         // Class anchor.
         if (spec.ItemClass is not null)
         {
-            var fp = _corpus.ClassFingerprint(spec.ItemClass);
-            if (fp is not null) blocks.Add(_strategy.Quote(fp));
+            var fp = _corpus.ClassFingerprint(spec.ItemClass, caseInsensitive: true);
+            if (fp is not null) blocks.Add(_strategy.Quote(_strategy.EscapeLiteral(fp)));
             else diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
                 $"No fingerprint available for item class '{spec.ItemClass}'."));
         }

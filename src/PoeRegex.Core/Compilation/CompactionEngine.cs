@@ -34,12 +34,13 @@ public sealed class CompactionEngine
         if (lines.Count == 0) lines = mod.StatLines.ToList();
         if (lines.Count == 0) return null;
 
-        // Pick the shortest fingerprint across candidate lines for this class.
+        // Prefer the shortest placeholder-free fingerprint so the emitted fragment
+        // stays a plain literal substring that trade search matches directly.
         string? best = null;
         StatLineEntry? bestLine = null;
         foreach (var line in lines)
         {
-            var fp = _corpus.Fingerprint(mod.Id, line.Pattern, itemClass);
+            var fp = GetFingerprint(mod.Id, line.Pattern, itemClass, avoidPlaceholder: true);
             if (fp is null) continue;
             if (best is null || fp.Length < best.Length)
             {
@@ -47,13 +48,74 @@ public sealed class CompactionEngine
                 bestLine = line;
             }
         }
-        if (best is null) return null;
 
-        if (requirement.MinValue is not null && bestLine is not null)
+        // Escape any literal regex metacharacters so a plain fingerprint matches
+        // literally rather than being interpreted as regex syntax. This must happen
+        // before the fallback path, which replaces best with an already-escaped
+        // regex fragment (its \d+ quantifier must not be escaped again).
+        if (best is not null && bestLine is not null)
+        {
+            best = _strategy.EscapeLiteral(best);
+        }
+
+        // No line has a placeholder-free unique substring: fall back to the shortest
+        // fingerprint, expanding digit placeholders into a digit-run matcher and
+        // re-validating uniqueness against real copy text.
+        if (best is null)
+        {
+            foreach (var line in lines)
+            {
+                var fp = GetFingerprint(mod.Id, line.Pattern, itemClass, avoidPlaceholder: false);
+                if (fp is null || !ContainsPlaceholder(fp)) continue;
+                var fragment = ExpandPlaceholders(fp);
+                if (fragment is null) continue;
+                if (!IsFragmentSafe(itemClass, fragment, line.Pattern)) continue;
+                best = fragment;
+                bestLine = line;
+                break;
+            }
+            if (best is null) return null;
+        }
+
+        if (requirement.MinValue is not null && best is not null && bestLine is not null)
         {
             return BuildThresholdFragment(bestLine, requirement.MinValue.Value, itemClass, best);
         }
         return best;
+    }
+
+    private string? GetFingerprint(string modId, string linePattern, string? itemClass, bool avoidPlaceholder) =>
+        itemClass is not null
+            ? _corpus.Fingerprint(modId, linePattern, itemClass, avoidPlaceholder, caseInsensitive: true)
+            : _corpus.GlobalFingerprint(modId, linePattern, avoidPlaceholder, caseInsensitive: true);
+
+    private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
+    {
+        var allowed = new HashSet<string> { pattern };
+        return itemClass is not null
+            ? _corpus.RegexSafeOnClass(itemClass, fragment, allowed)
+            : _corpus.GlobalRegexSafe(fragment, allowed);
+    }
+
+    private static bool ContainsPlaceholder(string s) => s.IndexOf(SuffixIndex.DigitPlaceholder) >= 0;
+
+    /// <summary>
+    /// Replaces every digit placeholder in a fragment with a digit-run matcher and
+    /// escapes regex metacharacters, producing a literal-matching regex fragment.
+    /// </summary>
+    private string? ExpandPlaceholders(string fragment)
+    {
+        var sb = new System.Text.StringBuilder(fragment.Length + 8);
+        var literalStart = 0;
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            if (fragment[i] != SuffixIndex.DigitPlaceholder) continue;
+            if (i > literalStart) sb.Append(_strategy.EscapeLiteral(fragment.Substring(literalStart, i - literalStart)));
+            sb.Append(@"\d+");
+            literalStart = i + 1;
+        }
+        if (literalStart < fragment.Length) sb.Append(_strategy.EscapeLiteral(fragment.Substring(literalStart)));
+        return sb.ToString();
     }
 
     /// <summary>
@@ -97,8 +159,7 @@ public sealed class CompactionEngine
 
         // Re-validate against real copy text: must match at least one line of this
         // pattern and no line of any other pattern in the class corpus.
-        var allowed = new HashSet<string> { pattern };
-        if (itemClass is not null && _corpus.RegexSafeOnClass(itemClass, fragment, allowed))
+        if (IsFragmentSafe(itemClass, fragment, pattern))
         {
             return fragment;
         }

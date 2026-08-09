@@ -63,4 +63,44 @@ public class SuffixIndexTests
         // by the builder, so the index sees a single entry.
         idx.ClassCorpus.Count.Should().Be(2);
     }
+
+    [Fact]
+    public void AvoidPlaceholder_ReturnsPlaceholderFreeUniqueSubstring()
+    {
+        var p = SuffixIndex.DigitPlaceholder;
+        var placeholder = new string(p, 1);
+        var corpus = new[]
+        {
+            $"+{p} to maximum Life",
+            $"+{p} to maximum Mana",
+            "Item Class: Rings",
+        };
+        var idx = SuffixIndex.Build(corpus);
+
+        var withoutPlaceholder = idx.ShortestUniqueSubstring(0, avoidPlaceholder: true);
+        withoutPlaceholder.Should().NotBeNull();
+        withoutPlaceholder.Should().NotContain(placeholder);
+        // Still a valid unique substring for the line.
+        idx.FragmentUniqueToLine(0, withoutPlaceholder!).Should().BeTrue();
+    }
+
+    [Fact]
+    public void AvoidPlaceholder_ReturnsNull_WhenEveryUniqueFragmentNeedsPlaceholder()
+    {
+        var p = SuffixIndex.DigitPlaceholder;
+        var placeholder = new string(p, 1);
+        // The only differentiator is the placeholder position: every placeholder-free
+        // substring of one line ("A") also appears in the other, so no placeholder-free
+        // unique substring exists.
+        var corpus = new[]
+        {
+            $"{p}A",
+            $"A{p}",
+        };
+        var idx = SuffixIndex.Build(corpus);
+
+        idx.ShortestUniqueSubstring(0, avoidPlaceholder: true).Should().BeNull();
+        idx.ShortestUniqueSubstring(0).Should().Be($"{p}A");
+        idx.ShortestUniqueSubstring(0)!.Should().Contain(placeholder);
+    }
 }

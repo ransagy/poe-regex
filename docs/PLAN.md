@@ -40,28 +40,49 @@ Reversibility guarantee + spec-concept TUI demo.
 
 - [x] README: AI-disclosure note (bottom).
 - [x] This plan doc.
-- [ ] 1.1 `SuffixIndex`: shortest unique substring that avoids the digit
+- [x] 1.1 `SuffixIndex`: shortest unique substring that avoids the digit
       placeholder (prefer placeholder-free even if longer).
-- [ ] 1.1 `CompactionEngine.SelectFragment`: placeholder-free candidate first,
+- [x] 1.1 `CompactionEngine.SelectFragment`: placeholder-free candidate first,
       else placeholder->digit-regex + oracle validation, else
       `unresolved-modifier` warning. Regression test + catalog sweep test
-      (no control char in any generated query).
-- [ ] 1.2 `EngineCorpus`: per-game union suffix index over all class patterns
+      (no control char in any generated query). ALSO fixed a second latent bug
+      the sweep caught: plain fingerprints could leak unescaped regex
+      metacharacters (e.g. PoE2 `" +"`); plain fragments and the class anchor
+      are now escaped. (commit: Phase-1 branch, not yet pushed)
+- [x] 1.2 `EngineCorpus`: per-game union suffix index over all class patterns
       (runtime, no catalog regen); `SelectFragment` null-class path uses it
       (global mode resolves catalog mods).
-- [ ] 1.3 `Explainer` (`src/PoeRegex.Core/Explain/Explainer.cs`): quote-aware
+- [x] 1.3 `Explainer` (`src/PoeRegex.Core/Explain/Explainer.cs`): quote-aware
       tokenizer, placeholder wildcard, case-insensitive matching, token kinds
       (included/excluded/class/keyword); candidate mods = matched-class mods
       matched by EVERY included token minus excluded-token matches; reverse
-      pattern->mods index in `EngineCorpus`.
-- [ ] 1.4 CLI `explain --game <g> [--catalog <p>] [--class <id>] --query
+      pattern->mods index in `EngineCorpus`. Class anchors are tokens that match
+      a class line but no mod line in scope (mod text takes precedence, so a
+      mod phrase like "ex" that also appears in a class name is not mistaken for
+      an anchor).
+- [x] 1.4 CLI `explain --game <g> [--catalog <p>] [--class <id>] --query
       "<regex>" [--json]` -> `{query, game, classes[], tokens[], mods[]}`;
       source-gen records; same stdout/stderr/exit-code contract; help text.
-- [ ] 1.5 Reversibility test suite: exhaustive class x mod (recall=1), global,
-      sampled multi-mod combos (seeded), thresholds, exclusions, determinism,
-      precision-when-unambiguous.
-- [ ] 1.6 Full build + test run; AOT/JIT parity check.
+- [x] 1.5 Reversibility test suite: exhaustive class x mod (recall=1 for both
+      games), global sample, seeded multi-mod, thresholds, exclusions,
+      determinism. 66 tests green (was 45).
+- [x] 1.6 Full build + test run (Debug + Release, 66 tests green, 0 warnings);
+      AOT/JIT parity verified for `explain`/`generate`/`validate`/`list-mods`/
+      `list-classes` --json on both games (identical stdout + exit codes).
 - [ ] 1.7 Commit + push Phase 1.
+
+## Phase 1 — additional discovered fix (in this pass)
+
+- [x] 1.8 Case-insensitive fingerprints: generated fragments were unique only
+      under case-SENSITIVE corpus matching, but the game matches
+      case-insensitively. Class anchors like PoE2 Belt's `"I"` collided with mod
+      text and broke reversibility for 342 PoE2 pairs. Fix: `SuffixIndex.Build`
+      gained a case-insensitive mode (folded corpus, fingerprints returned in
+      original case); `EngineCorpus` builds folded per-class + union indexes and
+      `Fingerprint`/`GlobalFingerprint`/`ClassFingerprint` gained a
+      `caseInsensitive` path used by the compiler; the regex oracle
+      (`RegexSafeOnClass`/`GlobalRegexSafe`) is now case-insensitive. Recall = 1
+      across all pairs for both games (was 342 fails on PoE2).
 
 ## Phase 2 — OpenTUI demo (`demos/opentui-tui/`)
 
@@ -90,4 +111,11 @@ Reversibility guarantee + spec-concept TUI demo.
 
 ## Work log
 
-- (none yet for this objective)
+- 2026-08-10: Phase 1.1 done. Fixed two real bugs (placeholder leak, unescaped
+  metachar leak) via catalog sweep; 45 tests green (was 41). Not yet pushed.
+- 2026-08-10: Phase 1.2-1.5 done. Explainer + CLI `explain` + reversibility
+  suite (66 tests green). Found + fixed a third real bug during the suite:
+  fingerprints were case-sensitive-only, breaking recall under the game's
+  case-insensitive matching (342 PoE2 pairs). Fingerprints are now unique under
+  case-folded matching (SuffixIndex case-insensitive mode + folded per-class/
+  union indexes + case-insensitive oracle). Not yet pushed.

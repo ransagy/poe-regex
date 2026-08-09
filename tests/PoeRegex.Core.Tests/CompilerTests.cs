@@ -1,5 +1,6 @@
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
+using PoeRegex.Core.Explain;
 
 namespace PoeRegex.Core.Tests;
 
@@ -21,11 +22,15 @@ public class CompilerTests
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
         });
 
-        result.Query.Should().Contain("maximum L");
         result.Query.Should().Contain("\"");
-        result.Query.Should().Contain("Ring");
+        result.Query.Should().Contain("\":\""); // class anchor block
         result.Exceeded.Should().BeFalse();
         result.Length.Should().BeLessThan(result.Limit);
+
+        // The generated query must reverse back to the source mod (reversibility).
+        var explainer = new Explainer(new EngineCorpus(TestCatalog.Build()));
+        var explained = explainer.Explain(result.Query, "Ring");
+        explained.Mods.Select(m => m.Id).Should().Contain("IncreasedLife1");
     }
 
     [Fact]
@@ -43,8 +48,14 @@ public class CompilerTests
         });
 
         result.Query.Should().Contain("|");
-        result.Query.Should().Contain("St");
-        result.Query.Should().Contain("maximum L");
+        result.Query.Should().Contain("\":\""); // class anchor block
+        result.Query.Should().Contain("\"");
+
+        var explainer = new Explainer(new EngineCorpus(TestCatalog.Build()));
+        var explained = explainer.Explain(result.Query, "Ring");
+        var ids = explained.Mods.Select(m => m.Id).ToList();
+        ids.Should().Contain("IncreasedLife1");
+        ids.Should().Contain("Strength1");
     }
 
     [Fact]

@@ -12,10 +12,14 @@ public sealed class EngineCorpus
     private readonly Catalog _catalog;
     private readonly Dictionary<string, ClassIndex> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
+    private UnionIndex? _union;
+    private Dictionary<string, List<ModEntry>>? _modsByPattern;
 
     private sealed class ClassIndex
     {
         public required SuffixIndex Index { get; init; }
+        /// <summary>Case-insensitive index: fingerprints are unique under case-folded matching.</summary>
+        public required SuffixIndex FoldIndex { get; init; }
         /// <summary>Corpus line index of the "Item Class: X" line.</summary>
         public required int ClassLineIndex { get; init; }
         /// <summary>pattern -> corpus line index.</summary>
@@ -26,6 +30,16 @@ public sealed class EngineCorpus
         /// thresholds validate against every actual roll.
         /// </summary>
         public required List<(string Pattern, string Real)> AllRealLines { get; init; }
+    }
+
+    /// <summary>Union corpus over every class's mod lines, for global (no-class) fingerprints.</summary>
+    private sealed class UnionIndex
+    {
+        public required SuffixIndex Index { get; init; }
+        public required SuffixIndex FoldIndex { get; init; }
+        /// <summary>pattern -> corpus line index.</summary>
+        public required Dictionary<string, int> PatternToIndex { get; init; }
+        public required List<(string Pattern, string Real)> RealLines { get; init; }
     }
 
     public EngineCorpus(Catalog catalog)
@@ -48,36 +62,76 @@ public sealed class EngineCorpus
     public IReadOnlyList<string> ClassesForMod(string modId) =>
         _modsById.TryGetValue(modId, out var mod) ? mod.Classes : [];
 
+    /// <summary>Real (un-normalized) copy-text lines on a class, with their patterns.</summary>
+    public IReadOnlyList<(string Pattern, string Real)> RealLinesForClass(string itemClass) =>
+        _byClass.TryGetValue(itemClass, out var ci) ? ci.AllRealLines : [];
+
+    /// <summary>Real copy-text lines across every class (global scope), with their patterns.</summary>
+    public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
+        EnsureUnionIndex().RealLines;
+
+    /// <summary>
+    /// All distinct mods that have a stat line with the given (normalized) pattern.
+    /// Used by the explainer to reverse a matched copy-text line into its mods.
+    /// </summary>
+    public IReadOnlyList<ModEntry> ModsWithPattern(string pattern)
+    {
+        if (_modsByPattern is null)
+        {
+            _modsByPattern = _catalog.Mods
+                .SelectMany(m => m.StatLines.Select(sl => (Mod: m, Pattern: sl.Pattern)))
+                .GroupBy(x => x.Pattern, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Mod).Distinct().ToList(), StringComparer.Ordinal);
+        }
+        return _modsByPattern.TryGetValue(pattern, out var mods) ? mods : [];
+    }
+
     /// <summary>
     /// Shortest fingerprint for a mod line on a given item class. Uses the
     /// catalog's precomputed fingerprint, falling back to the live index when
-    /// absent. Returns null when the line is not present on the class.
+    /// absent. When <paramref name="avoidPlaceholder"/> is true, candidates that
+    /// contain the digit placeholder are skipped (a longer plain-literal fragment
+    /// may be returned). When <paramref name="caseInsensitive"/> is true, the
+    /// precomputed (case-sensitive) fingerprint is bypassed and the live
+    /// case-insensitive index is used, so the result is unique under the game's
+    /// case-insensitive matching. Returns null when the line is not present on
+    /// the class.
     /// </summary>
-    public string? Fingerprint(string modId, string linePattern, string? itemClass)
+    public string? Fingerprint(string modId, string linePattern, string? itemClass, bool avoidPlaceholder = false, bool caseInsensitive = false)
     {
         if (itemClass is null) return null;
         if (!_modsById.TryGetValue(modId, out var mod)) return null;
-        foreach (var sl in mod.StatLines)
+        if (!caseInsensitive)
         {
-            if (sl.Pattern != linePattern) continue;
-            if (sl.Fingerprints.TryGetValue(itemClass, out var fp) && !string.IsNullOrEmpty(fp)) return fp;
+            foreach (var sl in mod.StatLines)
+            {
+                if (sl.Pattern != linePattern) continue;
+                if (sl.Fingerprints.TryGetValue(itemClass, out var fp) && !string.IsNullOrEmpty(fp))
+                {
+                    if (!avoidPlaceholder || fp.IndexOf(SuffixIndex.DigitPlaceholder) < 0) return fp;
+                }
+            }
         }
         if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
         if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
-        return ci.Index.ShortestUniqueSubstring(idx);
+        var index = caseInsensitive ? ci.FoldIndex : ci.Index;
+        return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
     }
 
     /// <summary>
     /// The class base fingerprint ("Item Class: X" line). Uses the class
     /// entry's precomputed fingerprint, or falls back to the shortest unique
-    /// substring when unavailable.
+    /// substring when unavailable. When <paramref name="caseInsensitive"/> is
+    /// true, the precomputed fingerprint is bypassed and the case-insensitive
+    /// index is used so the anchor stays unique under case-folded matching.
     /// </summary>
-    public string? ClassFingerprint(string itemClass)
+    public string? ClassFingerprint(string itemClass, bool caseInsensitive = false)
     {
         var entry = _catalog.ItemClasses.FirstOrDefault(c => c.Id == itemClass);
-        if (entry is not null && !string.IsNullOrEmpty(entry.BaseFingerprint)) return entry.BaseFingerprint;
+        if (!caseInsensitive && entry is not null && !string.IsNullOrEmpty(entry.BaseFingerprint)) return entry.BaseFingerprint;
         if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
-        return ci.Index.ShortestUniqueSubstring(ci.ClassLineIndex);
+        var index = caseInsensitive ? ci.FoldIndex : ci.Index;
+        return index.ShortestUniqueSubstring(ci.ClassLineIndex);
     }
 
     /// <summary>
@@ -100,7 +154,8 @@ public sealed class EngineCorpus
     /// <summary>
     /// True when a regex fragment matches at least one real class-corpus line
     /// whose pattern is allowed, and no real line whose pattern is not allowed.
-    /// Used to validate value-threshold patterns against actual copy text.
+    /// Matching is case-insensitive to mirror the game. Used to validate
+    /// value-threshold patterns against actual copy text.
     /// </summary>
     public bool RegexSafeOnClass(string itemClass, string regexFragment, IReadOnlyCollection<string> allowedPatterns)
     {
@@ -108,11 +163,70 @@ public sealed class EngineCorpus
         var matchedAny = false;
         foreach (var (pattern, real) in ci.AllRealLines)
         {
-            if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment)) continue;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
             matchedAny = true;
             if (!allowedPatterns.Contains(pattern)) return false;
         }
         return matchedAny;
+    }
+
+    /// <summary>
+    /// Shortest fingerprint for a mod line over the union of all class corpora
+    /// (global / no-class mode). Uses the same placeholder-avoidance semantics as
+    /// <see cref="Fingerprint"/>. When <paramref name="caseInsensitive"/> is true
+    /// the case-insensitive union index is used. Returns null when the line has no
+    /// unique substring in the union corpus.
+    /// </summary>
+    public string? GlobalFingerprint(string modId, string linePattern, bool avoidPlaceholder, bool caseInsensitive = false)
+    {
+        if (!_modsById.TryGetValue(modId, out _)) return null;
+        var union = EnsureUnionIndex();
+        if (!union.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
+        var index = caseInsensitive ? union.FoldIndex : union.Index;
+        return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
+    }
+
+    /// <summary>
+    /// Global analogue of <see cref="RegexSafeOnClass"/> over the union corpus:
+    /// the fragment must match at least one real line whose pattern is allowed and
+    /// no real line whose pattern is not allowed. Matching is case-insensitive.
+    /// </summary>
+    public bool GlobalRegexSafe(string regexFragment, IReadOnlyCollection<string> allowedPatterns)
+    {
+        var union = EnsureUnionIndex();
+        var matchedAny = false;
+        foreach (var (pattern, real) in union.RealLines)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+            matchedAny = true;
+            if (!allowedPatterns.Contains(pattern)) return false;
+        }
+        return matchedAny;
+    }
+
+    private UnionIndex EnsureUnionIndex()
+    {
+        if (_union is not null) return _union;
+
+        var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern).Distinct().ToList();
+        patterns.Sort(StringComparer.Ordinal);
+        var patternToIndex = new Dictionary<string, int>();
+        for (var i = 0; i < patterns.Count; i++) patternToIndex[patterns[i]] = i;
+
+        var realLines = _catalog.Mods
+            .SelectMany(m => m.StatLines)
+            .Select(sl => (sl.Pattern, sl.Line))
+            .Distinct()
+            .ToList();
+
+        _union = new UnionIndex
+        {
+            Index = SuffixIndex.Build(patterns),
+            FoldIndex = SuffixIndex.Build(patterns, caseInsensitive: true),
+            PatternToIndex = patternToIndex,
+            RealLines = realLines,
+        };
+        return _union;
     }
 
     private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog)
@@ -150,6 +264,7 @@ public sealed class EngineCorpus
             corpus.Sort(StringComparer.Ordinal);
 
             var index = SuffixIndex.Build(corpus);
+            var foldIndex = SuffixIndex.Build(corpus, caseInsensitive: true);
             var classLineIndex = corpus.IndexOf(classLinePattern);
             var patternToIndex = new Dictionary<string, int>();
             for (var i = 0; i < corpus.Count; i++) patternToIndex[corpus[i]] = i;
@@ -159,6 +274,7 @@ public sealed class EngineCorpus
             result[cls.Id] = new ClassIndex
             {
                 Index = index,
+                FoldIndex = foldIndex,
                 ClassLineIndex = classLineIndex,
                 PatternToIndex = patternToIndex,
                 AllRealLines = sortedReal,
