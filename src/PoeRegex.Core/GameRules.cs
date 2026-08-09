@@ -1,5 +1,7 @@
 namespace PoeRegex.Core;
 
+using System.Text.Json;
+
 /// <summary>
 /// Per-game rules that constrain how a query is assembled and validated.
 /// Rules come from an embedded JSON document so they can be updated without
@@ -55,7 +57,7 @@ public sealed record GameRules
         try
         {
             var json = File.ReadAllText(overridePath);
-            var overrides = System.Text.Json.JsonSerializer.Deserialize<GameRules>(json);
+            var overrides = JsonSerializer.Deserialize(json, Data.CatalogJsonContext.Default.GameRules);
             if (overrides is null) return For(target);
             return overrides with { Game = target.ToRuleKey() };
         }

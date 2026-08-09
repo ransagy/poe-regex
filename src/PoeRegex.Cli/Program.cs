@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using PoeRegex.Core;
+﻿using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 
@@ -11,19 +10,27 @@ internal static class Program
     private const int ExitError = 1;
     private const int ExitUsage = 2;
 
-    private static string DefaultCatalogPath(GameTarget game) =>
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-
     private static EngineCorpus LoadCorpus(GameTarget game, string? catalogPath)
     {
-        var path = catalogPath ?? DefaultCatalogPath(game);
-        if (!File.Exists(path))
+        ICatalogSource source = catalogPath is null
+            ? new EmbeddedCatalogSource()
+            : new FileCatalogSource(catalogPath);
+        try
         {
-            Console.Error.WriteLine($"catalog not found: {path} (use --catalog)");
-            Environment.Exit(ExitError);
+            return new EngineCorpus(source.Load(game));
         }
-        var catalog = new FileCatalogSource(path).Load(game);
-        return new EngineCorpus(catalog);
+        catch (FileNotFoundException ex)
+        {
+            Console.Error.WriteLine($"catalog not found: {ex.FileName} (use --catalog)");
+            Environment.Exit(ExitError);
+            throw;
+        }
+        catch (InvalidOperationException ex) when (catalogPath is null)
+        {
+            Console.Error.WriteLine(ex.Message);
+            Environment.Exit(ExitError);
+            throw;
+        }
     }
 
     private static int Main(string[] args)
@@ -157,7 +164,17 @@ internal static class Program
         try
         {
             var result = compiler.Compile(spec);
-            if (clipboard) TextCopy.ClipboardService.SetText(result.Query);
+            if (clipboard)
+            {
+                try
+                {
+                    TextCopy.ClipboardService.SetText(result.Query);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"warning: clipboard unavailable: {ex.Message}");
+                }
+            }
             if (json) EmitJson(result);
             else EmitText(result);
             return result.Exceeded ? ExitError : ExitOk;
@@ -178,14 +195,20 @@ internal static class Program
 
     private static void EmitJson(CompileResult result)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new
+        var payload = new JsonEmitResult
         {
-            query = result.Query,
-            length = result.Length,
-            limit = result.Limit,
-            exceeded = result.Exceeded,
-            diagnostics = result.Diagnostics.Select(d => new { level = d.Level.ToString().ToLowerInvariant(), code = d.Code, message = d.Message }),
-        }, new JsonSerializerOptions { WriteIndented = true }));
+            Query = result.Query,
+            Length = result.Length,
+            Limit = result.Limit,
+            Exceeded = result.Exceeded,
+            Diagnostics = result.Diagnostics.Select(d => new JsonEmitDiagnostic
+            {
+                Level = d.Level.ToString().ToLowerInvariant(),
+                Code = d.Code,
+                Message = d.Message,
+            }).ToList(),
+        };
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }).JsonEmitResult));
     }
 
     // ---- list-classes ----

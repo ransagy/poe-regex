@@ -5,8 +5,6 @@ namespace PoeRegex.Core.Data;
 /// <summary>Loads a catalog from a JSON file on disk.</summary>
 public sealed class FileCatalogSource : ICatalogSource
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
-
     private readonly string _path;
 
     public FileCatalogSource(string path) => _path = path;
@@ -20,7 +18,7 @@ public sealed class FileCatalogSource : ICatalogSource
         }
 
         using var stream = File.OpenRead(path);
-        return JsonSerializer.Deserialize<Catalog>(stream, Options)
+        return JsonSerializer.Deserialize(stream, CatalogJsonContext.Default.Catalog)
                ?? throw new InvalidDataException($"Catalog at {path} is empty.");
     }
 }

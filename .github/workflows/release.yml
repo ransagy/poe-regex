@@ -1,0 +1,108 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            bin: poe-regex-win-x64.exe
+          - rid: linux-x64
+            os: ubuntu-latest
+            bin: poe-regex-linux-x64
+          - rid: osx-arm64
+            os: macos-latest
+            bin: poe-regex-osx-arm64
+          - rid: osx-x64
+            os: macos-26-intel
+            bin: poe-regex-osx-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Linux AOT prerequisites
+        if: matrix.rid == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Publish Native AOT
+        run: |
+          dotnet publish src/PoeRegex.Cli \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            -p:PublishAot=true \
+            -p:StripSymbols=true \
+            --output dist
+
+      - name: Rename binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          for f in PoeRegex.Cli*; do
+            case "$f" in
+              "PoeRegex.Cli.exe") mv "$f" "${{ matrix.bin }}" ;;
+              "PoeRegex.Cli.pdb") mv "$f" "${{ matrix.bin }}.pdb" ;;
+              "PoeRegex.Cli.dbg") mv "$f" "${{ matrix.bin }}.dbg" ;;
+              "PoeRegex.Cli")     mv "$f" "${{ matrix.bin }}" ;;
+              *)                  rm -f "$f" ;;
+            esac
+          done
+          ls -la
+
+      - name: Smoke test native binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./dist/${{ matrix.bin }} list-classes --game poe1 | head -5 >/dev/null
+          ./dist/${{ matrix.bin }} generate --game poe1 --include "additional cold damage" --json | grep -q '"query"'
+          ./dist/${{ matrix.bin }} generate --game poe2 --keyword "ilvl:80" --include "fire damage" --json >/dev/null
+          ./dist/${{ matrix.bin }} list-mods --game poe2 --class "Body Armour" --limit 5 >/dev/null
+          ./dist/${{ matrix.bin }} validate --game poe1 --query '"life"' | grep -q '^ok:'
+          echo "smoke test passed"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poe-regex-${{ matrix.rid }}
+          path: dist
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
