@@ -1,0 +1,208 @@
+using PoeRegex.Core.Data;
+using PoeRegex.Core.Search;
+
+namespace PoeRegex.Core.Compilation;
+
+/// <summary>
+/// Turns modifier requirements into the shortest safe regex fragments,
+/// then factors common prefixes across all included fragments.
+/// </summary>
+public sealed class CompactionEngine
+{
+    private readonly EngineCorpus _corpus;
+    private readonly ICompilerStrategy _strategy;
+
+    public CompactionEngine(EngineCorpus corpus, ICompilerStrategy strategy)
+    {
+        _corpus = corpus;
+        _strategy = strategy;
+    }
+
+    /// <summary>
+    /// Selects the regex fragment for a single modifier requirement on the
+    /// selected class. Returns null when the modifier cannot be represented.
+    /// </summary>
+    public string? SelectFragment(ModifierRequirement requirement, string? itemClass)
+    {
+        var mod = _corpus.FindMod(requirement.Value);
+        if (mod is null) return null;
+
+        // Choose the mod's single best stat line: prefer one present on the class.
+        var lines = itemClass is not null
+            ? mod.StatLines.Where(sl => sl.Fingerprints.ContainsKey(itemClass)).ToList()
+            : mod.StatLines.ToList();
+        if (lines.Count == 0) lines = mod.StatLines.ToList();
+        if (lines.Count == 0) return null;
+
+        // Pick the shortest fingerprint across candidate lines for this class.
+        string? best = null;
+        StatLineEntry? bestLine = null;
+        foreach (var line in lines)
+        {
+            var fp = _corpus.Fingerprint(mod.Id, line.Pattern, itemClass);
+            if (fp is null) continue;
+            if (best is null || fp.Length < best.Length)
+            {
+                best = fp;
+                bestLine = line;
+            }
+        }
+        if (best is null) return null;
+
+        if (requirement.MinValue is not null && bestLine is not null)
+        {
+            return BuildThresholdFragment(bestLine, requirement.MinValue.Value, itemClass, best);
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Builds a fragment matching values >= minValue by replacing the value token
+    /// in the line's pattern with a digit-range alternation, then re-validating
+    /// uniqueness on the class corpus against real copy text.
+    /// </summary>
+    private string? BuildThresholdFragment(StatLineEntry line, double minValue, string? itemClass, string fallbackFp)
+    {
+        var pattern = line.Pattern;
+        var idx = pattern.IndexOf(SuffixIndex.DigitPlaceholder);
+        if (idx < 0) return fallbackFp;
+
+        var digitRange = DigitRangeRegex.Build((int)Math.Ceiling(minValue));
+        if (digitRange is null) return fallbackFp;
+
+        // Escape literal characters; the value token becomes the digit-range alternation.
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            if (i == idx)
+            {
+                sb.Append("(").Append(digitRange).Append(')');
+            }
+            else
+            {
+                var c = pattern[i];
+                if (c == SuffixIndex.DigitPlaceholder)
+                {
+                    sb.Append("(\\d)");
+                }
+                else
+                {
+                    if (System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
+                        sb.Append('\\');
+                    sb.Append(c);
+                }
+            }
+        }
+        var fragment = sb.ToString();
+
+        // Re-validate against real copy text: must match at least one line of this
+        // pattern and no line of any other pattern in the class corpus.
+        var allowed = new HashSet<string> { pattern };
+        if (itemClass is not null && _corpus.RegexSafeOnClass(itemClass, fragment, allowed))
+        {
+            return fragment;
+        }
+        return fallbackFp;
+    }
+
+    /// <summary>
+    /// Factors a common prefix across fragments using a trie, e.g.
+    /// "to maximum" common → "to (maxima|strength)" style alternation.
+    /// Deterministic and order-independent.
+    /// </summary>
+    public static IReadOnlyList<string> FactorCommonPrefixes(IReadOnlyList<string> fragments)
+    {
+        if (fragments.Count < 2) return fragments;
+        var distinct = fragments.Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
+
+        // Group by the first character; within a group find the longest common prefix
+        // of all members. If shared prefix is >= 2 chars and alternation is shorter,
+        // factor it.
+        var result = new List<string>();
+        var groups = distinct.GroupBy(s => s.Length > 0 ? s[0] : '\0').OrderBy(g => g.Key);
+        foreach (var group in groups)
+        {
+            var items = group.ToList();
+            if (items.Count < 2)
+            {
+                result.AddRange(items);
+                continue;
+            }
+            var prefix = LongestCommonPrefix(items);
+            var suffix = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
+                ? string.Join("|", items.Select(s => s.Substring(prefix.Length)))
+                : null;
+            if (suffix is not null)
+            {
+                var factored = prefix + "(" + suffix + ")";
+                // Only use if actually shorter than the union.
+                var union = string.Join("|", items);
+                if (factored.Length < union.Length) result.Add(factored);
+                else result.AddRange(items);
+            }
+            else
+            {
+                result.AddRange(items);
+            }
+        }
+        return result;
+    }
+
+    private static string LongestCommonPrefix(IReadOnlyList<string> strings)
+    {
+        var first = strings[0];
+        var max = first.Length;
+        for (var i = 1; i < strings.Count && max > 0; i++)
+        {
+            var other = strings[i];
+            var n = 0;
+            while (n < max && n < other.Length && first[n] == other[n]) n++;
+            max = n;
+        }
+        return first.Substring(0, max);
+    }
+}
+
+/// <summary>Builds a regex that matches decimal integers &gt;= a minimum value.</summary>
+public static class DigitRangeRegex
+{
+    public static string? Build(int minValue)
+    {
+        if (minValue < 0) return null; // negative thresholds unsupported for now
+        if (minValue <= 0) return @"\d+";
+        var digits = minValue.ToString();
+        var parts = new List<string> { $@"\d{{{digits.Length + 1},}}" };
+        AppendSameLength(parts, digits, "");
+        return parts.Count == 1 ? $@"\d{{{digits.Length + 1},}}" : string.Join("|", parts);
+    }
+
+    /// <summary>
+    /// Appends patterns for numbers with exactly <paramref name="digits.Length"/> digits
+    /// that are &gt;= <paramref name="digits"/>, recursing on the shared leading prefix.
+    /// </summary>
+    private static void AppendSameLength(List<string> parts, string digits, string prefix)
+    {
+        var n = digits.Length;
+        var d = digits[0] - '0';
+        var tail = digitClass(n - 1);
+        if (n == 1)
+        {
+            // Single digit: numbers d..9.
+            if (d <= 9) parts.Add($"{prefix}[{d}-9]");
+            return;
+        }
+        if (d < 9)
+        {
+            // Leading digit strictly greater than the minimum's: tail is free.
+            parts.Add($"{prefix}[{d + 1}-9]{tail}");
+        }
+        // Leading digit equal: recurse on the remaining digits.
+        AppendSameLength(parts, digits.Substring(1), prefix + d);
+    }
+
+    private static string digitClass(int count)
+    {
+        if (count <= 0) return "";
+        return count == 1 ? @"\d" : $@"\d{{{count}}}";
+    }
+}

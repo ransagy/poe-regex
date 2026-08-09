@@ -1,0 +1,18 @@
+# Build artifacts
+bin/
+obj/
+artifacts/
+*.user
+
+# RePoE raw downloads (dev-only; catalogs are checked in under data/catalogs/)
+data/raw/
+
+# IDE
+.vs/
+.idea/
+*.swp
+*.slnx.user
+
+# OS
+.DS_Store
+Thumbs.db

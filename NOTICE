@@ -1,0 +1,31 @@
+NOTICE
+======
+
+Path of Exile Regex Compiler Engine
+Copyright (c) 2026 poe-regex contributors
+
+Game data
+---------
+Game data in this repository's catalogs was compiled using exports provided by
+the open-source RePoE project contributors (https://github.com/repoe-fork/repoe),
+a derivative of the original RePoE project (https://github.com/brather1ng/RePoE).
+
+The contents of the game data files are owned by Grinding Gear Games Limited and
+are used here as a minimal derived subset (human-readable mod text and derived
+search fingerprints). Redistribution and use must be in accordance with Grinding
+Gear Games' terms of use.
+
+Third-Party Notices
+-------------------
+- RePoE (https://github.com/repoe-fork/repoe) - extracted game data
+- xUnit - Apache License 2.0
+- Awesome Assertions - MIT License
+- TextCopy - MIT License
+- System.Text.Json - MIT License
+
+Trademarks
+----------
+Path of Exile is a registered trademark of Grinding Gear Games Limited.
+
+This application is an independent community project and is not affiliated with,
+authorized by, or endorsed by Grinding Gear Games or Tencent.
