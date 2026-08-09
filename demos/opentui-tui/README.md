@@ -50,6 +50,7 @@ The layout:
 | `Tab` / `Shift+Tab` | cycle focus between widgets |
 | type in `MOD` | filter the mod suggestions (client-side, case-insensitive) |
 | `Enter` | include the highlighted suggestion; if no suggestion matches, the typed text is included as a free-text pattern |
+| `x` | exclude the highlighted suggestion (or typed free text) instead |
 | `Enter` on an included/excluded chip | remove that chip |
 | `Enter` on a class (multi mode) | toggle that base-equipment slot |
 | `Up` / `Down` | move the selection highlight inside a list |
@@ -57,6 +58,10 @@ The layout:
 | `e` | explain the current query in the panel (tokens + candidate mods) |
 | `g` | toggle PoE1 ↔ PoE2 |
 | `q` / `Ctrl+C` | quit |
+
+The footer bar shows these controls. `c`/`e`/`g`/`x` are ignored while you are
+typing in the `MOD` field (they are typed as text instead) — move focus with
+`Tab` first.
 
 ### Modes
 
@@ -70,9 +75,9 @@ The layout:
 ## Tests
 
 ```sh
-npm test          # 18 unit tests (engine wrapper + app state), no CLI binary needed
+npm test            # 19 unit tests (engine wrapper + app state)
 npm run test:smoke  # PTY integration check: boots the TUI, types, includes,
-                    # explains, toggles game, verifies clean exit
+                    # excludes, explains, toggles game, verifies clean exit
 ```
 
 `test:smoke` skips with a message when no CLI binary is available; run it after

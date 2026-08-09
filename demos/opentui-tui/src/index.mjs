@@ -64,7 +64,6 @@ const excludedSelect = new SelectRenderable(renderer, { width: 32, height: 5, op
 
 const outputText = new TextRenderable(renderer, { content: "", fg: "#E0E0E0" });
 const meterText = new TextRenderable(renderer, { content: "" });
-const hintText = new TextRenderable(renderer, { content: "Enter=include  Tab=exclude  c=copy  e=explain  q=quit", fg: "#888888" });
 const statusText = new TextRenderable(renderer, { content: "loading...", fg: "#AAAAAA" });
 const explainText = new TextRenderable(renderer, { content: "", fg: "#9CDCFE" });
 
@@ -74,9 +73,18 @@ function label(content) {
 
 // ---- layout ----------------------------------------------------------------
 
+const rootCol = new BoxRenderable(renderer, { flexDirection: "column", flexGrow: 1 });
 const mainRow = new BoxRenderable(renderer, { flexDirection: "row", gap: 2, padding: 1 });
 const leftCol = new BoxRenderable(renderer, { flexDirection: "column", gap: 1, flexGrow: 1 });
 const rightCol = new BoxRenderable(renderer, { flexDirection: "column", gap: 1, width: 52 });
+
+const footerBox = new BoxRenderable(renderer, { flexDirection: "row", paddingX: 1, borderStyle: "rounded", borderColor: "#444444" });
+footerBox.add(
+  new TextRenderable(renderer, {
+    content: "Tab focus  ·  Enter include  ·  x exclude  ·  c copy  ·  e explain  ·  g game  ·  q quit",
+    fg: "#888888",
+  }),
+);
 
 function row(...children) {
   const r = new BoxRenderable(renderer, { flexDirection: "row", gap: 1 });
@@ -91,21 +99,22 @@ leftCol.add(row(label("MOD:"), modInput));
 leftCol.add(suggestSelect);
 leftCol.add(new TextRenderable(renderer, { content: "INCLUDED (enter)", fg: "#00C853" }));
 leftCol.add(includedSelect);
-leftCol.add(new TextRenderable(renderer, { content: "EXCLUDED (tab)", fg: "#FF9800" }));
+leftCol.add(new TextRenderable(renderer, { content: "EXCLUDED (x)", fg: "#FF9800" }));
 leftCol.add(excludedSelect);
 
 const outputBox = new BoxRenderable(renderer, { borderStyle: "rounded", padding: 1, flexGrow: 1 });
 outputBox.add(outputText);
 rightCol.add(label("COMPILED OUTPUT STRINGS"));
 rightCol.add(outputBox);
-rightCol.add(hintText);
 rightCol.add(meterText);
 rightCol.add(statusText);
 rightCol.add(explainText);
 
 mainRow.add(leftCol);
 mainRow.add(rightCol);
-renderer.root.add(mainRow);
+rootCol.add(mainRow);
+rootCol.add(footerBox);
+renderer.root.add(rootCol);
 
 // ---- focus cycle -----------------------------------------------------------
 
@@ -349,6 +358,20 @@ function onEnter() {
   }
 }
 
+/** Add the highlighted suggestion (or typed free text) to the EXCLUDED chips. */
+function onExclude() {
+  const focused = FOCUSABLE[focusIndex];
+  if (focused === modInput || focused === suggestSelect) {
+    const mod = highlightedSuggestion() ?? rawSearchInclude();
+    if (mod) {
+      app.addExcluded(state, mod);
+      modInput.value = "";
+      updateChips();
+      regenerate();
+    }
+  }
+}
+
 // ---- events ----------------------------------------------------------------
 
 modInput.on(InputRenderableEvents.INPUT, (value) => {
@@ -393,7 +416,10 @@ renderer.keyInput.on("keypress", (key) => {
   }
   const typing = focusIndex === 0; // modInput is index 0
   if (typing) return; // let the input receive characters
-  if (key.name === "c") {
+  if (key.name === "x") {
+    key.preventDefault();
+    onExclude();
+  } else if (key.name === "c") {
     key.preventDefault();
     copyQueries();
   } else if (key.name === "e") {

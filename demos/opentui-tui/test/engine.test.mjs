@@ -1,5 +1,8 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import * as engine from "../src/engine.mjs";
 
 let bin;
@@ -22,19 +25,28 @@ function skipWithoutBinary(t) {
 test("resolveBinary throws when no binary is available", () => {
   const env = process.env.POE_REGEX_BIN;
   delete process.env.POE_REGEX_BIN;
+  const dir = mkdtempSync(path.join(tmpdir(), "poe-regex-resolve-"));
   try {
-    // Only assert the error path when the repo out/ has no binary either.
-    let threw = false;
-    try {
-      engine.resolveBinary();
-    } catch (err) {
-      threw = true;
-      assert.match(err.message, /POE_REGEX_BIN|build:cli/);
-    }
-    if (env) process.env.POE_REGEX_BIN = env;
-    assert.ok(threw || process.env.POE_REGEX_BIN, "expected an error or an env override");
+    assert.throws(() => engine.resolveBinary({ repoRoot: dir }), /POE_REGEX_BIN|build:cli/);
   } finally {
     if (env) process.env.POE_REGEX_BIN = env;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveBinary finds out/PoeRegex.Cli relative to the repo root", () => {
+  const env = process.env.POE_REGEX_BIN;
+  delete process.env.POE_REGEX_BIN;
+  const dir = mkdtempSync(path.join(tmpdir(), "poe-regex-resolve-"));
+  try {
+    mkdirSync(path.join(dir, "out"));
+    const fakeBin = path.join(dir, "out", "PoeRegex.Cli");
+    writeFileSync(fakeBin, "#!/bin/sh\n");
+    chmodSync(fakeBin, 0o755);
+    assert.equal(engine.resolveBinary({ repoRoot: dir }), fakeBin);
+  } finally {
+    if (env) process.env.POE_REGEX_BIN = env;
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

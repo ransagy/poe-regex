@@ -150,3 +150,11 @@ Reversibility guarantee + spec-concept TUI demo.
   (commands table row + "Explaining a query" subsection with JSON shape and
   semantics) and README usage; CI release smoke now asserts `explain --json`
   (tokens/mods present, mods non-empty) in the python3 and fallback branches.
+- 2026-08-10: Demo fixes + controls footer. `resolveBinary` computed `REPO_ROOT`
+  as two `..` from `src/` (landing on `/repo/demos`), so the `out/PoeRegex.Cli`
+  produced by `npm run build:cli` was never found; fixed to three `..` and made
+  `repoRoot` injectable for tests (two new resolveBinary tests; 19 node tests
+  green). TUI footer bar added with the general controls; `x` now excludes the
+  highlighted suggestion (the EXCLUDED list was previously unwirable);
+  EXCLUDED label + hint text updated to match. Smoke test now covers the footer
+  and the exclude flow.

@@ -76,17 +76,21 @@ def main():
     os.write(master, b"\r")
     c = gather(2.5)
 
-    # Phase D: Tab to the suggestion select, then 'e' to explain.
+    # Phase D: Tab to the suggestion select, then 'x' to exclude it.
     os.write(master, b"\t")
     time.sleep(0.4)
-    os.write(master, b"e")
+    os.write(master, b"x")
     d = gather(2.5)
 
-    # Phase E: game toggle shortcut ('g' — focus is not on the input now).
-    os.write(master, b"g")
-    e = gather(3.0)
+    # Phase E: 'e' to explain the current query.
+    os.write(master, b"e")
+    e = gather(2.5)
 
-    # Phase F: quit.
+    # Phase F: game toggle shortcut ('g' — focus is not on the input now).
+    os.write(master, b"g")
+    f = gather(3.0)
+
+    # Phase G: quit.
     os.write(master, b"q")
     time.sleep(0.8)
     tail = read_all(master, 0.5)
@@ -103,7 +107,7 @@ def main():
             break
         time.sleep(0.1)
 
-    for name, raw in [("boot", a), ("typed", b), ("included", c), ("explained", d)]:
+    for name, raw in [("boot", a), ("typed", b), ("included", c), ("excluded", d), ("explained", e)]:
         pass  # raw captures are only used for the substring checks above
 
     checks = []
@@ -112,10 +116,12 @@ def main():
     checks.append(("boot: output panel label", b"COMPILED OUTPUT STRINGS" in a, a[:200]))
     checks.append(("boot: suggestions present", b"Evasion Rating" in a or b"Dexterity" in a, a[:400]))
     checks.append(("boot: no-output placeholder", b"(no output)" in a, a[:200]))
+    checks.append(("boot: controls footer", b"Enter include" in a and b"q quit" in a, a[-300:]))
     checks.append(("typed: suggestions filtered", b"Falco" in b or b"Fox" in b, b[-400:]))
     checks.append(("enter: regenerated output", b"PAYLOAD CAPACITY" in c and b"chars" in c, c[-500:]))
-    checks.append(("explain: panel updated", b"candidate mods" in d or b"[include]" in d, d[-700:]))
-    checks.append(("game toggle: still responsive", b"SYSTEM ENGINE MODE" in e and b"COMPILED OUTPUT STRINGS" in e, e[:300]))
+    checks.append(("exclude: still regenerates", b"PAYLOAD CAPACITY" in d and b"EXCLUDED" in d, d[-600:]))
+    checks.append(("explain: panel updated", b"candidate mods" in e or b"[include]" in e, e[-700:]))
+    checks.append(("game toggle: still responsive", b"SYSTEM ENGINE MODE" in f and b"COMPILED OUTPUT STRINGS" in f, f[:300]))
 
     ok = True
     for name, passed, sample in checks:

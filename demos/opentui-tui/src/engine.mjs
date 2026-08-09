@@ -14,12 +14,12 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 const DEMO_ROOT = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(DEMO_ROOT, "..", "..");
+const REPO_ROOT = path.resolve(DEMO_ROOT, "..", "..", "..");
 
-export function resolveBinary() {
+export function resolveBinary({ repoRoot = REPO_ROOT } = {}) {
   const envBin = process.env.POE_REGEX_BIN;
   if (envBin) return envBin;
-  const candidates = [path.join(REPO_ROOT, "out", "PoeRegex.Cli"), path.join(REPO_ROOT, "out", "PoeRegex.Cli.exe")];
+  const candidates = [path.join(repoRoot, "out", "PoeRegex.Cli"), path.join(repoRoot, "out", "PoeRegex.Cli.exe")];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
   }
