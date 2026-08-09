@@ -56,6 +56,9 @@ dotnet run --project src/PoeRegex.Cli -- list-mods --game poe2 --class Ring --se
 
 # validate a query
 dotnet run --project src/PoeRegex.Cli -- validate --game poe1 --query '"to maximum Life"'
+
+# explain a query: decompose it back into the catalog mods it matches
+dotnet run --project src/PoeRegex.Cli -- explain --game poe1 --class Ring --query '"life" "I"'
 ```
 
 Every command also supports `--json` for machine-readable stdout — that's the

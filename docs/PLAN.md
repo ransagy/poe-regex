@@ -113,8 +113,12 @@ Reversibility guarantee + spec-concept TUI demo.
 
 ## Phase 3 — Docs + CI
 
-- [ ] 3.1 USING-THE-ENGINE §12 + README: `explain` command/JSON shape.
-- [ ] 3.2 CI smoke: add `explain --json` to python3 JSON-parse assertions.
+- [x] 3.1 USING-THE-ENGINE §12 + README: `explain` command/JSON shape
+      (tokens/mods semantics, case-insensitive matching, reversibility note)
+      + README usage example.
+- [x] 3.2 CI smoke: `explain --json` added to the python3 JSON-parse assertions
+      (asserts `tokens`/`mods` non-empty) and the non-python fallback loop;
+      non-JSON `explain` grep check in the human-readable smoke block.
 
 ## Reference
 
@@ -142,3 +146,7 @@ Reversibility guarantee + spec-concept TUI demo.
   (construct renderables directly); Enter parses as `key.name === "return"`;
   AbyssJewel (alphabetically first class) has no explicit mods -> default to
   Ring. `npm test` + `npm run test:smoke` green.
+- 2026-08-10: Phase 3.1-3.2 done. `explain` documented in USING-THE-ENGINE §12
+  (commands table row + "Explaining a query" subsection with JSON shape and
+  semantics) and README usage; CI release smoke now asserts `explain --json`
+  (tokens/mods present, mods non-empty) in the python3 and fallback branches.

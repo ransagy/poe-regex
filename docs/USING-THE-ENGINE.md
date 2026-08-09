@@ -310,10 +310,61 @@ treat it as an external program — no runtime needed with the AOT build.
 | `list-classes --game <g> [--class <id>]` | `[{"id","name"}, ...]` |
 | `list-mods --game <g> [--class <id>] [--search <text>] [--limit <n>]` | `[{"id","name","line"}, ...]` |
 | `validate --game <g> --query "<regex>"` | `{"ok","game","warning":null\|{"level","code","message"}}` |
+| `explain --game <g> [--class <id>] --query "<regex>"` | see *Explaining a query* below |
 
 `--catalog <path>` overrides the embedded catalog on any command. `generate`
 also accepts `--clipboard` (copies to the OS clipboard; degrades to a stderr
 warning where unsupported).
+
+### Explaining a query
+
+`explain` decomposes an existing query back into the catalog mods it matches.
+It is the reverse of `generate` and is how a player can verify what a pattern
+means (or audit a pattern they received from someone else):
+
+```sh
+poe-regex explain --game poe1 --class Ring --query '"life" "I"' --json
+```
+
+JSON shape:
+
+```json
+{
+  "query": "\"life\" \"I\"",
+  "game": "poe1",
+  "classes": [{ "id": "Ring", "name": "Rings" }],
+  "tokens": [
+    {
+      "index": 0,
+      "phrase": "life",
+      "excluded": false,
+      "kind": "included",
+      "classes": ["Ring"],
+      "matches": [{ "class": "Ring", "line": "40% increased total Recovery ...",
+                    "pattern": "\u0001% increased total Recovery ...",
+                    "modIds": ["IncreasedLifeLeechRateInfluence1", "..."] }]
+    }
+  ],
+  "mods": [{ "id": "IncreasedLifeLeechRateInfluence1", "name": "of the ...,",
+             "classes": ["Ring"], "phrases": ["life"],
+             "lines": [{ "class": "Ring", "line": "..." }] }]
+}
+```
+
+Semantics:
+
+- The query is split into **tokens** (quote-aware). Each token records its
+  `kind` (`included` | `excluded` | `class` | `keyword`), which corpus lines it
+  matches, and the mod ids those lines belong to. Class tokens are anchored
+  fragments that match a class line but no mod line in scope.
+- **Mods** are the candidate list the engine guarantees to include every mod the
+  query was compiled from (reversibility): a mod is a candidate when it belongs
+  to the scoped class (or any class for global queries) and matches **every**
+  included token minus those matched by excluded tokens. The list is what the
+  game would highlight as it scans your inventory.
+- Matching is case-insensitive, mirroring the in-game item filter matcher.
+- Pass `--class <id>` to scope tokens to a single base-equipment class; omit it
+  to consider the whole game corpus.
 
 ### Python
 
