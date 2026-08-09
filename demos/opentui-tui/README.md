@@ -48,36 +48,43 @@ The layout:
 | Key | Action |
 |---|---|
 | `Tab` / `Shift+Tab` | cycle focus between widgets |
-| type in `MOD` | filter the mod suggestions (client-side, case-insensitive) |
-| `Enter` | include the highlighted suggestion; if no suggestion matches, the typed text is included as a free-text pattern |
-| `x` | exclude the highlighted suggestion (or typed free text) instead |
+| `Up` / `Down` | move the highlight within the focused list |
+| type in `MOD` | filter the mod suggestions (client-side, case-insensitive); the filter is kept as you add mods |
+| `Enter` (in `MOD` / suggestions) | include the first matching mod (or the highlighted one); if none matches, the typed text is included as a free-text pattern |
+| `x` (in `MOD` / suggestions) | exclude the first matching mod (or the highlighted one) |
+| `a`, or select the `[select all N]` row | include every currently-filtered, not-yet-chosen mod and clear the filter |
 | `Enter` on an included/excluded chip | remove that chip |
-| `Enter` on a class (multi mode) | toggle that base-equipment slot |
-| `Up` / `Down` | move the selection highlight inside a list |
+| `Enter` / `Space` on a class (multi mode) | toggle that base-equipment slot |
 | `c` | copy the compiled query/query-list (system clipboard tool, then OSC52) |
 | `e` | explain the current query in the panel (tokens + candidate mods) |
 | `g` | toggle PoE1 ↔ PoE2 |
 | `q` / `Ctrl+C` | quit |
 
-The footer bar shows these controls. `c`/`e`/`g`/`x` are ignored while you are
-typing in the `MOD` field (they are typed as text instead) — move focus with
+The footer bar shows these controls. The letter shortcuts (`x`/`a`/`c`/`e`/`g`)
+are typed as text instead while you're in the `MOD` field — move focus with
 `Tab` first.
 
 ### Modes
 
 - **single** — one base-equipment slot; the `BASE EQUIPMENT` highlight picks
   the slot and regenerates live.
-- **global** — no class anchor; the typeahead searches the whole game corpus
-  and the output is a single classless query.
-- **multi** — each selected base-equipment becomes a slot; the output pane
-  lists one query per slot.
+- **global** — no class anchor; the `BASE EQUIPMENT` row is hidden and the
+  typeahead searches the whole game corpus; the output is a single classless
+  query.
+- **multi** — each selected base-equipment becomes a slot (`Enter`/`Space`
+  toggles `[x]`); the typeahead searches the union of mods across selected
+  slots and the output pane lists one query per slot.
+
+The `BASE EQUIPMENT` list shows only classes that actually have explicit mods
+in the catalog (flasks, currency, gems, relics, etc. are omitted; the default
+slot is `Ring`).
 
 ## Tests
 
 ```sh
-npm test            # 19 unit tests (engine wrapper + app state)
-npm run test:smoke  # PTY integration check: boots the TUI, types, includes,
-                    # excludes, explains, toggles game, verifies clean exit
+npm test            # unit tests (engine wrapper, app state, catalog)
+npm run test:smoke  # PTY integration check: renders, filters, includes/excludes,
+                    # select-all, explains, mode/global/multi, clean exit
 ```
 
 `test:smoke` skips with a message when no CLI binary is available; run it after
@@ -90,6 +97,6 @@ npm run test:smoke  # PTY integration check: boots the TUI, types, includes,
 - **Clipboard says "clipboard unavailable"** — no `wl-copy`/`xclip`/`xsel`/
   `pbcopy`/`clip` on PATH and the terminal does not support OSC52; copying is
   best-effort, the output pane still shows the query.
-- **Empty typeahead for a class** — some base equipments (e.g. `AbyssJewel`)
-  have no explicit mods in the catalog; pick another base equipment (the demo
-  defaults to `Ring`, which has a full mod list).
+- **Empty typeahead for a class** — some base equipments have no explicit mods
+  in the catalog; the `BASE EQUIPMENT` list hides them (only classes with mods
+  are shown, defaulting to `Ring`).

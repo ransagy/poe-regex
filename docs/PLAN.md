@@ -158,3 +158,20 @@ Reversibility guarantee + spec-concept TUI demo.
   highlighted suggestion (the EXCLUDED list was previously unwirable);
   EXCLUDED label + hint text updated to match. Smoke test now covers the footer
   and the exclude flow.
+- 2026-08-10: TUI UX overhaul. Fixed the game/mode selects rendering **nothing**
+  (auto-height Select with `showDescription: true` computed a 1-line box and
+  culled the only visible item -> gave them explicit `height` + `showDescription:
+  false`). BASE EQUIPMENT list now filters to classes with explicit mods via a
+  new `src/catalog.mjs` reading `data/catalogs/*.catalog.json` (poe1 25 of 102,
+  poe2 30 of 117; AbyssJewel/flasks/currency/gems hidden). Including/excluding
+  no longer clears the mod filter (pick multiple tiers), and chosen mods drop
+  out of the suggestions (`availableMods`). Added `[select all N]` suggestion
+  row + `a` key (`addManyIncluded`). Focus order is now game -> mode -> class ->
+  mod -> suggestions -> chips and skips widgets hidden by mode. Multi mode:
+  typeahead searches the union of selected slots (`mergeMods`), Enter/Space
+  toggle slots, highlight position preserved, global mode hides the BASE
+  EQUIPMENT row. Found + worked around an OpenTUI bug: content-only changes to a
+  buffered Select aren't re-composited by the parent (render list reused), so
+  the [x]/[ ] markers didn't repaint on toggle -> visibility flip forces a
+  repaint (`nudgeClassRender`). 20 unit tests + expanded PTY smoke (rendering,
+  filtering, select-all, global hide, multi toggle/union) green.

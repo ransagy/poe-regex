@@ -61,36 +61,58 @@ def main():
 
     def gather(timeout):
         nonlocal all_bytes
+        before = len(all_bytes)
         time.sleep(timeout)
         all_bytes += read_all(master, 0.5)
-        return strip(all_bytes)
+        return strip(all_bytes), strip(all_bytes[before:])
 
     # Phase A: boot (classes + mods + initial generate).
-    a = gather(3.0)
+    a, a_new = gather(3.0)
 
     # Phase B: type a mod search (suggestions filter).
     os.write(master, b"dexter")
-    b = gather(1.2)
+    b, b_new = gather(1.2)
 
     # Phase C: Enter to include the highlighted suggestion.
     os.write(master, b"\r")
-    c = gather(2.5)
+    c, c_new = gather(2.5)
 
-    # Phase D: Tab to the suggestion select, then 'x' to exclude it.
+    # Phase D: Tab to the suggestion select, Down past the select-all row to a
+    # real mod, then 'x' to exclude it.
     os.write(master, b"\t")
     time.sleep(0.4)
+    os.write(master, b"\x1b[B")
+    time.sleep(0.3)
     os.write(master, b"x")
-    d = gather(2.5)
+    d, d_new = gather(2.5)
 
-    # Phase E: 'e' to explain the current query.
+    # Phase E: 'a' to select all remaining "dexter" matches.
+    os.write(master, b"a")
+    e, e_new = gather(2.5)
+
+    # Phase F: 'e' to explain the current query.
     os.write(master, b"e")
-    e = gather(2.5)
+    f, f_new = gather(2.5)
 
-    # Phase F: game toggle shortcut ('g' — focus is not on the input now).
-    os.write(master, b"g")
-    f = gather(3.0)
+    # Phase G: reach the MODE select (suggestSelect -> Tab x4 -> modeSelect),
+    # then Down -> global (BASE EQUIPMENT row must disappear).
+    for _ in range(4):
+        os.write(master, b"\t")
+        time.sleep(0.3)
+    os.write(master, b"\x1b[B")
+    g, g_new = gather(2.5)
 
-    # Phase G: quit.
+    # Phase H: Down again -> multi; BASE EQUIPMENT row returns with toggle hint.
+    os.write(master, b"\x1b[B")
+    h, h_new = gather(2.5)
+
+    # Phase I: Tab to the class list and Enter to toggle the highlighted slot.
+    os.write(master, b"\t")
+    time.sleep(0.4)
+    os.write(master, b"\r")
+    i, i_new = gather(2.5)
+
+    # Phase J: quit.
     os.write(master, b"q")
     time.sleep(0.8)
     tail = read_all(master, 0.5)
@@ -107,21 +129,33 @@ def main():
             break
         time.sleep(0.1)
 
-    for name, raw in [("boot", a), ("typed", b), ("included", c), ("excluded", d), ("explained", e)]:
+    for name, raw in [("boot", a), ("typed", b), ("included", c), ("excluded", d), ("explained", f)]:
         pass  # raw captures are only used for the substring checks above
+
+    with open("/tmp/opencode/smoke-i_new.bin", "wb") as fh:
+        fh.write(i_new)
 
     checks = []
     checks.append(("boot: engine mode label", b"SYSTEM ENGINE MODE" in a, a[:200]))
     checks.append(("boot: base equipment label", b"BASE EQUIPMENT" in a, a[:200]))
     checks.append(("boot: output panel label", b"COMPILED OUTPUT STRINGS" in a, a[:200]))
-    checks.append(("boot: suggestions present", b"Evasion Rating" in a or b"Dexterity" in a, a[:400]))
+    checks.append(("boot: suggestions present", b"[select all" in a or b"Evasion Rating" in a, a[:400]))
     checks.append(("boot: no-output placeholder", b"(no output)" in a, a[:200]))
-    checks.append(("boot: controls footer", b"Enter include" in a and b"q quit" in a, a[-300:]))
+    checks.append(("boot: controls footer", b"Enter include" in a and b"select all" in a and b"q quit" in a, a[-300:]))
+    # Selects render their options (height fix) and the class list is filtered.
+    checks.append(("boot: mode options visible", b"single" in a and b"multi" in a, a[:400]))
+    checks.append(("boot: game options visible", b"Path of Exile 1" in a and b"Path of Exile 2" in a, a[:400]))
+    checks.append(("boot: class list filtered", b"Rings" in a and b"Abyss Jewels" not in a, a[:600]))
     checks.append(("typed: suggestions filtered", b"Falco" in b or b"Fox" in b, b[-400:]))
     checks.append(("enter: regenerated output", b"PAYLOAD CAPACITY" in c and b"chars" in c, c[-500:]))
     checks.append(("exclude: still regenerates", b"PAYLOAD CAPACITY" in d and b"EXCLUDED" in d, d[-600:]))
-    checks.append(("explain: panel updated", b"candidate mods" in e or b"[include]" in e, e[-700:]))
-    checks.append(("game toggle: still responsive", b"SYSTEM ENGINE MODE" in f and b"COMPILED OUTPUT STRINGS" in f, f[:300]))
+    checks.append(("select-all: still regenerates", b"PAYLOAD CAPACITY" in e, e[-500:]))
+    checks.append(("explain: panel updated", b"candidate mods" in f or b"[include]" in f, f[-700:]))
+    # Global mode hides the BASE EQUIPMENT row; multi restores it with the hint.
+    checks.append(("global: base row hidden", b"BASE EQUIPMENT" not in g_new, g_new[-500:]))
+    checks.append(("multi: base row returns", b"BASE EQUIPMENT" in h_new, h_new[-500:]))
+    # Multi: Enter toggles the highlighted slot (marker flips to [x]).
+    checks.append(("multi: slot toggle marks [x]", b"[x]" in i_new, i_new[-600:]))
 
     ok = True
     for name, passed, sample in checks:

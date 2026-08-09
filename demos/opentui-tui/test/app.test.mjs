@@ -9,10 +9,15 @@ import {
   selectClass,
   addIncluded,
   addExcluded,
+  addManyIncluded,
   removeMod,
   setMods,
   setSearch,
   filterMods,
+  playableClasses,
+  availableMods,
+  suggestionMods,
+  mergeMods,
   activeClasses,
   queryInputs,
   generateTasks,
@@ -140,4 +145,51 @@ test("meter helpers", () => {
   assert.equal(meterColor(26, 250), "green");
   assert.equal(meterColor(170, 250), "orange");
   assert.equal(meterColor(240, 250), "red");
+});
+
+test("playableClasses keeps only classes with explicit mods", () => {
+  const classes = [{ id: "Ring", name: "R" }, { id: "AbyssJewel", name: "A" }, { id: "Amulet", name: "Am" }];
+  const ids = new Set(["Ring", "Amulet"]);
+  assert.deepEqual(playableClasses(classes, ids).map((c) => c.id), ["Ring", "Amulet"]);
+  assert.equal(playableClasses(classes, null).length, 3, "null set keeps all");
+  assert.equal(playableClasses([], ids).length, 0);
+});
+
+test("availableMods/suggestionMods exclude already-chosen mods", () => {
+  const s = createState();
+  const mods = [
+    { id: "X", name: "n", line: "l" },
+    { id: "Y", name: "dex", line: "dexterity +#" },
+    { id: "Z", name: "dex2", line: "dex +#" },
+  ];
+  setMods(s, mods);
+  addIncluded(s, { id: "X", line: "l" });
+  addExcluded(s, { id: "Y", line: "dexterity +#" });
+  assert.deepEqual(availableMods(s).map((m) => m.id), ["Z"]);
+
+  setSearch(s, "dex");
+  assert.deepEqual(suggestionMods(s).map((m) => m.id), ["Z"]);
+  setSearch(s, "");
+  assert.deepEqual(suggestionMods(s).map((m) => m.id), ["Z"]);
+});
+
+test("addManyIncluded merges and dedupes by id", () => {
+  const s = createState();
+  addIncluded(s, { id: "A", line: "a" });
+  addManyIncluded(s, [
+    { id: "A", line: "a" },
+    { id: "B", line: "b" },
+    { id: "B", line: "b2" },
+  ]);
+  assert.deepEqual(s.included.map((m) => m.id), ["A", "B"]);
+  assert.equal(s.included[1].line, "b");
+});
+
+test("mergeMods dedupes per-slot mod lists by id", () => {
+  const lists = [
+    [{ id: "A" }, { id: "B" }],
+    [{ id: "B" }, { id: "C" }],
+  ];
+  assert.deepEqual(mergeMods(lists).map((m) => m.id), ["A", "B", "C"]);
+  assert.equal(mergeMods([[]]).length, 0);
 });

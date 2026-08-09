@@ -17,7 +17,10 @@ import {
 } from "@opentui/core";
 import * as engine from "./engine.mjs";
 import * as app from "./app.mjs";
+import * as catalog from "./catalog.mjs";
 import { copyToClipboard } from "./clipboard.mjs";
+
+const SELECT_ALL = { __selectAll: true };
 
 const renderer = await createCliRenderer({ exitOnCtrlC: true });
 const state = app.createState();
@@ -26,17 +29,20 @@ const state = app.createState();
 
 const gameSelect = new SelectRenderable(renderer, {
   width: 24,
+  height: 2,
   options: app.GAMES.map((g) => ({ name: app.GAME_LABELS[g], value: g, description: app.GAME_LABELS[g] })),
   showDescription: false,
 });
 
 const modeSelect = new SelectRenderable(renderer, {
-  width: 14,
+  width: 16,
+  height: 3,
   options: [
     { name: "single", value: "single", description: "one base equipment slot" },
     { name: "global", value: "global", description: "no class anchor" },
     { name: "multi", value: "multi", description: "per-slot query list" },
   ],
+  showDescription: false,
 });
 
 const classSelect = new SelectRenderable(renderer, {
@@ -81,7 +87,7 @@ const rightCol = new BoxRenderable(renderer, { flexDirection: "column", gap: 1, 
 const footerBox = new BoxRenderable(renderer, { flexDirection: "row", paddingX: 1, borderStyle: "rounded", borderColor: "#444444" });
 footerBox.add(
   new TextRenderable(renderer, {
-    content: "Tab focus  ·  Enter include  ·  x exclude  ·  c copy  ·  e explain  ·  g game  ·  q quit",
+    content: "Tab focus  ·  Enter include  ·  x exclude  ·  a select all  ·  c copy  ·  e explain  ·  g game  ·  q quit",
     fg: "#888888",
   }),
 );
@@ -92,9 +98,11 @@ function row(...children) {
   return r;
 }
 
+const baseLabel = label("BASE EQUIPMENT:");
+const baseRow = row(baseLabel, classSelect);
 leftCol.add(row(label("SYSTEM ENGINE MODE:"), gameSelect));
 leftCol.add(row(label("MODE:"), modeSelect));
-leftCol.add(row(label("BASE EQUIPMENT:"), classSelect));
+leftCol.add(baseRow);
 leftCol.add(row(label("MOD:"), modInput));
 leftCol.add(suggestSelect);
 leftCol.add(new TextRenderable(renderer, { content: "INCLUDED (enter)", fg: "#00C853" }));
@@ -118,25 +126,36 @@ renderer.root.add(rootCol);
 
 // ---- focus cycle -----------------------------------------------------------
 
-const FOCUSABLE = [modInput, suggestSelect, includedSelect, excludedSelect, classSelect, modeSelect, gameSelect];
+const FOCUS_ORDER = [gameSelect, modeSelect, classSelect, modInput, suggestSelect, includedSelect, excludedSelect];
 let focusIndex = 0;
 
 // Keep focusIndex in sync even when focus changes via mouse or autoFocus.
-for (let i = 0; i < FOCUSABLE.length; i++) {
-  FOCUSABLE[i].on(RenderableEvents.FOCUSED, () => {
+for (let i = 0; i < FOCUS_ORDER.length; i++) {
+  FOCUS_ORDER[i].on(RenderableEvents.FOCUSED, () => {
     focusIndex = i;
   });
 }
 
+function currentFocused() {
+  return FOCUS_ORDER[focusIndex] ?? null;
+}
+
 function focusWidget(index) {
-  const next = (index + FOCUSABLE.length) % FOCUSABLE.length;
-  if (focusIndex !== next) FOCUSABLE[focusIndex].blur();
+  const next = (index + FOCUS_ORDER.length) % FOCUS_ORDER.length;
+  if (focusIndex !== next) FOCUS_ORDER[focusIndex].blur();
   focusIndex = next;
-  FOCUSABLE[next].focus();
+  FOCUS_ORDER[next].focus();
 }
 
 function cycleFocus(delta) {
-  focusWidget(focusIndex + delta);
+  // Skip widgets hidden by the current mode (e.g. BASE EQUIPMENT in global).
+  for (let i = 1; i <= FOCUS_ORDER.length; i++) {
+    const candidate = (focusIndex + (delta > 0 ? i : -i) + FOCUS_ORDER.length) % FOCUS_ORDER.length;
+    if (FOCUS_ORDER[candidate].visible) {
+      focusWidget(candidate);
+      return;
+    }
+  }
 }
 
 // ---- async engine flows ----------------------------------------------------
@@ -145,7 +164,8 @@ let refreshToken = 0;
 
 async function loadClasses() {
   try {
-    const classes = await engine.listClasses(state.game, { binary: engine.resolveBinary() });
+    const all = await engine.listClasses(state.game, { binary: engine.resolveBinary() });
+    const classes = app.playableClasses(all, catalog.loadClassIdsWithMods(state.game));
     app.setClasses(state, classes);
     // Prefer a base equipment with explicit mods (the alphabetically-first
     // class, AbyssJewel, has none) so the typeahead works on first boot.
@@ -166,11 +186,16 @@ async function loadClasses() {
 async function loadMods() {
   const bin = engine.resolveBinary();
   const limit = 1000;
-  const cls = app.activeClasses(state)[0];
-  if (state.mode === "global" || cls === undefined) {
-    return engine.listMods(state.game, { limit, binary: bin });
+  const classes = app.activeClasses(state);
+  if (state.mode === "global" || classes.length <= 1) {
+    const cls = classes[0];
+    if (state.mode === "global" || cls === undefined) {
+      return engine.listMods(state.game, { limit, binary: bin });
+    }
+    return engine.listMods(state.game, { itemClass: cls, limit, binary: bin });
   }
-  return engine.listMods(state.game, { itemClass: cls, limit, binary: bin });
+  const perClass = await Promise.all(classes.map((cls) => engine.listMods(state.game, { itemClass: cls, limit, binary: bin })));
+  return app.mergeMods(perClass);
 }
 
 async function refreshSuggestions() {
@@ -178,18 +203,20 @@ async function refreshSuggestions() {
     const mods = await loadMods();
     app.setMods(state, mods);
     updateSuggestions();
-    if (state.mods.length === 0 && state.mode !== "global") {
-      const cls = app.activeClasses(state)[0];
-      statusText.content = `no explicit mods for ${cls} — pick another base equipment`;
-    }
   } catch (err) {
     statusText.content = `error loading mods: ${err.message}`;
   }
 }
 
 async function regenerate() {
-  const token = ++refreshToken;
   const tasks = app.generateTasks(state);
+  if (tasks.length === 0) {
+    state.results = [];
+    outputText.content = "(no output)";
+    statusText.content = "select at least one base equipment (Enter/Space in BASE EQUIPMENT)";
+    return;
+  }
+  const token = ++refreshToken;
   const bin = engine.resolveBinary();
   try {
     if (state.mode === "global") {
@@ -244,26 +271,40 @@ async function copyQueries() {
 // ---- rendering -------------------------------------------------------------
 
 function updateClassSelect() {
-  if (state.mode === "global") {
+  const globalMode = state.mode === "global";
+  baseRow.visible = !globalMode;
+  if (globalMode) {
     classSelect.options = [];
     return;
   }
+  baseLabel.content = state.mode === "multi" ? "BASE EQUIPMENT (Enter/Space toggles):" : "BASE EQUIPMENT:";
   classSelect.options = state.classes.map((c) => {
     const active = state.selectedClasses.includes(c.id);
     const marker = state.mode === "multi" ? (active ? "[x] " : "[ ] ") : "";
     return { name: `${marker}${c.name}`, description: c.id, value: c.id };
   });
-  const idx = state.classes.findIndex((c) => c.id === state.selectedClasses[0]);
-  if (idx >= 0) classSelect.setSelectedIndex(idx);
+  // Single mode: keep the highlight on the current slot. Multi mode: preserve
+  // the highlight position so toggling doesn't jump the list.
+  if (state.mode === "single") {
+    const idx = state.classes.findIndex((c) => c.id === state.selectedClasses[0]);
+    if (idx >= 0) classSelect.setSelectedIndex(idx);
+  }
 }
 
 function updateSuggestions() {
-  const matches = app.filterMods(state.mods, state.search);
-  suggestSelect.options = matches.slice(0, 100).map((m) => ({
-    name: m.line || m.id,
-    description: `${m.name ?? ""} (${m.id})`,
-    value: m,
-  }));
+  const matches = app.suggestionMods(state);
+  const options = [];
+  if (matches.length >= 2) {
+    options.push({ name: `[select all ${matches.length}]`, description: "add every matching mod", value: SELECT_ALL });
+  }
+  for (const m of matches.slice(0, 100)) {
+    options.push({
+      name: m.line || m.id,
+      description: `${m.name ?? ""} (${m.id})`,
+      value: m,
+    });
+  }
+  suggestSelect.options = options;
   suggestSelect.setSelectedIndex(0);
 }
 
@@ -317,6 +358,19 @@ function highlightedSuggestion() {
   return opt?.value ?? null;
 }
 
+/** First real mod suggestion, skipping the leading "[select all N]" row. */
+function firstSuggestion() {
+  const opt = suggestSelect.getSelectedOption();
+  if (!opt) return null;
+  if (opt.value?.__selectAll) {
+    for (const o of suggestSelect.options) {
+      if (o.value && !o.value.__selectAll) return o.value;
+    }
+    return null;
+  }
+  return opt.value;
+}
+
 function rawSearchInclude() {
   const text = state.search.trim();
   if (!text) return null;
@@ -324,13 +378,19 @@ function rawSearchInclude() {
 }
 
 function onEnter() {
-  const focused = FOCUSABLE[focusIndex];
+  const focused = currentFocused();
   if (focused === modInput || focused === suggestSelect) {
-    const mod = highlightedSuggestion() ?? rawSearchInclude();
+    // Enter on the input picks the first real mod; on the suggestion list it
+    // acts on the highlighted row (which may be the "[select all N]" row).
+    const mod = (focused === modInput ? firstSuggestion() : highlightedSuggestion()) ?? rawSearchInclude();
+    if (mod?.__selectAll) {
+      selectAllFiltered();
+      return;
+    }
     if (mod) {
       app.addIncluded(state, mod);
-      modInput.value = "";
       updateChips();
+      updateSuggestions();
       regenerate();
     }
   } else if (focused === includedSelect) {
@@ -352,6 +412,7 @@ function onEnter() {
     if (opt) {
       app.toggleClass(state, opt.value);
       updateClassSelect();
+      nudgeClassRender();
       refreshSuggestions();
       regenerate();
     }
@@ -360,16 +421,28 @@ function onEnter() {
 
 /** Add the highlighted suggestion (or typed free text) to the EXCLUDED chips. */
 function onExclude() {
-  const focused = FOCUSABLE[focusIndex];
+  const focused = currentFocused();
   if (focused === modInput || focused === suggestSelect) {
-    const mod = highlightedSuggestion() ?? rawSearchInclude();
+    const mod = (focused === modInput ? firstSuggestion() : highlightedSuggestion()) ?? rawSearchInclude();
+    if (mod?.__selectAll) return;
     if (mod) {
       app.addExcluded(state, mod);
-      modInput.value = "";
       updateChips();
+      updateSuggestions();
       regenerate();
     }
   }
+}
+
+/** Add every currently-filtered, not-yet-chosen mod, then clear the filter. */
+function selectAllFiltered() {
+  const mods = app.suggestionMods(state);
+  if (mods.length === 0) return;
+  app.addManyIncluded(state, mods);
+  modInput.value = "";
+  updateChips();
+  updateSuggestions();
+  regenerate();
 }
 
 // ---- events ----------------------------------------------------------------
@@ -403,6 +476,30 @@ classSelect.on(SelectRenderableEvents.SELECTION_CHANGED, (idx, opt) => {
   }
 });
 
+// Space on the class list toggles a slot in multi mode (Enter is intercepted
+// globally and handled in onEnter).
+classSelect.on(SelectRenderableEvents.ITEM_SELECTED, (idx, opt) => {
+  if (state.mode === "multi" && opt?.value) {
+    app.toggleClass(state, opt.value);
+    updateClassSelect();
+    nudgeClassRender();
+    refreshSuggestions();
+    regenerate();
+  }
+});
+
+function nudgeClassRender() {
+  // Content-only changes to a buffered Select aren't re-composited (the render
+  // list is reused), so the [x]/[ ] markers don't repaint. Flipping visibility
+  // through a layout change forces a full re-paint of the list.
+  classSelect.visible = false;
+  renderer.requestRender();
+  setTimeout(() => {
+    classSelect.visible = true;
+    renderer.requestRender();
+  }, 30);
+}
+
 renderer.keyInput.on("keypress", (key) => {
   if (key.name === "tab") {
     key.preventDefault();
@@ -414,11 +511,14 @@ renderer.keyInput.on("keypress", (key) => {
     onEnter();
     return;
   }
-  const typing = focusIndex === 0; // modInput is index 0
+  const typing = currentFocused() === modInput;
   if (typing) return; // let the input receive characters
   if (key.name === "x") {
     key.preventDefault();
     onExclude();
+  } else if (key.name === "a") {
+    key.preventDefault();
+    selectAllFiltered();
   } else if (key.name === "c") {
     key.preventDefault();
     copyQueries();
@@ -440,5 +540,5 @@ renderer.keyInput.on("keypress", (key) => {
 
 // ---- boot ------------------------------------------------------------------
 
-focusWidget(0);
+focusWidget(FOCUS_ORDER.indexOf(modInput));
 loadClasses();

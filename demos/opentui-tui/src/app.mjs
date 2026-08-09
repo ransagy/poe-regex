@@ -103,6 +103,51 @@ export function setSearch(state, text) {
   state.search = text;
 }
 
+/** Keep only base-equipment classes that have explicit mods (null set = keep all). */
+export function playableClasses(classes, classIdsWithMods) {
+  if (!classIdsWithMods) return classes;
+  return classes.filter((c) => classIdsWithMods.has(c.id));
+}
+
+/** Mods not already added to included or excluded (by id). */
+export function availableMods(state) {
+  const taken = new Set([...state.included, ...state.excluded].map((m) => m.id));
+  return state.mods.filter((m) => !taken.has(m.id));
+}
+
+/** Mods offered by the typeahead: search over the available mods. */
+export function suggestionMods(state) {
+  return filterMods(availableMods(state), state.search);
+}
+
+/** Add many mods at once (select-all), preserving first-wins id order. */
+export function addManyIncluded(state, mods) {
+  const seen = new Set(state.included.map((m) => m.id));
+  for (const mod of mods) {
+    if (!seen.has(mod.id)) {
+      seen.add(mod.id);
+      state.included.push({ id: mod.id, line: mod.line });
+    }
+  }
+  state.results = [];
+  state.explain = null;
+}
+
+/** Merge per-slot mod lists into one, deduped by id (first occurrence wins). */
+export function mergeMods(lists) {
+  const seen = new Set();
+  const out = [];
+  for (const list of lists) {
+    for (const m of list) {
+      if (!seen.has(m.id)) {
+        seen.add(m.id);
+        out.push(m);
+      }
+    }
+  }
+  return out;
+}
+
 /** Client-side substring filter over the loaded mod catalog (name/id/line). */
 export function filterMods(mods, text) {
   const t = text.trim().toLowerCase();
