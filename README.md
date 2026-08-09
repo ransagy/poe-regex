@@ -20,7 +20,8 @@ fragment for every mod line and assembling deterministic, AND-ed quoted blocks.
 - **Tests** (`tests/`): engine unit tests plus no-false-positive property tests
   over both shipped catalogs.
 
-See `docs/DESIGN.md` for the full specification.
+See `docs/DESIGN.md` for the full specification. Contributions are welcome — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for adding or correcting test cases.
 
 ## Build & test
 
