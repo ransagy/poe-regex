@@ -30,6 +30,11 @@ dotnet build PoeRegex.slnx
 dotnet test PoeRegex.slnx
 ```
 
+See [`docs/BUILDING.md`](docs/BUILDING.md) for publishing self-contained or
+Native AOT single-file binaries (including native toolchain prerequisites and
+the `--clipboard` dependency on `xclip`/`xsel` on Linux), plus how the
+GitHub Actions release pipeline works.
+
 ## Usage
 
 ```sh

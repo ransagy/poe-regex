@@ -2,6 +2,7 @@
 bin/
 obj/
 artifacts/
+out/
 *.user
 
 # RePoE raw downloads (dev-only; catalogs are checked in under data/catalogs/)
