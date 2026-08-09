@@ -82,6 +82,7 @@ For consuming `PoeRegex.Core` as a library in your own project, see
 - Bare run → interactive: pick game → class → searchable mod list → thresholds → exclusions → output query + `n/250` meter.
 - Batch: `generate --game poe2 --catalog <path> --class Helmets --include "to maximum life" --min "increased rarity:30" --exclude "reflect" --ilvl 60 [--clipboard] [--json]`
 - Support: `list-classes`, `list-mods --class X`, `validate --game X --query "..."`.
+- All commands accept `--json`: exactly one JSON document on stdout, diagnostics/errors on stderr — the cross-language subprocess contract (see `USING-THE-ENGINE.md` §12). JSON is source-generated (AOT-safe) and byte-identical between JIT and Native AOT builds; the CI smoke test asserts it parses on every platform.
 - Clipboard via TextCopy (cross-platform). Exit codes 0/1/2.
 
 ## 8. Test Suite (xUnit + Awesome Assertions)

@@ -3,7 +3,18 @@
 `PoeRegex.Core` is a self-contained .NET class library: give it a catalog and a
 description of the trade-filter you want, and it returns a short, in-game-safe
 regex query (PoE 1 and PoE 2). This guide covers everything from adding the
-reference to extending the engine.
+reference to extending the engine, and — if you are not on .NET — calling the
+engine through the CLI's JSON interface.
+
+There are two ways to consume the engine:
+
+| Approach | Audience | What you get |
+|---|---|---|
+| **Library** (`PoeRegex.Core`) | .NET apps (C#, F#, VB) | In-process compile + full data-access API; no process overhead |
+| **CLI subprocess** (`poe-regex ... --json`) | **Any** language (Python, JS, Go, Rust, shell…) | Same compiler, called over stdin/stdout; JSON on stdout |
+
+Both paths are first-class and AOT-verified. If your app is .NET, prefer the
+library (sections 1–11). Otherwise, read section 12 for the CLI contract.
 
 ## What the engine does
 
@@ -270,6 +281,103 @@ The engine and catalogs ship under MIT. The catalog content is community
 extraction of Grinding Gear Games-owned game data (via RePoE); see `NOTICE` for
 the exact terms, and [`DESIGN.md`](DESIGN.md) §1 for the sourcing policy. If you
 redistribute catalogs, keep the attribution in `NOTICE` intact.
+
+## 12. Using the engine from any language: the CLI subprocess contract
+
+The CLI (`PoeRegex.Cli`) is the cross-language interface. Every command accepts
+`--json` and writes **exactly one JSON document to stdout**; diagnostics and
+errors go to **stderr**. This is verified by the CI smoke test on every platform
+(`win-x64`, `linux-x64`, `osx-arm64`, `osx-x64`), and the JSON is emitted with
+source-generated serializers so it is identical between JIT and Native AOT
+builds. Build or download the binary once (see [`BUILDING.md`](BUILDING.md)) and
+treat it as an external program — no runtime needed with the AOT build.
+
+### Contract
+
+- **Invocation:** `poe-regex <command> [options] --json`
+- **stdout:** a single JSON document (never anything else). Absent `--json`, the
+  same commands print human-readable text.
+- **stderr:** human-readable warnings/errors only.
+- **Exit codes:** `0` ok · `1` error (including a query over the character
+  limit without `--allow-overflow`) · `2` usage error.
+- **Determinism:** the same input produces byte-identical output.
+
+### Commands
+
+| Command | `--json` output |
+|---|---|
+| `generate --game <poe1\|poe2> --include <text>... [--class <id>] [--min <text:value>]... [--exclude <text>]... [--ilvl <n>] [--keyword <kw>]... [--allow-overflow]` | `{"query","length","limit","exceeded","diagnostics":[{"level","code","message"}]}` |
+| `list-classes --game <g> [--class <id>]` | `[{"id","name"}, ...]` |
+| `list-mods --game <g> [--class <id>] [--search <text>] [--limit <n>]` | `[{"id","name","line"}, ...]` |
+| `validate --game <g> --query "<regex>"` | `{"ok","game","warning":null\|{"level","code","message"}}` |
+
+`--catalog <path>` overrides the embedded catalog on any command. `generate`
+also accepts `--clipboard` (copies to the OS clipboard; degrades to a stderr
+warning where unsupported).
+
+### Python
+
+```python
+import json
+import subprocess
+
+def compile_query(binary: str, includes: list[str], *, game: str = "poe1",
+                  item_class: str | None = None) -> dict:
+    cmd = [binary, "generate", "--game", game, "--json"]
+    if item_class:
+        cmd += ["--class", item_class]
+    for inc in includes:
+        cmd += ["--include", inc]
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if proc.returncode not in (0, 1):
+        raise RuntimeError(f"cli error {proc.returncode}: {proc.stderr.strip()}")
+    return json.loads(proc.stdout)
+
+result = compile_query("poe-regex", ["to maximum Life", "fire resistance"],
+                       game="poe2", item_class="Ring")
+print(result["query"], f"({result['length']}/{result['limit']})")
+```
+
+### JavaScript / Node.js
+
+```js
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+const run = promisify(execFile);
+
+async function compileQuery(binary, includes, { game = "poe1", itemClass } = {}) {
+  const args = ["generate", "--game", game, "--json"];
+  if (itemClass) args.push("--class", itemClass);
+  for (const inc of includes) args.push("--include", inc);
+  const { stdout, stderr } = await run(binary, args);
+  return { json: JSON.parse(stdout), stderr };
+}
+
+const { json } = await compileQuery("poe-regex", ["to maximum Life"], { game: "poe2" });
+console.log(json.query, `${json.length}/${json.limit}`);
+```
+
+### Shell
+
+```sh
+poe-regex generate --game poe1 --include "life" --json | jq -r .query
+poe-regex list-mods --game poe2 --search "nearby" --json | jq -r '.[].id'
+```
+
+### Getting the binary
+
+- **Published release:** download `poe-regex-<rid>` from the GitHub Release for
+  your platform (see `README.md`).
+- **Build yourself:** `dotnet publish src/PoeRegex.Cli -c Release -r <rid>
+  -p:PublishAot=true -p:StripSymbols=true -o out/aot` — prerequisites in
+  [`docs/BUILDING.md`](BUILDING.md).
+
+### Future: Native AOT FFI
+
+If you need in-process access without .NET, a C-ABI shared library via
+`[UnmanagedCallersOnly]` exports (Native AOT `NativeLib=Shared`) is a possible
+next step, letting Python/Rust/Go call `compile()` directly. It is **not built
+today**; the JSON CLI is the supported cross-language surface.
 
 ## Cookbook
 

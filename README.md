@@ -58,6 +58,10 @@ dotnet run --project src/PoeRegex.Cli -- list-mods --game poe2 --class Ring --se
 dotnet run --project src/PoeRegex.Cli -- validate --game poe1 --query '"to maximum Life"'
 ```
 
+Every command also supports `--json` for machine-readable stdout — that's the
+cross-language integration surface (Python, Node, shell, etc.). See
+[`docs/USING-THE-ENGINE.md`](docs/USING-THE-ENGINE.md#12-using-the-engine-from-any-language-the-cli-subprocess-contract).
+
 Exit codes: `0` ok, `1` error (including a query over the character limit),
 `2` usage error.
 

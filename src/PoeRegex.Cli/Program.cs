@@ -33,6 +33,12 @@ internal static class Program
         }
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
     private static int Main(string[] args)
     {
         if (args.Length == 0)
@@ -62,10 +68,13 @@ internal static class Program
                   [--include <mod-or-text>]... [--min <text:value>]...
                   [--exclude <text>]... [--ilvl <n>] [--keyword <kw>]...
                   [--clipboard] [--json] [--allow-overflow]
-              poe-regex list-classes --game <poe1|poe2> [--catalog <path>]
+              poe-regex list-classes --game <poe1|poe2> [--catalog <path>] [--json]
               poe-regex list-mods --game <poe1|poe2> [--catalog <path>] [--class <id>]
-                  [--search <text>] [--limit <n>]
-              poe-regex validate --game <poe1|poe2> [--catalog <path>] --query "<regex>"
+                  [--search <text>] [--limit <n>] [--json]
+              poe-regex validate --game <poe1|poe2> [--catalog <path>] --query "<regex>" [--json]
+
+            --json: emit machine-readable JSON on stdout (suitable for other
+            programs and scripts); human text otherwise.
 
             exit codes: 0 ok, 1 error, 2 usage
             """);
@@ -208,7 +217,7 @@ internal static class Program
                 Message = d.Message,
             }).ToList(),
         };
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }).JsonEmitResult));
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).JsonEmitResult));
     }
 
     // ---- list-classes ----
@@ -217,19 +226,27 @@ internal static class Program
     {
         var game = GameTarget.PoE1;
         string? catalogPath = null;
+        var json = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
+                case "--json": json = true; break;
                 default: return Usage($"unknown option '{args[i]}'");
             }
         }
         var corpus = LoadCorpus(game, catalogPath);
-        foreach (var cls in corpus.Catalog.ItemClasses.OrderBy(c => c.Id, StringComparer.Ordinal))
+        var classes = corpus.Catalog.ItemClasses.OrderBy(c => c.Id, StringComparer.Ordinal).ToList();
+        if (json)
         {
-            Console.WriteLine($"{cls.Id}\t{cls.Name}");
+            var payload = classes.Select(c => new JsonClassEntry { Id = c.Id, Name = c.Name }).ToList();
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).ListJsonClassEntry));
+        }
+        else
+        {
+            foreach (var cls in classes) Console.WriteLine($"{cls.Id}\t{cls.Name}");
         }
         return ExitOk;
     }
@@ -243,6 +260,7 @@ internal static class Program
         string? itemClass = null;
         string? search = null;
         var limit = 200;
+        var json = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -251,6 +269,7 @@ internal static class Program
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--class": itemClass = GetValue(args, ref i, "--class"); break;
                 case "--search": search = GetValue(args, ref i, "--search"); break;
+                case "--json": json = true; break;
                 case "--limit":
                     if (!int.TryParse(GetValue(args, ref i, "--limit"), out limit)) return Usage("--limit must be numeric");
                     break;
@@ -265,10 +284,23 @@ internal static class Program
                        .OrderBy(m => m.Name ?? m.Id, StringComparer.Ordinal)
                        .Take(limit)
                        .ToList();
-        foreach (var m in list)
+        if (json)
         {
-            var first = m.StatLines.FirstOrDefault()?.Line ?? "";
-            Console.WriteLine($"{m.Id}\t{m.Name ?? ""}\t{first}");
+            var payload = list.Select(m => new JsonModEntry
+            {
+                Id = m.Id,
+                Name = m.Name,
+                Line = m.StatLines.FirstOrDefault()?.Line ?? "",
+            }).ToList();
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).ListJsonModEntry));
+        }
+        else
+        {
+            foreach (var m in list)
+            {
+                var first = m.StatLines.FirstOrDefault()?.Line ?? "";
+                Console.WriteLine($"{m.Id}\t{m.Name ?? ""}\t{first}");
+            }
         }
         return ExitOk;
     }
@@ -287,6 +319,7 @@ internal static class Program
         var game = GameTarget.PoE1;
         string? catalogPath = null;
         string? query = null;
+        var json = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -294,6 +327,7 @@ internal static class Program
                 case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--query": query = GetValue(args, ref i, "--query"); break;
+                case "--json": json = true; break;
                 default: return Usage($"unknown option '{args[i]}'");
             }
         }
@@ -301,11 +335,29 @@ internal static class Program
 
         var strategy = PoeRegexCompiler.StrategyFor(game);
         var diag = strategy.ValidateFragment(query);
-        if (diag is not null)
+        if (json)
         {
-            Console.WriteLine($"warning: {diag.Code}: {diag.Message}");
+            var payload = new JsonValidateResult
+            {
+                Ok = true,
+                Game = game.ToRuleKey(),
+                Warning = diag is null ? null : new JsonEmitDiagnostic
+                {
+                    Level = diag.Level.ToString().ToLowerInvariant(),
+                    Code = diag.Code,
+                    Message = diag.Message,
+                },
+            };
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).JsonValidateResult));
         }
-        Console.WriteLine($"ok: query is syntactically acceptable for {game.ToRuleKey()}");
+        else
+        {
+            if (diag is not null)
+            {
+                Console.WriteLine($"warning: {diag.Code}: {diag.Message}");
+            }
+            Console.WriteLine($"ok: query is syntactically acceptable for {game.ToRuleKey()}");
+        }
         return ExitOk;
     }
 

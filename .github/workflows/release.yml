@@ -74,6 +74,18 @@ jobs:
           ./dist/${{ matrix.bin }} generate --game poe2 --keyword "ilvl:80" --include "fire damage" --json >/dev/null
           ./dist/${{ matrix.bin }} list-mods --game poe2 --class "Body Armour" --limit 5 >/dev/null
           ./dist/${{ matrix.bin }} validate --game poe1 --query '"life"' | grep -q '^ok:'
+
+          # Subprocess JSON contract: every --json command must emit a single
+          # parseable JSON document on stdout and nothing on stderr.
+          if command -v python3 >/dev/null 2>&1; then
+            ./dist/${{ matrix.bin }} list-classes --game poe1 --json 2>/dev/null | python3 -c 'import json,sys; json.load(sys.stdin)'
+            ./dist/${{ matrix.bin }} list-mods --game poe2 --limit 5 --json 2>/dev/null | python3 -c 'import json,sys; json.load(sys.stdin)'
+            ./dist/${{ matrix.bin }} validate --game poe1 --query "?=.*life" --json 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["ok"] is True'
+          else
+            for cmd in "list-classes --game poe1 --json" "list-mods --game poe2 --limit 5 --json" "validate --game poe1 --query life --json"; do
+              ./dist/${{ matrix.bin }} $cmd >/dev/null 2>&1
+            done
+          fi
           echo "smoke test passed"
 
       - name: Upload artifact
