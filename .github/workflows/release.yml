@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      rid:
+        description: 'RID to build (leave empty for all four)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -15,19 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - rid: win-x64
-            os: windows-latest
-            bin: poe-regex-win-x64.exe
-          - rid: linux-x64
-            os: ubuntu-latest
-            bin: poe-regex-linux-x64
-          - rid: osx-arm64
-            os: macos-latest
-            bin: poe-regex-osx-arm64
-          - rid: osx-x64
-            os: macos-26-intel
-            bin: poe-regex-osx-x64
+        include: ${{ fromJSON(inputs.rid == 'win-x64' && '[{"rid":"win-x64","os":"windows-latest","bin":"poe-regex-win-x64.exe"}]' || inputs.rid == 'linux-x64' && '[{"rid":"linux-x64","os":"ubuntu-latest","bin":"poe-regex-linux-x64"}]' || inputs.rid == 'osx-arm64' && '[{"rid":"osx-arm64","os":"macos-latest","bin":"poe-regex-osx-arm64"}]' || inputs.rid == 'osx-x64' && '[{"rid":"osx-x64","os":"macos-26-intel","bin":"poe-regex-osx-x64"}]' || '[{"rid":"win-x64","os":"windows-latest","bin":"poe-regex-win-x64.exe"},{"rid":"linux-x64","os":"ubuntu-latest","bin":"poe-regex-linux-x64"},{"rid":"osx-arm64","os":"macos-latest","bin":"poe-regex-osx-arm64"},{"rid":"osx-x64","os":"macos-26-intel","bin":"poe-regex-osx-x64"}]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
