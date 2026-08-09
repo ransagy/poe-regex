@@ -86,8 +86,10 @@ Reversibility guarantee + spec-concept TUI demo.
 
 ## Phase 2 — OpenTUI demo (`demos/opentui-tui/`)
 
-- [ ] 2.1 Spike: hello-world `createCliRenderer` under Node 26.4 +
-      `--experimental-ffi`; validate @opentui/core API; pin version.
+- [x] 2.1 Spike: hello-world `createCliRenderer` under Node 26.4 +
+      `--experimental-ffi`; validated @opentui/core@0.5.1 API (Text/Box/Input/
+      Select render + clean exit); pinned version; `demos/opentui-tui/` scaffold
+      (package.json scripts, .gitignore, spike.mjs).
 - [ ] 2.2 Subprocess wrapper implementing the CLI contract (Bun.spawn /
       child_process + JSON parse + exit codes).
 - [ ] 2.3 Layout per spec §7: game toggle; slot modes (Single dropdown /
