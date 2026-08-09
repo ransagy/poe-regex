@@ -61,6 +61,37 @@ dotnet run --project tools/PoeRegex.Data.Build -- build --game poe1 --raw data/r
 
 Re-running after a league patch re-sources the latest exports.
 
+## Acknowledgements
+
+Sources and prior art from the Path of Exile community this project builds on:
+
+- **RePoE** — extracted game data for the data pipeline.
+  - `repoe-fork/repoe` (https://github.com/repoe-fork/repoe) — fork whose gh-pages
+    exports this project fetches.
+  - Original project `brather1ng/RePoE` (https://github.com/brather1ng/RePoE).
+  - The underlying game data is owned by Grinding Gear Games; see `NOTICE`.
+- **PyPoE** (https://github.com/OmegaK2/PyPoE) — MIT-licensed. The stat-text
+  renderer (`StatTextRenderer`) is an algorithm port of PyPoE's
+  `TranslationString.format_string` (variant selection, `index_handlers`, and
+  value substitution), which itself mirrors the in-game advanced mod description.
+- **Community grammar knowledge** — the trade-search regex conventions this tool
+  targets (quoted-block AND `"A" "B"`, `!` negation, lookaheads and custom
+  keywords on PoE 2, the 250-character query limit) are treated as functional
+  behavior of the in-game trade sites and described here in our own words.
+  No example text, query strings, or prose are reproduced from community wikis
+  (which use CC BY-NC-SA), forums, subreddits, or guide sites. No unlicensed
+  source was used.
+
+Nods and kudos to the projects that made this possible:
+
+- [PyPoE](https://github.com/OmegaK2/PyPoE) — MIT — translation/rendering prior art
+- [RePoE](https://github.com/repoe-fork/repoe) — MIT — game-data extraction
+- [RePoE (original)](https://github.com/brather1ng/RePoE) — MIT — upstream project
+- [xUnit](https://github.com/xunit/xunit) — Apache 2.0 — test framework
+- [Awesome Assertions](https://github.com/AwesomeAssertions/AwesomeAssertions) — Apache 2.0 — test assertions
+- [TextCopy](https://github.com/CopyText/TextCopy) — MIT — cross-platform clipboard
+- [.NET](https://dot.net) / [System.Text.Json](https://github.com/dotnet/runtime) — MIT — runtime and JSON
+
 ## License
 
 MIT. This project is not affiliated with Grinding Gear Games; Path of Exile is a

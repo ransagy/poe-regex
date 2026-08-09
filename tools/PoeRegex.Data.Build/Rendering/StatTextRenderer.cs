@@ -1,3 +1,6 @@
+// Stat-text rendering algorithm ported from PyPoE (https://github.com/OmegaK2/PyPoE),
+// MIT License, Copyright (c) 2015 OmegaK2. See NOTICE for the full notice.
+
 using PoeRegex.Data.Build.RePoE;
 
 namespace PoeRegex.Data.Build.Rendering;

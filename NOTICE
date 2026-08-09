@@ -18,8 +18,10 @@ Gear Games' terms of use.
 Third-Party Notices
 -------------------
 - RePoE (https://github.com/repoe-fork/repoe) - extracted game data
+- PyPoE (https://github.com/OmegaK2/PyPoE) - MIT License; the stat-text
+  rendering algorithm is ported from its TranslationString.format_string
 - xUnit - Apache License 2.0
-- Awesome Assertions - MIT License
+- Awesome Assertions - Apache License 2.0
 - TextCopy - MIT License
 - System.Text.Json - MIT License
 

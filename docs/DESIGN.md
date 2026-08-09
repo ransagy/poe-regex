@@ -1,7 +1,7 @@
 # Path of Exile Regex Compiler Engine — Design Specification
 
 **Target stack:** .NET 10 (LTS), pure-BCL core (WASM-safe for a later web UI), CLI-first.
-**License:** MIT (project); deps: xUnit (Apache 2.0), System.Text.Json (MIT), Awesome Assertions (MIT), TextCopy (MIT).
+**License:** MIT (project); deps: xUnit (Apache 2.0), System.Text.Json (MIT), Awesome Assertions (Apache 2.0), TextCopy (MIT).
 **Scope:** English client only. v0.1 = engine + CLI + test suite; web UI deferred.
 
 ---
@@ -11,6 +11,7 @@
 - **Upstream:** `repoe-fork/repoe` gh-pages exports — PoE 1 at root, PoE 2 under `/poe2`. Each export has a pinned game version recorded in the catalog (`DataVersion`). Re-fetching is a repeatable build step (`PoeRegex.Data.Build`), designed so league patches re-source cleanly.
 - **Distribution:** only **derived catalogs** ship (human-readable mod-text lines + precomputed fingerprints). Raw RePoE JSON is dev-only and gitignored. This is tolerated community use, not clean compliance — the repo ships a `NOTICE` with RePoE attribution and GGG trademark/affiliation disclaimers.
 - RePoE data files are GGG-owned per RePoE's `LICENSE.md`; the project deliberately distributes the minimal derived subset (short factual text + fingerprints) rather than raw extracted data.
+- **Grammar/validation sources:** the trade-search regex grammar is treated as a *functional fact* of GGG's trade sites and is described in our own words only. No content (prose, example query strings, or snippets) is reproduced from community wikis, forums, subreddits, or guide sites. In particular: poewiki/poe2wiki content is **CC BY-NC-SA 3.0** (non-commercial + share-alike, incompatible with this MIT repo) and poe.re/poe2.re publish without a license — both are consulted at most for factual understanding by humans and never copied. Reddit threads and Maxroll/Mobalytics are treated as all-rights-reserved and unused. All query→expected-string test cases are self-authored, modeled on functional behavior.
 
 ## 2. Repository Layout
 
@@ -55,7 +56,7 @@ poe-regex/
 ## 5. Grammar & Assembly
 
 - **Shared base (both games):** literals, `|`, `+ * ? {m,n}`, `[a-z]`/`[0-9]`, `.`, `^`/`$` (per-line anchors), `\d \w \s`, `( )`, case-insensitive per-line matching.
-- **PoE 2 (per community guides):** quoted-block AND `"A" "B"`, `!` negation as its own quoted block, lookaheads `(?=...)`/`(?!...)` supported, custom keywords.
+- **PoE 2 (functional behavior of the trade site):** quoted-block AND `"A" "B"`, `!` negation as its own quoted block, lookaheads `(?=...)`/`(?!...)` supported, custom keywords.
 - **Validation:** per-game tokenizer accepts the supported set; unsupported constructs (lookahead in PoE 1, `\b` everywhere) produce a diagnostic warning — the engine never emits them and never claims they "crash" the game.
 - **Assembly rules:** one quoted block with `|` alternation over included-mod patterns; separate quoted blocks for exclusions (`!"term"`), the class fingerprint, and keywords, joined by spaces (quoted-blocks-separated-by-spaces = AND). Deterministic ordering everywhere.
 - Unquoted spaces inside a quote are literal; they are NOT implicit AND separators.
@@ -81,12 +82,12 @@ poe-regex/
 - **Length enforcement:** injected `GameRules` (limit 50 → overflow; 250 → passes).
 - **Compaction:** no-false-positive property tests over catalog fixtures; threshold pattern correctness; deterministic output.
 - **Data build:** fixture RePoE JSONs → expected rendered lines (number formatting, handlers), fingerprint correctness.
-- **Integration:** curated query→expected-string cases grounded in community guides.
+- **Integration:** self-authored query→expected-string cases modeling functional trade-site behavior (no third-party example text).
 - Golden-corpus validation against real in-game copy-text is a post-v0.1 item (v0.1 uses synthetic text synthesized from RePoE data).
 
 ## 9. Non-blocking "verify during implementation" items
 
 - PoE 1 advanced copy including mod names on mod lines (gates `SupportsModNameAnchors`).
-- PoE 1 multi-quoted-block AND behavior (assumed yes per community guides).
+- PoE 1 multi-quoted-block AND behavior (to be verified against the game itself).
 - Exact `stat_value_handlers` formatting edge cases (percent, fractions, rounding) — covered by fixture tests.
-- PoE 2 `ilvl:`/`str:` spacing rules (per community documentation).
+- PoE 2 `ilvl:`/`str:` spacing rules (to be verified against the game itself).
