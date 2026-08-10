@@ -11,6 +11,7 @@ import {
   addExcluded,
   addManyIncluded,
   removeMod,
+  clearChips,
   setMods,
   setSearch,
   filterMods,
@@ -84,6 +85,28 @@ test("included/excluded add once and remove by id", () => {
 
   removeMod(s, s.included, "X");
   assert.deepEqual(s.included, []);
+});
+
+test("clearChips clears chips, search, and results but keeps game/mode/slots", () => {
+  const s = createState();
+  setGame(s, "poe2");
+  setClasses(s, [{ id: "Ring", name: "Rings" }, { id: "Amulet", name: "Amulets" }]);
+  setMode(s, "multi");
+  toggleClass(s, "Amulet");
+  setSearch(s, "dexter");
+  addIncluded(s, { id: "A", line: "l" });
+  addExcluded(s, { id: "B", line: "l2" });
+  s.results = [{ query: "x" }];
+
+  clearChips(s);
+  assert.equal(s.included.length, 0);
+  assert.equal(s.excluded.length, 0);
+  assert.equal(s.search, "");
+  assert.equal(s.results.length, 0);
+  assert.equal(s.explain, null);
+  assert.equal(s.game, "poe2");
+  assert.equal(s.mode, "multi");
+  assert.deepEqual(s.selectedClasses, ["Ring", "Amulet"]);
 });
 
 test("filterMods matches name, id, and line case-insensitively", () => {

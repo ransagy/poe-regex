@@ -87,7 +87,7 @@ const rightCol = new BoxRenderable(renderer, { flexDirection: "column", gap: 1, 
 const footerBox = new BoxRenderable(renderer, { flexDirection: "row", paddingX: 1, borderStyle: "rounded", borderColor: "#444444" });
 footerBox.add(
   new TextRenderable(renderer, {
-    content: "Tab focus  ·  Enter include  ·  x exclude  ·  a select all  ·  c copy  ·  e explain  ·  g game  ·  q quit",
+    content: "Tab focus · Enter include · x exclude · a select all · r clear · c copy · e explain · g game · q quit",
     fg: "#888888",
   }),
 );
@@ -162,7 +162,18 @@ function cycleFocus(delta) {
 
 let refreshToken = 0;
 
-async function loadClasses() {
+/** Switch game, clearing the picked mods/search and reloading classes for it. */
+function switchGame(next) {
+  if (next === state.game) return;
+  app.setGame(state, next);
+  modInput.value = "";
+  updateChips();
+  updateSuggestions();
+  renderExplain();
+  loadClasses({ gameChanged: true });
+}
+
+async function loadClasses({ gameChanged = false } = {}) {
   try {
     const all = await engine.listClasses(state.game, { binary: engine.resolveBinary() });
     const classes = app.playableClasses(all, catalog.loadClassIdsWithMods(state.game));
@@ -176,6 +187,7 @@ async function loadClasses() {
       }
     }
     updateClassSelect();
+    if (gameChanged) nudgeClassRender();
     await refreshSuggestions();
     await regenerate();
   } catch (err) {
@@ -272,7 +284,10 @@ async function copyQueries() {
 
 function updateClassSelect() {
   const globalMode = state.mode === "global";
+  // Align the class select's own visibility with its (hidden) parent row so
+  // the focus cycle skips it in global mode in BOTH directions.
   baseRow.visible = !globalMode;
+  classSelect.visible = !globalMode;
   if (globalMode) {
     classSelect.options = [];
     return;
@@ -445,6 +460,16 @@ function selectAllFiltered() {
   regenerate();
 }
 
+/** Clear all included/excluded mods and the search filter. */
+function clearAll() {
+  app.clearChips(state);
+  modInput.value = "";
+  updateChips();
+  updateSuggestions();
+  renderExplain();
+  regenerate();
+}
+
 // ---- events ----------------------------------------------------------------
 
 modInput.on(InputRenderableEvents.INPUT, (value) => {
@@ -454,8 +479,7 @@ modInput.on(InputRenderableEvents.INPUT, (value) => {
 
 gameSelect.on(SelectRenderableEvents.SELECTION_CHANGED, (idx, opt) => {
   if (opt?.value && opt.value !== state.game) {
-    app.setGame(state, opt.value);
-    loadClasses();
+    switchGame(opt.value);
   }
 });
 
@@ -489,6 +513,7 @@ classSelect.on(SelectRenderableEvents.ITEM_SELECTED, (idx, opt) => {
 });
 
 function nudgeClassRender() {
+  if (!classSelect.visible) return;
   // Content-only changes to a buffered Select aren't re-composited (the render
   // list is reused), so the [x]/[ ] markers don't repaint. Flipping visibility
   // through a layout change forces a full re-paint of the list.
@@ -519,6 +544,9 @@ renderer.keyInput.on("keypress", (key) => {
   } else if (key.name === "a") {
     key.preventDefault();
     selectAllFiltered();
+  } else if (key.name === "r") {
+    key.preventDefault();
+    clearAll();
   } else if (key.name === "c") {
     key.preventDefault();
     copyQueries();
@@ -532,9 +560,8 @@ renderer.keyInput.on("keypress", (key) => {
   } else if (key.name === "g") {
     key.preventDefault();
     const next = state.game === "poe1" ? "poe2" : "poe1";
-    app.setGame(state, next);
+    switchGame(next);
     gameSelect.setSelectedIndex(app.GAMES.indexOf(next));
-    loadClasses();
   }
 });
 

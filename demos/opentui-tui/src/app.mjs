@@ -95,6 +95,15 @@ export function removeMod(state, list, id) {
   state.explain = null;
 }
 
+/** Clear the included/excluded chips and the mod search (keeps game/mode/slots). */
+export function clearChips(state) {
+  state.included = [];
+  state.excluded = [];
+  state.search = "";
+  state.results = [];
+  state.explain = null;
+}
+
 export function setMods(state, mods) {
   state.mods = mods;
 }

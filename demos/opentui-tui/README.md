@@ -53,14 +53,15 @@ The layout:
 | `Enter` (in `MOD` / suggestions) | include the first matching mod (or the highlighted one); if none matches, the typed text is included as a free-text pattern |
 | `x` (in `MOD` / suggestions) | exclude the first matching mod (or the highlighted one) |
 | `a`, or select the `[select all N]` row | include every currently-filtered, not-yet-chosen mod and clear the filter |
+| `r` | clear all included/excluded chips and the search filter |
 | `Enter` on an included/excluded chip | remove that chip |
 | `Enter` / `Space` on a class (multi mode) | toggle that base-equipment slot |
 | `c` | copy the compiled query/query-list (system clipboard tool, then OSC52) |
 | `e` | explain the current query in the panel (tokens + candidate mods) |
-| `g` | toggle PoE1 ↔ PoE2 |
+| `g` | toggle PoE1 ↔ PoE2 (clears the picked mods/search and reloads that game's classes and mods; the current mode is kept) |
 | `q` / `Ctrl+C` | quit |
 
-The footer bar shows these controls. The letter shortcuts (`x`/`a`/`c`/`e`/`g`)
+The footer bar shows these controls. The letter shortcuts (`x`/`a`/`r`/`c`/`e`/`g`)
 are typed as text instead while you're in the `MOD` field — move focus with
 `Tab` first.
 

@@ -102,7 +102,14 @@ def main():
     os.write(master, b"\x1b[B")
     g, g_new = gather(2.5)
 
-    # Phase H: Down again -> multi; BASE EQUIPMENT row returns with toggle hint.
+    # Phase H: in global mode, forward-Tab from MODE must skip the hidden BASE
+    # EQUIPMENT and land on the mod input; Shift+Tab back must land on MODE
+    # (not the hidden class list). Pressing Down then switches to multi and the
+    # BASE EQUIPMENT row returns.
+    os.write(master, b"\t")
+    time.sleep(0.4)
+    os.write(master, b"\x1b[Z")
+    time.sleep(0.4)
     os.write(master, b"\x1b[B")
     h, h_new = gather(2.5)
 
@@ -112,7 +119,24 @@ def main():
     os.write(master, b"\r")
     i, i_new = gather(2.5)
 
-    # Phase J: quit.
+    # Phase J: game toggle ('g', focus is on the class list) -> poe2 classes.
+    os.write(master, b"g")
+    j, j_new = gather(3.0)
+
+    # Phase K: Tab to the mod input, type a poe2 search, include one, then 'r'
+    # clears all chips + search (output returns to "(no output)").
+    os.write(master, b"\t")
+    time.sleep(0.4)
+    os.write(master, b"dexter")
+    time.sleep(1.0)
+    os.write(master, b"\r")
+    time.sleep(1.5)
+    os.write(master, b"\t")
+    time.sleep(0.4)
+    os.write(master, b"r")
+    k, k_new = gather(2.5)
+
+    # Phase L: quit.
     os.write(master, b"q")
     time.sleep(0.8)
     tail = read_all(master, 0.5)
@@ -132,9 +156,6 @@ def main():
     for name, raw in [("boot", a), ("typed", b), ("included", c), ("excluded", d), ("explained", f)]:
         pass  # raw captures are only used for the substring checks above
 
-    with open("/tmp/opencode/smoke-i_new.bin", "wb") as fh:
-        fh.write(i_new)
-
     checks = []
     checks.append(("boot: engine mode label", b"SYSTEM ENGINE MODE" in a, a[:200]))
     checks.append(("boot: base equipment label", b"BASE EQUIPMENT" in a, a[:200]))
@@ -153,9 +174,16 @@ def main():
     checks.append(("explain: panel updated", b"candidate mods" in f or b"[include]" in f, f[-700:]))
     # Global mode hides the BASE EQUIPMENT row; multi restores it with the hint.
     checks.append(("global: base row hidden", b"BASE EQUIPMENT" not in g_new, g_new[-500:]))
-    checks.append(("multi: base row returns", b"BASE EQUIPMENT" in h_new, h_new[-500:]))
+    # In global, forward-Tab from MODE must skip the hidden class list, and
+    # Shift+Tab back must land on MODE again (so Down switches to multi).
+    checks.append(("global: focus-back skips class list", b"BASE EQUIPMENT" in h_new, h_new[-500:]))
     # Multi: Enter toggles the highlighted slot (marker flips to [x]).
     checks.append(("multi: slot toggle marks [x]", b"[x]" in i_new, i_new[-600:]))
+    # Game toggle swaps classes/mods to poe2 (poe2 classes, poe1-only gone).
+    checks.append(("game: poe2 classes shown", b"Crossbows" in j_new, j_new[-700:]))
+    checks.append(("game: poe1-only class gone", b"Rune Daggers" not in j_new, j_new[-700:]))
+    # 'r' clears all chips + search: output returns to the no-output placeholder.
+    checks.append(("clear-all: output reset", b"(no output)" in k_new, k_new[-500:]))
 
     ok = True
     for name, passed, sample in checks:

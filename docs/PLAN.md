@@ -175,3 +175,14 @@ Reversibility guarantee + spec-concept TUI demo.
   the [x]/[ ] markers didn't repaint on toggle -> visibility flip forces a
   repaint (`nudgeClassRender`). 20 unit tests + expanded PTY smoke (rendering,
   filtering, select-all, global hide, multi toggle/union) green.
+- 2026-08-10: Demo focus/clear/game-swap fixes. Focus-back in global mode
+  skipped the hidden BASE EQUIPMENT incorrectly: `updateClassSelect` hid only
+  the parent row, leaving `classSelect.visible` true, so `cycleFocus` (which
+  checks each widget's own flag) landed on the invisible class list instead of
+  MODE — now the class select's visibility is aligned with the row. Added a
+  clear-all (`r` key) via `app.clearChips` (chips + search, keeps
+  game/mode/slots). Game toggle now goes through `switchGame`, which clears the
+  mod input widget (setGame only cleared state.search) and nudges the class
+  select to repaint the swapped poe2 classes (the buffered-Select quirk also
+  affected game changes). Footer shortened to fit one line. 27 unit tests + PTY
+  smoke (20 checks incl. focus-back-skip, game swap, clear-all) green.
