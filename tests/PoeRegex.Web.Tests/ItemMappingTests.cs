@@ -1,0 +1,134 @@
+using PoeRegex.Core;
+using PoeRegex.Web.Core;
+
+namespace PoeRegex.Web.Tests;
+
+/// <summary>
+/// Mapping quality: pasted canonical lines resolve to catalog mods holding
+/// the header's mod name; unknown lines map nowhere. Matcher verdicts follow
+/// the engine's token semantics.
+/// </summary>
+public class ItemMappingTests
+{
+    private static readonly EngineService Engine = new();
+
+    private static void AssertMapsTo(string? itemClassText, string text, string expectedModName, bool approximate = false)
+    {
+        var parsed = ItemTextParser.Parse($"Item Class: {itemClassText}\nRarity: Rare\nX\n--------\n{{ Suffix Modifier \"{expectedModName}\" }}\n{text}\n");
+        var line = parsed.Mods[0].Lines[0];
+        var classId = Engine.ResolveClassId(itemClassText);
+        var mapping = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
+        mapping.ModIds.Should().NotBeEmpty($"'{text}' should map to something");
+        mapping.Approximate.Should().Be(approximate);
+        var names = mapping.ModIds.Select(id => Engine.FindMod(id)?.Name).ToList();
+        names.Should().Contain(expectedModName);
+    }
+
+    [Fact]
+    public void ResolveClassId_MatchesPluralDisplayNames()
+    {
+        Engine.ResolveClassId("Crossbows").Should().Be("Crossbow");
+        Engine.ResolveClassId("Belts").Should().Be("Belt");
+        Engine.ResolveClassId("Talismans").Should().Be("Talisman");
+        Engine.ResolveClassId("Staves").Should().Be("Staff");
+        Engine.ResolveClassId("One Hand Maces").Should().Be("One Hand Mace");
+        Engine.ResolveClassId("nope").Should().BeNull();
+    }
+
+    [Fact]
+    public void MapLine_IntelligenceTier_MatchesSavant()
+    {
+        AssertMapsTo("Talismans", "+30(28-30) to Intelligence", "of the Savant");
+    }
+
+    [Fact]
+    public void MapLine_LightningDamage_MatchesSnapping()
+    {
+        AssertMapsTo("Crossbows", "Adds 2(1-3) to 43(31-43) Lightning Damage", "Snapping");
+    }
+
+    [Fact]
+    public void MapLine_RolllessLightRadius_MatchesOfLightApproximately()
+    {
+        // Game text `Light Radius` vs catalog `LightRadius` (renderer keeps
+        // the internal first-alternative form): spaceless fallback, flagged.
+        AssertMapsTo("One Hand Maces", "10% increased Light Radius", "of Light", approximate: true);
+    }
+
+    [Fact]
+    public void MapLine_ImplicitBolt_MapsNowhere_CatalogHasNoImplicits()
+    {
+        // The derived catalog ships prefix/suffix generations only; implicits
+        // (and this crossbow's `unique`-generation implicit) are absent.
+        var classId = Engine.ResolveClassId("Crossbows");
+        Engine.MapLineToMods(classId, "Loads an additional bolt", []).ModIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void MapLine_UnknownLine_MapsNowhere()
+    {
+        Engine.MapLineToMods("Ring", "Summons 3 angry bees", []).ModIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Matcher_IncludedAndExcludedTokenSemantics()
+    {
+        var lines = new[] { "+84 to maximum Life", "Item Class: Rings" };
+        ItemMatcher.Match("\"to maximum Life\" !\"reflect\"", lines).Match.Should().BeTrue();
+        ItemMatcher.Match("\"to maximum Life\" !\"reflect\"", ["+84 to maximum Life", "reflects damage"])
+            .Match.Should().BeFalse("excluded token hits");
+        ItemMatcher.Match("\"to maximum Life\"", ["+84 to maximum Mana"])
+            .Match.Should().BeFalse("included token misses");
+    }
+
+    [Fact]
+    public void Matcher_CompiledDigitPattern_MatchesRoll()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6", 80)], [],
+            itemClass: "Ring");
+        ItemMatcher.Match(result.Query, ["+84 to maximum Life", "Item Class: Rings"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(result.Query, ["+10 to maximum Life", "Item Class: Rings"])
+            .Match.Should().BeFalse("floor 80 excludes a 10 roll");
+    }
+
+    [Theory]
+    [InlineData("Belt", 0, 2)]
+    [InlineData("Talisman", 2, 0)]
+    [InlineData("Crossbow", 4, 1)]
+    [InlineData("Staff", 1, 0)]
+    [InlineData("Mace", 5, 0)]
+    public void FixtureCoverage_PrefixSuffixLinesMapToHeaderName(
+        string fixture, int mapped, int unmappedImplicits)
+    {
+        var text = typeof(FixtureTexts).GetField(
+            fixture,
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null) as string;
+        var item = ItemTextParser.Parse(text!);
+        var classId = Engine.ResolveClassId(item.ItemClass);
+        classId.Should().NotBeNull($"{fixture} item class should resolve");
+        var hit = 0;
+        var implicitEmpty = 0;
+        foreach (var block in item.Mods)
+        {
+            foreach (var line in block.Lines)
+            {
+                var mapping = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
+                if (block.Kind == "implicit")
+                {
+                    // Catalog ships prefix/suffix only: implicits map nowhere.
+                    mapping.ModIds.Should().BeEmpty();
+                    implicitEmpty++;
+                    continue;
+                }
+                mapping.ModIds.Should().NotBeEmpty($"'{line.Text}' should map");
+                var names = mapping.ModIds.Select(id => Engine.FindMod(id)?.Name);
+                names.Should().Contain(block.Name, $"header name '{block.Name}' should be among candidates");
+                hit++;
+            }
+        }
+        hit.Should().Be(mapped);
+        implicitEmpty.Should().Be(unmappedImplicits);
+    }
+}

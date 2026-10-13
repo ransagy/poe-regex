@@ -1,0 +1,26 @@
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+
+<label class="field">
+    <span>Base class</span>
+    <select id="class-@SlotId" value="@State.SlotClassOrDefault(SlotId)" @onchange="OnChange">
+        @foreach (var c in Engine.PlayableClasses())
+        {
+            <option value="@c.Id">@c.Name</option>
+        }
+    </select>
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    [Parameter, EditorRequired]
+    public required string SlotId { get; set; }
+
+    private void OnChange(ChangeEventArgs e)
+    {
+        if (e.Value is string classId && classId.Length > 0)
+            State.SetSlotClass(SlotId, classId);
+    }
+}

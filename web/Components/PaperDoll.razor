@@ -1,0 +1,41 @@
+@using PoeRegex.Web.Core
+
+@*
+  Paper doll: the nine gear slots arranged like the PoE2 inventory panel
+  (hand-drawn CSS, no game assets). Placement is data-driven from
+  GearSlot footprints; footprints and arrangement are TO-CONFIRM (Phase 3 QA).
+*@
+<div class="doll @(State.Mode == "global" ? "dimmed" : "")" aria-label="Equipment" aria-disabled="@(State.Mode == "global")">
+    @foreach (var slot in GearSlot.All)
+    {
+        var active = State.ActiveSlots().Contains(slot.Id);
+        <button id="slot-@slot.Id"
+                class="gear-slot @(active ? "active" : "")"
+                style="@Placement(slot)"
+                aria-pressed="@active"
+                title="@slot.Label"
+                @onclick="() => State.SelectSlot(slot.Id)">
+            <span class="gear-label">@slot.Label</span>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    // Unit-grid placement: 6 columns x 5 rows (TO-CONFIRM arrangement).
+    private static string Placement(GearSlot slot) => slot.Id switch
+    {
+        "weapon" => "grid-column: 1 / span 2; grid-row: 1 / span 4;",
+        "helmet" => "grid-column: 3 / span 2; grid-row: 1 / span 2;",
+        "amulet" => "grid-column: 5; grid-row: 1;",
+        "ring1" => "grid-column: 6; grid-row: 1;",
+        "ring2" => "grid-column: 6; grid-row: 2;",
+        "body" => "grid-column: 3 / span 2; grid-row: 3 / span 3;",
+        "gloves" => "grid-column: 5 / span 2; grid-row: 2 / span 2;",
+        "boots" => "grid-column: 5 / span 2; grid-row: 4 / span 2;",
+        "belt" => "grid-column: 1 / span 2; grid-row: 5;",
+        _ => "",
+    };
+}

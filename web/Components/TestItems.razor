@@ -1,0 +1,50 @@
+@using PoeRegex.Web.Core
+
+<div class="testitems" aria-label="Test items">
+    @if (State.TestItems.Count == 0)
+    {
+        <div class="hint">no test items yet — import or build one above</div>
+    }
+    @foreach (var item in State.TestItems)
+    {
+        <div class="titem @(HighlightIds.Contains(item.Id) ? "hit" : "")" id="titem-@item.Id">
+            <div class="titem-head">
+                <span><b>@item.Name</b>@(item.ClassId is null ? "" : $" · {item.ClassId}")</span>
+                <button id="titem-del-@item.Id" title="remove" @onclick="() => State.RemoveTestItem(item.Id)">×</button>
+            </div>
+            <div class="titem-badges">
+                @foreach (var (label, verdict) in Verdicts(item))
+                {
+                    <span class="badge @(verdict.Match ? "hit" : "miss")">@label: @(verdict.Match ? "match" : "no")</span>
+                }
+            </div>
+            <div class="titem-lines">
+                @foreach (var ml in item.Mapped)
+                {
+                    <div title="@(ml.SelectedModId ?? "unmapped")">@ml.Text</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    /// <summary>Labelled queries to test every item against (slot queries + global).</summary>
+    [Parameter, EditorRequired]
+    public required IReadOnlyList<(string Label, string? Query)> Queries { get; set; }
+
+    [Parameter]
+    public IReadOnlySet<string> HighlightIds { get; set; } = new HashSet<string>();
+
+    private IEnumerable<(string Label, ItemVerdict Verdict)> Verdicts(TestItem item)
+    {
+        foreach (var (label, query) in Queries)
+        {
+            if (query is null) continue;
+            yield return (label, ItemMatcher.Match(query, item.MatchLines()));
+        }
+    }
+}

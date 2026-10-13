@@ -1,0 +1,124 @@
+@using PoeRegex.Core.Data
+@using PoeRegex.Web.Core
+
+<div class="modpicker">
+    <div class="chips" aria-label="Wanted mods">
+        @foreach (var inc in State.Included)
+        {
+            <button class="chip inc" id="chip-inc-@inc.ModId" title="remove"
+                    @onclick="() => State.RemoveInclude(inc.ModId)">
+                +@inc.ModId@(inc.MinValue is null ? "" : $" ≥{inc.MinValue}")
+            </button>
+        }
+        @foreach (var exc in State.Excluded)
+        {
+            <button class="chip exc" id="chip-exc-@exc" title="remove"
+                    @onclick="() => State.RemoveExclude(exc)">
+                −@exc
+            </button>
+        }
+        @if (State.Included.Count + State.Excluded.Count > 0)
+        {
+            <button class="chip clear" id="chips-clear" @onclick="State.ClearChips">clear</button>
+        }
+    </div>
+
+    <div class="modrow">
+        <input id="mod-search" placeholder="type to filter mods…" value="@_search"
+               @oninput="OnSearch" aria-label="Filter mods" />
+        <input id="mod-min" placeholder="min (optional)" inputmode="decimal" value="@_minText"
+               @oninput="OnMin" aria-label="Minimum value" />
+    </div>
+
+    <ol class="suggest" aria-label="Mod suggestions">
+        @if (_suggestions.Count > 0 && !_takenOnly)
+        {
+            <li><button id="suggest-all" @onclick="SelectAll">[select all @_suggestions.Count]</button></li>
+        }
+        @foreach (var m in _suggestions.Take(MaxShown))
+        {
+            <li class="suggest-row">
+                <span class="suggest-line" title="@m.Id">@m.StatLines.FirstOrDefault()?.Line @($"({m.Id})")</span>
+                <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
+                <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(m.Id)">−</button>
+            </li>
+        }
+    </ol>
+    @if (_suggestions.Count > MaxShown)
+    {
+        <div class="more">@(_suggestions.Count - MaxShown) more… keep typing to narrow</div>
+    }
+    @if (_minError is not null)
+    {
+        <div class="field-error">@_minError</div>
+    }
+</div>
+
+@code {
+    private const int MaxShown = 50;
+
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    /// <summary>Typeahead source for the current scope (slot class, union, or all).</summary>
+    [Parameter, EditorRequired]
+    public required IReadOnlyList<ModEntry> Mods { get; set; }
+
+    private string _search = "";
+    private string _minText = "";
+    private string? _minError;
+    private List<ModEntry> _suggestions = [];
+    private bool _takenOnly;
+
+    protected override void OnParametersSet() => Refresh();
+
+    private void Refresh()
+    {
+        var taken = State.Included.Select(m => m.ModId).Concat(State.Excluded);
+        var avail = ModSearch.AvailableMods(Mods, taken);
+        _suggestions = ModSearch.FilterMods(avail, _search).ToList();
+        _takenOnly = avail.Count == 0;
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? "";
+        Refresh();
+    }
+
+    private void OnMin(ChangeEventArgs e)
+    {
+        _minText = e.Value?.ToString() ?? "";
+        _minError = null;
+    }
+
+    /// <returns>(min, valid): valid=false only when text is present but not a number.</returns>
+    private (double? min, bool valid) ParseMin()
+    {
+        var t = _minText.Trim();
+        if (t.Length == 0) { _minError = null; return (null, true); }
+        if (double.TryParse(t, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var v))
+        { _minError = null; return (v, true); }
+        _minError = $"min '{t}' is not a number";
+        return (null, false);
+    }
+
+    private void Include(ModEntry m)
+    {
+        var (min, valid) = ParseMin();
+        if (!valid) return;
+        State.AddInclude(m.Id, min);
+        Refresh();
+    }
+
+    private void SelectAll()
+    {
+        var (min, valid) = ParseMin();
+        if (!valid) return;
+        foreach (var m in _suggestions)
+            State.AddInclude(m.Id, min);
+        _search = "";
+        Refresh();
+    }
+}

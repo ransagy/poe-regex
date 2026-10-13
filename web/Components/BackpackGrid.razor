@@ -1,0 +1,34 @@
+@using PoeRegex.Web.Core
+
+@*
+  Backpack grid: the test-items area (replaces the stash panel).
+  Fixed 12 x 5 cells; items render as 1x1 markers until the per-class
+  dimension table lands (Phase 5 QA). Highlighted cells match the view query.
+*@
+<div class="pack" aria-label="Backpack (test items)">
+    @for (var r = 0; r < Rows; r++)
+    {
+        @for (var c = 0; c < Cols; c++)
+        {
+            var here = Items.Where(t => t.Row == r && t.Col == c).ToList();
+            <div id="pack-@r-@c" class="pack-cell @(here.Count > 0 ? "filled" : "")">
+                @foreach (var t in here)
+                {
+                    <span id="pack-item-@t.Id" title="@t.Name"
+                          class="pack-item @(HighlightIds.Contains(t.Id) ? "hit" : "")">@("\u25C6")</span>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const int Cols = 12;
+    private const int Rows = 5;
+
+    [Parameter]
+    public IReadOnlyList<TestItem> Items { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlySet<string> HighlightIds { get; set; } = new HashSet<string>();
+}

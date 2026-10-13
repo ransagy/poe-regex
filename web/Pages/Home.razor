@@ -1,0 +1,158 @@
+﻿@page "/"
+@using PoeRegex.Core
+@using PoeRegex.Core.Data
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+@inject WorkbenchState State
+@inject web.Services.PersistenceService Persistence
+@implements IDisposable
+
+<PageTitle>poe-regex workbench</PageTitle>
+
+<div class="bench">
+    <section class="panel inventory" aria-label="Inventory">
+        <div class="panel-head">
+            <span>Inventory</span>
+            <ModeSwitch State="State" />
+        </div>
+        <PaperDoll State="State" />
+
+        @if (State.Mode == "single" && State.SelectedSlot is { } slot)
+        {
+            <div class="panel-sub">@slot slot</div>
+            <ClassPicker State="State" SlotId="@slot" />
+            <ModPicker State="State" Mods="Engine.ModsForClass(State.SlotClassOrDefault(slot))" />
+        }
+        else if (State.Mode == "multi")
+        {
+            @foreach (var s in State.ActiveSlots())
+            {
+                <div class="panel-sub">@s slot</div>
+                <ClassPicker State="State" SlotId="@s" />
+            }
+            <ModPicker State="State" Mods="UnionMods()" />
+            @if (State.ActiveSlots().Count == 0)
+            {
+                <div class="hint">toggle slots on the paper doll to compile queries</div>
+            }
+        }
+        else
+        {
+            <div class="panel-sub">global (no class anchor)</div>
+            <ModPicker State="State" Mods="Engine.PlayableMods()" />
+        }
+
+        <div class="panel-sub">Backpack — test items</div>
+        <BackpackGrid Items="State.TestItems" HighlightIds="_highlight" />
+        <TestItems State="State" Queries="_labelledQueries" HighlightIds="_highlight" />
+        <ImportPanel State="State" />
+    </section>
+
+    <section class="panel queries" aria-label="Queries">
+        <div class="panel-head"><span>Compiled queries</span></div>
+        <div id="engine-status">@_engineStatus</div>
+        @foreach (var t in _tasks)
+        {
+            <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass"
+                       Result="@t.Result" Overflow="@t.Overflow"
+                       OnBestEffort="() => BestEffort(t.CardId)" />
+        }
+        <div class="modrow">
+            <button id="workbench-reset" class="btn" @onclick="ResetWorkbench">reset workbench</button>
+        </div>
+    </section>
+</div>
+
+@code {
+    private sealed record TaskView(
+        string CardId, string Title, string? ItemClass,
+        CompileResult? Result, RegexLengthOverflowException? Overflow);
+
+    private string _engineStatus = "booting...";
+    private List<TaskView> _tasks = [];
+    private List<(string Label, string? Query)> _labelledQueries = [];
+    private HashSet<string> _highlight = [];
+    private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += OnStateChanged;
+        _engineStatus = $"engine ok ({Engine.PlayableClasses().Count()} classes with mods)";
+        var saved = await Persistence.LoadAsync();
+        if (saved is not null)
+            WorkbenchSnapshot.Restore(State, saved);
+        Recompute();
+    }
+
+    private IReadOnlyList<ModEntry> UnionMods() =>
+        Engine.ModsForClasses(State.ActiveSlots().Select(State.SlotClassOrDefault));
+
+    private void BestEffort(string cardId)
+    {
+        _bestEffortCards.Add(cardId);
+        Recompute();
+        StateHasChanged();
+    }
+
+    private void OnStateChanged()
+    {
+        Recompute();
+        _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ResetWorkbench()
+    {
+        await Persistence.ClearAsync();
+        State.SetMode("single");
+        State.SelectSlot("weapon");
+        State.MultiSlots.Clear();
+        State.ClearChips();
+        State.TestItems.Clear();
+        _bestEffortCards.Clear();
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        var tasks = new List<TaskView>();
+        if (State.Mode == "global")
+        {
+            tasks.Add(CompileTask("global", "global", null));
+        }
+        else
+        {
+            foreach (var s in State.ActiveSlots())
+                tasks.Add(CompileTask(s, $"{s} ({State.SlotClassOrDefault(s)})", State.SlotClassOrDefault(s)));
+        }
+        _tasks = tasks;
+        _labelledQueries = tasks
+            .Select(t => (t.Title, t.Result?.Query))
+            .ToList();
+        var queries = _labelledQueries
+            .Where(q => q.Query is not null).Select(q => q.Query!).ToList();
+        _highlight = State.TestItems
+            .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
+            .Select(item => item.Id).ToHashSet();
+    }
+
+    private TaskView CompileTask(string cardId, string title, string? itemClass)
+    {
+        var allowOverflow = _bestEffortCards.Contains(cardId);
+        try
+        {
+            var result = Engine.Compile(
+                State.Included.Select(m => new ModifierRequirement(m.ModId, m.MinValue)),
+                State.Excluded.Select(e => new ModifierRequirement(e)),
+                itemClass: itemClass,
+                allowOverflow: allowOverflow);
+            return new TaskView(cardId, title, itemClass, result, null);
+        }
+        catch (RegexLengthOverflowException ex)
+        {
+            return new TaskView(cardId, title, itemClass, null, ex);
+        }
+    }
+
+    public void Dispose() => State.Changed -= OnStateChanged;
+}

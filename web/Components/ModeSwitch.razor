@@ -1,0 +1,18 @@
+@using PoeRegex.Web.Core
+
+<div class="mode-switch" role="group" aria-label="Slot mode">
+    @foreach (var mode in new[] { "single", "global", "multi" })
+    {
+        <button id="mode-@mode"
+                class="mode-btn @(State.Mode == mode ? "active" : "")"
+                aria-pressed="@(State.Mode == mode)"
+                @onclick="() => State.SetMode(mode)">
+            @mode
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+}

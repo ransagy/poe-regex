@@ -1,0 +1,140 @@
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+
+<div class="import">
+    <div class="panel-sub">Import advanced description (English)</div>
+    <textarea id="import-text" rows="6" placeholder="paste Ctrl+C item text…"
+              value="@_text" @oninput="OnInput" aria-label="Item text"></textarea>
+    <div class="modrow">
+        <button id="import-parse" @onclick="Parse">preview</button>
+        @if (_parsed is not null)
+        {
+            <button id="import-save" @onclick="Save">save test item</button>
+        }
+    </div>
+    @if (_parsed is not null)
+    {
+        <div class="import-preview" id="import-preview">
+            <div><b>@_parsed.Name</b> (@_parsed.Rarity) — @_classId / ilvl @_parsed.ItemLevel</div>
+            @foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
+            {
+                <div class="import-block">
+                    <span class="import-kind">@block.Kind @block.Name @(block.Tier is null ? "" : $"T{block.Tier}")</span>
+                    @foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+                    {
+                        var key = (bi, li);
+                        var map = _mapped.TryGetValue(key, out var m) ? m : null;
+                        <div class="import-line">
+                            <span>@line.Text</span>
+                            @if (map is null || map.ModIds.Count == 0)
+                            {
+                                <span class="map-none">not in catalog</span>
+                            }
+                            else if (map.ModIds.Count == 1)
+                            {
+                                <span class="map-one">@map.ModIds[0]@(map.Approximate ? " ~approx" : "")</span>
+                            }
+                            else
+                            {
+                                <select id="import-pick-@bi-@li" value="@_picked.GetValueOrDefault(key, map.ModIds[0])"
+                                        @onchange="e => Pick(key, e)">
+                                    @foreach (var id in map.ModIds)
+                                    {
+                                        <option value="@id">@id</option>
+                                    }
+                                </select>
+                                @if (map.Approximate)
+                                {
+                                    <span class="map-one">~approx</span>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    <div class="panel-sub">…or build freeform (lines match as raw text)</div>
+    <div class="modrow">
+        <input id="freeform-name" placeholder="name" value="@_freeName" @oninput="e => _freeName = e.Value?.ToString() ?? string.Empty" aria-label="Freeform name" />
+    </div>
+    <textarea id="freeform-text" rows="3" placeholder="one mod line per row…"
+              value="@_freeText" @oninput="e => _freeText = e.Value?.ToString() ?? string.Empty" aria-label="Freeform lines"></textarea>
+    <div class="modrow">
+        <button id="freeform-save" @onclick="SaveFreeform">save freeform item</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    private string _text = "";
+    private ParsedItem? _parsed;
+    private string? _classId;
+    private Dictionary<(int, int), EngineService.ModMapping> _mapped = new();
+    private Dictionary<(int, int), string> _picked = new();
+    private string _freeName = "";
+    private string _freeText = "";
+
+    private void OnInput(ChangeEventArgs e) => _text = e.Value?.ToString() ?? "";
+
+    private void Parse()
+    {
+        _parsed = ItemTextParser.Parse(_text);
+        _classId = Engine.ResolveClassId(_parsed.ItemClass);
+        _mapped = new();
+        _picked = new();
+        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
+            foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+            {
+                var map = Engine.MapLineToMods(_classId, line.CanonicalText, line.Rolls);
+                _mapped[(bi, li)] = map;
+                if (map.ModIds.Count > 0)
+                    _picked[(bi, li)] = map.ModIds[0];
+            }
+    }
+
+    private void Pick((int, int) key, ChangeEventArgs e)
+    {
+        if (e.Value is string id) _picked[key] = id;
+    }
+
+    private void Save()
+    {
+        if (_parsed is null) return;
+        var item = new TestItem
+        {
+            Name = _parsed.Name ?? "imported item",
+            ClassId = _classId,
+            Parsed = _parsed,
+        };
+        foreach (var (key, map) in _mapped)
+        {
+            var (bi, li) = key;
+            var line = _parsed.Mods[bi].Lines[li];
+            item.Mapped.Add(new MappedLine(
+                line.Text, line.CanonicalText, line.Rolls, map.ModIds,
+                map.ModIds.Count == 0 ? null : _picked.GetValueOrDefault(key, map.ModIds[0])));
+        }
+        State.AddTestItem(item);
+        _text = "";
+        _parsed = null;
+    }
+
+    private void SaveFreeform()
+    {
+        var lines = _freeText.Split(['\r', '\n'])
+            .Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        if (lines.Count == 0) return;
+        var parsed = new ParsedItem(null, null,
+            _freeName.Trim().Length > 0 ? _freeName.Trim() : "freeform item",
+            lines, null, null, null, null, false, []);
+        var item = new TestItem { Name = parsed.Name!, Parsed = parsed };
+        foreach (var l in lines)
+            item.Mapped.Add(new MappedLine(l, l, [], [], null));
+        State.AddTestItem(item);
+        _freeName = "";
+        _freeText = "";
+    }
+}

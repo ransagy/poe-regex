@@ -1,0 +1,67 @@
+# poe-regex workbench (web)
+
+Local-only Blazor WebAssembly app that runs `PoeRegex.Core` **in the
+browser**: a PoE2-inventory-style workbench with editable gear slots,
+live-compiled regex queries, a backpack test-items lab, and English
+advanced-description import. No backend, no network calls, no game assets
+(all panels are hand-drawn CSS/SVG).
+
+Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
+
+## Prerequisites
+
+- .NET 10 SDK (same as the repo root).
+- A headless Chromium/Firefox only for the scripted browser checks below.
+
+## Run
+
+```sh
+dotnet run --project web/web.csproj
+# open the printed http://localhost:PORT/ URL
+```
+
+The app loads the embedded poe2 catalog, builds the suffix-index corpus once
+(~5 ms warm, ~165 ms cold in the interpreter build), and compiles locally.
+
+## Test
+
+```sh
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 37 unit tests
+dotnet test PoeRegex.slnx                                       # whole repo
+```
+
+Scripted browser verification (publish + serve + headless Chromium driven
+over CDP; `publish` output goes to a temp dir, never into the repo):
+
+```sh
+dotnet publish web/web.csproj -c Release -o /tmp/opencode/webpub
+cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
+# in another shell: chromium --headless=new --remote-debugging-port=9222 http://127.0.0.1:8080/
+```
+
+## Layout (`web/`)
+
+- `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
+- `Components/` — `PaperDoll` (9 gear slots), `BackpackGrid` (12×5 test area),
+  `ModeSwitch`, `ClassPicker`, `ModPicker`, `QueryCard` (meter, copy, explain,
+  overflow), `ImportPanel` (paste + freeform), `TestItems` (match badges).
+- `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
+  seam (URL-share and accounts are future work; see the plan doc).
+- `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
+
+Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
+`ModSearch`, `WorkbenchState`, `ItemTextParser`, `ItemMatcher`, `TestItem`,
+`Persistence`) so it is unit-testable without a browser.
+
+## Known limitations (all flagged for maintainer QA)
+
+- Slot footprints/arrangement and backpack dims are the author's reading of
+  the provided screenshot — confirm visually.
+- Backpack items are 1×1 markers until the per-class item dimension table lands.
+- Affix-count caps for a rules-enforced item builder are game rules not in the
+  data — freeform builder only for now.
+- The derived catalog ships prefix/suffix generations only (no implicits)
+  and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
+  the importer maps those via flagged approximate fallbacks.
+- Publish is the unoptimized interpreter build (29 MB `wwwroot`); browser AOT
+  needs the `wasm-tools` workload (requires sudo to install).

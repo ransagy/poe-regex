@@ -67,7 +67,8 @@ cross-language integration surface (Python, Node, shell, etc.). See
 
 There's also an interactive terminal demo driving the engine through that
 contract: see [`demos/opentui-tui/`](demos/opentui-tui/README.md) (build, run,
-and controls).
+and controls). A local-only web workbench running the engine in-browser
+(Blazor WASM) lives in [`web/`](web/README.md).
 
 Exit codes: `0` ok, `1` error (including a query over the character limit),
 `2` usage error.
