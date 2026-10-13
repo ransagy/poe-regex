@@ -75,8 +75,8 @@ public class WorkbenchStateTests
         state.SelectSlot("body");
         state.SelectSlot("helmet");
         state.SetSlotClass("body", "Helmet");
-        state.AddInclude("IncreasedLife6", 80);
-        state.AddExclude("reflect");
+        state.AddInclude("body", "IncreasedLife6", 80);
+        state.AddExclude(null, "reflect");
         var parsed = ItemTextParser.Parse(FixtureTexts.Talisman);
         state.AddTestItem(new TestItem { Name = "t", ClassId = "Talisman", Parsed = parsed });
 
@@ -90,8 +90,8 @@ public class WorkbenchStateTests
         restored.Mode.Should().Be("multi");
         restored.ActiveSlots().Should().Equal(["body", "helmet"]);
         restored.SlotClassOrDefault("body").Should().Be("Helmet");
-        restored.Included.Should().Equal([new WantedMod("IncreasedLife6", 80)]);
-        restored.Excluded.Should().Equal(["reflect"]);
+        restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6", 80)]);
+        restored.CriteriaFor(null).Excluded.Should().Equal(["reflect"]);
         restored.TestItems.Should().HaveCount(1);
         restored.TestItems[0].Name.Should().Be("t");
         restored.TestItems[0].Parsed.Mods.Should().HaveCount(2);
@@ -102,37 +102,41 @@ public class WorkbenchStateTests
     {
         var state = new WorkbenchState();
         var snap = new WorkbenchSnapshot(1, "bogus", "bogus",
-            ["bogus", "body"], new Dictionary<string, string> { ["bogus"] = "X" },
-            [new WantedMod("")], [""], []);
+            ["bogus", "body"],
+            new Dictionary<string, SlotCriteria>
+            {
+                ["bogus"] = new SlotCriteria { ClassId = "X" },
+                ["body"] = new SlotCriteria { ClassId = "Helmet" },
+            },
+            new SlotCriteria(),
+            []);
         WorkbenchSnapshot.Restore(state, snap);
         state.Mode.Should().Be("single");
         state.MultiSlots.Should().Equal(["body"]);
+        state.SlotClassOrDefault("body").Should().Be("Helmet");
         state.ActiveSlots().Should().Equal(["weapon"]);
     }
 
     [Fact]
-    public void Chips_AddRemoveClearBehave()
+    public void Chips_PerSlotAndGlobalScopes()
     {
         var state = new WorkbenchState();
-        state.AddInclude("IncreasedLife6", 80);
-        state.AddInclude("IncreasedLife6"); // dup ignored
-        state.AddExclude("reflect");
-        state.AddExclude("reflect"); // dup ignored
-        state.Included.Should().HaveCount(1);
-        state.Included[0].Should().Be(new WantedMod("IncreasedLife6", 80));
-        state.Excluded.Should().Equal(["reflect"]);
+        state.AddInclude("body", "IncreasedLife6", 80);
+        state.AddInclude("body", "IncreasedLife6"); // dup ignored
+        state.AddInclude(null, "IncreasedLife6"); // global is a separate scope
+        state.AddExclude("body", "reflect");
+        state.CriteriaFor("body").Included.Should().HaveCount(1);
+        state.CriteriaFor(null).Included.Should().HaveCount(1);
+        state.CriteriaFor("helmet").Included.Should().BeEmpty("untouched slot stays empty");
 
-        state.RemoveInclude("IncreasedLife6").Should().BeTrue();
-        state.RemoveInclude("nope").Should().BeFalse();
-        state.RemoveExclude("reflect").Should().BeTrue();
-        state.Included.Should().BeEmpty();
-        state.Excluded.Should().BeEmpty();
+        state.RemoveInclude("body", "IncreasedLife6").Should().BeTrue();
+        state.RemoveInclude("body", "nope").Should().BeFalse();
+        state.RemoveExclude("body", "reflect").Should().BeTrue();
+        state.CriteriaFor(null).Included.Should().HaveCount(1, "global untouched");
 
-        state.AddInclude("A");
-        state.AddExclude("B");
-        state.ClearChips();
-        state.Included.Should().BeEmpty();
-        state.Excluded.Should().BeEmpty();
+        state.AddInclude("body", "A");
+        state.ClearChips("body");
+        state.CriteriaFor("body").Included.Should().BeEmpty();
     }
 
     [Fact]
@@ -143,6 +147,8 @@ public class WorkbenchStateTests
         state.SlotClassOrDefault("ring2").Should().Be("Ring");
         state.SetSlotClass("body", "Helmet");
         state.SlotClassOrDefault("body").Should().Be("Helmet");
+        state.CriteriaFor("body").ClassId.Should().Be("Helmet");
+        Assert.Throws<KeyNotFoundException>(() => state.CriteriaFor("bogus"));
         Assert.Throws<ArgumentOutOfRangeException>(() => state.SetSlotClass("bogus", "Ring"));
     }
 }

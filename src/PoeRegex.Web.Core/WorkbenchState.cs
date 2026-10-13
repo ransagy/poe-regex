@@ -27,24 +27,24 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
 /// <summary>One wanted (+) or unwanted (-) modifier: a catalog mod id with an optional value floor.</summary>
 public sealed record WantedMod(string ModId, double? MinValue = null);
 
+/// <summary>Search criteria for one slot (or the global scope): base class + wanted/unwanted mods.</summary>
+public sealed class SlotCriteria
+{
+    public string ClassId { get; set; } = "";
+    public List<WantedMod> Included { get; set; } = [];
+    public List<string> Excluded { get; set; } = [];
+}
+
 /// <summary>
-/// UI workbench state (mode + slot selection). Mirrors the TUI's
-/// `demos/opentui-tui/src/app.mjs` mode semantics: single keeps one slot,
-/// global selects none, multi toggles many. Per-slot class/mod configuration
-/// arrives in Phase 4.
+/// UI workbench state. Mode semantics mirror the TUI's
+/// `demos/opentui-tui/src/app.mjs`: single keeps one slot, global selects
+/// none, multi toggles many. Unlike the TUI's shared chips, every slot owns
+/// its own criteria so multi-slot compiles differ per slot (plus a separate
+/// global criteria set).
 /// </summary>
 public sealed class WorkbenchState
 {
-    public string Mode { get; private set; } = "single";
-
-    /// <summary>Single mode: the active slot id (default: weapon).</summary>
-    public string? SelectedSlot { get; private set; } = "weapon";
-
-    /// <summary>Multi mode: toggled slot ids.</summary>
-    public HashSet<string> MultiSlots { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>Base-equipment class per gear slot (defaults use real poe2 class ids).</summary>
-    public Dictionary<string, string> SlotClass { get; } = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> DefaultClasses = new(StringComparer.Ordinal)
     {
         ["weapon"] = "Crossbow",
         ["helmet"] = "Helmet",
@@ -57,43 +57,34 @@ public sealed class WorkbenchState
         ["ring2"] = "Ring",
     };
 
-    /// <summary>Shared wanted mods (TUI parity: one set applied to every active slot).</summary>
-    public List<WantedMod> Included { get; } = [];
+    public string Mode { get; private set; } = "single";
 
-    /// <summary>Shared unwanted mod ids.</summary>
-    public List<string> Excluded { get; } = [];
+    /// <summary>Single mode: the active slot id (default: weapon).</summary>
+    public string? SelectedSlot { get; private set; } = "weapon";
+
+    /// <summary>Multi mode: toggled slot ids.</summary>
+    public HashSet<string> MultiSlots { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Per-slot criteria (class + wanted/unwanted mods).</summary>
+    public Dictionary<string, SlotCriteria> Slots { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Classless global criteria.</summary>
+    public SlotCriteria Global { get; } = new();
 
     /// <summary>Backpack lab test items (imported or freeform).</summary>
     public List<TestItem> TestItems { get; } = [];
 
     public event Action? Changed;
 
-    public void AddTestItem(TestItem item)
+    public WorkbenchState()
     {
-        // First free 1x1 cell, row-major (real footprints need the dimension table).
-        var taken = TestItems.Select(t => (t.Row, t.Col)).ToHashSet();
-        for (var r = 0; r < 5; r++)
-            for (var c = 0; c < 12; c++)
-                if (taken.Add((r, c)))
-                {
-                    item.Row = r;
-                    item.Col = c;
-                    TestItems.Add(item);
-                    Notify();
-                    return;
-                }
-        TestItems.Add(item); // grid full (60): list-only
-        Notify();
+        foreach (var (slot, cls) in DefaultClasses)
+            Slots[slot] = new SlotCriteria { ClassId = cls };
     }
 
-    public bool RemoveTestItem(string id)
-    {
-        var i = TestItems.FindIndex(t => t.Id == id);
-        if (i < 0) return false;
-        TestItems.RemoveAt(i);
-        Notify();
-        return true;
-    }
+    /// <summary>Criteria for a slot, or the global set when slot is null.</summary>
+    public SlotCriteria CriteriaFor(string? slot) =>
+        slot is null ? Global : Slots[slot];
 
     public void SetMode(string mode)
     {
@@ -135,48 +126,95 @@ public sealed class WorkbenchState
     {
         if (GearSlot.ById(slotId) is null)
             throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
-        SlotClass[slotId] = classId;
+        CriteriaFor(slotId).ClassId = classId;
         Notify();
     }
 
     public string SlotClassOrDefault(string slotId) =>
-        SlotClass.TryGetValue(slotId, out var c) ? c : "Ring";
+        Slots.TryGetValue(slotId, out var c) && c.ClassId.Length > 0 ? c.ClassId : "Ring";
 
-    public void AddInclude(string modId, double? minValue = null)
+    public void AddInclude(string? slot, string modId, double? minValue = null)
     {
-        if (!Included.Any(m => m.ModId == modId))
-            Included.Add(new WantedMod(modId, minValue));
+        var list = CriteriaFor(slot).Included;
+        if (!list.Any(m => m.ModId == modId))
+            list.Add(new WantedMod(modId, minValue));
         Notify();
     }
 
-    public bool RemoveInclude(string modId)
+    public bool RemoveInclude(string? slot, string modId)
     {
-        var i = Included.FindIndex(m => m.ModId == modId);
+        var list = CriteriaFor(slot).Included;
+        var i = list.FindIndex(m => m.ModId == modId);
         if (i < 0) return false;
-        Included.RemoveAt(i);
+        list.RemoveAt(i);
         Notify();
         return true;
     }
 
-    public void AddExclude(string modId)
+    public void AddExclude(string? slot, string modId)
     {
-        if (!Excluded.Contains(modId, StringComparer.Ordinal))
-            Excluded.Add(modId);
+        var list = CriteriaFor(slot).Excluded;
+        if (!list.Contains(modId, StringComparer.Ordinal))
+            list.Add(modId);
         Notify();
     }
 
-    public bool RemoveExclude(string modId)
+    public bool RemoveExclude(string? slot, string modId)
     {
-        var removed = Excluded.Remove(modId);
+        var removed = CriteriaFor(slot).Excluded.Remove(modId);
         if (removed) Notify();
         return removed;
     }
 
-    /// <summary>Clear wanted/unwanted mods (keeps game/mode/slots/classes — TUI `r` parity).</summary>
-    public void ClearChips()
+    /// <summary>Clear wanted/unwanted mods for one scope (slot or global).</summary>
+    public void ClearChips(string? slot)
     {
-        Included.Clear();
-        Excluded.Clear();
+        var c = CriteriaFor(slot);
+        c.Included.Clear();
+        c.Excluded.Clear();
+        Notify();
+    }
+
+    public void AddTestItem(TestItem item)
+    {
+        // First free 1x1 cell, row-major (real footprints need the dimension table).
+        var taken = TestItems.Select(t => (t.Row, t.Col)).ToHashSet();
+        for (var r = 0; r < 5; r++)
+            for (var c = 0; c < 12; c++)
+                if (taken.Add((r, c)))
+                {
+                    item.Row = r;
+                    item.Col = c;
+                    TestItems.Add(item);
+                    Notify();
+                    return;
+                }
+        TestItems.Add(item); // grid full (60): list-only
+        Notify();
+    }
+
+    public bool RemoveTestItem(string id)
+    {
+        var i = TestItems.FindIndex(t => t.Id == id);
+        if (i < 0) return false;
+        TestItems.RemoveAt(i);
+        Notify();
+        return true;
+    }
+
+    /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
+    public void Reset()
+    {
+        Mode = "single";
+        SelectedSlot = "weapon";
+        MultiSlots.Clear();
+        Slots.Clear();
+        foreach (var (slot, cls) in DefaultClasses)
+            Slots[slot] = new SlotCriteria { ClassId = cls };
+        Global.ClassId = "";
+        Global.Included.Clear();
+        Global.Excluded.Clear();
+        TestItems.Clear();
         Notify();
     }
 

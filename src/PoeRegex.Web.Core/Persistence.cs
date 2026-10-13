@@ -12,9 +12,8 @@ public sealed record WorkbenchSnapshot(
     string Mode,
     string? SelectedSlot,
     List<string> MultiSlots,
-    Dictionary<string, string> SlotClass,
-    List<WantedMod> Included,
-    List<string> Excluded,
+    Dictionary<string, SlotCriteria> Slots,
+    SlotCriteria Global,
     List<TestItem> TestItems)
 {
     public const int CurrentVersion = 1;
@@ -24,9 +23,8 @@ public sealed record WorkbenchSnapshot(
         state.Mode,
         state.SelectedSlot,
         state.MultiSlots.OrderBy(s => s, StringComparer.Ordinal).ToList(),
-        new Dictionary<string, string>(state.SlotClass, StringComparer.Ordinal),
-        state.Included.ToList(),
-        state.Excluded.ToList(),
+        state.Slots.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+        state.Global,
         state.TestItems.ToList());
 
     /// <summary>Restore with light validation (unknown modes/slots/classes are dropped).</summary>
@@ -46,13 +44,20 @@ public sealed record WorkbenchSnapshot(
         foreach (var s in snap.MultiSlots)
             if (GearSlot.ById(s) is not null)
                 state.MultiSlots.Add(s);
-        foreach (var (slot, cls) in snap.SlotClass)
-            if (GearSlot.ById(slot) is not null && cls.Length > 0)
-                state.SlotClass[slot] = cls;
-        state.Included.Clear();
-        state.Included.AddRange(snap.Included.Where(m => m.ModId.Length > 0));
-        state.Excluded.Clear();
-        state.Excluded.AddRange(snap.Excluded.Where(e => e.Length > 0));
+        foreach (var (slot, crit) in snap.Slots)
+        {
+            if (GearSlot.ById(slot) is null) continue;
+            var mine = state.CriteriaFor(slot);
+            if (crit.ClassId.Length > 0) mine.ClassId = crit.ClassId;
+            mine.Included.Clear();
+            mine.Included.AddRange(crit.Included.Where(m => m.ModId.Length > 0));
+            mine.Excluded.Clear();
+            mine.Excluded.AddRange(crit.Excluded.Where(e => e.Length > 0));
+        }
+        state.Global.Included.Clear();
+        state.Global.Included.AddRange(snap.Global.Included.Where(m => m.ModId.Length > 0));
+        state.Global.Excluded.Clear();
+        state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
         state.TestItems.Clear();
         state.TestItems.AddRange(snap.TestItems);
     }
@@ -60,6 +65,7 @@ public sealed record WorkbenchSnapshot(
 
 /// <summary>Source-generated JSON (AOT-safe) for workbench persistence.</summary>
 [JsonSerializable(typeof(WorkbenchSnapshot))]
+[JsonSerializable(typeof(SlotCriteria))]
 [JsonSerializable(typeof(WantedMod))]
 [JsonSerializable(typeof(TestItem))]
 [JsonSerializable(typeof(MappedLine))]

@@ -36,7 +36,11 @@ html, body {
     gap: 1rem;
     padding: 1rem;
     flex-wrap: wrap;
+    align-items: flex-start;
 }
+
+.panel.editor { flex: 0 1 26rem; }
+.panel.inventory { flex: 1 1 30rem; }
 
 .panel {
     background: var(--panel);
@@ -77,9 +81,9 @@ html, body {
 /* Paper doll: 6 x 5 unit grid (arrangement TO-CONFIRM in Phase 3 QA). */
 .doll {
     display: grid;
-    grid-template-columns: repeat(6, 3.2rem);
-    grid-auto-rows: 3.2rem;
-    gap: 4px;
+    grid-template-columns: repeat(6, 4.2rem);
+    grid-auto-rows: 4.2rem;
+    gap: 5px;
     justify-content: start;
 }
 
@@ -189,3 +193,31 @@ textarea { width: 100%; box-sizing: border-box; }
 .pack-item.hit { color: var(--accent); }
 
 #blazor-error-ui { display: none; }
+
+details.advanced { margin: 0 1rem 1rem; }
+details.advanced > summary {
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.85rem;
+    color: var(--dim);
+    padding: 0.4rem 0;
+}
+details.advanced > summary:hover { color: var(--accent); }
+
+#slot-query-bar { margin: 0.6rem 0; }
+.slot-query {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+    background: #171208;
+    border: 1px solid var(--panel-edge);
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.4rem;
+}
+.slot-query-label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; color: var(--accent); white-space: nowrap; }
+.slot-query code { flex: 1; font-family: Consolas, monospace; font-size: 0.85rem; overflow-wrap: anywhere; }
+.slot-query button {
+    background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
+    cursor: pointer; font: inherit; font-size: 0.8rem; padding: 0.2rem 0.7rem; white-space: nowrap;
+}

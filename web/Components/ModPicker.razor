@@ -2,24 +2,27 @@
 @using PoeRegex.Web.Core
 
 <div class="modpicker">
+    @{
+        var crit = ScopeCriteria();
+    }
     <div class="chips" aria-label="Wanted mods">
-        @foreach (var inc in State.Included)
+        @foreach (var inc in crit.Included)
         {
-            <button class="chip inc" id="chip-inc-@inc.ModId" title="remove"
-                    @onclick="() => State.RemoveInclude(inc.ModId)">
+            <button class="chip inc" id="chip-inc-@Scope-@inc.ModId" title="remove"
+                    @onclick="() => State.RemoveInclude(Scope, inc.ModId)">
                 +@inc.ModId@(inc.MinValue is null ? "" : $" ≥{inc.MinValue}")
             </button>
         }
-        @foreach (var exc in State.Excluded)
+        @foreach (var exc in crit.Excluded)
         {
-            <button class="chip exc" id="chip-exc-@exc" title="remove"
-                    @onclick="() => State.RemoveExclude(exc)">
+            <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+                    @onclick="() => State.RemoveExclude(Scope, exc)">
                 −@exc
             </button>
         }
-        @if (State.Included.Count + State.Excluded.Count > 0)
+        @if (crit.Included.Count + crit.Excluded.Count > 0)
         {
-            <button class="chip clear" id="chips-clear" @onclick="State.ClearChips">clear</button>
+            <button class="chip clear" id="chips-clear-@Scope" @onclick="() => State.ClearChips(Scope)">clear</button>
         }
     </div>
 
@@ -40,7 +43,7 @@
             <li class="suggest-row">
                 <span class="suggest-line" title="@m.Id">@m.StatLines.FirstOrDefault()?.Line @($"({m.Id})")</span>
                 <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
-                <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(m.Id)">−</button>
+                <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
             </li>
         }
     </ol>
@@ -60,6 +63,10 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
+    /// <summary>Scope the chips belong to: a slot id, or null for global.</summary>
+    [Parameter]
+    public string? Scope { get; set; }
+
     /// <summary>Typeahead source for the current scope (slot class, union, or all).</summary>
     [Parameter, EditorRequired]
     public required IReadOnlyList<ModEntry> Mods { get; set; }
@@ -72,9 +79,12 @@
 
     protected override void OnParametersSet() => Refresh();
 
+    private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
+
     private void Refresh()
     {
-        var taken = State.Included.Select(m => m.ModId).Concat(State.Excluded);
+        var crit = ScopeCriteria();
+        var taken = crit.Included.Select(m => m.ModId).Concat(crit.Excluded);
         var avail = ModSearch.AvailableMods(Mods, taken);
         _suggestions = ModSearch.FilterMods(avail, _search).ToList();
         _takenOnly = avail.Count == 0;
@@ -108,7 +118,7 @@
     {
         var (min, valid) = ParseMin();
         if (!valid) return;
-        State.AddInclude(m.Id, min);
+        State.AddInclude(Scope, m.Id, min);
         Refresh();
     }
 
@@ -117,7 +127,7 @@
         var (min, valid) = ParseMin();
         if (!valid) return;
         foreach (var m in _suggestions)
-            State.AddInclude(m.Id, min);
+            State.AddInclude(Scope, m.Id, min);
         _search = "";
         Refresh();
     }
