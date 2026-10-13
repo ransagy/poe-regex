@@ -44,7 +44,11 @@
         }
 
         <div class="panel-sub">Test items</div>
-        <ImportPanel State="State" />
+        <div class="modrow">
+            <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
+        </div>
+        <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
+        <ItemBuilder State="State" />
         <ItemBuilder State="State" />
     </section>
 
@@ -143,6 +147,7 @@
     private List<(string Label, string? Query)> _labelledQueries = [];
     private HashSet<string> _highlight = [];
     private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
+    private bool _importOpen;
     private MultiPasteResult? _paste;
     private RegexLengthOverflowException? _pasteOverflow;
 
@@ -169,6 +174,8 @@
         Recompute();
         StateHasChanged();
     }
+
+    private void CloseImport() => _importOpen = false;
 
     private void OnStateChanged()
     {

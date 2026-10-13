@@ -182,22 +182,30 @@ lines: per-line predicts no match, whole-text predicts a match. Also open:
 where would the combined string be pasted — trade site (one class per search)
 or the inventory Highlight box? Until that lands, per-slot strings stand.
 
-### 9.2 Backpack footprint gaps (fallback 1x3 Unknown until filled)
+### 9.2 Backpack footprints — FINAL (maintainer-confirmed, all existing classes)
 
-| Class | Footprint | Status |
-|---|---|---|
-| Helmet / Gloves / Boots | 2x2 | Confirmed |
-| Body Armour | 2x3 | Confirmed |
-| Belt | 2x1 | Confirmed |
-| Amulet / Ring | 1x1 | Confirmed |
-| Shield | 2x4 | Confirmed (armour shields) |
-| Buckler | 2x2 | Confirmed |
-| Focus | 2x3 | Inferred from "others" — verify |
-| One Hand Mace | 2x3 | Confirmed |
-| Wand | 1x3 | Confirmed |
-| Staff / Spear | 1x4 | Confirmed |
-| Warstaff | 1x4 | Inferred (stave family) — verify |
-| Bow, Crossbow, Dagger, Claw, One Hand Sword, One Hand Axe, Sceptre, Flail, Two Hand Sword, Two Hand Axe, Two Hand Mace, FishingRod, TrapTool, Quiver, Talisman | 1x3 | Unknown fallback — need numbers |
+| Classes | Size |
+|---|---|
+| Helmet / Gloves / Boots | 2x2 |
+| Body Armour | 2x3 |
+| Belt | 2x1 |
+| Amulet / Ring | 1x1 |
+| Shield (armour) | 2x4 |
+| Other shields, Focus | 2x3 |
+| Buckler | 2x2 |
+| One Hand Mace | 2x3 |
+| Two Hand Mace | 2x4 |
+| Wand | 1x3 |
+| Staff / Spear | 1x4 |
+| Bow / Crossbow | 2x4 |
+| Sceptre / Quiver | 2x3 |
+| Talisman | 2x2 |
+| Everything else (currency, gems, not-yet-in-game bases…) | 1x3 fallback (irrelevant) |
+
+Import rules (locked): import requires a resolvable, playable (has-mods)
+class or the save is blocked with a message; freeform raw-text builder
+removed; import is a modal dialog (dimmed overlay, paste, preview with
+mappings, enforcement + class gate, Accept adds to backpack and closes).
 
 ## 9. Work log
 
