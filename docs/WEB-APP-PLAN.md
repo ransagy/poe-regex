@@ -285,6 +285,11 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 3 — final footprints + import dialog.**
+  Full confirmed table (§9.2 final, incl. Sceptre 2x3); import gated on
+  resolvable playable classes; freeform raw-text builder removed; import is a
+  modal dialog (backdrop dismiss, preview, enforcement, accept-to-backpack).
+  Full slnx 70+6+65 green.
 - **Follow-up round 2 — multi combine (`PasteComposer` in Core).**
   Anchor + per-criterion exclusion groups from per-slot criteria, oracle-clean
   class prefixes (`Am`, `Hel`, `Ri`…), engine fingerprint fragments, unioned
