@@ -123,7 +123,56 @@ import. The OpenTUI demo is frozen; the CLI contract is untouched.
   fallback).
 - Screenshot fidelity vs copyright (recreation only, no copied art/text).
 
-## 8. Work log
+## 8. Open decisions
+
+### 9.1 Multi-slot combine (no combined string yet — by analysis, not omission)
+
+Current output is one verified query per slot. A single combined string was
+requested (per-slot groups ANDed, scoping each group with the `Item Class:`
+line plus negations of the other slots' classes). It is **not implemented**
+because it is not expressible under the engine's verified matching model:
+
+- The trade grammar ANDs space-separated quoted blocks, and matching is
+  **per line** (every engine oracle, fingerprint, and `explain` result is
+  line-scoped; see `docs/DESIGN.md` §5). An item matches the whole query only
+  if it matches **every** block.
+- A slot's class anchor (`Item Class: Rings`) and its mod fragments live on
+  **different lines**, so they cannot be ANDed inside one quoted block
+  (spaces inside quotes are literal). Any ANDed class anchor therefore kills
+  every other slot's items.
+- `!` negates a whole quoted block (`FormatExclusion` emits `!"..."` as its
+  own block); there is no per-branch negation inside an alternation. Global
+  `!"classB"` blocks would exclude slot B's items entirely.
+- `|` alternation inside one block is same-line only, so per-slot
+  alternatives cannot span the class line + mod lines either. Anchorless
+  alternation (`"(mA|mB)"`) would cross-match shared mod text across slots.
+
+What would make a combine possible: whole-text (rather than per-line) matching,
+e.g. `(Item Class: Rings[\s\S]*...)|(Item Class: ...)`. That semantic is
+**unverified** — the decisive in-game experiment is a one-block two-word query
+like `"Life Mana"` on an item whose Life and Mana texts sit on different
+lines: per-line predicts no match, whole-text predicts a match. Also open:
+where would the combined string be pasted — trade site (one class per search)
+or the inventory Highlight box? Until that lands, per-slot strings stand.
+
+### 9.2 Backpack footprint gaps (fallback 1x3 Unknown until filled)
+
+| Class | Footprint | Status |
+|---|---|---|
+| Helmet / Gloves / Boots | 2x2 | Confirmed |
+| Body Armour | 2x3 | Confirmed |
+| Belt | 2x1 | Confirmed |
+| Amulet / Ring | 1x1 | Confirmed |
+| Shield | 2x4 | Confirmed (armour shields) |
+| Buckler | 2x2 | Confirmed |
+| Focus | 2x3 | Inferred from "others" — verify |
+| One Hand Mace | 2x3 | Confirmed |
+| Wand | 1x3 | Confirmed |
+| Staff / Spear | 1x4 | Confirmed |
+| Warstaff | 1x4 | Inferred (stave family) — verify |
+| Bow, Crossbow, Dagger, Claw, One Hand Sword, One Hand Axe, Sceptre, Flail, Two Hand Sword, Two Hand Axe, Two Hand Mace, FishingRod, TrapTool, Quiver, Talisman | 1x3 | Unknown fallback — need numbers |
+
+## 9. Work log
 
 - Plan locked with maintainer (9 slots, backpack test grid, highlight
   semantics, 5 fixtures, localStorage-first). Written to
@@ -201,3 +250,12 @@ import. The OpenTUI demo is frozen; the CLI contract is untouched.
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 1 (branch `feature/web-workbench`, commits `91b6cec`,
+  `835a7e6`).** Layout per feedback (editor left, doll right sized up,
+  slot-query bar + copy under the doll, collapsed Advanced section);
+  per-slot criteria (multi compiles differ per slot); catalog `groups`
+  extension + regen of both catalogs (purely additive, suite green);
+  game-sized backpack (placement engine, confirmed table, 1x3 Unknown
+  fallback); enforced builder (caps Normal 0/0, Magic 1/1, Rare 3/3;
+  group-clash errors; import blocking + assembly UI with live violations).
+  Full slnx 6+61+60 green.

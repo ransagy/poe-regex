@@ -57,9 +57,12 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
 
 - Slot footprints/arrangement and backpack dims are the author's reading of
   the provided screenshot — confirm visually.
-- Backpack items are 1×1 markers until the per-class item dimension table lands.
-- Affix-count caps for a rules-enforced item builder are game rules not in the
-  data — freeform builder only for now.
+- Backpack footprints: confirmed table in `ItemFootprints` (belts 2×1,
+  buckler 2×2, armour shields 2×4, 1H mace 2×3, wands 1×3, staves/spears 1×4,
+  standard armour/accessories); everything else uses a flagged 1×3 Unknown
+  fallback — gap list in the plan doc.
+- Multi-slot output is one verified query per slot; no combined single string
+  (see plan doc §9).
 - The derived catalog ships prefix/suffix generations only (no implicits)
   and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
   the importer maps those via flagged approximate fallbacks.
