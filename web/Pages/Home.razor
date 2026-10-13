@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using PoeRegex.Core
+@using PoeRegex.Core.Compilation
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
@@ -51,6 +52,25 @@
         <div class="panel-head"><span>Inventory</span></div>
         <PaperDoll State="State" />
         <div id="slot-query-bar">
+            @if (State.Mode == "multi")
+            {
+                @if (_paste is not null)
+                {
+                    <div class="slot-query" id="slot-query-multi">
+                        <span class="slot-query-label">combined paste</span>
+                        <code>@_paste.Query</code>
+                        <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                    </div>
+                }
+                else if (_pasteOverflow is not null)
+                {
+                    <div class="qerror" id="slot-query-multi-overflow">
+                        combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
+                        <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
+                    </div>
+                }
+            }
             @foreach (var t in _barTasks)
             {
                 <div class="slot-query" id="slot-query-@t.CardId">
@@ -72,6 +92,35 @@
 <details class="panel advanced" id="advanced-debug">
     <summary>Advanced debugging (engine output)</summary>
     <div id="engine-status">@_engineStatus</div>
+    @if (_paste is not null)
+    {
+        <div class="qcard" id="combined-paste">
+            <div class="qcard-head">
+                <span>combined paste</span>
+                <span class="meter" title="@_paste.Length/@_paste.Limit">
+                    <span class="meter-bar meter-@ModSearch.MeterColor(_paste.Length, _paste.Limit)"
+                          style="width:@(Math.Round(ModSearch.MeterRatio(_paste.Length, _paste.Limit) * 100))%"></span>
+                </span>
+                <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+            </div>
+            <div class="qquery" id="combined-paste-query">@_paste.Query</div>
+            <div class="qactions">
+                <button id="combined-copy" @onclick="() => CopyBar(_paste.Query)">copy</button>
+            </div>
+            <div class="qexplain">
+                <div>anchor: <code>@_paste.Anchor</code></div>
+                @foreach (var g in _paste.Groups)
+                {
+                    <div>@g.Label → <code>@g.Token</code></div>
+                }
+            </div>
+            @foreach (var d in _paste.Diagnostics)
+            {
+                <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+            }
+            <div class="more">slot exclusions apply globally; same-class slots merge (see plan §8.1)</div>
+        </div>
+    }
     @foreach (var t in _tasks)
     {
         <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass"
@@ -94,6 +143,8 @@
     private List<(string Label, string? Query)> _labelledQueries = [];
     private HashSet<string> _highlight = [];
     private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
+    private MultiPasteResult? _paste;
+    private RegexLengthOverflowException? _pasteOverflow;
 
     protected override async Task OnInitializedAsync()
     {
@@ -108,6 +159,13 @@
     private void BestEffort(string cardId)
     {
         _bestEffortCards.Add(cardId);
+        Recompute();
+        StateHasChanged();
+    }
+
+    private void PasteBestEffort()
+    {
+        _bestEffortCards.Add("multi");
         Recompute();
         StateHasChanged();
     }
@@ -128,9 +186,39 @@
     private void Recompute()
     {
         var tasks = new List<TaskView>();
+        _paste = null;
+        _pasteOverflow = null;
         if (State.Mode == "global")
         {
             tasks.Add(CompileTask("global", "global", null, State.Global));
+        }
+        else if (State.Mode == "multi")
+        {
+            var active = State.ActiveSlots();
+            foreach (var s in active)
+            {
+                var crit = State.CriteriaFor(s);
+                tasks.Add(CompileTask(s, $"{s} ({crit.ClassId})", crit.ClassId, crit));
+            }
+            if (active.Count > 0)
+            {
+                try
+                {
+                    _paste = Engine.Combine(
+                        active.Select(s =>
+                        {
+                            var crit = State.CriteriaFor(s);
+                            return ($"{s} ({crit.ClassId})", crit.ClassId, (IEnumerable<WantedMod>)crit.Included);
+                        }),
+                        active.SelectMany(s => State.CriteriaFor(s).Excluded)
+                            .Concat(State.Global.Excluded).Distinct(StringComparer.Ordinal),
+                        allowOverflow: _bestEffortCards.Contains("multi"));
+                }
+                catch (RegexLengthOverflowException ex)
+                {
+                    _pasteOverflow = ex;
+                }
+            }
         }
         else
         {
@@ -143,10 +231,10 @@
         _tasks = tasks;
         _barTasks = State.Mode == "single" && State.SelectedSlot is not null
             ? tasks.Where(t => t.CardId == State.SelectedSlot).ToList()
-            : tasks;
-        _labelledQueries = tasks
-            .Select(t => (t.Title, t.Result?.Query))
-            .ToList();
+            : State.Mode == "multi" ? [] : tasks;
+        _labelledQueries = State.Mode == "multi" && _paste is not null
+            ? [("combined paste", _paste.Query)]
+            : tasks.Select(t => (t.Title, t.Result?.Query)).ToList();
         var queries = _labelledQueries
             .Where(q => q.Query is not null).Select(q => q.Query!).ToList();
         _highlight = State.TestItems

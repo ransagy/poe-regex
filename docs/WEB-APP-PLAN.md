@@ -125,12 +125,39 @@ import. The OpenTUI demo is frozen; the CLI contract is untouched.
 
 ## 8. Open decisions
 
-### 9.1 Multi-slot combine (no combined string yet — by analysis, not omission)
+### 9.1 Multi-slot combine — RESOLVED and BUILT (maintainer-confirmed)
 
-Current output is one verified query per slot. A single combined string was
-requested (per-slot groups ANDed, scoping each group with the `Item Class:`
-line plus negations of the other slots' classes). It is **not implemented**
-because it is not expressible under the engine's verified matching model:
+Maintainer confirmed the mechanism: the paste is the anchor group (all
+selected slots) plus one exclusion group per modded slot/criterion,
+space-separated (AND), whole-text multiline matching, OR inside groups, no
+negation operator. `": "` matches the `Item Class:` line prefix; mod parts
+are plain words. The class lists exclude each group's targets so targets
+must earn the group through mods; never-targeted slots (rings/amulets) match
+every group via class and always show.
+
+Locked decisions:
+- Multi mode ends in ONE combined paste string once slots are defined.
+- Class branches: oracle-validated shortest unique name-prefixes
+  (behavior-equivalent to the community abbreviations, extended until
+  false-positive-free — e.g. `Am`, since bare `a` also matches Abyss Jewels).
+- Mod fragments: engine fingerprints/threshold patterns (same alternation
+  shape as the community words, provably unique — the style was for mod
+  uniqueness).
+- Anchor lists ALL selected slots (criteria-less slots match all their items).
+- Slots sharing identical criteria share one explicit group (the Q4 pattern);
+  same-class slots merge includes (union — separate groups would AND together
+  and hide everything; flagged as a judgment call).
+- Exclusions union into global `!"..."` blocks (block negation cannot be
+  scoped; surfaced in UI).
+- Overflow: hard error by default (the game limit is real), best-effort
+  preview behind toggle.
+- Validation: per-group `explain` scoped to target classes — source mods must
+  be recalled (`paste-recall` warnings); anchor must resolve to all selected
+  classes (`paste-anchor` warnings). Full-paste candidate recall does NOT
+  apply by design; verification is item-level (the lab matcher ANDs
+  quoted-group tokens, which is exactly paste semantics).
+
+The analysis below is superseded but kept for the record:
 
 - The trade grammar ANDs space-separated quoted blocks, and matching is
   **per line** (every engine oracle, fingerprint, and `explain` result is
@@ -250,12 +277,11 @@ or the inventory Highlight box? Until that lands, per-slot strings stand.
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
-- **Follow-up round 1 (branch `feature/web-workbench`, commits `91b6cec`,
-  `835a7e6`).** Layout per feedback (editor left, doll right sized up,
-  slot-query bar + copy under the doll, collapsed Advanced section);
-  per-slot criteria (multi compiles differ per slot); catalog `groups`
-  extension + regen of both catalogs (purely additive, suite green);
-  game-sized backpack (placement engine, confirmed table, 1x3 Unknown
-  fallback); enforced builder (caps Normal 0/0, Magic 1/1, Rare 3/3;
-  group-clash errors; import blocking + assembly UI with live violations).
-  Full slnx 6+61+60 green.
+- **Follow-up round 2 — multi combine (`PasteComposer` in Core).**
+  Anchor + per-criterion exclusion groups from per-slot criteria, oracle-clean
+  class prefixes (`Am`, `Hel`, `Ri`…), engine fingerprint fragments, unioned
+  global exclusions, per-group explain recall validation (`paste-recall`) +
+  anchor resolution checks (`paste-anchor`), 250-budget hard error with
+  best-effort toggle. UI: combined paste + copy in the slot-query bar,
+  per-slot cards + group breakdown in Advanced, lab badges test the paste.
+  Core suite gains `MultiPasteTests` (5 tests). Full slnx 6+63+60 green.

@@ -179,6 +179,22 @@ public sealed class EngineService
             AllowOverflow = allowOverflow,
         });
 
+    /// <summary>
+    /// Combine per-slot criteria into one stash paste (anchor + exclusion
+    /// groups). Exclusions union globally; same-class slots merge.
+    /// </summary>
+    public MultiPasteResult Combine(
+        IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
+        IEnumerable<string> excludes,
+        bool allowOverflow = false) =>
+        new PasteComposer(_corpus, _strategy).Compose(
+            slots.Select(s => new PasteSlotCriterion(
+                s.ClassId,
+                s.Includes.Select(m => new ModifierRequirement(m.ModId, m.MinValue)).ToList(),
+                s.Label)).ToList(),
+            excludes.Select(e => new ModifierRequirement(e)),
+            allowOverflow);
+
     public ExplainResult Explain(string query, string? itemClass = null) =>
         _explainer.Explain(query, itemClass);
 

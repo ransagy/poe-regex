@@ -61,8 +61,9 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   buckler 2×2, armour shields 2×4, 1H mace 2×3, wands 1×3, staves/spears 1×4,
   standard armour/accessories); everything else uses a flagged 1×3 Unknown
   fallback — gap list in the plan doc.
-- Multi-slot output is one verified query per slot; no combined single string
-  (see plan doc §9).
+- Multi mode ends in ONE combined stash paste (anchor + per-slot exclusion
+  groups, whole-text OR-in-group / AND-across-groups); per-slot queries stay
+  in Advanced. Same-class slots merge (union); exclusions apply globally.
 - The derived catalog ships prefix/suffix generations only (no implicits)
   and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
   the importer maps those via flagged approximate fallbacks.
