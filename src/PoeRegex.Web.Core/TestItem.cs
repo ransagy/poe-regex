@@ -22,6 +22,9 @@ public sealed class TestItem
     public List<MappedLine> Mapped { get; set; } = [];
     public int Row { get; set; }
     public int Col { get; set; }
+    /// <summary>Backpack footprint in cells (0 = unset, treated as 1x1).</summary>
+    public int Cols { get; set; }
+    public int Rows { get; set; }
 
     public IReadOnlyList<string> MatchLines() => Parsed.AllLines();
 }

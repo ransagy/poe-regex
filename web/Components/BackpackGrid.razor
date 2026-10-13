@@ -2,30 +2,23 @@
 
 @*
   Backpack grid: the test-items area (replaces the stash panel).
-  Fixed 12 x 5 cells; items render as 1x1 markers until the per-class
-  dimension table lands (Phase 5 QA). Highlighted cells match the view query.
+  Fixed 12 x 5 cells (confirmed); items render at their footprint size.
+  Highlighted items match the view query.
 *@
 <div class="pack" aria-label="Backpack (test items)">
-    @for (var r = 0; r < Rows; r++)
+    @foreach (var t in Items)
     {
-        @for (var c = 0; c < Cols; c++)
-        {
-            var here = Items.Where(t => t.Row == r && t.Col == c).ToList();
-            <div id="pack-@r-@c" class="pack-cell @(here.Count > 0 ? "filled" : "")">
-                @foreach (var t in here)
-                {
-                    <span id="pack-item-@t.Id" title="@t.Name"
-                          class="pack-item @(HighlightIds.Contains(t.Id) ? "hit" : "")">@("\u25C6")</span>
-                }
-            </div>
-        }
+        var w = Math.Max(1, t.Cols);
+        var h = Math.Max(1, t.Rows);
+        <div id="pack-item-@t.Id" title="@t.Name"
+             class="pack-placed @(HighlightIds.Contains(t.Id) ? "hit" : "")"
+             style="grid-column: @(t.Col + 1) / span @w; grid-row: @(t.Row + 1) / span @h;">
+            @t.Name
+        </div>
     }
 </div>
 
 @code {
-    private const int Cols = 12;
-    private const int Rows = 5;
-
     [Parameter]
     public IReadOnlyList<TestItem> Items { get; set; } = [];
 

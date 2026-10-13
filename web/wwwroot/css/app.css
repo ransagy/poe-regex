@@ -105,15 +105,33 @@ html, body {
 .gear-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .gear-slot.active .gear-label { color: #ffe9a8; }
 
-/* Backpack: fixed 12 x 5 cells (dimensions in Phase 3 QA). */
+/* Backpack: fixed 12 x 5 cells (confirmed). Cell lines are background;
+   items are explicitly placed divs. */
 .pack {
     display: grid;
     grid-template-columns: repeat(12, 2.1rem);
     grid-auto-rows: 2.1rem;
     gap: 2px;
     justify-content: start;
+    background: #14100c;
+    background-image:
+        linear-gradient(#3d3220 1px, transparent 1px),
+        linear-gradient(90deg, #3d3220 1px, transparent 1px);
+    background-size: calc(2.1rem + 2px) calc(2.1rem + 2px);
+    min-height: calc(5 * 2.1rem + 4 * 2px);
+    min-width: calc(12 * 2.1rem + 11 * 2px);
+    border: 1px solid #3d3220;
 }
-.pack-cell { background: var(--cell); border: 1px solid #3d3220; }
+.pack-placed {
+    background: #2a2114;
+    border: 1px solid var(--panel-edge-hi);
+    color: var(--ink);
+    font-size: 0.65rem;
+    overflow: hidden;
+    padding: 0.1rem;
+    cursor: default;
+}
+.pack-placed.hit { border-color: var(--accent); background: #4a3a18; }
 
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
@@ -188,9 +206,6 @@ textarea { width: 100%; box-sizing: border-box; }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }
 .badge.miss { opacity: 0.7; }
 .titem-lines { font-size: 0.78rem; color: var(--dim); }
-.pack-cell.filled { border-color: var(--panel-edge-hi); }
-.pack-item { color: var(--dim); font-size: 0.8rem; }
-.pack-item.hit { color: var(--accent); }
 
 #blazor-error-ui { display: none; }
 

@@ -12,6 +12,10 @@
             <button id="import-save" @onclick="Save">save test item</button>
         }
     </div>
+    @foreach (var v in _violations)
+    {
+        <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>
+    }
     @if (_parsed is not null)
     {
         <div class="import-preview" id="import-preview">
@@ -76,11 +80,13 @@
     private Dictionary<(int, int), string> _picked = new();
     private string _freeName = "";
     private string _freeText = "";
+    private List<RuleViolation> _violations = [];
 
     private void OnInput(ChangeEventArgs e) => _text = e.Value?.ToString() ?? "";
 
     private void Parse()
     {
+        _violations = [];
         _parsed = ItemTextParser.Parse(_text);
         _classId = Engine.ResolveClassId(_parsed.ItemClass);
         _mapped = new();
@@ -103,6 +109,27 @@
     private void Save()
     {
         if (_parsed is null) return;
+        var ruleLines = new List<RuleLine>();
+        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
+        {
+            // One entry per block (multi-line mods count once).
+            string? sel = null;
+            for (var li = 0; li < block.Lines.Count && sel is null; li++)
+                if (_mapped.TryGetValue((bi, li), out var m) && m.ModIds.Count > 0)
+                    sel = _picked.GetValueOrDefault((bi, li), m.ModIds[0]);
+            ruleLines.Add(new RuleLine(block.Kind, sel));
+        }
+        _violations = ItemRules.Validate(Engine, ruleLines, _parsed.Rarity).ToList();
+        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
+        {
+            if (block.Kind == "implicit") continue;
+            var mapped = block.Lines.Select((_, li) => li).Any(li =>
+                _mapped.TryGetValue((bi, li), out var m) && m.ModIds.Count > 0);
+            if (!mapped)
+                _violations.Add(new RuleViolation("warning",
+                    $"'{block.Name ?? block.Kind}' did not map to the catalog: counts may be off"));
+        }
+        if (_violations.Any(v => v.Level == "error")) return;
         var item = new TestItem
         {
             Name = _parsed.Name ?? "imported item",
@@ -120,6 +147,7 @@
         State.AddTestItem(item);
         _text = "";
         _parsed = null;
+        _violations = [];
     }
 
     private void SaveFreeform()

@@ -1,0 +1,134 @@
+@using PoeRegex.Core.Data
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+
+<div class="builder">
+    <div class="panel-sub">Assemble test item from mods (enforced)</div>
+    <div class="modrow">
+        <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
+            @foreach (var c in Engine.PlayableClasses())
+            {
+                <option value="@c.Id">@c.Name</option>
+            }
+        </select>
+        <select id="builder-rarity" value="@_rarity" @onchange="e => { _rarity = e.Value?.ToString() ?? Rare; Refresh(); }" aria-label="Builder rarity">
+            <option value="Normal">Normal</option>
+            <option value="Magic">Magic</option>
+            <option value="Rare">Rare</option>
+        </select>
+    </div>
+    <div class="modrow">
+        <input id="builder-search" placeholder="type to filter mods…" value="@_search"
+               @oninput="OnSearch" aria-label="Builder mod filter" />
+    </div>
+    <ol class="suggest" aria-label="Builder suggestions">
+        @foreach (var m in _suggestions.Take(30))
+        {
+            <li class="suggest-row">
+                <span class="suggest-line" title="@m.Id">@m.StatLines.FirstOrDefault()?.Line @($"({m.Id})")</span>
+                <button id="builder-add-@m.Id" title="add @(m.GenerationType)"
+                        disabled="@_added.Contains(m.Id)"
+                        @onclick="() => Add(m)">+@m.GenerationType</button>
+            </li>
+        }
+    </ol>
+    @if (_added.Count > 0)
+    {
+        <div class="chips">
+            @foreach (var id in _added)
+            {
+                <button class="chip inc" id="builder-del-@id" title="remove"
+                        @onclick="() => Remove(id)">@id</button>
+            }
+        </div>
+    }
+    @foreach (var v in _violations)
+    {
+        <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>
+    }
+    <div class="modrow">
+        <input id="builder-name" placeholder="item name" value="@_name"
+               @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
+        <button id="builder-save" disabled="@_violations.Any(v => v.Level == "error")"
+                @onclick="Save">save built item</button>
+    </div>
+</div>
+
+@code {
+    private const string Rare = "Rare";
+
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    private string _classId = "Ring";
+    private string _rarity = Rare;
+    private string _search = "";
+    private string _name = "";
+    private List<ModEntry> _suggestions = [];
+    private List<string> _added = [];
+    private List<RuleViolation> _violations = [];
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        var taken = _added.ToHashSet(StringComparer.Ordinal);
+        _suggestions = ModSearch.FilterMods(
+            Engine.ModsForClass(_classId).Where(m => !taken.Contains(m.Id)), _search).ToList();
+        _violations = ItemRules.Validate(Engine,
+            _added.Select(id => RuleLineFor(id)), _rarity).ToList();
+    }
+
+    private RuleLine RuleLineFor(string modId)
+    {
+        var mod = Engine.FindMod(modId);
+        return new RuleLine(mod?.GenerationType.ToLowerInvariant() ?? "unknown", modId);
+    }
+
+    private void OnClass(ChangeEventArgs e)
+    {
+        _classId = e.Value?.ToString() ?? "Ring";
+        _added.Clear();
+        Refresh();
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? "";
+        Refresh();
+    }
+
+    private void Add(ModEntry m)
+    {
+        if (!_added.Contains(m.Id, StringComparer.Ordinal))
+            _added.Add(m.Id);
+        Refresh();
+    }
+
+    private void Remove(string id)
+    {
+        _added.Remove(id);
+        Refresh();
+    }
+
+    private void Save()
+    {
+        if (_violations.Any(v => v.Level == "error")) return;
+        var cls = Engine.PlayableClasses().FirstOrDefault(c => c.Id == _classId);
+        var parsed = new ParsedItem(cls?.Name, _rarity,
+            _name.Trim().Length > 0 ? _name.Trim() : $"Built {_classId}",
+            [], null, null, null, null, false, []);
+        var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed };
+        foreach (var id in _added)
+        {
+            var mod = Engine.FindMod(id);
+            foreach (var s in mod?.StatLines ?? [])
+                item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
+        }
+        State.AddTestItem(item);
+        _added.Clear();
+        _name = "";
+        _search = "";
+        Refresh();
+    }
+}

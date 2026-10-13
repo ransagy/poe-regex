@@ -48,6 +48,10 @@ public sealed class ModEntry
     [JsonPropertyName("classes")]
     public required IReadOnlyList<string> Classes { get; init; }
 
+    /// <summary>RePoE mod group names (one-mod-per-group exclusivity). Empty when unknown.</summary>
+    [JsonPropertyName("groups")]
+    public IReadOnlyList<string> Groups { get; init; } = [];
+
     [JsonPropertyName("statLines")]
     public required IReadOnlyList<StatLineEntry> StatLines { get; init; }
 }

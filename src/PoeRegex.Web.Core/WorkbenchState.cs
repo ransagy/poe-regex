@@ -177,19 +177,34 @@ public sealed class WorkbenchState
 
     public void AddTestItem(TestItem item)
     {
-        // First free 1x1 cell, row-major (real footprints need the dimension table).
-        var taken = TestItems.Select(t => (t.Row, t.Col)).ToHashSet();
-        for (var r = 0; r < 5; r++)
-            for (var c = 0; c < 12; c++)
-                if (taken.Add((r, c)))
+        var fp = ItemFootprints.For(item.ClassId);
+        var w = item.Cols > 0 ? item.Cols : fp.Cols;
+        var h = item.Rows > 0 ? item.Rows : fp.Rows;
+        var taken = new HashSet<(int, int)>();
+        foreach (var t in TestItems)
+            for (var dr = 0; dr < Math.Max(1, t.Rows); dr++)
+                for (var dc = 0; dc < Math.Max(1, t.Cols); dc++)
+                    taken.Add((t.Row + dr, t.Col + dc));
+        for (var r = 0; r + h <= GridPlacement.Rows; r++)
+            for (var c = 0; c + w <= GridPlacement.Cols; c++)
+            {
+                var free = true;
+                for (var dr = 0; dr < h && free; dr++)
+                    for (var dc = 0; dc < w && free; dc++)
+                        if (taken.Contains((r + dr, c + dc)))
+                            free = false;
+                if (free)
                 {
                     item.Row = r;
                     item.Col = c;
+                    item.Cols = w;
+                    item.Rows = h;
                     TestItems.Add(item);
                     Notify();
                     return;
                 }
-        TestItems.Add(item); // grid full (60): list-only
+            }
+        TestItems.Add(item); // grid full: list-only
         Notify();
     }
 
