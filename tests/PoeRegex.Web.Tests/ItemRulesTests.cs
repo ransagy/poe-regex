@@ -18,18 +18,16 @@ public class ItemRulesTests
         var lines = new List<RuleLine>();
         foreach (var block in item.Mods)
         {
+            // One entry per block: multi-line mods count once.
+            string? sel = null;
             foreach (var line in block.Lines)
             {
-                string? selected = null;
-                if (block.Kind != "implicit")
-                {
-                    var map = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
-                    selected = map.ModIds.FirstOrDefault(id =>
-                        Engine.FindMod(id)?.Name == block.Name);
-                    selected.Should().NotBeNull($"'{line.Text}' should resolve to '{block.Name}'");
-                }
-                lines.Add(new RuleLine(block.Kind, selected));
+                if (sel is not null || block.Kind == "implicit") break;
+                var map = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
+                sel = map.ModIds.FirstOrDefault(id => Engine.FindMod(id)?.Name == block.Name);
+                sel.Should().NotBeNull($"'{line.Text}' should resolve to '{block.Name}'");
             }
+            lines.Add(new RuleLine(block.Kind, sel));
         }
         return ItemRules.Validate(Engine, lines, item.Rarity);
     }
@@ -83,6 +81,17 @@ public class ItemRulesTests
         var violations = ItemRules.Validate(Engine,
             [new RuleLine("prefix", a), new RuleLine("prefix", b)], "Rare");
         violations.Should().Contain(v => v.Level == "error" && v.Message.Contains("clash"));
+    }
+
+    [Fact]
+    public void TwoTiersOfSameMod_ClashError_SameTierTwice_DuplicateError()
+    {
+        ItemRules.Validate(Engine,
+            [new RuleLine("suffix", "Strength1"), new RuleLine("suffix", "Strength5")], "Rare")
+            .Should().Contain(v => v.Level == "error" && v.Message.Contains("clash"));
+        ItemRules.Validate(Engine,
+            [new RuleLine("suffix", "Strength1"), new RuleLine("suffix", "Strength1")], "Rare")
+            .Should().Contain(v => v.Level == "error" && v.Message.Contains("duplicate"));
     }
 
     [Fact]

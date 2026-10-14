@@ -36,6 +36,7 @@ public static class ItemRules
         var prefixes = 0;
         var suffixes = 0;
         var seenGroups = new Dictionary<string, string>(StringComparer.Ordinal);
+        var seenMods = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in list)
         {
             if (line.Kind == "implicit") continue;
@@ -67,6 +68,11 @@ public static class ItemRules
                     {
                         seenGroups[g] = mod.Id;
                     }
+                }
+                if (!seenMods.Add(mod.Id))
+                {
+                    violations.Add(new RuleViolation("error",
+                        $"duplicate mod '{mod.Id}': only one tier of a mod can be on an item"));
                 }
             }
         }
