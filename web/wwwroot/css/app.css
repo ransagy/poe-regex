@@ -39,8 +39,7 @@ html, body {
     align-items: flex-start;
 }
 
-.panel.editor { flex: 0 1 26rem; }
-.panel.inventory { flex: 1 1 30rem; }
+.panel.inventory { flex: 1 1 100%; }
 
 .panel {
     background: var(--panel);
@@ -67,6 +66,7 @@ html, body {
 .panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.6rem 0 0.3rem; }
 
 .mode-switch { display: flex; gap: 0.25rem; }
+.mode-switch.vertical { flex-direction: column; align-self: start; }
 .mode-btn {
     background: var(--slot);
     color: var(--dim);
@@ -78,16 +78,27 @@ html, body {
 }
 .mode-btn.active { color: #ffe9a8; border-color: var(--panel-edge-hi); background: var(--slot-active); }
 
-/* Paper doll: 6 x 5 unit grid (arrangement TO-CONFIRM in Phase 3 QA). */
+/* Single-box layout: editor | vertical mode switch | doll on top,
+   backpack and advanced below. */
+.inv-top {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+.inv-editor { flex: 0 1 24rem; min-width: 0; }
+.inv-doll { flex: 1 1 auto; min-width: 0; }
+
+/* Paper doll: fixed-aspect panel with absolutely positioned slot frames
+   (like the game). Arrangement TO-CONFIRM in Phase 3 QA. */
 .doll {
-    display: grid;
-    grid-template-columns: repeat(6, 4.2rem);
-    grid-auto-rows: 4.2rem;
-    gap: 5px;
-    justify-content: start;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 34rem;
 }
 
 .gear-slot {
+    position: absolute;
     background: radial-gradient(circle at 50% 35%, #2e2517, var(--slot) 70%);
     border: 1px solid var(--panel-edge);
     color: var(--dim);
@@ -97,6 +108,7 @@ html, body {
     align-items: flex-end;
     justify-content: center;
     padding: 0.15rem;
+    box-sizing: border-box;
 }
 .gear-slot:hover { border-color: var(--panel-edge-hi); }
 .gear-slot.active { border-color: var(--accent); background: radial-gradient(circle at 50% 35%, #4a3a18, var(--slot-active) 70%); }

@@ -12,72 +12,71 @@
 <PageTitle>poe-regex workbench</PageTitle>
 
 <div class="bench">
-    <section class="panel editor" aria-label="Editor">
-        <div class="panel-head">
-            <span>Editor</span>
-            <ModeSwitch State="State" />
-        </div>
-
-        @if (State.Mode == "single" && State.SelectedSlot is { } slot)
-        {
-            <div class="panel-sub">@slot slot</div>
-            <ClassPicker State="State" SlotId="@slot" />
-            <ModPicker State="State" Scope="@slot" Mods="Engine.ModsForClass(State.SlotClassOrDefault(slot))" />
-        }
-        else if (State.Mode == "multi")
-        {
-            @foreach (var s in State.ActiveSlots())
-            {
-                <div class="panel-sub">@s slot</div>
-                <ClassPicker State="State" SlotId="@s" />
-                <ModPicker State="State" Scope="@s" Mods="Engine.ModsForClass(State.SlotClassOrDefault(s))" />
-            }
-            @if (State.ActiveSlots().Count == 0)
-            {
-                <div class="hint">toggle slots on the paper doll to edit criteria</div>
-            }
-        }
-        else
-        {
-            <div class="panel-sub">global (no class anchor)</div>
-            <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
-        }
-    </section>
-
     <section class="panel inventory" aria-label="Inventory">
         <div class="panel-head"><span>Inventory</span></div>
-        <PaperDoll State="State" />
-        <div id="slot-query-bar">
-            @if (State.Mode == "multi")
-            {
-                @if (_paste is not null)
+        <div class="inv-top">
+            <div class="inv-editor" aria-label="Editor">
+                @if (State.Mode == "single" && State.SelectedSlot is { } slot)
                 {
-                    <div class="slot-query" id="slot-query-multi">
-                        <span class="slot-query-label">combined paste</span>
-                        <code>@_paste.Query</code>
-                        <span class="meter-num">@_paste.Length/@_paste.Limit</span>
-                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                    </div>
+                    <div class="panel-sub">@slot slot</div>
+                    <ClassPicker State="State" SlotId="@slot" />
+                    <ModPicker State="State" Scope="@slot" Mods="Engine.ModsForClass(State.SlotClassOrDefault(slot))" />
                 }
-                else if (_pasteOverflow is not null)
+                else if (State.Mode == "multi")
                 {
-                    <div class="qerror" id="slot-query-multi-overflow">
-                        combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
-                        <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
-                    </div>
-                }
-            }
-            @foreach (var t in _barTasks)
-            {
-                <div class="slot-query" id="slot-query-@t.CardId">
-                    <span class="slot-query-label">@t.Title</span>
-                    <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
-                    @if (t.Result is not null)
+                    @foreach (var s in State.ActiveSlots())
                     {
-                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                        <div class="panel-sub">@s slot</div>
+                        <ClassPicker State="State" SlotId="@s" />
+                        <ModPicker State="State" Scope="@s" Mods="Engine.ModsForClass(State.SlotClassOrDefault(s))" />
+                    }
+                    @if (State.ActiveSlots().Count == 0)
+                    {
+                        <div class="hint">toggle slots on the paper doll to edit criteria</div>
+                    }
+                }
+                else
+                {
+                    <div class="panel-sub">global (no class anchor)</div>
+                    <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
+                }
+            </div>
+            <ModeSwitch State="State" Vertical="true" />
+            <div class="inv-doll">
+                <PaperDoll State="State" />
+                <div id="slot-query-bar">
+                    @if (State.Mode == "multi")
+                    {
+                        @if (_paste is not null)
+                        {
+                            <div class="slot-query" id="slot-query-multi">
+                                <span class="slot-query-label">combined paste</span>
+                                <code>@_paste.Query</code>
+                                <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+                                <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                            </div>
+                        }
+                        else if (_pasteOverflow is not null)
+                        {
+                            <div class="qerror" id="slot-query-multi-overflow">
+                                combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
+                                <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
+                            </div>
+                        }
+                    }
+                    @foreach (var t in _barTasks)
+                    {
+                        <div class="slot-query" id="slot-query-@t.CardId">
+                            <span class="slot-query-label">@t.Title</span>
+                            <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
+                            @if (t.Result is not null)
+                            {
+                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                            }
+                        </div>
                     }
                 </div>
-            }
+            </div>
         </div>
         <div class="panel-sub">Backpack — test items</div>
         <div class="modrow">
