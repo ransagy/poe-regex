@@ -131,8 +131,8 @@
     {
         _saveError = null;
         if (_parsed is null) return;
-        // Gate: only import what a slot query can test against.
-        var playable = _classId is not null && Engine.PlayableClasses().Any(c => c.Id == _classId);
+        // Gate: only import what a slot query can test against (in-game classes with mods).
+        var playable = _classId is not null && Engine.InGameClasses().Any(c => c.Id == _classId);
         if (!playable)
         {
             _saveError = _classId is null

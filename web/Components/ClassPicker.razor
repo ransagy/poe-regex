@@ -25,7 +25,7 @@
     /// </summary>
     private IEnumerable<ItemClassEntry> Options()
     {
-        var playable = Engine.PlayableClasses().ToList();
+        var playable = Engine.InGameClasses().ToList();
         var allowed = SlotClasses.AllowedFor(SlotId, playable.Select(c => c.Id)).ToHashSet();
         var current = State.SlotClassOrDefault(SlotId);
         return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);

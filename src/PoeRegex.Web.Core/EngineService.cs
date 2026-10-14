@@ -45,6 +45,20 @@ public sealed class EngineService
     public IEnumerable<ItemClassEntry> PlayableClasses() =>
         Classes.Where(c => _playableClassIds.Value.Contains(c.Id));
 
+    /// <summary>
+    /// Base types with no in-game presence yet (maintainer-confirmed): excluded
+    /// from pickers, but the catalog still carries them.
+    /// </summary>
+    public static readonly HashSet<string> NotInGameClassIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Dagger", "Claw", "Flail", "Warstaff",
+        "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
+    };
+
+    /// <summary>Playable classes actually in the game (picker scope).</summary>
+    public IEnumerable<ItemClassEntry> InGameClasses() =>
+        PlayableClasses().Where(c => !NotInGameClassIds.Contains(c.Id));
+
     /// <summary>Mods for one class, or the union across several (deduped by id, first wins).</summary>
     public IReadOnlyList<ModEntry> ModsForClasses(IEnumerable<string> classIds)
     {

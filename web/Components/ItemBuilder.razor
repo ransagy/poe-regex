@@ -9,7 +9,7 @@
             <div class="panel-head"><span>Assemble test item from mods (enforced)</span></div>
             <div class="modrow">
                 <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
-                    @foreach (var c in Engine.PlayableClasses())
+                    @foreach (var c in Engine.InGameClasses())
                     {
                         <option value="@c.Id">@c.Name</option>
                     }
