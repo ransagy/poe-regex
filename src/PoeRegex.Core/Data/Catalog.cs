@@ -62,6 +62,14 @@ public sealed class StatLineEntry
     [JsonPropertyName("line")]
     public required string Line { get; init; }
 
+    /// <summary>
+    /// Friendly range rendering with each number's tier span
+    /// (e.g. "Adds 1–2 to 3–4 Physical Damage"). Empty when unknown;
+    /// display code falls back to <see cref="Line"/>.
+    /// </summary>
+    [JsonPropertyName("rangeLine")]
+    public string RangeLine { get; init; } = "";
+
     /// <summary>Value-agnostic form: every digit-run replaced by a single placeholder character.</summary>
     [JsonPropertyName("pattern")]
     public required string Pattern { get; init; }

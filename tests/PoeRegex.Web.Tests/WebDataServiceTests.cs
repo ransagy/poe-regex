@@ -1,4 +1,5 @@
 using PoeRegex.Core;
+using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
@@ -37,6 +38,36 @@ public class WebDataServiceTests
 
         ModSearch.FilterMods(ring, "   ").Should().HaveCount(ring.Count);
         ModSearch.FilterMods(ring, "zzz-no-such-mod").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DisplayLine_PrefersRange_FallsBackToLine()
+    {
+        var mod = Engine.FindMod("IncreasedLife6")!;
+        var sl = mod.StatLines[0];
+        sl.RangeLine.Should().NotBeEmpty();
+        ModSearch.DisplayLine(sl).Should().Be(sl.RangeLine);
+        var legacy = new StatLineEntry
+        {
+            Line = sl.Line,
+            Pattern = sl.Pattern,
+            MinValue = sl.MinValue,
+            MaxValue = sl.MaxValue,
+            Fingerprints = sl.Fingerprints,
+        };
+        ModSearch.DisplayLine(legacy).Should().Be(sl.Line);
+    }
+
+    [Fact]
+    public void FilterMods_MatchesRangeText()
+    {
+        var ring = Engine.ModsForClass("Ring");
+        var sl = Engine.FindMod("IncreasedLife6")!.StatLines[0];
+        // A distinctive slice of the range rendering still resolves the mod.
+        var probe = sl.RangeLine.Replace("–", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(w => w.Any(char.IsDigit));
+        probe.Should().NotBeNull();
+        ModSearch.FilterMods(ring, probe!).Should().Contain(m => m.Id == "IncreasedLife6");
     }
 
     [Fact]

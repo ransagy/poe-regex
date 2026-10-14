@@ -42,6 +42,9 @@ public sealed record JsonModEntry
 
     /// <summary>First rendered stat line, mirroring the text output.</summary>
     public required string Line { get; init; }
+
+    /// <summary>Friendly per-number range rendering (falls back to Line when empty).</summary>
+    public string Range { get; init; } = "";
 }
 
 /// <summary>Named model for `validate --json` output.</summary>

@@ -1,9 +1,10 @@
 @using PoeRegex.Web.Core
+@inject EngineService Engine
 
 <div class="testitems" aria-label="Test items">
     @if (State.TestItems.Count == 0)
     {
-        <div class="hint">no test items yet — import or build one above</div>
+        <div class="hint">no test items yet — import or assemble one above</div>
     }
     @foreach (var item in State.TestItems)
     {
@@ -21,7 +22,7 @@
             <div class="titem-lines">
                 @foreach (var ml in item.Mapped)
                 {
-                    <div title="@(ml.SelectedModId ?? "unmapped")">@ml.Text</div>
+                    <div>@DisplayLine(ml)</div>
                 }
             </div>
         </div>
@@ -46,5 +47,21 @@
             if (query is null) continue;
             yield return (label, ItemMatcher.Match(query, item.MatchLines()));
         }
+    }
+
+    /// <summary>
+    /// Friendly line text: pasted game text stays as-is; catalog-sourced
+    /// builder lines render their per-number ranges. Matching always runs on
+    /// the representative text underneath.
+    /// </summary>
+    private string DisplayLine(MappedLine ml)
+    {
+        if (ml.SelectedModId is not null)
+        {
+            var stat = Engine.FindMod(ml.SelectedModId)?.StatLines
+                .FirstOrDefault(s => s.Line == ml.Text);
+            if (stat is not null) return ModSearch.DisplayLine(stat);
+        }
+        return ml.Text;
     }
 }

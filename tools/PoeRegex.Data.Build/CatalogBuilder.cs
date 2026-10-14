@@ -111,6 +111,7 @@ public static class CatalogBuilder
                 statLines.Add(new StatLineEntry
                 {
                     Line = line.Line,
+                    RangeLine = line.RangeLine,
                     Pattern = line.Pattern,
                     MinValue = line.MinValue,
                     MaxValue = line.MaxValue,

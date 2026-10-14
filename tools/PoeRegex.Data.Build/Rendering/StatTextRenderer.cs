@@ -39,7 +39,7 @@ public sealed class StatTextRenderer
         }
     }
 
-    public sealed record RenderedLine(string Line, string Pattern, double MinValue, double MaxValue);
+    public sealed record RenderedLine(string Line, string RangeLine, string Pattern, double MinValue, double MaxValue);
 
     /// <summary>
     /// Renders a mod's stats. Multi-stat mods may produce a single line (when a
@@ -187,16 +187,18 @@ public sealed class StatTextRenderer
 
         var template = variant.String;
         var text = new List<char>(template.Length + 16);
+        var rangeText = new List<char>(template.Length + 24);
         for (var i = 0; i < template.Length; i++)
         {
             var c = template[i];
             if (c != '{')
             {
                 text.Add(c);
+                rangeText.Add(c);
                 continue;
             }
             var close = template.IndexOf('}', i);
-            if (close < 0) { text.Add(c); continue; }
+            if (close < 0) { text.Add(c); rangeText.Add(c); continue; }
             var token = template.Substring(i + 1, close - i - 1);
             if (int.TryParse(token, out var idx) && idx < values.Count)
             {
@@ -205,12 +207,32 @@ public sealed class StatTextRenderer
                 {
                     // Items display a single rolled value; use the max roll.
                     text.AddRange(FormatNumber(handledMax[idx]!.Value, format, specs[idx]));
+                    // The friendly range form shows each number's tier span.
+                    // Decorations (+/%) appear once: '+' leads the range, '%' trails it.
+                    if (handledMin[idx] is not null && handledMin[idx]!.Value != handledMax[idx]!.Value)
+                    {
+                        var minStr = specs[idx].Apply(handledMin[idx]!.Value);
+                        var maxFormat = format;
+                        if (format.Contains('+') && handledMin[idx]!.Value > 0)
+                        {
+                            minStr = "+" + minStr;
+                            maxFormat = format.Replace("+", "");
+                        }
+                        rangeText.AddRange(minStr);
+                        rangeText.Add('–');
+                        rangeText.AddRange(FormatNumber(handledMax[idx]!.Value, maxFormat, specs[idx]));
+                    }
+                    else
+                    {
+                        rangeText.AddRange(FormatNumber(handledMax[idx]!.Value, format, specs[idx]));
+                    }
                 }
                 i = close;
             }
             else
             {
                 text.Add(c);
+                rangeText.Add(c);
             }
         }
         var rendered = new string(text.ToArray());
@@ -219,6 +241,7 @@ public sealed class StatTextRenderer
         // PoE2 markup: [X] attribute markers and [X|Y] language alternatives
         // both render as plain text in-game; keep the first alternative.
         rendered = StripBracketMarkup(rendered);
+        var ranged = StripBracketMarkup(new string(rangeText.ToArray()));
 
         // Value-agnostic pattern: replace every digit-run with the placeholder.
         var pattern = NormalizeDigits(rendered);
@@ -236,7 +259,7 @@ public sealed class StatTextRenderer
         }
         if (globalMax < globalMin) { globalMin = 0; globalMax = 0; }
 
-        return new RenderedLine(rendered, pattern, globalMin, globalMax);
+        return new RenderedLine(rendered, ranged, pattern, globalMin, globalMax);
     }
 
     private (double Value, DisplaySpec Spec) ApplyHandlers(double value, IReadOnlyList<string> handlerNames)

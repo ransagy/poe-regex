@@ -36,6 +36,7 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("+30 to maximum Life");
+        lines[0].RangeLine.Should().Be("+20–30 to maximum Life");
     }
 
     [Fact]
@@ -58,6 +59,7 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("25% increased Attack Speed");
+        lines[0].RangeLine.Should().Be("20–25% increased Attack Speed");
     }
 
     [Fact]
@@ -83,6 +85,7 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("Adds 2 to 4 Physical Damage to Attacks");
+        lines[0].RangeLine.Should().Be("Adds 1–2 to 3–4 Physical Damage to Attacks");
     }
 
     [Fact]

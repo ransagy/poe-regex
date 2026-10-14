@@ -10,14 +10,14 @@
         {
             <button class="chip inc" id="chip-inc-@Scope-@inc.ModId" title="remove"
                     @onclick="() => State.RemoveInclude(Scope, inc.ModId)">
-                +@inc.ModId@(inc.MinValue is null ? "" : $" ≥{inc.MinValue}")
+                @DisplayFor(inc.ModId)@(inc.MinValue is null ? "" : $" ≥{inc.MinValue}")
             </button>
         }
         @foreach (var exc in crit.Excluded)
         {
             <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
                     @onclick="() => State.RemoveExclude(Scope, exc)">
-                −@exc
+                !@DisplayFor(exc)
             </button>
         }
         @if (crit.Included.Count + crit.Excluded.Count > 0)
@@ -40,8 +40,9 @@
         }
         @foreach (var m in _suggestions.Take(MaxShown))
         {
+            var line = m.StatLines.FirstOrDefault();
             <li class="suggest-row">
-                <span class="suggest-line" title="@m.Id">@m.StatLines.FirstOrDefault()?.Line @($"({m.Id})")</span>
+                <span class="suggest-line">@(line is null ? m.Id : ModSearch.DisplayLine(line))</span>
                 <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
                 <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
             </li>
@@ -80,6 +81,12 @@
     protected override void OnParametersSet() => Refresh();
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
+
+    /// <summary>Friendly chip text: the mod's range line, falling back to the id.</summary>
+    private string DisplayFor(string modId) =>
+        Mods.FirstOrDefault(m => m.Id == modId)?.StatLines.FirstOrDefault() is { } sl
+            ? ModSearch.DisplayLine(sl)
+            : modId;
 
     private void Refresh()
     {

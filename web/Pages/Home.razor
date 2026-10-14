@@ -42,14 +42,6 @@
             <div class="panel-sub">global (no class anchor)</div>
             <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
         }
-
-        <div class="panel-sub">Test items</div>
-        <div class="modrow">
-            <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
-        </div>
-        <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
-        <ItemBuilder State="State" />
-        <ItemBuilder State="State" />
     </section>
 
     <section class="panel inventory" aria-label="Inventory">
@@ -88,8 +80,14 @@
             }
         </div>
         <div class="panel-sub">Backpack — test items</div>
+        <div class="modrow">
+            <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
+            <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
+        </div>
         <BackpackGrid Items="State.TestItems" HighlightIds="_highlight" />
         <TestItems State="State" Queries="_labelledQueries" HighlightIds="_highlight" />
+        <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
+        <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
     </section>
 </div>
 
@@ -148,6 +146,7 @@
     private HashSet<string> _highlight = [];
     private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
     private bool _importOpen;
+    private bool _builderOpen;
     private MultiPasteResult? _paste;
     private RegexLengthOverflowException? _pasteOverflow;
 
@@ -176,6 +175,8 @@
     }
 
     private void CloseImport() => _importOpen = false;
+
+    private void CloseBuilder() => _builderOpen = false;
 
     private void OnStateChanged()
     {
