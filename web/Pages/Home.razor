@@ -153,7 +153,7 @@
     protected override async Task OnInitializedAsync()
     {
         State.Changed += OnStateChanged;
-        _engineStatus = $"engine ok ({Engine.PlayableClasses().Count()} classes with mods)";
+        _engineStatus = $"engine ok ({Engine.InGameClasses().Count()} classes with mods)";
         var saved = await Persistence.LoadAsync();
         if (saved is not null)
             WorkbenchSnapshot.Restore(State, saved);

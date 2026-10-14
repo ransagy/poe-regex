@@ -5,11 +5,11 @@ namespace PoeRegex.Web.Tests;
 public class WorkbenchStateTests
 {
     [Fact]
-    public void Defaults_SingleMode_WeaponSelected()
+    public void Defaults_GlobalMode_NoSlots()
     {
         var state = new WorkbenchState();
-        state.Mode.Should().Be("single");
-        state.ActiveSlots().Should().Equal(["weapon"]);
+        state.Mode.Should().Be("global");
+        state.ActiveSlots().Should().BeEmpty();
     }
 
     [Fact]
@@ -35,6 +35,7 @@ public class WorkbenchStateTests
     public void SelectSlot_Single_Replaces()
     {
         var state = new WorkbenchState();
+        state.SetMode("single");
         state.SelectSlot("body");
         state.ActiveSlots().Should().Equal(["body"]);
     }
@@ -111,10 +112,10 @@ public class WorkbenchStateTests
             new SlotCriteria(),
             []);
         WorkbenchSnapshot.Restore(state, snap);
-        state.Mode.Should().Be("single");
+        state.Mode.Should().Be("global");
         state.MultiSlots.Should().Equal(["body"]);
         state.SlotClassOrDefault("body").Should().Be("Helmet");
-        state.ActiveSlots().Should().Equal(["weapon"]);
+        state.ActiveSlots().Should().BeEmpty();
     }
 
     [Fact]

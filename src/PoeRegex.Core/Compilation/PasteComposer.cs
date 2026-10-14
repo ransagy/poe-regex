@@ -45,51 +45,10 @@ public sealed class PasteComposer
     }
 
     /// <summary>
-    /// Shortest class-name prefix unique across all catalog class names
-    /// (case-insensitive), extended until its `: prefix` form matches only
-    /// that class's `Item Class:` line and no mod line in the corpus.
-    /// Falls back to the full name with the caller warning on residual risk.
+    /// Shortest class-name prefix unique across all catalog class names.
+    /// See <see cref="EngineCorpus.ClassNamePrefix"/>.
     /// </summary>
-    public string ClassPrefix(string itemClass)
-    {
-        var entry = _corpus.FindItemClass(itemClass);
-        var name = entry?.Name ?? itemClass;
-        var allNames = _corpus.Catalog.ItemClasses.Select(c => c.Name).ToList();
-        var len = 1;
-        for (; len < name.Length; len++)
-        {
-            var p = name[..len];
-            if (allNames.Count(n => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)) == 1)
-                break;
-        }
-        len = Math.Min(len, name.Length);
-        while (len < name.Length && !PrefixClean(name[..len], name))
-            len++;
-        return name[..len];
-    }
-
-    private bool PrefixClean(string prefix, string className)
-    {
-        var test = ": " + _strategy.EscapeLiteral(prefix);
-        foreach (var cls in _corpus.Catalog.ItemClasses)
-        {
-            var line = $"Item Class: {cls.Name}";
-            var hit = Regex.IsMatch(line, test, RegexOptions.IgnoreCase);
-            if (cls.Name.Equals(className, StringComparison.OrdinalIgnoreCase))
-            {
-                if (!hit) return false;
-            }
-            else if (hit)
-            {
-                return false;
-            }
-        }
-        foreach (var (_, real) in _corpus.RealLinesGlobal())
-        {
-            if (Regex.IsMatch(real, test, RegexOptions.IgnoreCase)) return false;
-        }
-        return true;
-    }
+    public string ClassPrefix(string itemClass) => _corpus.ClassNamePrefix(itemClass);
 
     public MultiPasteResult Compose(
         IReadOnlyList<PasteSlotCriterion> slots,
@@ -126,7 +85,7 @@ public sealed class PasteComposer
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
         var prefixes = scope.ToDictionary(c => c, ClassPrefix, StringComparer.Ordinal);
 
-        var anchorInner = ": (" + string.Join("|", scope.Select(c => prefixes[c])) + ")";
+        var anchorInner = ": (" + string.Join("|", scope.Select(c => _strategy.EscapeLiteral(prefixes[c]))) + ")";
         var anchorDiag = _strategy.ValidateFragment(anchorInner);
         if (anchorDiag is not null) diagnostics.Add(anchorDiag);
         ValidateAnchor(anchorInner, scope, diagnostics);
@@ -159,7 +118,7 @@ public sealed class PasteComposer
                 .Select(c => prefixes[c]).ToList();
             var factored = CompactionEngine.FactorCommonPrefixes(frags);
             var token = others.Count > 0
-                ? ": (" + string.Join("|", others) + ")|" + string.Join("|", factored)
+                ? ": (" + string.Join("|", others.Select(p => _strategy.EscapeLiteral(p))) + ")|" + string.Join("|", factored)
                 : string.Join("|", factored);
             var tokenDiag = _strategy.ValidateFragment(token);
             if (tokenDiag is not null) diagnostics.Add(tokenDiag);

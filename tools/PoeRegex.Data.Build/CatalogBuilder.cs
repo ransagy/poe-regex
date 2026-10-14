@@ -185,6 +185,10 @@ public static class CatalogBuilder
     {
         var corpus = new List<string>(classLines.TryGetValue(classId, out var set) ? set : new HashSet<string>());
         corpus.Add(classLine);
+        // Same universal non-mod lines the runtime oracle sees, so embedded
+        // fingerprints avoid them too.
+        foreach (var u in PoeRegex.Core.Compilation.EngineCorpus.UniversalLines)
+            corpus.Add(StatTextRenderer.NormalizeDigits(u));
         return corpus;
     }
 

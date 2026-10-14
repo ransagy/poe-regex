@@ -80,11 +80,11 @@ Console.WriteLine(result.Query);
 The demo above produces (deterministically):
 
 ```text
-"\+(\d{3,}|[9-9]\d|8[0-9]) to maximum Life" !"reflect" ":" "ilvl:60"
+"\+(\d{3,}|[9-9]\d|8[0-9]) to maximum Life" !"reflect" ": Ri" "ilvl:60"
 ```
 
 Read the query: a life mod at least `+80`, no "reflect" text, on the Ring class
-(`":"` is Ring's fingerprint), requiring item level 60.
+(`": Ri"` is Ring's oracle-clean class anchor), requiring item level 60.
 
 ## 3. Building a `QuerySpecification`
 

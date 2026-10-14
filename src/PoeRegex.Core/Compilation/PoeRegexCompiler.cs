@@ -53,12 +53,15 @@ public sealed class PoeRegexCompiler
         }
 
         // Class anchor.
+        // Class anchor: an oracle-clean `Item Class:` name prefix. Unlike the
+        // old shortest-substring anchor (often a vacuous ":"), this isolates
+        // the class instead of matching every colon line.
         if (spec.ItemClass is not null)
         {
-            var fp = _corpus.ClassFingerprint(spec.ItemClass, caseInsensitive: true);
-            if (fp is not null) blocks.Add(_strategy.Quote(_strategy.EscapeLiteral(fp)));
-            else diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
-                $"No fingerprint available for item class '{spec.ItemClass}'."));
+            if (_corpus.FindItemClass(spec.ItemClass) is null)
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
+                    $"No fingerprint available for item class '{spec.ItemClass}'."));
+            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
         }
 
         // Custom keywords.

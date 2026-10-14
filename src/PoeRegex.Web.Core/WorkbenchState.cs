@@ -57,10 +57,11 @@ public sealed class WorkbenchState
         ["ring2"] = "Ring",
     };
 
-    public string Mode { get; private set; } = "single";
+    /// <summary>Global is the first and default mode (one string for chosen mods).</summary>
+    public string Mode { get; private set; } = "global";
 
     /// <summary>Single mode: the active slot id (default: weapon).</summary>
-    public string? SelectedSlot { get; private set; } = "weapon";
+    public string? SelectedSlot { get; private set; } = null;
 
     /// <summary>Multi mode: toggled slot ids.</summary>
     public HashSet<string> MultiSlots { get; } = new(StringComparer.Ordinal);
@@ -220,8 +221,8 @@ public sealed class WorkbenchState
     /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
     public void Reset()
     {
-        Mode = "single";
-        SelectedSlot = "weapon";
+        Mode = "global";
+        SelectedSlot = null;
         MultiSlots.Clear();
         Slots.Clear();
         foreach (var (slot, cls) in DefaultClasses)

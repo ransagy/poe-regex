@@ -136,7 +136,7 @@ public sealed class Explainer
         var matches = new List<ExplainMatch>();
         foreach (var cls in scope)
         {
-            foreach (var (pattern, real) in _corpus.RealLinesForClass(cls))
+            foreach (var (pattern, real) in _corpus.MatchableLinesForClass(cls))
             {
                 if (!System.Text.RegularExpressions.Regex.IsMatch(real, regex, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
