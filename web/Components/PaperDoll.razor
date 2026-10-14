@@ -26,22 +26,22 @@
     public required WorkbenchState State { get; set; }
 
     // Percent geometry in a 100x100 panel (maintainer-directed arrangement):
-    // weapon tall-left at armour height, offhand tall-right, helmet top-center,
-    // body center, amulet above the offhand and right of the helmet, rings
-    // flanking the body's bottom edge, boots under the offhand, belt under
-    // the body, gloves under the weapon and left of the belt.
+    // both weapons body-sized; helmet/gloves/boots share one size; amulet
+    // aligned to the offhand's left edge above it; rings sit in the gutters
+    // between the weapons and the body (no overlaps); belt under the body,
+    // gloves under the weapon and left of the belt, boots under the offhand.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:2%; top:24%; width:17%; height:40%;",
-        "helmet" => "left:23%; top:4%; width:24%; height:16%;",
-        "body" => "left:23%; top:24%; width:24%; height:40%;",
-        "ring1" => "left:14%; top:55%; width:9%; height:9%;",
-        "amulet" => "left:51%; top:4%; width:11%; height:11%;",
-        "offhand" => "left:64%; top:24%; width:17%; height:40%;",
-        "ring2" => "left:49%; top:55%; width:9%; height:9%;",
-        "gloves" => "left:2%; top:68%; width:17%; height:12%;",
-        "belt" => "left:23%; top:68%; width:24%; height:12%;",
-        "boots" => "left:64%; top:68%; width:17%; height:12%;",
+        "weapon" => "left:2%; top:24%; width:24%; height:40%;",
+        "helmet" => "left:38%; top:4%; width:24%; height:16%;",
+        "body" => "left:38%; top:24%; width:24%; height:40%;",
+        "ring1" => "left:27%; top:55%; width:10%; height:9%;",
+        "amulet" => "left:74%; top:9%; width:11%; height:11%;",
+        "offhand" => "left:74%; top:24%; width:24%; height:40%;",
+        "ring2" => "left:63%; top:55%; width:10%; height:9%;",
+        "gloves" => "left:14%; top:68%; width:24%; height:16%;",
+        "belt" => "left:38%; top:68%; width:24%; height:16%;",
+        "boots" => "left:74%; top:68%; width:24%; height:16%;",
         _ => "",
     };
 }
