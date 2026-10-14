@@ -46,6 +46,28 @@ public class FootprintTests
     }
 
     [Fact]
+    public void SlotClasses_ArmorAccessoryAreOneToOne_WeaponExcludesThem()
+    {
+        var engine = new EngineService();
+        var playable = engine.PlayableClasses().Select(c => c.Id);
+        SlotClasses.AllowedFor("ring1", playable).Should().Equal(["Ring"]);
+        SlotClasses.AllowedFor("ring2", playable).Should().Equal(["Ring"]);
+        SlotClasses.AllowedFor("amulet", playable).Should().Equal(["Amulet"]);
+        SlotClasses.AllowedFor("body", playable).Should().Equal(["Body Armour"]);
+        var weapon = SlotClasses.AllowedFor("weapon", playable);
+        weapon.Should().Contain(["Crossbow", "Bow", "Shield", "Quiver"]);
+        weapon.Should().NotContain(["Ring", "Amulet", "Belt", "Helmet", "Body Armour",
+            "Gloves", "Boots", "Talisman"]);
+        foreach (var slot in new[] { "weapon", "helmet", "body", "gloves", "boots",
+                     "belt", "amulet", "ring1", "ring2" })
+        {
+            var state = new WorkbenchState();
+            SlotClasses.AllowedFor(slot, playable)
+                .Should().Contain(state.SlotClassOrDefault(slot), "default class must fit its slot");
+        }
+    }
+
+    [Fact]
     public void Placement_MultiCell_NoOverlap_InBounds()
     {
         var state = new WorkbenchState();

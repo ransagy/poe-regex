@@ -1,10 +1,11 @@
+@using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 
 <label class="field">
     <span>Base class</span>
     <select id="class-@SlotId" value="@State.SlotClassOrDefault(SlotId)" @onchange="OnChange">
-        @foreach (var c in Engine.PlayableClasses())
+        @foreach (var c in Options())
         {
             <option value="@c.Id">@c.Name</option>
         }
@@ -17,6 +18,18 @@
 
     [Parameter, EditorRequired]
     public required string SlotId { get; set; }
+
+    /// <summary>
+    /// Classes fitting the slot; the current selection is kept even if it no
+    /// longer fits (grandfathered saves) so nobody gets stranded.
+    /// </summary>
+    private IEnumerable<ItemClassEntry> Options()
+    {
+        var playable = Engine.PlayableClasses().ToList();
+        var allowed = SlotClasses.AllowedFor(SlotId, playable.Select(c => c.Id)).ToHashSet();
+        var current = State.SlotClassOrDefault(SlotId);
+        return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);
+    }
 
     private void OnChange(ChangeEventArgs e)
     {

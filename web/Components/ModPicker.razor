@@ -29,8 +29,8 @@
     <div class="modrow">
         <input id="mod-search" placeholder="type to filter mods…" value="@_search"
                @oninput="OnSearch" aria-label="Filter mods" />
-        <input id="mod-min" placeholder="min (optional)" inputmode="decimal" value="@_minText"
-               @oninput="OnMin" aria-label="Minimum value" />
+        <input id="mod-min" placeholder="min roll, e.g. 80" inputmode="decimal" value="@_minText"
+               @oninput="OnMin" aria-label="Minimum roll: only match values at or above this" title="Only match rolls at or above this value" />
     </div>
 
     <ol class="suggest" aria-label="Mod suggestions">
