@@ -92,6 +92,10 @@ public class ItemRulesTests
         ItemRules.Validate(Engine,
             [new RuleLine("suffix", "Strength1"), new RuleLine("suffix", "Strength1")], "Rare")
             .Should().Contain(v => v.Level == "error" && v.Message.Contains("duplicate"));
+        ItemRules.Validate(Engine,
+            [new RuleLine("prefix", "GlobalMeleeSkillGemLevel1"),
+             new RuleLine("prefix", "GlobalMeleeSkillGemLevel2")], "Rare")
+            .Should().Contain(v => v.Level == "error" && v.Message.Contains("clash"));
     }
 
     [Fact]
