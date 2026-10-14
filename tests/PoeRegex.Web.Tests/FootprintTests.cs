@@ -58,7 +58,7 @@ public class FootprintTests
         weapon.Should().Contain(["Crossbow", "Bow", "Shield", "Quiver"]);
         weapon.Should().NotContain(["Ring", "Amulet", "Belt", "Helmet", "Body Armour",
             "Gloves", "Boots", "Talisman"]);
-        foreach (var slot in new[] { "weapon", "helmet", "body", "gloves", "boots",
+        foreach (var slot in new[] { "weapon", "offhand", "helmet", "body", "gloves", "boots",
                      "belt", "amulet", "ring1", "ring2" })
         {
             var state = new WorkbenchState();

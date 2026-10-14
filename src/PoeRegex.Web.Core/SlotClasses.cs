@@ -26,6 +26,7 @@ public static class SlotClasses
             "ring1" => Filter(playable, "Ring"),
             "ring2" => Filter(playable, "Ring"),
             "weapon" => playable.Where(c => !NonWeapon.Contains(c)).ToList(),
+            "offhand" => playable.Where(c => !NonWeapon.Contains(c)).ToList(),
             _ => playable,
         };
     }

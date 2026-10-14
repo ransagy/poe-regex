@@ -62,9 +62,9 @@ public class WorkbenchStateTests
     }
 
     [Fact]
-    public void GearSlots_NineSlots_AllUniqueIds()
+    public void GearSlots_TenSlots_AllUniqueIds()
     {
-        GearSlot.All.Should().HaveCount(9);
+        GearSlot.All.Should().HaveCount(10);
         GearSlot.All.Select(s => s.Id).Should().OnlyHaveUniqueItems();
     }
 

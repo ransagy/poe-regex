@@ -25,20 +25,23 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    // Percent geometry in a 100x100 panel (TO-CONFIRM arrangement).
-    // Single weapon (no offhand); belt sits bottom-right, away from the body;
-    // rings stack under the amulet (never flanking the belt).
+    // Percent geometry in a 100x100 panel (maintainer-directed arrangement):
+    // weapon tall-left at armour height, offhand tall-right, helmet top-center,
+    // body center, amulet above the offhand and right of the helmet, rings
+    // flanking the body's bottom edge, boots under the offhand, belt under
+    // the body, gloves under the weapon and left of the belt.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:2%; top:4%; width:18%; height:62%;",
-        "helmet" => "left:24%; top:4%; width:26%; height:22%;",
-        "body" => "left:24%; top:30%; width:26%; height:44%;",
-        "amulet" => "left:54%; top:4%; width:11%; height:12%;",
-        "ring1" => "left:67%; top:4%; width:11%; height:12%;",
-        "ring2" => "left:54%; top:18%; width:11%; height:12%;",
-        "gloves" => "left:67%; top:18%; width:22%; height:26%;",
-        "boots" => "left:67%; top:48%; width:22%; height:26%;",
-        "belt" => "left:54%; top:76%; width:22%; height:12%;",
+        "weapon" => "left:2%; top:24%; width:17%; height:40%;",
+        "helmet" => "left:23%; top:4%; width:24%; height:16%;",
+        "body" => "left:23%; top:24%; width:24%; height:40%;",
+        "ring1" => "left:14%; top:55%; width:9%; height:9%;",
+        "amulet" => "left:51%; top:4%; width:11%; height:11%;",
+        "offhand" => "left:64%; top:24%; width:17%; height:40%;",
+        "ring2" => "left:49%; top:55%; width:9%; height:9%;",
+        "gloves" => "left:2%; top:68%; width:17%; height:12%;",
+        "belt" => "left:23%; top:68%; width:24%; height:12%;",
+        "boots" => "left:64%; top:68%; width:17%; height:12%;",
         _ => "",
     };
 }

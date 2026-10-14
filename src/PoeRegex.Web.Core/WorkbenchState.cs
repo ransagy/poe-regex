@@ -1,20 +1,19 @@
 namespace PoeRegex.Web.Core;
 
 /// <summary>
-/// The nine editable gear slots. Cell footprints are the author's reading of
-/// the PoE2 paper-doll and are marked TO-CONFIRM until the maintainer signs
-/// off the shell screenshot (Phase 3 exit).
+/// The ten editable gear slots (weapon + offhand + armour + accessories).
 /// </summary>
 public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
 {
     public static readonly IReadOnlyList<GearSlot> All =
     [
-        new("weapon", "Weapon", 2, 4), // TO-CONFIRM footprint
-        new("helmet", "Helmet", 2, 2), // TO-CONFIRM footprint
-        new("body", "Body Armour", 2, 3), // TO-CONFIRM footprint
-        new("gloves", "Gloves", 2, 2), // TO-CONFIRM footprint
-        new("boots", "Boots", 2, 2), // TO-CONFIRM footprint
-        new("belt", "Belt", 2, 1), // TO-CONFIRM footprint
+        new("weapon", "Weapon", 2, 4),
+        new("offhand", "Offhand", 2, 4),
+        new("helmet", "Helmet", 2, 2),
+        new("body", "Body Armour", 2, 3),
+        new("gloves", "Gloves", 2, 2),
+        new("boots", "Boots", 2, 2),
+        new("belt", "Belt", 2, 1),
         new("amulet", "Amulet", 1, 1),
         new("ring1", "Ring", 1, 1),
         new("ring2", "Ring", 1, 1),
@@ -47,6 +46,7 @@ public sealed class WorkbenchState
     private static readonly Dictionary<string, string> DefaultClasses = new(StringComparer.Ordinal)
     {
         ["weapon"] = "Crossbow",
+        ["offhand"] = "Shield",
         ["helmet"] = "Helmet",
         ["body"] = "Body Armour",
         ["gloves"] = "Gloves",
