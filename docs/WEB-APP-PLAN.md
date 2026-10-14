@@ -285,6 +285,14 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 4 — friendly range display + editor reshape.**
+  Pipeline `RangeLine` per stat line (per-number tier spans, purely additive;
+  both catalogs regenerated with zero non-additive diffs); CLI `list-mods`
+  gains `range` (+ text output + search); UI shows range form in suggestions,
+  chips, builder, and test items with ids removed (matching still runs on
+  representative text); editor slimmed to criteria only; import + enforced
+  assembly both modal dialogs launched from the backpack area. Full slnx
+  6+72+65 green; CLI binary republished.
 - **Follow-up round 3 — final footprints + import dialog.**
   Full confirmed table (§9.2 final, incl. Sceptre 2x3); import gated on
   resolvable playable classes; freeform raw-text builder removed; import is a
