@@ -285,6 +285,13 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 5 — soundness (no-false-positive rule).**
+  Universal non-mod lines in every corpus (Rarity x4, Requires template,
+  Item Level, Corrupted, Sockets) + class lines in the union; explain matches
+  content lines only; Data.Build shares the list and both catalogs were
+  regenerated. Single-compile anchors are now oracle-clean name prefixes
+  (`: Ri`, `: Cr` — the vacuous `:` is gone by construction); global is the
+  first and default mode. Full slnx 6+75+65 green; CLI republished.
 - **Follow-up round 4 — friendly range display + editor reshape.**
   Pipeline `RangeLine` per stat line (per-number tier spans, purely additive;
   both catalogs regenerated with zero non-additive diffs); CLI `list-mods`
