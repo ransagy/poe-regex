@@ -25,32 +25,28 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    // Percent geometry in a 100x100 panel, read from the in-game gear panel
-    // (footprint ratios: weapons/body 2x4, helmet/gloves/boots 2x2, belt 2x1,
-    // amulet/rings 1x1). Weapon/offhand tops sit just under the helmet top and
-    // their bottoms are level with the rings' bottoms; helmet on the body;
-    // rings in the outer gutters, bottom-aligned on the gloves/boots line;
-    // amulet in the right ring's column with its top level with the helmet
-    // bottom; belt under the body, bottom-aligned with gloves/boots; weapon
-    // and offhand are inset so their inner edges reach about a third of the
-    // way across the glove/boot boxes' outer edge (gutters kept to both the
-    // gloves/boots and the rings); glove inner edges flush with the ring
-    // columns. Weapon/offhand/body and the helmet share one 23-wide column:
-    // the helmet is an exact square (23x30.67) and the body a shorter
-    // 23x41.33 slab below it; gloves/boots are exact 18x24 squares. Gutters
-    // between every pair of slots; panel is 4:3 so the cells render square.
+    // Percent geometry in a 100x100 panel, read from the in-game gear panel.
+    // Weapon/offhand tops sit just under the helmet top and their bottoms are
+    // level with the rings' bottoms; helmet on the body; rings in the outer
+    // gutters, bottom-aligned on the gloves/boots line; amulet in the right
+    // ring's column with its top level with the helmet bottom; belt under the
+    // body, bottom-aligned with gloves/boots; glove/boot inner edges flush
+    // with the ring columns. The 2-cell slots share one 23-wide class: the
+    // helmet/gloves/boots are equal exact squares (23x30.67) and the body a
+    // taller 23x47.33 slab between the helmet and belt. Gutters between every
+    // pair of slots; panel is 4:3 so the cells render square.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:2.5%; top:5%; width:23%; height:63%;",
+        "weapon" => "left:2.5%; top:5%; width:23%; height:60.33%;",
         "helmet" => "left:38.5%; top:4%; width:23%; height:30.67%;",
-        "body" => "left:38.5%; top:36.67%; width:23%; height:41.33%;",
-        "ring1" => "left:27.5%; top:56%; width:9%; height:12%;",
+        "body" => "left:38.5%; top:36.67%; width:23%; height:47.33%;",
+        "ring1" => "left:27.5%; top:53.33%; width:9%; height:12%;",
         "amulet" => "left:63.5%; top:33.67%; width:9%; height:12%;",
-        "offhand" => "left:74.5%; top:5%; width:23%; height:63%;",
-        "ring2" => "left:63.5%; top:56%; width:9%; height:12%;",
-        "gloves" => "left:18.5%; top:70%; width:18%; height:24%;",
-        "belt" => "left:38.5%; top:82%; width:23%; height:12%;",
-        "boots" => "left:63.5%; top:70%; width:18%; height:24%;",
+        "offhand" => "left:74.5%; top:5%; width:23%; height:60.33%;",
+        "ring2" => "left:63.5%; top:53.33%; width:9%; height:12%;",
+        "gloves" => "left:13.5%; top:67.33%; width:23%; height:30.67%;",
+        "belt" => "left:38.5%; top:86%; width:23%; height:12%;",
+        "boots" => "left:63.5%; top:67.33%; width:23%; height:30.67%;",
         _ => "",
     };
 }
