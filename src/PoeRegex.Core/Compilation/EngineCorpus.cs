@@ -67,6 +67,7 @@ public sealed class EngineCorpus
         "Item Level: 80",
         "Corrupted",
         "Sockets: S S",
+        "Sockets: S",
         "Armour: 115",
         "Armour: 138 (augmented)",
         "Evasion Rating: 117",
