@@ -64,6 +64,9 @@ public class CatalogPropertyTests
         {
             var fp = corpus.ClassFingerprint(cls.Id);
             fp.Should().NotBeNullOrEmpty($"class {cls.Id} ({cls.Name}) needs a base fingerprint");
+            var classLinePattern = CatalogLineNormalizer.Normalize($"Item Class: {cls.Name}");
+            corpus.FragmentSafeOnClass(cls.Id, fp!, new[] { classLinePattern }).Should().BeTrue(
+                $"base fingerprint '{fp}' of class {cls.Id} must match only its own class line");
         }
     }
 
