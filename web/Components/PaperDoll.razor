@@ -4,7 +4,7 @@
   Paper doll: the nine gear slots arranged like the PoE2 inventory panel
   (hand-drawn CSS, no game assets). Slots are absolutely positioned in a
   fixed-aspect panel (like the game: fixed frames, not a shared grid).
-  Positions are the author's reading, TO-CONFIRM (Phase 3 QA).
+  Positions follow the in-game panel (maintainer-reviewed).
 *@
 <div class="doll @(State.Mode == "global" ? "dimmed" : "")" aria-label="Equipment" aria-disabled="@(State.Mode == "global")">
     @foreach (var slot in GearSlot.All)
@@ -27,24 +27,25 @@
 
     // Percent geometry in a 100x100 panel, read from the in-game gear panel
     // (footprint ratios: weapons/body 2x4, helmet/gloves/boots 2x2, belt 2x1,
-    // amulet/rings 1x1). Weapons are taller than the body (helmet-top to above
-    // body-bottom); helmet on the body; rings centered on the body in the
-    // outer gutters; amulet in the right ring's column, centered on the
-    // helmet/body seam; belt under the body, bottom-aligned with gloves/boots;
-    // gloves/boots under the weapons with edges aligned to the rings. Gutters
+    // amulet/rings 1x1). Weapon/offhand tops sit just under the helmet top and
+    // their bottoms are level with the rings' bottoms; helmet on the body;
+    // rings in the outer gutters, bottom-aligned on the gloves/boots line;
+    // amulet in the right ring's column with its top level with the helmet
+    // bottom; belt under the body, bottom-aligned with gloves/boots; gloves
+    // and boots edge-flush with the weapon/offhand and ring columns. Gutters
     // between every pair of slots; panel is 4:3 so the cells render square.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:3%; top:6%; width:17%; height:66%;",
+        "weapon" => "left:2.5%; top:5%; width:19%; height:63%;",
         "helmet" => "left:40.5%; top:4%; width:19%; height:24%;",
         "body" => "left:40.5%; top:30%; width:19%; height:48%;",
-        "ring1" => "left:29.5%; top:48%; width:9%; height:12%;",
-        "amulet" => "left:61.5%; top:24%; width:9%; height:12%;",
-        "offhand" => "left:80%; top:6%; width:17%; height:66%;",
-        "ring2" => "left:61.5%; top:48%; width:9%; height:12%;",
-        "gloves" => "left:21%; top:70%; width:17.5%; height:24%;",
+        "ring1" => "left:29.5%; top:56%; width:9%; height:12%;",
+        "amulet" => "left:61.5%; top:27%; width:9%; height:12%;",
+        "offhand" => "left:78.5%; top:5%; width:19%; height:63%;",
+        "ring2" => "left:61.5%; top:56%; width:9%; height:12%;",
+        "gloves" => "left:21.5%; top:70%; width:17%; height:24%;",
         "belt" => "left:40.5%; top:82%; width:19%; height:12%;",
-        "boots" => "left:61.5%; top:70%; width:17.5%; height:24%;",
+        "boots" => "left:61.5%; top:70%; width:17%; height:24%;",
         _ => "",
     };
 }
