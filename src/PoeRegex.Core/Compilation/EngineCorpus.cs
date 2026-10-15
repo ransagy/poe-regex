@@ -44,11 +44,13 @@ public sealed class EngineCorpus
 
     /// <summary>
     /// Non-mod lines present on real items: rarity lines (Normal/Magic/Rare
-    /// seen on game copies, Unique by identical shape), the requires template
-    /// (covers Level/Str/Dex/Int/unmet), item level, corrupted, and sockets.
-    /// Fingerprints and class prefixes must avoid these exactly like mod lines
-    /// (the false-positive rule covers unrelated lines; same-text cross-class
-    /// matches stay legal).
+    /// seen on game copies, Unique by identical shape), the requires shapes
+    /// (level-only, level + one/two attributes, inline (unmet)/(augmented)
+    /// markers), item level, corrupted, sockets, and base item stats
+    /// (defensive lines on armour pieces, damage lines on weapons, granted
+    /// skills) from maintainer captures. Fingerprints and class prefixes must
+    /// avoid these exactly like mod lines (the false-positive rule covers
+    /// unrelated lines; same-text cross-class matches stay legal).
     /// </summary>
     public static readonly IReadOnlyList<string> UniversalLines =
     [
@@ -56,10 +58,32 @@ public sealed class EngineCorpus
         "Rarity: Magic",
         "Rarity: Rare",
         "Rarity: Unique",
-        "Requires: Level 80, 100 Str, 100 Dex, 100 Int (unmet)",
+        "Requires: Level 55",
+        "Requires: Level 36, 46 Int",
+        "Requires: Level 77, 163 (unmet) Str",
+        "Requires: Level 70, 98 (unmet) Str, 72 Int",
+        "Requires: Level 59, 44 Str, 44 Dex",
+        "Requires: Level 62, 38 (augmented) Str, 38 (augmented) Int",
         "Item Level: 80",
         "Corrupted",
         "Sockets: S S",
+        "Armour: 115",
+        "Armour: 138 (augmented)",
+        "Evasion Rating: 117",
+        "Evasion Rating: 117 (augmented)",
+        "Energy Shield: 49",
+        "Energy Shield: 86 (augmented)",
+        "Block chance: 32%",
+        "Block chance: 32% (augmented)",
+        "Physical Damage: 35-59",
+        "Physical Damage: 93-159 (augmented)",
+        "Elemental Damage: 35-59 (fire), 4-64 (lightning)",
+        "Lightning Damage: 2-43 (lightning)",
+        "Critical Hit Chance: 5.00%",
+        "Attacks per Second: 1.45",
+        "Reload Time: 1.10",
+        "Grants Skill: Raise Shield",
+        "Grants Skill: Level 18 Sigil of Power",
     ];
 
     /// <summary>Normalized patterns of <see cref="UniversalLines"/>.</summary>
