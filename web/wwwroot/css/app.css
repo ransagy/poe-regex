@@ -89,11 +89,12 @@ html, body {
 .inv-doll { flex: 1 1 auto; min-width: 0; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
-   (like the game). Arrangement TO-CONFIRM in Phase 3 QA. */
+   (like the game, whose gear area is slightly wider than tall so item
+   cells render square). Positions are in PaperDoll.razor. */
 .doll {
     position: relative;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 3;
     max-width: 34rem;
 }
 

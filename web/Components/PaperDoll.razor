@@ -25,24 +25,26 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    // Percent geometry in a 100x100 panel (maintainer-directed arrangement
-    // with game footprint ratios: weapons/body 2x4, helmet/gloves/boots 2x2,
-    // belt 2x1, amulet/rings 1x1). Uniform 4% gutters between neighbouring
-    // slots; rings bottom-aligned with weapons/body, belt top-aligned with
-    // gloves/boots; amulet bottom-aligned with the helmet and left-aligned
-    // to the offhand; gloves right-aligned to the weapon (clear of the belt).
+    // Percent geometry in a 100x100 panel, read from the in-game gear panel
+    // (footprint ratios: weapons/body 2x4, helmet/gloves/boots 2x2, belt 2x1,
+    // amulet/rings 1x1). Weapons are taller than the body (helmet-top to above
+    // body-bottom); helmet on the body; rings centered on the body in the
+    // outer gutters; amulet in the right ring's column, centered on the
+    // helmet/body seam; belt under the body, bottom-aligned with gloves/boots;
+    // gloves/boots under the weapons with edges aligned to the rings. Gutters
+    // between every pair of slots; panel is 4:3 so the cells render square.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:2%; top:28%; width:20%; height:44%;",
-        "helmet" => "left:40%; top:2%; width:20%; height:22%;",
-        "body" => "left:40%; top:28%; width:20%; height:44%;",
-        "ring1" => "left:26%; top:61%; width:10%; height:11%;",
-        "amulet" => "left:78%; top:13%; width:10%; height:11%;",
-        "offhand" => "left:78%; top:28%; width:20%; height:44%;",
-        "ring2" => "left:64%; top:61%; width:10%; height:11%;",
-        "gloves" => "left:2%; top:76%; width:20%; height:22%;",
-        "belt" => "left:40%; top:76%; width:20%; height:11%;",
-        "boots" => "left:78%; top:76%; width:20%; height:22%;",
+        "weapon" => "left:3%; top:6%; width:17%; height:66%;",
+        "helmet" => "left:40.5%; top:4%; width:19%; height:24%;",
+        "body" => "left:40.5%; top:30%; width:19%; height:48%;",
+        "ring1" => "left:29.5%; top:48%; width:9%; height:12%;",
+        "amulet" => "left:61.5%; top:24%; width:9%; height:12%;",
+        "offhand" => "left:80%; top:6%; width:17%; height:66%;",
+        "ring2" => "left:61.5%; top:48%; width:9%; height:12%;",
+        "gloves" => "left:21%; top:70%; width:17.5%; height:24%;",
+        "belt" => "left:40.5%; top:82%; width:19%; height:12%;",
+        "boots" => "left:61.5%; top:70%; width:17.5%; height:24%;",
         _ => "",
     };
 }
