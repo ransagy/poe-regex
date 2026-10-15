@@ -31,17 +31,20 @@
     // their bottoms are level with the rings' bottoms; helmet on the body;
     // rings in the outer gutters, bottom-aligned on the gloves/boots line;
     // amulet in the right ring's column with its top level with the helmet
-    // bottom; belt under the body, bottom-aligned with gloves/boots; gloves
-    // and boots edge-flush with the weapon/offhand and ring columns. Gutters
-    // between every pair of slots; panel is 4:3 so the cells render square.
+    // bottom; belt under the body, bottom-aligned with gloves/boots; weapon
+    // and offhand are inset so their inner edges reach about a third of the
+    // way across the glove/boot boxes' outer edge (gutters kept to both the
+    // gloves/boots and the rings); glove inner edges flush with the ring
+    // columns. Gutters between every pair of slots; panel is 4:3 so the cells
+    // render square.
     private static string Placement(GearSlot slot) => slot.Id switch
     {
-        "weapon" => "left:2.5%; top:5%; width:19%; height:63%;",
+        "weapon" => "left:8%; top:5%; width:19%; height:63%;",
         "helmet" => "left:40.5%; top:4%; width:19%; height:24%;",
         "body" => "left:40.5%; top:30%; width:19%; height:48%;",
         "ring1" => "left:29.5%; top:56%; width:9%; height:12%;",
         "amulet" => "left:61.5%; top:27%; width:9%; height:12%;",
-        "offhand" => "left:78.5%; top:5%; width:19%; height:63%;",
+        "offhand" => "left:73%; top:5%; width:19%; height:63%;",
         "ring2" => "left:61.5%; top:56%; width:9%; height:12%;",
         "gloves" => "left:21.5%; top:70%; width:17%; height:24%;",
         "belt" => "left:40.5%; top:82%; width:19%; height:12%;",
