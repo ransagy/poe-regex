@@ -25,28 +25,56 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    // Percent geometry in a 100x100 panel, read from the in-game gear panel.
-    // Weapon/offhand tops sit just under the helmet top and their bottoms are
-    // level with the rings' bottoms; helmet on the body; rings in the outer
-    // gutters, bottom-aligned on the gloves/boots line; amulet in the right
-    // ring's column with its top level with the helmet bottom; belt under the
-    // body, bottom-aligned with gloves/boots; glove/boot inner edges flush
-    // with the ring columns. The 2-cell slots share one 23-wide class: the
-    // helmet/gloves/boots are equal exact squares (23x30.67) and the body a
-    // taller 23x47.33 slab between the helmet and belt. Gutters between every
-    // pair of slots; panel is 4:3 so the cells render square.
-    private static string Placement(GearSlot slot) => slot.Id switch
+    // Cell-grid layout transcribed from the in-game PoE2 gear panel.
+    // One cell (c) = ring/amulet; helmet/gloves/boots are 2x2, body 2x3,
+    // belt 2x1, weapon/offhand 2 x (4c+2V). Gutters are two classes:
+    // thin vertical V = 0.2c (weapon/ring bottoms -> gloves/boots, amulet ->
+    // ring, helmet -> body, body -> belt) and wide horizontal H = 0.44c
+    // (weapon <-> ring, ring <-> armour, ring2 <-> offhand). Everything is
+    // derived from one chain and uniformly scaled to fit the 4:3 panel.
+    private const double GutterHFactor = 0.44; // horizontal gutter, in cells
+    private const double GutterVFactor = 0.20; // vertical gutter, in cells
+    private const double MarginFactor = 1.20;  // side margin, in cells
+
+    private static string Placement(GearSlot slot)
     {
-        "weapon" => "left:2.5%; top:5%; width:23%; height:60.33%;",
-        "helmet" => "left:38.5%; top:4%; width:23%; height:30.67%;",
-        "body" => "left:38.5%; top:36.67%; width:23%; height:47.33%;",
-        "ring1" => "left:27.5%; top:53.33%; width:9%; height:12%;",
-        "amulet" => "left:63.5%; top:33.67%; width:9%; height:12%;",
-        "offhand" => "left:74.5%; top:5%; width:23%; height:60.33%;",
-        "ring2" => "left:63.5%; top:53.33%; width:9%; height:12%;",
-        "gloves" => "left:13.5%; top:67.33%; width:23%; height:30.67%;",
-        "belt" => "left:38.5%; top:86%; width:23%; height:12%;",
-        "boots" => "left:63.5%; top:67.33%; width:23%; height:30.67%;",
-        _ => "",
-    };
+        // Physical units: 100 wide x 75 tall (4:3). x% == u; y% == u * 4/3.
+        const double panelH = 75.0;
+        double c = 100.0 / (8 + 4 * GutterHFactor + 2 * MarginFactor);
+        double gh = GutterHFactor * c, gv = GutterVFactor * c, m = MarginFactor * c;
+        double mt = (panelH - (6 * c + 3 * gv)) / 2; // vertical margins, centered
+
+        double xWeapon = m;
+        double xRing1 = xWeapon + 2 * c + gh;
+        double xBody = xRing1 + c + gh;
+        double xRing2 = xBody + 2 * c + gh;
+        double xOff = xRing2 + c + gh;
+
+        double yWeapon = mt;                 // weapon top = helmet top - V
+        double yHelmet = mt + gv;
+        double yAmulet = yHelmet + 2 * c;    // amulet top = helmet bottom
+        double yRing = yAmulet + c + gv;     // ring bottom = weapon bottom
+        double yBody = yHelmet + 2 * c + gv;
+        double yGloves = yRing + c + gv;     // also boots; bottoms flush with belt
+        double yBelt = yBody + 3 * c + gv;
+
+        return slot.Id switch
+        {
+            "weapon" => Rect(xWeapon, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "offhand" => Rect(xOff, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "helmet" => Rect(xBody, yHelmet, 2 * c, 2 * c),
+            "amulet" => Rect(xRing2, yAmulet, c, c),
+            "body" => Rect(xBody, yBody, 2 * c, 3 * c),
+            "ring1" => Rect(xRing1, yRing, c, c),
+            "ring2" => Rect(xRing2, yRing, c, c),
+            "gloves" => Rect(xRing1 - c, yGloves, 2 * c, 2 * c),
+            "belt" => Rect(xBody, yBelt, 2 * c, c),
+            "boots" => Rect(xRing2, yGloves, 2 * c, 2 * c),
+            _ => "",
+        };
+    }
+
+    private static string Rect(double left, double top, double width, double height) =>
+        FormattableString.Invariant(
+            $"left:{left:0.###}%; top:{top * 4.0 / 3:0.###}%; width:{width:0.###}%; height:{height * 4.0 / 3:0.###}%;");
 }
