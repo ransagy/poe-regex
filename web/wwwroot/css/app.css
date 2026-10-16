@@ -126,7 +126,10 @@ body { overflow: hidden; }
 @media (max-width: 1200px) { .inv-editor { flex: 1 1 19rem; } }
 /* Doll column sized only to its own height-derived width (Wave 6 cap) --
    no 96vw borrowing, otherwise the cap collapses the editor column. */
-.inv-doll { flex: 0 1 auto; min-width: 0; width: 100%; max-width: min(100%, 72vh); display: flex; flex-direction: column; justify-content: center; }
+/* Doll column sized only to its own height-derived width (Wave 6 cap), but
+   never at the expense of the editor's 22 rem minimum: 960-wide halfscreens
+   reward a roomy editor while keeping the doll well inside its cap. */
+.inv-doll { flex: 0 1 auto; min-width: 0; width: 100%; max-width: min(100%, 72vh, calc(100% - 22rem)); display: flex; flex-direction: column; justify-content: flex-end; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
    (like the game, whose gear area is slightly wider than tall so item
@@ -140,17 +143,22 @@ body { overflow: hidden; }
        top/height * 4/3); keep aspect-ratio even when scaling below. */
     max-width: min(100%, 72vh);
     margin: 0 auto;
-    /* Subtle zoom so the slot frames actually REACH the panel edge; the
-       canonical 4:3 leaves a small corner margin. overflow: hidden trims
-       frame edges that drift past ±6% (verified no clipping of hover outline).
-       pointer-events stays on the slots only — the doll's scaled box can no
-       longer intercept the backpack label/tools below (fixes unclickable Import
-       / Assemble / Remove strip). */
+    /* Subtle zoom so the slot frames actually REACH the panel edge; the canonical
+   4:3 leaves a small corner margin. overflow: hidden trims frame edges that
+   drift past ±6%. pointer-events stays on the slots only (no hit-steal over
+   the backpack label/tools strip). */
     transform: scale(1.09);
     transform-origin: center center;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
+}
+/* In the stacked (half-screen) layout the 1.09 zoom visually enlarges the doll
+   past its column, spilling into the editor column (left weapon slot over the
+   min-roll input). Drop it there: the tighter MarginFactor 0.70 alone already
+   pushes the slots ~4% closer to the edge while keeping the 4:3 aspect pure. */
+@media (max-width: 1499px) {
+    .doll { transform: none; }
 }
 /* Keep slots interactive through the (pointer-events:none) scaled doll. */
 .doll .gear-slot, .doll .slot-clear { pointer-events: auto; z-index: 1; }
@@ -280,7 +288,7 @@ body { overflow: hidden; }
     .panel.inventory > .panel-head { grid-column: 1 / -1; grid-row: 1; }
     .panel.inventory > .mode-bar { grid-column: 1 / -1; grid-row: 2; }
     .inv-editor { grid-column: 1; grid-row: 3 / 6; max-width: none; }
-    .inv-doll { grid-column: 2; grid-row: 3; justify-content: flex-start; }
+    .inv-doll { grid-column: 2; grid-row: 3; justify-content: flex-start; max-width: 100%; }
     .panel.inventory > .panel-sub { grid-column: 2; grid-row: 4; justify-self: start; align-self: center; margin: 0.1rem 0 0; }
     .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 4; justify-self: end; align-self: center; margin: 0.1rem 0; }
     .panel.inventory > .pack-wrap { grid-column: 2; grid-row: 5; }
