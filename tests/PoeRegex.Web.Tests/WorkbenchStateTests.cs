@@ -41,16 +41,28 @@ public class WorkbenchStateTests
     }
 
     [Fact]
-    public void SelectSlot_Multi_Toggles()
+    public void SelectSlot_Multi_MovesFocus_WithoutEnrolling()
     {
         var state = new WorkbenchState();
         state.SetMode("multi");
-        state.ActiveSlots().Should().BeEmpty();
+        state.MultiFocus.Should().Be("weapon", "multi defaults the editing focus");
         state.SelectSlot("body");
         state.SelectSlot("helmet");
-        state.ActiveSlots().Should().Equal(["body", "helmet"]);
-        state.SelectSlot("body");
-        state.ActiveSlots().Should().Equal(["helmet"]);
+        state.MultiFocus.Should().Be("helmet");
+        state.ActiveSlots().Should().BeEmpty("enrollment is derived from chips");
+    }
+
+    [Fact]
+    public void Multi_Enrollment_FollowsChips_InPanelOrder()
+    {
+        var state = new WorkbenchState();
+        state.SetMode("multi");
+        state.AddInclude("body", "IncreasedLife6");
+        state.AddInclude("helmet", "IncreasedLife6", 80);
+        state.AddExclude("ring2", "reflect"); // excluded-only still enrolls
+        state.ActiveSlots().Should().Equal(["helmet", "body", "ring2"]);
+        state.ClearChips("body");
+        state.ActiveSlots().Should().Equal(["helmet", "ring2"]);
     }
 
     [Fact]
@@ -73,10 +85,10 @@ public class WorkbenchStateTests
     {
         var state = new WorkbenchState();
         state.SetMode("multi");
-        state.SelectSlot("body");
-        state.SelectSlot("helmet");
+        state.SelectSlot("helmet"); // editing focus
         state.SetSlotClass("body", "Helmet");
         state.AddInclude("body", "IncreasedLife6", 80);
+        state.AddInclude("helmet", "IncreasedLife6");
         state.AddExclude(null, "reflect");
         var parsed = ItemTextParser.Parse(FixtureTexts.Talisman);
         state.AddTestItem(new TestItem { Name = "t", ClassId = "Talisman", Parsed = parsed });
@@ -89,7 +101,8 @@ public class WorkbenchStateTests
         var restored = new WorkbenchState();
         WorkbenchSnapshot.Restore(restored, back);
         restored.Mode.Should().Be("multi");
-        restored.ActiveSlots().Should().Equal(["body", "helmet"]);
+        restored.MultiFocus.Should().Be("helmet");
+        restored.ActiveSlots().Should().Equal(["helmet", "body"]);
         restored.SlotClassOrDefault("body").Should().Be("Helmet");
         restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6", 80)]);
         restored.CriteriaFor(null).Excluded.Should().Equal(["reflect"]);
@@ -102,8 +115,7 @@ public class WorkbenchStateTests
     public void Snapshot_Restore_DropsUnknowns()
     {
         var state = new WorkbenchState();
-        var snap = new WorkbenchSnapshot(1, "bogus", "bogus",
-            ["bogus", "body"],
+        var snap = new WorkbenchSnapshot(1, "bogus", "bogus", "bogus",
             new Dictionary<string, SlotCriteria>
             {
                 ["bogus"] = new SlotCriteria { ClassId = "X" },
@@ -113,7 +125,7 @@ public class WorkbenchStateTests
             []);
         WorkbenchSnapshot.Restore(state, snap);
         state.Mode.Should().Be("global");
-        state.MultiSlots.Should().Equal(["body"]);
+        state.MultiFocus.Should().BeNull("unknown focus slot is dropped");
         state.SlotClassOrDefault("body").Should().Be("Helmet");
         state.ActiveSlots().Should().BeEmpty();
     }

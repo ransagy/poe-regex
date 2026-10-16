@@ -11,7 +11,7 @@ public sealed record WorkbenchSnapshot(
     int Version,
     string Mode,
     string? SelectedSlot,
-    List<string> MultiSlots,
+    string? MultiFocus,
     Dictionary<string, SlotCriteria> Slots,
     SlotCriteria Global,
     List<TestItem> TestItems)
@@ -22,7 +22,7 @@ public sealed record WorkbenchSnapshot(
         CurrentVersion,
         state.Mode,
         state.SelectedSlot,
-        state.MultiSlots.OrderBy(s => s, StringComparer.Ordinal).ToList(),
+        state.MultiFocus,
         state.Slots.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
         state.Global,
         state.TestItems.ToList());
@@ -40,10 +40,8 @@ public sealed record WorkbenchSnapshot(
             }
             catch (ArgumentOutOfRangeException) { /* keep default */ }
         }
-        state.MultiSlots.Clear();
-        foreach (var s in snap.MultiSlots)
-            if (GearSlot.ById(s) is not null)
-                state.MultiSlots.Add(s);
+        if (snap.MultiFocus is not null && GearSlot.ById(snap.MultiFocus) is not null)
+            state.FocusSlot(snap.MultiFocus);
         foreach (var (slot, crit) in snap.Slots)
         {
             if (GearSlot.ById(slot) is null) continue;

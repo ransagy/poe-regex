@@ -27,15 +27,15 @@
                 }
                 else if (State.Mode == "multi")
                 {
-                    @foreach (var s in State.ActiveSlots())
+                    @if (State.MultiFocus is { } focus)
                     {
-                        <div class="panel-sub">@s slot</div>
-                        <ClassPicker State="State" SlotId="@s" />
-                        <ModPicker State="State" Scope="@s" Mods="Engine.ModsForClass(State.SlotClassOrDefault(s))" />
+                        <div class="panel-sub">@focus slot (multi)</div>
+                        <ClassPicker State="State" SlotId="@focus" />
+                        <ModPicker State="State" Scope="@focus" Mods="Engine.ModsForClass(State.SlotClassOrDefault(focus))" />
                     }
-                    @if (State.ActiveSlots().Count == 0)
+                    else
                     {
-                        <div class="hint">toggle slots on the paper doll to edit criteria</div>
+                        <div class="hint">click a slot on the paper doll to edit it — slots with mods join the multi group</div>
                     }
                 }
                 else

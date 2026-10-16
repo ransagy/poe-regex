@@ -5,19 +5,40 @@
   (hand-drawn CSS, no game assets). Slots are absolutely positioned in a
   fixed-aspect panel (like the game: fixed frames, not a shared grid).
   Positions follow the in-game panel (maintainer-reviewed).
+
+  Single mode: the selected slot is active. Global: dimmed, inert.
+  Multi mode: clicking a slot moves the editing focus (accent outline);
+  slots with chips are enrolled and filled.
 *@
 <div class="doll @(State.Mode == "global" ? "dimmed" : "")" aria-label="Equipment" aria-disabled="@(State.Mode == "global")">
     @foreach (var slot in GearSlot.All)
     {
-        var active = State.ActiveSlots().Contains(slot.Id);
+        var enrolled = State.Enrolled(slot.Id);
+        var active = State.Mode == "multi" ? enrolled : State.ActiveSlots().Contains(slot.Id);
+        var focused = State.Mode == "multi" ? State.MultiFocus == slot.Id : active;
         <button id="slot-@slot.Id"
-                class="gear-slot @(active ? "active" : "")"
+                class="gear-slot @(active ? "active" : "") @(focused ? "focused" : "")"
                 style="@Placement(slot)"
                 aria-pressed="@active"
                 title="@slot.Label"
                 @onclick="() => State.SelectSlot(slot.Id)">
             <span class="gear-label">@slot.Label</span>
         </button>
+    }
+    @if (State.Mode != "global")
+    {
+        @foreach (var slot in GearSlot.All)
+        {
+            if (State.Enrolled(slot.Id))
+            {
+                <button id="slot-clear-@slot.Id"
+                        class="slot-clear"
+                        style="@ClearPlacement(slot)"
+                        title="clear @slot.Label mods"
+                        aria-label="clear @slot.Label mods"
+                        @onclick="() => State.ClearChips(slot.Id)">×</button>
+            }
+        }
     }
 </div>
 
@@ -36,11 +57,14 @@
     private const double GutterVFactor = 0.20; // vertical gutter, in cells
     private const double MarginFactor = 1.20;  // side margin, in cells
 
-    private static string Placement(GearSlot slot)
+    /// <summary>One cell, in physical units (panel is 100 wide x 75 tall).</summary>
+    private static double Cell => 100.0 / (8 + 4 * GutterHFactor + 2 * MarginFactor);
+
+    /// <summary>Slot rectangle in physical units (x right, y down).</summary>
+    private static (double X, double Y, double W, double H) Geom(string id)
     {
-        // Physical units: 100 wide x 75 tall (4:3). x% == u; y% == u * 4/3.
         const double panelH = 75.0;
-        double c = 100.0 / (8 + 4 * GutterHFactor + 2 * MarginFactor);
+        double c = Cell;
         double gh = GutterHFactor * c, gv = GutterVFactor * c, m = MarginFactor * c;
         double mt = (panelH - (6 * c + 3 * gv)) / 2; // vertical margins, centered
 
@@ -58,20 +82,35 @@
         double yGloves = yRing + c + gv;     // also boots; bottoms flush with belt
         double yBelt = yBody + 3 * c + gv;
 
-        return slot.Id switch
+        return id switch
         {
-            "weapon" => Rect(xWeapon, yWeapon, 2 * c, 4 * c + 2 * gv),
-            "offhand" => Rect(xOff, yWeapon, 2 * c, 4 * c + 2 * gv),
-            "helmet" => Rect(xBody, yHelmet, 2 * c, 2 * c),
-            "amulet" => Rect(xRing2, yAmulet, c, c),
-            "body" => Rect(xBody, yBody, 2 * c, 3 * c),
-            "ring1" => Rect(xRing1, yRing, c, c),
-            "ring2" => Rect(xRing2, yRing, c, c),
-            "gloves" => Rect(xRing1 - c, yGloves, 2 * c, 2 * c),
-            "belt" => Rect(xBody, yBelt, 2 * c, c),
-            "boots" => Rect(xRing2, yGloves, 2 * c, 2 * c),
-            _ => "",
+            "weapon" => (xWeapon, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "offhand" => (xOff, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "helmet" => (xBody, yHelmet, 2 * c, 2 * c),
+            "amulet" => (xRing2, yAmulet, c, c),
+            "body" => (xBody, yBody, 2 * c, 3 * c),
+            "ring1" => (xRing1, yRing, c, c),
+            "ring2" => (xRing2, yRing, c, c),
+            "gloves" => (xRing1 - c, yGloves, 2 * c, 2 * c),
+            "belt" => (xBody, yBelt, 2 * c, c),
+            "boots" => (xRing2, yGloves, 2 * c, 2 * c),
+            _ => (0, 0, 0, 0),
         };
+    }
+
+    private static string Placement(GearSlot slot)
+    {
+        var (x, y, w, h) = Geom(slot.Id);
+        return Rect(x, y, w, h);
+    }
+
+    /// <summary>Clear-X badge at the slot's top-right corner (stays square).</summary>
+    private static string ClearPlacement(GearSlot slot)
+    {
+        var (x, y, w, _) = Geom(slot.Id);
+        double s = Cell * 0.5;
+        double inset = Cell * 0.1;
+        return Rect(x + w - s - inset, y + inset, s, s);
     }
 
     private static string Rect(double left, double top, double width, double height) =>

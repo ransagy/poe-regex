@@ -36,10 +36,11 @@ public sealed class SlotCriteria
 
 /// <summary>
 /// UI workbench state. Mode semantics mirror the TUI's
-/// `demos/opentui-tui/src/app.mjs`: single keeps one slot, global selects
-/// none, multi toggles many. Unlike the TUI's shared chips, every slot owns
-/// its own criteria so multi-slot compiles differ per slot (plus a separate
-/// global criteria set).
+/// `demos/opentui-tui/src/app.mjs`: single edits one slot, global selects
+/// none. Multi has no manual roster: a slot joins the multi group exactly
+/// when it has any wanted/unwanted chips, and clicking a slot only moves the
+/// editing focus. Every slot owns its own criteria so multi-slot compiles
+/// differ per slot (plus a separate global criteria set).
 /// </summary>
 public sealed class WorkbenchState
 {
@@ -63,8 +64,8 @@ public sealed class WorkbenchState
     /// <summary>Single mode: the active slot id (default: weapon).</summary>
     public string? SelectedSlot { get; private set; } = null;
 
-    /// <summary>Multi mode: toggled slot ids.</summary>
-    public HashSet<string> MultiSlots { get; } = new(StringComparer.Ordinal);
+    /// <summary>Multi mode: the slot whose editor is showing (membership is derived from chips).</summary>
+    public string? MultiFocus { get; private set; } = null;
 
     /// <summary>Per-slot criteria (class + wanted/unwanted mods).</summary>
     public Dictionary<string, SlotCriteria> Slots { get; } = new(StringComparer.Ordinal);
@@ -96,6 +97,8 @@ public sealed class WorkbenchState
             SelectedSlot = null;
         else if (mode == "single" && SelectedSlot is null)
             SelectedSlot = "weapon";
+        else if (mode == "multi")
+            MultiFocus ??= SelectedSlot ?? "weapon";
         Notify();
     }
 
@@ -108,19 +111,29 @@ public sealed class WorkbenchState
         if (Mode == "single")
             SelectedSlot = slotId;
         else
-        {
-            if (!MultiSlots.Add(slotId))
-                MultiSlots.Remove(slotId);
-        }
+            MultiFocus = slotId;
         Notify();
     }
+
+    /// <summary>Set the multi editing focus directly (snapshot restore).</summary>
+    public void FocusSlot(string slotId)
+    {
+        if (GearSlot.ById(slotId) is null)
+            throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
+        MultiFocus = slotId;
+        Notify();
+    }
+
+    /// <summary>True when a slot has any wanted/unwanted chips (multi enrollment).</summary>
+    public bool Enrolled(string slotId) =>
+        Slots.TryGetValue(slotId, out var c) && (c.Included.Count > 0 || c.Excluded.Count > 0);
 
     /// <summary>Slots the query engine should compile for (global: none).</summary>
     public IReadOnlyList<string> ActiveSlots() => Mode switch
     {
         "global" => [],
         "single" => SelectedSlot is null ? [] : [SelectedSlot],
-        _ => MultiSlots.OrderBy(s => s, StringComparer.Ordinal).ToList(),
+        _ => GearSlot.All.Where(s => Enrolled(s.Id)).Select(s => s.Id).ToList(),
     };
 
     public void SetSlotClass(string slotId, string classId)
@@ -223,7 +236,7 @@ public sealed class WorkbenchState
     {
         Mode = "global";
         SelectedSlot = null;
-        MultiSlots.Clear();
+        MultiFocus = null;
         Slots.Clear();
         foreach (var (slot, cls) in DefaultClasses)
             Slots[slot] = new SlotCriteria { ClassId = cls };
