@@ -196,7 +196,7 @@ body { overflow: hidden; }
     border: 1px solid var(--panel-edge);
     cursor: pointer;
     font: inherit;
-    font-size: 0.9rem;
+    font-size: 1.05rem;
     line-height: 1;
     padding: 0;
     display: flex;
@@ -343,8 +343,9 @@ select, input {
 .suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-row button, #suggest-all {
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
-    cursor: pointer; padding: 0.1rem 0.5rem; font-size: 0.8rem;
+    cursor: pointer; padding: 0.1rem 0.5rem; font-size: 0.85rem;
 }
+.dlg .modrow + .modrow { margin-top: 0.4rem; }
 .more, .field-error { font-size: 0.8rem; color: var(--dim); }
 .field-error { color: #e08a8a; }
 
@@ -450,7 +451,7 @@ textarea { width: 100%; box-sizing: border-box; }
 .dlg .chips { margin: 0; padding: 0.4rem 0; border-bottom: 1px solid var(--panel-edge); }
 .dlg .modrow { gap: 0.45rem; }
 
-details.advanced { margin: 0 1rem 1rem; flex: 0 0 auto; max-height: 55vh; overflow-y: auto; }
+details.advanced { margin: 0 1rem 1rem; flex: 0 0 auto; max-height: 68vh; overflow-y: auto; }
 details.advanced > summary {
     cursor: pointer;
     text-transform: uppercase;

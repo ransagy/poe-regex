@@ -108,8 +108,8 @@
     private static string ClearPlacement(GearSlot slot)
     {
         var (x, y, w, _) = Geom(slot.Id);
-        double s = Cell * 0.9;
-        double inset = Cell * 0.05;
+        double s = Cell * 0.5;
+        double inset = Cell * 0.1;
         return Rect(x + w - s - inset, y + inset, s, s);
     }
 
