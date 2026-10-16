@@ -564,3 +564,49 @@ details.advanced > .reset-row { margin-bottom: 1rem; }
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
     cursor: pointer; font: inherit; font-size: 0.8rem; padding: 0.2rem 0.7rem; white-space: nowrap;
 }
+
+/* Boot loading screen: covers the viewport until Blazor mounts. */
+.boot-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    flex-direction: column;
+    gap: 2rem;
+}
+.boot-text { text-align: center; }
+.boot-title {
+    font-size: 1.75rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+}
+.boot-sub {
+    font-size: 0.8rem;
+    color: var(--dim);
+    opacity: 0.75;
+    margin-top: 0.5rem;
+}
+.boot-anim {
+    width: 180px;
+    height: 140px;
+}
+.boot-hammer {
+    transform-origin: 130px 60px;
+    animation: hammer-strike 1.6s ease-in-out infinite;
+}
+@keyframes hammer-strike {
+    0%, 10% { transform: rotate(-30deg); }
+    35%, 55% { transform: rotate(0deg); }
+    75%, 100% { transform: rotate(-30deg); }
+}
+.boot-spark {
+    animation: spark-flash 1.6s ease-in-out infinite;
+}
+@keyframes spark-flash {
+    0%, 30% { opacity: 0; transform: scale(0.5); }
+    38% { opacity: 1; transform: scale(1.3); }
+    50%, 100% { opacity: 0; transform: scale(0.5); }
+}

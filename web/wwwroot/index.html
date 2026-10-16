@@ -17,11 +17,25 @@
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <div class="boot-overlay">
+            <div class="boot-text">
+                <div class="boot-title">Renly&rsquo;s Recipes</div>
+                <div class="boot-sub">A Path of Exile 2 vendor regex workbench</div>
+            </div>
+            <svg class="boot-anim" viewBox="0 0 240 180" aria-hidden="true">
+                <!-- Anvil base -->
+                <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                <!-- Hammer head + handle -->
+                <g class="boot-hammer">
+                    <rect x="104" y="52" width="52" height="26" rx="3" fill="#8a7c5f"/>
+                    <rect x="118" y="78" width="10" height="48" rx="2" fill="#6b5a34"/>
+                    <rect x="112" y="52" width="6" height="26" rx="1" fill="#a89878"/>
+                </g>
+                <!-- Impact spark -->
+                <circle class="boot-spark" cx="130" cy="122" r="4" fill="#c9a227" opacity="0"/>
+            </svg>
+        </div>
     </div>
 
     <div id="blazor-error-ui">
