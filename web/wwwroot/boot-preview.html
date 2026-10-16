@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Boot Animation Preview v4</title>
+    <title>Boot Animation Preview v5</title>
     <style>
         :root {
             --bg: #14100c;
@@ -14,7 +14,7 @@
             --accent: #c9a227;
         }
         html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Georgia, serif; }
-        .wrap { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 2rem; }
         h1 { color: var(--accent); font-size: 1.5rem; letter-spacing: .06em; margin: 0 0 .25rem; }
         .sub { color: var(--dim); font-size: .85rem; margin-bottom: 2rem; }
         .grid { display: flex; gap: 2rem; flex-wrap: wrap; }
@@ -47,8 +47,8 @@
         .boot-impact { animation: impact-flash 1.7s ease-out infinite; }
         @keyframes impact-flash {
             0%, 25% { opacity: 0; transform: scale(.3); }
-            28% { opacity: 1; transform: scale(1.5); }
-            48%, 100% { opacity: 0; transform: scale(2); }
+            28% { opacity: 1; transform: scale(1.6); }
+            50%, 100% { opacity: 0; transform: scale(2.2); }
         }
 
         /* Ring wave */
@@ -56,144 +56,167 @@
         @keyframes ring-wave {
             0%, 25% { opacity: 0; transform: scale(.3); }
             29% { opacity: .9; transform: scale(1); }
-            60%, 100% { opacity: 0; transform: scale(2.6); }
+            62%, 100% { opacity: 0; transform: scale(2.8); }
         }
 
-        /* Sparks: small bright dots flying outward */
-        .spark { transform-box: fill-box; transform-origin: center; }
-        .sp1 { animation: sp1 1.7s ease-out infinite; }
-        @keyframes sp1 {
-            0%, 27% { opacity: 0; transform: scale(.3) translate(0,0); }
-            31% { opacity: 1; transform: scale(1.2) translate(0,0); }
-            62%, 100% { opacity: 0; transform: scale(.3) translate(-22px,-12px); }
+        /* Sparks: small bright dots bursting outward via CSS custom properties */
+        .spark {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: spark-fly 1.7s ease-out infinite;
         }
-        .sp2 { animation: sp2 1.7s ease-out infinite; }
-        @keyframes sp2 {
-            0%, 28% { opacity: 0; transform: scale(.3) translate(0,0); }
-            32% { opacity: 1; transform: scale(1.3) translate(0,0); }
-            64%, 100% { opacity: 0; transform: scale(.3) translate(-12px,-18px); }
+        @keyframes spark-fly {
+            0%, 26% { opacity: 0; transform: scale(.3) translate(0, 0); }
+            30% { opacity: 1; transform: scale(1.3) translate(0, 0); }
+            72%, 100% { opacity: 0; transform: scale(.3) translate(var(--dx, 0px), var(--dy, -12px)); }
         }
-        .sp3 { animation: sp3 1.7s ease-out infinite; }
-        @keyframes sp3 {
-            0%, 29% { opacity: 0; transform: scale(.3) translate(0,0); }
-            33% { opacity: 1; transform: scale(1.1) translate(0,0); }
-            66%, 100% { opacity: 0; transform: scale(.3) translate(0,-22px); }
-        }
-        .sp4 { animation: sp4 1.7s ease-out infinite; }
-        @keyframes sp4 {
-            0%, 30% { opacity: 0; transform: scale(.3) translate(0,0); }
-            34% { opacity: 1; transform: scale(1.2) translate(0,0); }
-            68%, 100% { opacity: 0; transform: scale(.3) translate(12px,-18px); }
-        }
-        .sp5 { animation: sp5 1.7s ease-out infinite; }
-        @keyframes sp5 {
-            0%, 31% { opacity: 0; transform: scale(.3) translate(0,0); }
-            35% { opacity: 1; transform: scale(1) translate(0,0); }
-            70%, 100% { opacity: 0; transform: scale(.3) translate(22px,-10px); }
-        }
-        .sp6 { animation: sp6 1.7s ease-out infinite; }
-        @keyframes sp6 {
-            0%, 32% { opacity: 0; transform: scale(.3) translate(0,0); }
-            36% { opacity: 1; transform: scale(.9) translate(0,0); }
-            72%, 100% { opacity: 0; transform: scale(.3) translate(-24px,4px); }
-        }
-        .sp7 { animation: sp7 1.7s ease-out infinite; }
-        @keyframes sp7 {
-            0%, 33% { opacity: 0; transform: scale(.3) translate(0,0); }
-            37% { opacity: 1; transform: scale(.9) translate(0,0); }
-            74%, 100% { opacity: 0; transform: scale(.3) translate(24px,4px); }
-        }
-        .sp8 { animation: sp8 1.7s ease-out infinite; }
-        @keyframes sp8 {
-            0%, 34% { opacity: 0; transform: scale(.3) translate(0,0); }
-            38% { opacity: 1; transform: scale(.8) translate(0,0); }
-            76%, 100% { opacity: 0; transform: scale(.3) translate(-10px,14px); }
-        }
-        .sp9 { animation: sp9 1.7s ease-out infinite; }
-        @keyframes sp9 {
-            0%, 35% { opacity: 0; transform: scale(.3) translate(0,0); }
-            39% { opacity: 1; transform: scale(.8) translate(0,0); }
-            78%, 100% { opacity: 0; transform: scale(.3) translate(10px,14px); }
-        }
+
+        /* Stagger the burst so sparks don't all fire at once */
+        .spark:nth-child(2) { animation-delay: .02s; }
+        .spark:nth-child(3) { animation-delay: .04s; }
+        .spark:nth-child(4) { animation-delay: .06s; }
+        .spark:nth-child(5) { animation-delay: .03s; }
+        .spark:nth-child(6) { animation-delay: .08s; }
+        .spark:nth-child(7) { animation-delay: .05s; }
+        .spark:nth-child(8) { animation-delay: .1s; }
+        .spark:nth-child(9) { animation-delay: .07s; }
+        .spark:nth-child(10) { animation-delay: .12s; }
+        .spark:nth-child(11) { animation-delay: .09s; }
+        .spark:nth-child(12) { animation-delay: .14s; }
     </style>
 </head>
 <body>
     <div class="wrap">
-        <h1>Boot Animation Preview v4</h1>
-        <p class="sub">Hammer held by grip, head swings down onto the anvil. Small bright sparks.</p>
+        <h1>Boot Animation Preview v5</h1>
+        <p class="sub">Classic anvil (horn, face, waist, base). Peen-hammer head. Spark burst.</p>
         <div class="grid">
 
             <div class="card">
-                <h3>L — Clean strike + sparks</h3>
+                <h3>P — Classic + sparks</h3>
                 <svg viewBox="0 0 260 200" width="210" height="162">
                     <g class="boot-anvil-group">
-                        <ellipse cx="120" cy="180" rx="72" ry="6" fill="#000" opacity=".35"/>
-                        <path fill="#7a6a48" d="M84,100 Q52,84 40,92 Q48,104 72,106 Z"/>
-                        <path fill="#6b5a34" d="M84,100 L180,100 L180,114 L168,126 L160,138 L164,148 L148,158 L128,166 L100,166 L88,158 L96,148 L100,138 L92,126 L84,114 Z"/>
-                        <rect x="84" y="100" width="96" height="12" fill="#8a7c5f"/>
-                        <rect x="84" y="100" width="96" height="4" fill="#c0b090" opacity=".6"/>
-                        <rect x="96" y="166" width="18" height="10" fill="#4a3e26"/>
-                        <rect x="132" y="166" width="18" height="10" fill="#4a3e26"/>
+                        <ellipse cx="126" cy="178" rx="74" ry="6" fill="#000" opacity=".35"/>
+                        <!-- Classic anvil: horn, face, waist, base, feet -->
+                        <path fill="#6b5a34" d="M40,90 Q58,78 78,88 Q86,94 90,98 L184,98 L184,114 L172,126 L164,138 L168,148 L152,158 L134,166 L110,166 L96,158 L104,148 L108,138 L100,126 L90,114 L90,98 Q68,92 52,88 Q44,86 40,90 Z"/>
+                        <!-- Polished face -->
+                        <rect x="90" y="98" width="94" height="5" fill="#c0b090" opacity=".55"/>
+                        <!-- Step / hardy hole notch -->
+                        <rect x="100" y="103" width="10" height="4" fill="#3d3220" opacity=".7"/>
+                        <!-- Feet -->
+                        <rect x="98" y="166" width="20" height="10" fill="#4a3e26"/>
+                        <rect x="136" y="166" width="20" height="10" fill="#4a3e26"/>
                     </g>
+                    <!-- Peen hammer: grip, handle, trapezoid head with wedge peen -->
                     <g class="boot-hammer">
-                        <rect x="0" y="-6" width="30" height="12" rx="2" fill="#4a3e26"/>
-                        <rect x="30" y="-6" width="100" height="12" rx="2" fill="#6b5a34"/>
-                        <rect x="30" y="-6" width="100" height="4" rx="1" fill="#8a7c5f"/>
-                        <rect x="100" y="-20" width="50" height="40" rx="3" fill="#8a7c5f"/>
-                        <rect x="100" y="-20" width="50" height="5" rx="1.5" fill="#b5a888"/>
-                        <rect x="100" y="14" width="50" height="6" fill="#5a4e38"/>
+                        <rect x="0" y="-7" width="32" height="14" rx="2" fill="#4a3e26"/>
+                        <rect x="32" y="-7" width="108" height="14" rx="2" fill="#6b5a34"/>
+                        <rect x="32" y="-7" width="108" height="5" rx="1" fill="#8a7c5f"/>
+                        <path fill="#8a7c5f" d="M94,-16 L146,-16 L152,-4 L160,6 L152,14 L156,24 L94,24 Z"/>
+                        <path fill="#b5a888" d="M94,-16 L146,-16 L146,-12 L94,-12 Z"/>
+                        <rect x="94" y="18" width="62" height="6" fill="#5a4e38"/>
                     </g>
-                    <ellipse class="boot-impact" cx="111" cy="104" rx="10" ry="3" fill="#fff3c4" opacity="0"/>
+                    <ellipse class="boot-impact" cx="116" cy="104" rx="11" ry="3.5" fill="#fff3c4" opacity="0"/>
+                    <!-- 12 sparks bursting outward -->
                     <g>
-                        <circle class="spark sp1" cx="111" cy="104" r="2.5" fill="#fff3c4"/>
-                        <circle class="spark sp2" cx="111" cy="104" r="2.5" fill="#ffd75e"/>
-                        <circle class="spark sp3" cx="111" cy="104" r="2" fill="#ffd75e"/>
-                        <circle class="spark sp4" cx="111" cy="104" r="2.5" fill="#ffb84d"/>
-                        <circle class="spark sp5" cx="111" cy="104" r="2" fill="#ffb84d"/>
-                        <circle class="spark sp6" cx="111" cy="104" r="2" fill="#ffd75e"/>
-                        <circle class="spark sp7" cx="111" cy="104" r="2" fill="#ffb84d"/>
-                        <circle class="spark sp8" cx="111" cy="104" r="1.5" fill="#fff3c4"/>
-                        <circle class="spark sp9" cx="111" cy="104" r="1.5" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-24px;--dy:-14px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-14px;--dy:-20px" cx="114" cy="104" r="2.5" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-4px;--dy:-24px" cx="114" cy="102" r="2" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:6px;--dy:-22px" cx="114" cy="102" r="2.2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:16px;--dy:-16px" cx="114" cy="104" r="2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:24px;--dy:-10px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-28px;--dy:2px" cx="112" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:28px;--dy:2px" cx="116" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-12px;--dy:14px" cx="112" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:12px;--dy:14px" cx="116" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:0px;--dy:18px" cx="114" cy="112" r="1.4" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:-18px;--dy:-6px" cx="112" cy="104" r="1.8" fill="#fff3c4"/>
                     </g>
                 </svg>
-                <div class="desc">Grip held, head swings down; 9 small sparks + flash</div>
+                <div class="desc">Classic anvil + peen hammer; 12-spark burst</div>
             </div>
 
             <div class="card">
-                <h3>M — Ring + sparks</h3>
+                <h3>Q — Big burst</h3>
                 <svg viewBox="0 0 260 200" width="210" height="162">
                     <g class="boot-anvil-group">
-                        <ellipse cx="120" cy="180" rx="72" ry="6" fill="#000" opacity=".35"/>
-                        <path fill="#7a6a48" d="M84,100 Q52,84 40,92 Q48,104 72,106 Z"/>
-                        <path fill="#6b5a34" d="M84,100 L180,100 L180,114 L168,126 L160,138 L164,148 L148,158 L128,166 L100,166 L88,158 L96,148 L100,138 L92,126 L84,114 Z"/>
-                        <rect x="84" y="100" width="96" height="12" fill="#8a7c5f"/>
-                        <rect x="84" y="100" width="96" height="4" fill="#c0b090" opacity=".6"/>
-                        <rect x="96" y="166" width="18" height="10" fill="#4a3e26"/>
-                        <rect x="132" y="166" width="18" height="10" fill="#4a3e26"/>
+                        <ellipse cx="126" cy="178" rx="74" ry="6" fill="#000" opacity=".35"/>
+                        <path fill="#6b5a34" d="M40,90 Q58,78 78,88 Q86,94 90,98 L184,98 L184,114 L172,126 L164,138 L168,148 L152,158 L134,166 L110,166 L96,158 L104,148 L108,138 L100,126 L90,114 L90,98 Q68,92 52,88 Q44,86 40,90 Z"/>
+                        <rect x="90" y="98" width="94" height="5" fill="#c0b090" opacity=".55"/>
+                        <rect x="100" y="103" width="10" height="4" fill="#3d3220" opacity=".7"/>
+                        <rect x="98" y="166" width="20" height="10" fill="#4a3e26"/>
+                        <rect x="136" y="166" width="20" height="10" fill="#4a3e26"/>
                     </g>
                     <g class="boot-hammer">
-                        <rect x="0" y="-6" width="30" height="12" rx="2" fill="#4a3e26"/>
-                        <rect x="30" y="-6" width="100" height="12" rx="2" fill="#6b5a34"/>
-                        <rect x="30" y="-6" width="100" height="4" rx="1" fill="#8a7c5f"/>
-                        <rect x="100" y="-20" width="50" height="40" rx="3" fill="#8a7c5f"/>
-                        <rect x="100" y="-20" width="50" height="5" rx="1.5" fill="#b5a888"/>
-                        <rect x="100" y="14" width="50" height="6" fill="#5a4e38"/>
+                        <rect x="0" y="-7" width="32" height="14" rx="2" fill="#4a3e26"/>
+                        <rect x="32" y="-7" width="108" height="14" rx="2" fill="#6b5a34"/>
+                        <rect x="32" y="-7" width="108" height="5" rx="1" fill="#8a7c5f"/>
+                        <path fill="#8a7c5f" d="M94,-16 L146,-16 L152,-4 L160,6 L152,14 L156,24 L94,24 Z"/>
+                        <path fill="#b5a888" d="M94,-16 L146,-16 L146,-12 L94,-12 Z"/>
+                        <rect x="94" y="18" width="62" height="6" fill="#5a4e38"/>
                     </g>
-                    <circle class="boot-ring" cx="111" cy="108" r="6" fill="none" stroke="#c9a227" stroke-width="2.5" opacity="0"/>
-                    <ellipse class="boot-impact" cx="111" cy="104" rx="10" ry="3" fill="#fff3c4" opacity="0"/>
+                    <ellipse class="boot-impact" cx="116" cy="104" rx="14" ry="4.5" fill="#fff3c4" opacity="0"/>
+                    <!-- 18 sparks -->
                     <g>
-                        <circle class="spark sp1" cx="111" cy="104" r="2.5" fill="#fff3c4"/>
-                        <circle class="spark sp2" cx="111" cy="104" r="2.5" fill="#ffd75e"/>
-                        <circle class="spark sp3" cx="111" cy="104" r="2" fill="#ffd75e"/>
-                        <circle class="spark sp4" cx="111" cy="104" r="2.5" fill="#ffb84d"/>
-                        <circle class="spark sp5" cx="111" cy="104" r="2" fill="#ffb84d"/>
-                        <circle class="spark sp6" cx="111" cy="104" r="2" fill="#ffd75e"/>
-                        <circle class="spark sp7" cx="111" cy="104" r="2" fill="#ffb84d"/>
-                        <circle class="spark sp8" cx="111" cy="104" r="1.5" fill="#fff3c4"/>
-                        <circle class="spark sp9" cx="111" cy="104" r="1.5" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-30px;--dy:-16px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-20px;--dy:-24px" cx="114" cy="104" r="2.6" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-8px;--dy:-30px" cx="114" cy="102" r="2" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:4px;--dy:-30px" cx="114" cy="102" r="2.2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:14px;--dy:-24px" cx="114" cy="104" r="2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:26px;--dy:-14px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-34px;--dy:0px" cx="112" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:34px;--dy:0px" cx="116" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-16px;--dy:16px" cx="112" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:16px;--dy:16px" cx="116" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:0px;--dy:22px" cx="114" cy="112" r="1.4" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:-24px;--dy:-8px" cx="112" cy="104" r="1.8" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:24px;--dy:-8px" cx="116" cy="104" r="1.8" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-26px;--dy:8px" cx="110" cy="110" r="1.5" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:26px;--dy:8px" cx="118" cy="110" r="1.5" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:-10px;--dy:-16px" cx="112" cy="104" r="1.6" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:10px;--dy:-16px" cx="116" cy="104" r="1.6" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:0px;--dy:-18px" cx="114" cy="102" r="1.5" fill="#fff3c4"/>
                     </g>
                 </svg>
-                <div class="desc">Expanding gold ring + 9 sparks</div>
+                <div class="desc">Bigger flash + 18-spark explosion</div>
+            </div>
+
+            <div class="card">
+                <h3>R — Ring + sparks</h3>
+                <svg viewBox="0 0 260 200" width="210" height="162">
+                    <g class="boot-anvil-group">
+                        <ellipse cx="126" cy="178" rx="74" ry="6" fill="#000" opacity=".35"/>
+                        <path fill="#6b5a34" d="M40,90 Q58,78 78,88 Q86,94 90,98 L184,98 L184,114 L172,126 L164,138 L168,148 L152,158 L134,166 L110,166 L96,158 L104,148 L108,138 L100,126 L90,114 L90,98 Q68,92 52,88 Q44,86 40,90 Z"/>
+                        <rect x="90" y="98" width="94" height="5" fill="#c0b090" opacity=".55"/>
+                        <rect x="100" y="103" width="10" height="4" fill="#3d3220" opacity=".7"/>
+                        <rect x="98" y="166" width="20" height="10" fill="#4a3e26"/>
+                        <rect x="136" y="166" width="20" height="10" fill="#4a3e26"/>
+                    </g>
+                    <g class="boot-hammer">
+                        <rect x="0" y="-7" width="32" height="14" rx="2" fill="#4a3e26"/>
+                        <rect x="32" y="-7" width="108" height="14" rx="2" fill="#6b5a34"/>
+                        <rect x="32" y="-7" width="108" height="5" rx="1" fill="#8a7c5f"/>
+                        <path fill="#8a7c5f" d="M94,-16 L146,-16 L152,-4 L160,6 L152,14 L156,24 L94,24 Z"/>
+                        <path fill="#b5a888" d="M94,-16 L146,-16 L146,-12 L94,-12 Z"/>
+                        <rect x="94" y="18" width="62" height="6" fill="#5a4e38"/>
+                    </g>
+                    <circle class="boot-ring" cx="116" cy="106" r="6" fill="none" stroke="#c9a227" stroke-width="2.5" opacity="0"/>
+                    <ellipse class="boot-impact" cx="116" cy="104" rx="11" ry="3.5" fill="#fff3c4" opacity="0"/>
+                    <g>
+                        <circle class="spark" style="--dx:-24px;--dy:-14px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-14px;--dy:-20px" cx="114" cy="104" r="2.5" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-4px;--dy:-24px" cx="114" cy="102" r="2" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:6px;--dy:-22px" cx="114" cy="102" r="2.2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:16px;--dy:-16px" cx="114" cy="104" r="2" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:24px;--dy:-10px" cx="114" cy="106" r="2.2" fill="#fff3c4"/>
+                        <circle class="spark" style="--dx:-28px;--dy:2px" cx="112" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:28px;--dy:2px" cx="116" cy="108" r="1.8" fill="#ffd75e"/>
+                        <circle class="spark" style="--dx:-12px;--dy:14px" cx="112" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:12px;--dy:14px" cx="116" cy="110" r="1.6" fill="#ff9b3d"/>
+                        <circle class="spark" style="--dx:0px;--dy:18px" cx="114" cy="112" r="1.4" fill="#ffb84d"/>
+                        <circle class="spark" style="--dx:-18px;--dy:-6px" cx="112" cy="104" r="1.8" fill="#fff3c4"/>
+                    </g>
+                </svg>
+                <div class="desc">Expanding gold ring + 12 sparks</div>
             </div>
 
         </div>
