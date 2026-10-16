@@ -394,6 +394,16 @@ select, input {
     box-shadow: none;
 }
 #workbench-reset:disabled { background: #1a150f; color: var(--dim); border-color: #5b5b5b; opacity: 0.72; cursor: not-allowed; }
+#workbench-reset, #workbench-reset:hover { background: #532018; color: #ffb0b0; border-color: #b95555; }
+#workbench-reset:hover { background: #6a2222; }
+#workbench-reset:disabled { background: #1a150f; color: #9d9d9d; border-color: #5b5b5b; opacity: 0.72; cursor: not-allowed; transition: none; }
+#pack-remove:enabled:hover { background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; transition: background .12s ease, color .12s ease, border-color .12s ease; }
+
+.result-strip button,
+#slot-copy-multi,
+button[id^="slot-copy-"] {
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
 .suggest-row button:hover, #suggest-all:hover {
     background: var(--slot-active); border-color: var(--panel-edge-hi); color: #ffe9a8;
 }
