@@ -116,7 +116,7 @@ body { overflow: hidden; }
     flex: 1 1 auto;
     display: flex;
     gap: 0.75rem;
-    align-items: center;
+    align-items: stretch;
 }
 /* Editor | doll: the editor grows to consume the spare vertical room while the
    doll stays aspect-locked (max 72vh -- its own capped height). The central
@@ -124,7 +124,9 @@ body { overflow: hidden; }
    around the doll rather than a void under the backpack. */
 .inv-editor { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
 @media (max-width: 1200px) { .inv-editor { flex: 1 1 19rem; } }
-.inv-doll { flex: 0 1 auto; min-width: 0; width: min(100%, 72vh, 96vw); max-width: min(100%, 72vh, 96vw); display: flex; flex-direction: column; justify-content: center; }
+/* Doll column sized only to its own height-derived width (Wave 6 cap) --
+   no 96vw borrowing, otherwise the cap collapses the editor column. */
+.inv-doll { flex: 0 1 auto; min-width: 0; width: 100%; max-width: min(100%, 72vh); display: flex; flex-direction: column; justify-content: center; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
    (like the game, whose gear area is slightly wider than tall so item
@@ -315,7 +317,8 @@ select, input {
 .modpicker { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 /* Basis 0: the mod list never inflates the editor's intrinsic height; it
    simply fills whatever the stretched editor gives it (and scrolls). */
-.mod-list { flex: 1 1 0; min-height: 4rem; overflow-y: auto; }
+/* Mod list grows to consume the editor's inherited height rather than 4rem. */
+.mod-list { flex: 1 1 16rem; min-height: 0; overflow-y: auto; }
 .suggest { list-style: none; margin: 0.25rem 0; padding: 0; }
 @container (min-width: 34rem) {
     .suggest { columns: 2; column-gap: 1rem; }
