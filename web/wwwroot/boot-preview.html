@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boot Animation Preview</title>
+    <style>
+        :root {
+            --bg: #14100c;
+            --panel: #1e1812;
+            --panel-edge: #6b5a34;
+            --panel-edge-hi: #a68c4f;
+            --ink: #d8cdb4;
+            --dim: #8a7c5f;
+            --accent: #c9a227;
+            --slot: #241d14;
+            --slot-active: #3a2f16;
+        }
+        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Georgia, serif; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        h1 { color: var(--accent); font-size: 1.5rem; letter-spacing: .06em; margin: 0 0 .25rem; }
+        .sub { color: var(--dim); font-size: .85rem; margin-bottom: 2rem; }
+        .grid { display: flex; gap: 2rem; flex-wrap: wrap; }
+        .card { background: var(--panel); border: 1px solid var(--panel-edge); padding: 1rem; width: 220px; text-align: center; }
+        .card h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--ink); }
+        .card .desc { color: var(--dim); font-size: .75rem; margin-top: .5rem; }
+        svg { display: block; margin: 0 auto; }
+
+        /* === Variant A: buggy (current) — pivot wrong, handle strikes === */
+        .boot-hammer-a { transform-origin: 130px 60px; animation: hammer-a 1.6s ease-in-out infinite; }
+        @keyframes hammer-a {
+            0%, 10% { transform: rotate(-30deg); }
+            35%, 55% { transform: rotate(0deg); }
+            75%, 100% { transform: rotate(-30deg); }
+        }
+
+        /* === Variant B: fixed pivot — head strikes === */
+        .boot-hammer-b { transform-origin: 130px 40px; animation: hammer-b 1.6s ease-in-out infinite; }
+        @keyframes hammer-b {
+            0%, 10% { transform: rotate(-35deg); }
+            35%, 55% { transform: rotate(0deg); }
+            75%, 100% { transform: rotate(-35deg); }
+        }
+        .boot-spark-b { animation: spark-b 1.6s ease-in-out infinite; }
+        @keyframes spark-b {
+            0%, 30% { opacity: 0; transform: scale(.5); }
+            38% { opacity: 1; transform: scale(1.3); }
+            50%, 100% { opacity: 0; transform: scale(.5); }
+        }
+
+        /* === Variant C: bigger strike + bigger spark === */
+        .boot-hammer-c { transform-origin: 130px 40px; animation: hammer-c 1.4s ease-in-out infinite; }
+        @keyframes hammer-c {
+            0%, 8% { transform: rotate(-40deg); }
+            32%, 52% { transform: rotate(0deg); }
+            72%, 100% { transform: rotate(-40deg); }
+        }
+        .boot-spark-c { animation: spark-c 1.4s ease-in-out infinite; }
+        @keyframes spark-c {
+            0%, 28% { opacity: 0; transform: scale(.3); }
+            36% { opacity: 1; transform: scale(2); }
+            55%, 100% { opacity: 0; transform: scale(.3); }
+        }
+
+        /* === Variant D: multi-spark burst === */
+        .boot-hammer-d { transform-origin: 130px 40px; animation: hammer-d 1.8s ease-in-out infinite; }
+        @keyframes hammer-d {
+            0%, 12% { transform: rotate(-35deg); }
+            38%, 58% { transform: rotate(0deg); }
+            78%, 100% { transform: rotate(-35deg); }
+        }
+        .boot-spark-d { animation: spark-d 1.8s ease-in-out infinite; }
+        @keyframes spark-d {
+            0%, 34% { opacity: 0; }
+            40% { opacity: 1; }
+            58%, 100% { opacity: 0; }
+        }
+
+        /* === Variant E: ring wave impact === */
+        .boot-hammer-e { transform-origin: 130px 40px; animation: hammer-e 1.6s ease-in-out infinite; }
+        @keyframes hammer-e {
+            0%, 10% { transform: rotate(-30deg); }
+            35%, 55% { transform: rotate(0deg); }
+            75%, 100% { transform: rotate(-30deg); }
+        }
+        .boot-ring-e { animation: ring-e 1.6s ease-in-out infinite; }
+        @keyframes ring-e {
+            0%, 32% { opacity: 0; r: 4; }
+            40% { opacity: .8; r: 8; }
+            60%, 100% { opacity: 0; r: 20; }
+        }
+        .boot-spark-e { animation: spark-e 1.6s ease-in-out infinite; }
+        @keyframes spark-e {
+            0%, 30% { opacity: 0; transform: scale(.5); }
+            38% { opacity: 1; transform: scale(1.3); }
+            50%, 100% { opacity: 0; transform: scale(.5); }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Boot Animation Preview</h1>
+        <p class="sub">Hammer &amp; anvil variants — pick one for the loading screen.</p>
+        <div class="grid">
+
+            <div class="card">
+                <h3>A — Buggy (current)</h3>
+                <svg viewBox="0 0 240 180" width="180" height="140">
+                    <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                    <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                    <g class="boot-hammer-a">
+                        <rect x="104" y="52" width="52" height="26" rx="3" fill="#8a7c5f"/>
+                        <rect x="118" y="78" width="10" height="48" rx="2" fill="#6b5a34"/>
+                        <rect x="112" y="52" width="6" height="26" rx="1" fill="#a89878"/>
+                    </g>
+                    <circle cx="130" cy="122" r="4" fill="#c9a227" opacity="0"/>
+                </svg>
+                <div class="desc">Pivot wrong — handle strikes</div>
+            </div>
+
+            <div class="card">
+                <h3>B — Fixed pivot</h3>
+                <svg viewBox="0 0 240 180" width="180" height="140">
+                    <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                    <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                    <g class="boot-hammer-b">
+                        <rect x="118" y="40" width="10" height="48" rx="2" fill="#6b5a34"/>
+                        <rect x="100" y="88" width="60" height="18" rx="3" fill="#8a7c5f"/>
+                    </g>
+                    <circle class="boot-spark-b" cx="130" cy="122" r="4" fill="#c9a227" opacity="0"/>
+                </svg>
+                <div class="desc">Head strikes the anvil</div>
+            </div>
+
+            <div class="card">
+                <h3>C — Big hit + big spark</h3>
+                <svg viewBox="0 0 240 180" width="180" height="140">
+                    <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                    <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                    <g class="boot-hammer-c">
+                        <rect x="118" y="40" width="10" height="48" rx="2" fill="#6b5a34"/>
+                        <rect x="100" y="88" width="60" height="18" rx="3" fill="#8a7c5f"/>
+                    </g>
+                    <circle class="boot-spark-c" cx="130" cy="122" r="5" fill="#c9a227" opacity="0"/>
+                </svg>
+                <div class="desc">Harder swing, bigger flash</div>
+            </div>
+
+            <div class="card">
+                <h3>D — Multi-spark</h3>
+                <svg viewBox="0 0 240 180" width="180" height="140">
+                    <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                    <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                    <g class="boot-hammer-d">
+                        <rect x="118" y="40" width="10" height="48" rx="2" fill="#6b5a34"/>
+                        <rect x="100" y="88" width="60" height="18" rx="3" fill="#8a7c5f"/>
+                    </g>
+                    <g class="boot-spark-d" fill="#c9a227">
+                        <circle cx="130" cy="122" r="4" opacity="0"/>
+                        <circle cx="118" cy="116" r="3" opacity="0"/>
+                        <circle cx="142" cy="116" r="3" opacity="0"/>
+                        <circle cx="110" cy="128" r="2.5" opacity="0"/>
+                        <circle cx="150" cy="128" r="2.5" opacity="0"/>
+                    </g>
+                </svg>
+                <div class="desc">Sparks fly on impact</div>
+            </div>
+
+            <div class="card">
+                <h3>E — Ring wave</h3>
+                <svg viewBox="0 0 240 180" width="180" height="140">
+                    <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
+                    <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
+                    <g class="boot-hammer-e">
+                        <rect x="118" y="40" width="10" height="48" rx="2" fill="#6b5a34"/>
+                        <rect x="100" y="88" width="60" height="18" rx="3" fill="#8a7c5f"/>
+                    </g>
+                    <circle class="boot-ring-e" cx="130" cy="122" r="4" fill="none" stroke="#c9a227" stroke-width="2" opacity="0"/>
+                    <circle class="boot-spark-e" cx="130" cy="122" r="4" fill="#c9a227" opacity="0"/>
+                </svg>
+                <div class="desc">Impact ring + spark</div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
