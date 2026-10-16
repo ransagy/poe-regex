@@ -48,20 +48,22 @@ public class ItemMappingTests
     }
 
     [Fact]
-    public void MapLine_RolllessLightRadius_MatchesOfLightApproximately()
+    public void MapLine_RolllessLightRadius_MatchesOfLightExactly()
     {
-        // Game text `Light Radius` vs catalog `LightRadius` (renderer keeps
-        // the internal first-alternative form): spaceless fallback, flagged.
-        AssertMapsTo("One Hand Maces", "10% increased Light Radius", "of Light", approximate: true);
+        // The renderer keeps the bracket display alternative, so the catalog
+        // line matches the game's "…increased Light Radius" text exactly.
+        AssertMapsTo("One Hand Maces", "10% increased Light Radius", "of Light");
     }
 
     [Fact]
-    public void MapLine_ImplicitBolt_MapsNowhere_CatalogHasNoImplicits()
+    public void MapLine_ImplicitBolt_ResolvesToTheSameTextSuffix()
     {
-        // The derived catalog ships prefix/suffix generations only; implicits
-        // (and this crossbow's `unique`-generation implicit) are absent.
+        // The catalog ships prefix/suffix generations only, but a crossbow
+        // suffix ("of Shelling") renders the exact text of the Gemini
+        // implicit; text matching cannot tell them apart.
         var classId = Engine.ResolveClassId("Crossbows");
-        Engine.MapLineToMods(classId, "Loads an additional bolt", []).ModIds.Should().BeEmpty();
+        var mapping = Engine.MapLineToMods(classId, "Loads an additional bolt", []);
+        mapping.ModIds.Select(id => Engine.FindMod(id)?.Name).Should().Contain("of Shelling");
     }
 
     [Fact]
@@ -115,13 +117,13 @@ public class ItemMappingTests
     }
 
     [Theory]
-    [InlineData("Belt", 0, 2)]
-    [InlineData("Talisman", 2, 0)]
-    [InlineData("Crossbow", 4, 1)]
-    [InlineData("Staff", 1, 0)]
-    [InlineData("Mace", 5, 0)]
+    [InlineData("Belt", 0, 2, 0)]
+    [InlineData("Talisman", 2, 0, 0)]
+    [InlineData("Crossbow", 4, 0, 1)]
+    [InlineData("Staff", 1, 0, 0)]
+    [InlineData("Mace", 5, 0, 0)]
     public void FixtureCoverage_PrefixSuffixLinesMapToHeaderName(
-        string fixture, int mapped, int unmappedImplicits)
+        string fixture, int mapped, int unmappedImplicits, int mappedImplicits)
     {
         var text = typeof(FixtureTexts).GetField(
             fixture,
@@ -131,6 +133,7 @@ public class ItemMappingTests
         classId.Should().NotBeNull($"{fixture} item class should resolve");
         var hit = 0;
         var implicitEmpty = 0;
+        var implicitHit = 0;
         foreach (var block in item.Mods)
         {
             foreach (var line in block.Lines)
@@ -138,9 +141,12 @@ public class ItemMappingTests
                 var mapping = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
                 if (block.Kind == "implicit")
                 {
-                    // Catalog ships prefix/suffix only: implicits map nowhere.
-                    mapping.ModIds.Should().BeEmpty();
-                    implicitEmpty++;
+                    // Catalog ships prefix/suffix only, so implicits map
+                    // nowhere — unless a real prefix/suffix shares the
+                    // implicit's exact text (the crossbow bolt implicit vs
+                    // the "of Shelling" suffix).
+                    if (mapping.ModIds.Count == 0) implicitEmpty++;
+                    else implicitHit++;
                     continue;
                 }
                 mapping.ModIds.Should().NotBeEmpty($"'{line.Text}' should map");
@@ -151,5 +157,6 @@ public class ItemMappingTests
         }
         hit.Should().Be(mapped);
         implicitEmpty.Should().Be(unmappedImplicits);
+        implicitHit.Should().Be(mappedImplicits);
     }
 }

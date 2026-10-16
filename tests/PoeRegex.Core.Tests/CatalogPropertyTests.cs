@@ -140,6 +140,40 @@ public class CatalogPropertyTests
         checkedCount.Should().BeGreaterThan(1000, "expected most mods to resolve globally");
     }
 
+    /// <summary>
+    /// Regression guard for the PoE2 stat-text rendering fixes: bracket markup
+    /// must render its display alternative (never the schema key), and mods whose
+    /// translation entry pairs a stat the mod does not carry must still render.
+    /// </summary>
+    [Fact]
+    public void PoE2Catalog_RendersDisplayTextNotSchemaKeys()
+    {
+        var path = Path.Combine(RepoRoot(), "data", "catalogs", "poe2.catalog.json");
+        var catalog = new FileCatalogSource(path).Load(GameTarget.PoE2);
+
+        // The local "% increased Physical Damage" family (Heavy … Merciless).
+        catalog.Mods
+            .Where(m => m.Classes.Contains("Two Hand Sword"))
+            .SelectMany(m => m.StatLines)
+            .Should().Contain(sl => sl.RangeLine.Contains("increased Physical Damage"));
+
+        // Bracket markup schema keys must never leak into display text.
+        string[] keys =
+        [
+            "EnergyShield", "HitDamage", "BuffMagnitude", "CriticalDamageBonus",
+            "LowLife", "MaximumResistances", "ElementalDamage", "AccuracyRating",
+        ];
+        var leak = new System.Text.RegularExpressions.Regex(@"\b(" + string.Join('|', keys) + @")\b");
+        foreach (var mod in catalog.Mods)
+        {
+            foreach (var sl in mod.StatLines)
+            {
+                leak.IsMatch(sl.Line).Should().BeFalse($"{mod.Id} line '{sl.Line}' leaks a bracket schema key");
+                leak.IsMatch(sl.RangeLine).Should().BeFalse($"{mod.Id} range '{sl.RangeLine}' leaks a bracket schema key");
+            }
+        }
+    }
+
     private static bool HasUnescapedMetachar(string s)
     {
         const string metachars = "|.+*?()[]{}$^";

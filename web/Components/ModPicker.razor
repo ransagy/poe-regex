@@ -47,9 +47,10 @@
             {
                 var line = m.StatLines.FirstOrDefault();
                 var prefix = IsPrefix(m);
+                var display = line is null ? m.Id : ModSearch.DisplayLine(line);
                 <li class="suggest-row">
                     <span class="gen-tag" title="@(prefix ? "prefix" : "suffix")">@(prefix ? "P" : "S")</span>
-                    <span class="suggest-line">@(line is null ? m.Id : ModSearch.DisplayLine(line))</span>
+                    <span class="suggest-line" title="@display">@display</span>
                     <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
                     <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
                 </li>

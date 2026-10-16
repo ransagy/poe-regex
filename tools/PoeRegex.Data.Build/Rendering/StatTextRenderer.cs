@@ -87,6 +87,7 @@ public sealed class StatTextRenderer
         var indices = new List<int>(n);
         var values = new List<(double Min, double Max)>(n);
         var testValues = new List<double>(n);
+        var absent = new List<bool>(n);
 
         var cursor = startIndex;
         foreach (var expectedId in entry.Ids)
@@ -98,9 +99,26 @@ public sealed class StatTextRenderer
                 if (used[j]) continue;
                 if (stats[j].Id == expectedId) { found = j; break; }
             }
-            if (found < 0) return false;
+
+            if (found < 0)
+            {
+                // Entries may pair ids that only co-occur on some mods (e.g.
+                // "local_physical_damage_+%" with "local_weapon_no_physical_damage").
+                // A stat the mod does not carry at all counts as value 0 for
+                // variant selection and renders nothing.
+                if (stats.All(s => s.Id != expectedId))
+                {
+                    indices.Add(-1);
+                    values.Add((0, 0));
+                    testValues.Add(0);
+                    absent.Add(true);
+                    continue;
+                }
+                return false;
+            }
 
             indices.Add(found);
+            absent.Add(false);
             var stat = stats[found];
             values.Add((stat.Min, stat.Max));
             testValues.Add(stat.Max != 0 ? stat.Max : stat.Min);
@@ -112,8 +130,20 @@ public sealed class StatTextRenderer
         if (variant is null)
         {
             // No variant matches; release the indices.
-            foreach (var idx in indices) used[idx] = false;
+            foreach (var idx in indices) if (idx >= 0) used[idx] = false;
             return false;
+        }
+
+        // A variant that would format an absent stat prints bogus numbers; the
+        // variants keyed on absent stats always mark them "ignore".
+        for (var i = 0; i < absent.Count; i++)
+        {
+            if (!absent[i]) continue;
+            if (i < variant.Format.Count && variant.Format[i] != "ignore")
+            {
+                foreach (var idx in indices) if (idx >= 0) used[idx] = false;
+                return false;
+            }
         }
 
         line = FormatVariant(variant, values);
@@ -238,8 +268,8 @@ public sealed class StatTextRenderer
         var rendered = new string(text.ToArray());
         if (rendered.Length == 0) return null;
 
-        // PoE2 markup: [X] attribute markers and [X|Y] language alternatives
-        // both render as plain text in-game; keep the first alternative.
+        // PoE2 markup: [X] keyword markers and [Key|Display] language alternatives
+        // both render as plain text in-game; keep the display alternative.
         rendered = StripBracketMarkup(rendered);
         var ranged = StripBracketMarkup(new string(rangeText.ToArray()));
 
@@ -321,8 +351,9 @@ public sealed class StatTextRenderer
     private static readonly System.Globalization.CultureInfo Culture = System.Globalization.CultureInfo.InvariantCulture;
 
     /// <summary>
-    /// Strips PoE2 bracket markup: "[X]" attribute markers and "[X|Y]" language
-    /// alternatives both render as plain text in-game; the first alternative is kept.
+    /// Strips PoE2 bracket markup: "[X]" keyword markers and "[Key|Display]"
+    /// language alternatives both render as plain text in-game; the display
+    /// alternative (after the pipe, e.g. [EnergyShield|Energy Shield]) is kept.
     /// </summary>
     public static string StripBracketMarkup(string s)
     {
@@ -340,7 +371,7 @@ public sealed class StatTextRenderer
                 }
                 var inner = s.Substring(i + 1, close - i - 1);
                 var pipe = inner.IndexOf('|');
-                var keep = pipe >= 0 ? inner.Substring(0, pipe) : inner;
+                var keep = pipe >= 0 ? inner.Substring(pipe + 1) : inner;
                 sb.Append(keep);
                 i = close;
             }

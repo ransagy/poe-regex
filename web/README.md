@@ -48,7 +48,8 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   live below.
 - `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
   enroll, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
-  cells span the full width and the pack sits at the panel bottom — when the
+  cells span the full width in the stacked layout and a bounded column under
+  the paper doll from 1500px up — when the
   window is too short the pack area scrolls internally, never the page;
   matching items highlight and non-matching ones dim; clicking an item pins
   its tooltip),

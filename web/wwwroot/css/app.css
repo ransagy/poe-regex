@@ -123,9 +123,8 @@ body { overflow: hidden; }
    doll column always takes the rest. The editor stretches to the row's
    full height (the mod list is its scroll region). */
 .inv-editor { flex: 0 1 24rem; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
-@media (min-width: 1500px) { .inv-editor { flex: 1 1 30rem; max-width: 52rem; } }
 @media (max-width: 1200px) { .inv-editor { flex: 0 1 19rem; } }
-.inv-doll { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.inv-doll { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
    (like the game, whose gear area is slightly wider than tall so item
@@ -135,8 +134,10 @@ body { overflow: hidden; }
     width: 100%;
     aspect-ratio: 4 / 3;
     /* Capped by the column width and, in short-but-wide windows, by viewport
-       height so the backpack below still gets a usable area. */
-    max-width: min(100%, 62vh);
+       height so the backpack below still gets a usable area. The stacked
+       layout uses the more generous cap: the doll should fill the side space
+       of its own column; the wide layout trades it back to the backpack. */
+    max-width: min(100%, 72vh);
     margin: 0 auto;
 }
 
@@ -233,6 +234,28 @@ body { overflow: hidden; }
    clearly visible as an item against the empty cells. */
 .pack-placed.dim { opacity: 0.55; filter: saturate(0.55); }
 .pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; opacity: 1; filter: none; }
+
+/* Wide layout (>=1500px): the backpack moves into a bounded right-hand column
+   under the paper doll, and the editor takes the full height at the left with
+   its two-column mod list. The column is capped so pack cells stay close to
+   the stacked layout's instead of growing with the window. */
+@media (min-width: 1500px) {
+    .panel.inventory {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) min(60rem, 55vw);
+        grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+        column-gap: 0.75rem;
+    }
+    .inv-top { display: contents; } /* editor/doll become grid items */
+    .panel.inventory > .panel-head { grid-column: 1 / -1; grid-row: 1; }
+    .panel.inventory > .mode-bar { grid-column: 1 / -1; grid-row: 2; }
+    .inv-editor { grid-column: 1; grid-row: 3 / 7; max-width: none; }
+    .inv-doll { grid-column: 2; grid-row: 3; justify-content: flex-start; }
+    .panel.inventory > .panel-sub { grid-column: 2; grid-row: 4; }
+    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 5; }
+    .panel.inventory > .pack-wrap { grid-column: 2; grid-row: 6; }
+    .doll { max-width: min(100%, 62vh); }
+}
 
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
