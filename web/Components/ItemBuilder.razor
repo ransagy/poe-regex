@@ -7,6 +7,16 @@
     <div class="dlg-overlay" id="builder-dialog" @onclick="OnBackdrop">
         <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Assemble item">
             <div class="panel-head"><span>Assemble test item from mods (enforced)</span></div>
+            @if (_added.Count > 0)
+            {
+                <div class="chips" style="margin-bottom: 0.5rem; border-bottom: 1px solid var(--panel-edge); padding-bottom: 0.4rem;">
+                    @foreach (var id in _added)
+                    {
+                        <button class="chip inc" id="builder-del-@id" title="remove"
+                                @onclick="() => Remove(id)">@DisplayFor(id)</button>
+                    }
+                </div>
+            }
             <div class="modrow">
                 <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
                     @foreach (var c in Engine.InGameClasses())
@@ -29,7 +39,9 @@
                 {
                     var lines = m.StatLines;
                     var line = lines.FirstOrDefault();
+                    var builderTag = (m.GenerationType.ToLowerInvariant() == "prefix") ? "prefix" : "suffix";
                     <li class="suggest-row">
+                        <span class="gen-tag" title="@builderTag">@builderTag</span>
                         @if (lines.Count <= 1)
                         {
                             <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
@@ -49,16 +61,6 @@
                     </li>
                 }
             </ol>
-            @if (_added.Count > 0)
-            {
-                <div class="chips">
-                    @foreach (var id in _added)
-                    {
-                        <button class="chip inc" id="builder-del-@id" title="remove"
-                                @onclick="() => Remove(id)">@DisplayFor(id)</button>
-                    }
-                </div>
-            }
             @foreach (var v in _violations)
             {
                 <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>

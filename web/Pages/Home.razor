@@ -13,7 +13,6 @@
 
 <div class="bench">
     <section class="panel inventory" aria-label="Inventory">
-        <div class="panel-head"><span>Inventory</span></div>
         <div class="mode-bar">
             <ModeSwitch State="State" />
             <div class="result-strip" id="result-strip" aria-label="Compiled queries">
@@ -52,7 +51,6 @@
             <div class="inv-editor" aria-label="Editor">
                 @if (State.Mode == "single" && State.SelectedSlot is { } slot)
                 {
-                    <div class="panel-sub">@slot slot</div>
                     <ClassPicker State="State" SlotId="@slot" />
                     <ModPicker State="State" Scope="@slot" Mods="Engine.ModsForClass(State.SlotClassOrDefault(slot))" />
                 }
@@ -60,7 +58,6 @@
                 {
                     @if (State.MultiFocus is { } focus)
                     {
-                        <div class="panel-sub">@focus slot (multi)</div>
                         <ClassPicker State="State" SlotId="@focus" />
                         <ModPicker State="State" Scope="@focus" Mods="Engine.ModsForClass(State.SlotClassOrDefault(focus))" />
                     }
@@ -71,7 +68,6 @@
                 }
                 else
                 {
-                    <div class="panel-sub">global (no class anchor)</div>
                     <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
                 }
             </div>
@@ -133,7 +129,9 @@
                    OnBestEffort="() => BestEffort(t.CardId)" />
     }
     <div class="modrow">
-        <button id="workbench-reset" class="btn" @onclick="ResetWorkbench">reset workbench</button>
+        <button id="workbench-reset" class="btn btn-danger"
+                title="Destructive: clears every slot's class and mods plus the backpack lab"
+                @onclick="ResetWorkbench">reset workbench</button>
     </div>
 </details>
 
