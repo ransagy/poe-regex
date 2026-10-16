@@ -55,7 +55,7 @@
     // derived from one chain and uniformly scaled to fit the 4:3 panel.
     private const double GutterHFactor = 0.44; // horizontal gutter, in cells
     private const double GutterVFactor = 0.20; // vertical gutter, in cells
-    private const double MarginFactor = 1.20;  // side margin, in cells
+    private const double MarginFactor = 0.70;  // side margin, in cells (reduced: slots reach further into the panel corner gutters)
 
     /// <summary>One cell, in physical units (panel is 100 wide x 75 tall).</summary>
     private static double Cell => 100.0 / (8 + 4 * GutterHFactor + 2 * MarginFactor);

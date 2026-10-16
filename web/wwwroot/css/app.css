@@ -79,14 +79,14 @@ body { overflow: hidden; }
     font-size: 0.85rem;
     color: var(--accent);
     border-bottom: 1px solid var(--panel-edge);
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.6rem;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
 }
 
-.panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.6rem 0 0.3rem; }
+.panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.1rem 0 0.1rem; }
 
 /* Mode strip: buttons left, compiled-query box filling the rest of the row. */
-.mode-bar { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.8rem; }
+.mode-bar { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.15rem; }
 .mode-switch { display: flex; gap: 0.4rem; flex: none; }
 .result-strip {
     flex: 1 1 auto;
@@ -133,12 +133,17 @@ body { overflow: hidden; }
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
-    /* Capped by the column width and, in short-but-wide windows, by viewport
-       height so the backpack below still gets a usable area. The stacked
-       layout uses the more generous cap: the doll should fill the side space
-       of its own column; the wide layout trades it back to the backpack. */
+    /* Capped by the column width / viewport height so the backpack below still
+       gets a usable area. Slot geometry assumes 4:3 (slot positions use
+       top/height * 4/3); keep aspect-ratio even when scaling below. */
     max-width: min(100%, 72vh);
     margin: 0 auto;
+    /* Subtle zoom so the slot frames actually REACH the panel edge; the
+       canonical 4:3 leaves a small corner margin. overflow: hidden trims
+       frame edges that drift past ±6% (verified no clipping of hover outline). */
+    transform: scale(1.09);
+    transform-origin: center center;
+    overflow: hidden;
 }
 
 .gear-slot {
@@ -185,9 +190,11 @@ body { overflow: hidden; }
    the page and bench never do. Cell lines are background; items are
    explicitly placed divs. */
 .pack-wrap {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
     align-items: flex-start;
     overflow-y: auto;
 }
@@ -255,8 +262,8 @@ body { overflow: hidden; }
     .panel.inventory > .mode-bar { grid-column: 1 / -1; grid-row: 2; }
     .inv-editor { grid-column: 1; grid-row: 3 / 6; max-width: none; }
     .inv-doll { grid-column: 2; grid-row: 3; justify-content: flex-start; }
-    .panel.inventory > .panel-sub { grid-column: 2; grid-row: 4; justify-self: start; align-self: center; margin: 0.2rem 0 0; }
-    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 4; justify-self: end; align-self: center; margin: 0.2rem; }
+    .panel.inventory > .panel-sub { grid-column: 2; grid-row: 4; justify-self: start; align-self: center; margin: 0.1rem 0 0; }
+    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 4; justify-self: end; align-self: center; margin: 0.1rem 0; }
     .panel.inventory > .pack-wrap { grid-column: 2; grid-row: 5; }
     .doll { max-width: 100%; }
 }
@@ -303,6 +310,8 @@ select, input {
 #suggest-all { margin: 0.3rem 0 0.1rem; }
 .suggest-row { display: flex; gap: 0.4rem; align-items: center; padding: 0.15rem 0; border-bottom: 1px dotted #3d3220; break-inside: avoid; }
 .suggest-line { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
+.suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-row button, #suggest-all {
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
     cursor: pointer; padding: 0.1rem 0.5rem; font-size: 0.8rem;

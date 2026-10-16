@@ -54,7 +54,19 @@
                     : m.Id;
                 <li class="suggest-row">
                     <span class="gen-tag" title="@(prefix ? "prefix" : "suffix")">@(prefix ? "P" : "S")</span>
-                    <span class="suggest-line" title="@fullText">@display@(lines.Count > 1 ? $" (+{lines.Count - 1})" : "")</span>
+                    @if (lines.Count <= 1)
+                    {
+                        <span class="suggest-line" title="@fullText">@display</span>
+                    }
+                    else
+                    {
+                        <span class="suggest-line multi" title="@fullText">
+                            @foreach (var sl in lines)
+                            {
+                                <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
+                            }
+                        </span>
+                    }
                     <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
                     <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
                 </li>

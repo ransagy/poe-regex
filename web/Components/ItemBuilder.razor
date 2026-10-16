@@ -27,9 +27,22 @@
             <ol class="suggest" aria-label="Builder suggestions">
                 @foreach (var m in _suggestions.Take(30))
                 {
-                    var line = m.StatLines.FirstOrDefault();
+                    var lines = m.StatLines;
+                    var line = lines.FirstOrDefault();
                     <li class="suggest-row">
-                        <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
+                        @if (lines.Count <= 1)
+                        {
+                            <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
+                        }
+                        else
+                        {
+                            <span class="suggest-line multi">
+                                @foreach (var sl in lines)
+                                {
+                                    <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
+                                }
+                            </span>
+                        }
                         <button id="builder-add-@m.Id" title="add @(m.GenerationType)"
                                 disabled="@_added.Contains(m.Id)"
                                 @onclick="() => Add(m)">+@m.GenerationType</button>
@@ -100,10 +113,17 @@
             _added.Select(id => RuleLineFor(id)), _rarity).ToList();
     }
 
-    private string DisplayFor(string modId) =>
-        Engine.FindMod(modId)?.StatLines is { Count: > 0 } lines
-            ? ModSearch.DisplayLine(lines[0]) + (lines.Count > 1 ? $" (×{lines.Count})" : "")
-            : modId;
+    private string DisplayFor(string modId)
+    {
+        var mod = Engine.FindMod(modId);
+        if (mod?.StatLines is { Count: > 0 } lines)
+        {
+            // Show every line as the item's actual text (no "×N" simplification).
+            var text = string.Join(" \u00b7 ", lines.Select(ModSearch.DisplayLine));
+            return text;
+        }
+        return modId;
+    }
 
     private RuleLine RuleLineFor(string modId)
     {
