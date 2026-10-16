@@ -46,11 +46,7 @@
             </div>
             <div class="inv-doll">
                 <PaperDoll State="State" />
-                @if (State.SelectedItemId is { } selId &&
-                     State.TestItems.FirstOrDefault(i => i.Id == selId) is { } selItem)
-                {
-                    <ItemDetail Item="selItem" State="State" Queries="_labelledQueries" />
-                }
+                <ItemDetail State="State" Item="@SelectedItem()" Queries="_labelledQueries" />
             </div>
             @if (HasBar)
             {
@@ -100,9 +96,8 @@
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
         </div>
         <div class="pack-wrap">
-            <BackpackGrid State="State" HighlightIds="_highlight" />
+            <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" />
         </div>
-        <TestItems State="State" HighlightIds="_highlight" />
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
     </section>
@@ -161,6 +156,7 @@
     private List<TaskView> _barTasks = [];
     private List<(string Label, string? Query)> _labelledQueries = [];
     private HashSet<string> _highlight = [];
+    private bool _dimNonMatching;
     private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
     private bool _importOpen;
     private bool _builderOpen;
@@ -265,10 +261,26 @@
             : tasks.Select(t => (t.Title, t.Result?.Query)).ToList();
         var queries = _labelledQueries
             .Where(q => !string.IsNullOrWhiteSpace(q.Query)).Select(q => q.Query!).ToList();
-        _highlight = State.TestItems
-            .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
-            .Select(item => item.Id).ToHashSet();
+        // Highlight/dim only once the active scope actually has mods picked:
+        // an anchor-only single-slot query (no chips) stays neutral.
+        var chipsPicked = State.Mode switch
+        {
+            "global" => State.Global.Included.Count > 0 || State.Global.Excluded.Count > 0,
+            "single" => State.SelectedSlot is { } s
+                && (State.CriteriaFor(s).Included.Count > 0 || State.CriteriaFor(s).Excluded.Count > 0),
+            _ => State.ActiveSlots().Count > 0,
+        };
+        _highlight = chipsPicked
+            ? State.TestItems
+                .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
+                .Select(item => item.Id).ToHashSet()
+            : [];
+        _dimNonMatching = chipsPicked && queries.Count > 0;
     }
+
+    /// <summary>Selected backpack item (null when none or it was removed).</summary>
+    private TestItem? SelectedItem() =>
+        State.SelectedItemId is { } id ? State.TestItems.FirstOrDefault(i => i.Id == id) : null;
 
     private TaskView CompileTask(string cardId, string title, string? itemClass, SlotCriteria crit)
     {

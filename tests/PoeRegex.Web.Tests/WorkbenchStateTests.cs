@@ -161,6 +161,41 @@ public class WorkbenchStateTests
     }
 
     [Fact]
+    public void AddTestItem_GridFull_Rejects_WithoutTouchingExistingItems()
+    {
+        static ParsedItem Parsed(string n) => new(null, "Rare", n, [], null, null, null, null, false, []);
+        var state = new WorkbenchState();
+        for (var i = 0; i < GridPlacement.Cols * GridPlacement.Rows; i++)
+            state.AddTestItem(new TestItem { Name = $"a{i}", ClassId = "Amulet", Parsed = Parsed($"a{i}") })
+                .Should().BeTrue();
+        state.TestItems.Should().HaveCount(60);
+        state.AddTestItem(new TestItem { Name = "late", ClassId = "Amulet", Parsed = Parsed("late") })
+            .Should().BeFalse("a full grid rejects new items");
+        state.TestItems.Should().HaveCount(60);
+    }
+
+    [Fact]
+    public void Snapshot_Restore_OverCapacity_KeepsItems_RemoveReplacesUnplaced()
+    {
+        static TestItem Amulet(string n) => new()
+        {
+            Name = n,
+            ClassId = "Amulet",
+            Parsed = new ParsedItem(null, "Rare", n, [], null, null, null, null, false, []),
+        };
+        var state = new WorkbenchState();
+        var items = Enumerable.Range(0, 61).Select(i => Amulet($"a{i}")).ToList();
+        var snap = new WorkbenchSnapshot(1, "global", null, null,
+            new Dictionary<string, SlotCriteria>(), new SlotCriteria(), items);
+        WorkbenchSnapshot.Restore(state, snap);
+        state.TestItems.Should().HaveCount(61, "restore never drops items");
+        state.TestItems.Count(t => t.Row < 0).Should().Be(1, "the overflow item waits unplaced");
+        var unplaced = state.TestItems.Single(t => t.Row < 0);
+        state.RemoveTestItem(state.TestItems[0].Id).Should().BeTrue();
+        unplaced.Row.Should().BeGreaterThanOrEqualTo(0, "freeing a cell places waiting items");
+    }
+
+    [Fact]
     public void Chips_PerSlotAndGlobalScopes()
     {
         var state = new WorkbenchState();

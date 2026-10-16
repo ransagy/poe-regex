@@ -57,24 +57,46 @@ public sealed record WorkbenchSnapshot(
         state.Global.Excluded.Clear();
         state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
         state.TestItems.Clear();
+        var placed = new List<TestItem>(snap.TestItems.Count);
         foreach (var item in snap.TestItems)
         {
-            // Heal stale pre-footprint items: derive the class footprint and
-            // re-place so old 1x1 renders (and stacks) resolve correctly.
+            // Heal stale pre-footprint items: derive the class footprint.
             if (item.Cols <= 0 || item.Rows <= 0)
             {
                 var fp = ItemFootprints.For(item.ClassId);
                 item.Cols = fp.Cols;
                 item.Rows = fp.Rows;
-                var (row, col) = WorkbenchState.FirstFreeSpot(state.TestItems, item.Cols, item.Rows);
-                if (row >= 0)
-                {
-                    item.Row = row;
-                    item.Col = col;
-                }
             }
-            state.TestItems.Add(item);
+            // Keep valid placements stable; re-place anything out of bounds or
+            // overlapping (legacy grid-full adds stacked at 0,0). When even the
+            // re-placement fails the item stays in the data as unplaced
+            // (row/col -1) and renders again once space frees up.
+            var fits = item.Row >= 0 && item.Col >= 0
+                && item.Row + item.Rows <= GridPlacement.Rows
+                && item.Col + item.Cols <= GridPlacement.Cols
+                && !Overlaps(placed, item);
+            if (!fits)
+            {
+                var (row, col) = WorkbenchState.FirstFreeSpot(placed, item.Cols, item.Rows);
+                item.Row = row;
+                item.Col = col;
+            }
+            placed.Add(item);
         }
+        state.TestItems.AddRange(placed);
+    }
+
+    /// <summary>True when any already-placed item shares a cell with this one.</summary>
+    private static bool Overlaps(IReadOnlyList<TestItem> placed, TestItem item)
+    {
+        foreach (var p in placed)
+        {
+            if (p.Row < 0 || p.Col < 0) continue;
+            if (item.Col < p.Col + Math.Max(1, p.Cols) && p.Col < item.Col + Math.Max(1, item.Cols) &&
+                item.Row < p.Row + Math.Max(1, p.Rows) && p.Row < item.Row + Math.Max(1, item.Rows))
+                return true;
+        }
+        return false;
     }
 }
 

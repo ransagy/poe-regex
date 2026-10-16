@@ -175,7 +175,11 @@
                 line.Text, line.CanonicalText, line.Rolls, map.ModIds,
                 map.ModIds.Count == 0 ? null : _picked.GetValueOrDefault(key, map.ModIds[0])));
         }
-        State.AddTestItem(item);
+        if (!State.AddTestItem(item))
+        {
+            _saveError = "backpack is full — remove an item first";
+            return;
+        }
         _ = Close();
     }
 }

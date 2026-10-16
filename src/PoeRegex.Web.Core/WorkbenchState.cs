@@ -189,19 +189,23 @@ public sealed class WorkbenchState
         Notify();
     }
 
-    public void AddTestItem(TestItem item)
+    /// <summary>
+    /// Add a backpack item, auto-placing it when there is room. When the grid
+    /// is full the item is rejected (returns false) — callers surface the
+    /// error; nothing is ever dropped or implicitly replaced.
+    /// </summary>
+    public bool AddTestItem(TestItem item)
     {
         var fp = ItemFootprints.For(item.ClassId);
         item.Cols = item.Cols > 0 ? item.Cols : fp.Cols;
         item.Rows = item.Rows > 0 ? item.Rows : fp.Rows;
         var (row, col) = FirstFreeSpot(TestItems, item.Cols, item.Rows);
-        if (row >= 0)
-        {
-            item.Row = row;
-            item.Col = col;
-        }
-        TestItems.Add(item); // grid full: list-only
+        if (row < 0) return false;
+        item.Row = row;
+        item.Col = col;
+        TestItems.Add(item);
         Notify();
+        return true;
     }
 
     /// <summary>First free top-left cell for a w x h item, or (-1,-1) when the grid is full.</summary>
@@ -209,9 +213,12 @@ public sealed class WorkbenchState
     {
         var taken = new HashSet<(int, int)>();
         foreach (var t in items)
+        {
+            if (t.Row < 0 || t.Col < 0) continue; // unplaced items occupy nothing
             for (var dr = 0; dr < Math.Max(1, t.Rows); dr++)
                 for (var dc = 0; dc < Math.Max(1, t.Cols); dc++)
                     taken.Add((t.Row + dr, t.Col + dc));
+        }
         for (var r = 0; r + h <= GridPlacement.Rows; r++)
             for (var c = 0; c + w <= GridPlacement.Cols; c++)
             {
@@ -233,8 +240,25 @@ public sealed class WorkbenchState
         TestItems.RemoveAt(i);
         if (SelectedItemId == id)
             SelectedItemId = null;
+        ReplaceUnplaced();
         Notify();
         return true;
+    }
+
+    /// <summary>
+    /// Place items that arrived unplaced (legacy over-capacity snapshots) —
+    /// called whenever space frees up. Item order decides who gets the spot.
+    /// </summary>
+    private void ReplaceUnplaced()
+    {
+        foreach (var t in TestItems)
+        {
+            if (t.Row >= 0 && t.Col >= 0) continue;
+            var (row, col) = FirstFreeSpot(TestItems, Math.Max(1, t.Cols), Math.Max(1, t.Rows));
+            if (row < 0) break;
+            t.Row = row;
+            t.Col = col;
+        }
     }
 
     /// <summary>Backpack item whose detail box is open (view-only; not persisted).</summary>

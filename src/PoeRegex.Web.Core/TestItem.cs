@@ -29,11 +29,17 @@ public sealed class TestItem
     /// <summary>
     /// Matchable lines for query verdicts: the game's `Item Class:` line
     /// first (slot and combined-paste queries carry a class anchor phrased
-    /// against it), then base lines, name and mod lines.
+    /// against it), then base lines, name, mod lines and mapped lines.
+    /// Mapped lines matter for builder-assembled items, whose stat lines
+    /// live only there (parsed mods stay empty); for imported items they
+    /// duplicate the parsed lines and are deduplicated.
     /// </summary>
     public IReadOnlyList<string> MatchLines()
     {
         var lines = new List<string>(Parsed.AllLines());
+        foreach (var ml in Mapped)
+            if (!lines.Contains(ml.Text, StringComparer.Ordinal))
+                lines.Add(ml.Text);
         if (!string.IsNullOrEmpty(Parsed.ItemClass))
             lines.Insert(0, $"Item Class: {Parsed.ItemClass}");
         return lines;

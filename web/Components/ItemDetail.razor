@@ -2,36 +2,50 @@
 @inject EngineService Engine
 
 @*
-  Detail box for the selected backpack item: appears under the paper doll so
-  selecting pack items never grows the page. Shows verdicts for every
-  labelled query plus the item's mapped lines.
+  Detail pane for the selected backpack item, always rendered under the
+  paper doll at a fixed height: selecting/deselecting swaps the contents
+  without resizing the doll column (so the backpack never reflows). Shows
+  verdicts for every labelled query plus the item's mapped lines, and owns
+  the remove affordance for backpack items.
 *@
 <div class="inv-detail" id="item-detail">
-    <div class="detail-head">
-        <span><b>@Item.Name</b>@(Item.ClassId is null ? "" : $" · {Item.ClassId}")</span>
-        <button id="detail-close" title="close detail" @onclick="() => State.SelectTestItem(null)">×</button>
-    </div>
-    <div class="titem-badges">
-        @foreach (var (label, verdict) in Verdicts())
-        {
-            <span class="badge @(verdict.Match ? "hit" : "miss")">@label: @(verdict.Match ? "match" : "no")</span>
-        }
-    </div>
-    <div class="titem-lines">
-        @if (Item.Mapped.Count == 0)
-        {
-            <div class="more">no mapped lines</div>
-        }
-        @foreach (var ml in Item.Mapped)
-        {
-            <div>@DisplayLine(ml)</div>
-        }
-    </div>
+    @if (Item is null)
+    {
+        <div class="hint" id="detail-empty">click a backpack item to see its lines and match verdicts</div>
+    }
+    else
+    {
+        <div class="detail-head">
+            <span><b>@Item.Name</b>@(Item.ClassId is null ? "" : $" · {Item.ClassId}")</span>
+            <span class="detail-actions">
+                <button id="detail-remove" class="detail-remove" title="remove from backpack"
+                        @onclick="() => State.RemoveTestItem(Item.Id)">remove</button>
+                <button id="detail-close" title="close detail" @onclick="() => State.SelectTestItem(null)">×</button>
+            </span>
+        </div>
+        <div class="titem-badges">
+            @foreach (var (label, verdict) in Verdicts())
+            {
+                <span class="badge @(verdict.Match ? "hit" : "miss")">@label: @(verdict.Match ? "match" : "no")</span>
+            }
+        </div>
+        <div class="titem-lines">
+            @if (Item.Mapped.Count == 0)
+            {
+                <div class="more">no mapped lines</div>
+            }
+            @foreach (var ml in Item.Mapped)
+            {
+                <div>@DisplayLine(ml)</div>
+            }
+        </div>
+    }
 </div>
 
 @code {
-    [Parameter, EditorRequired]
-    public required TestItem Item { get; set; }
+    /// <summary>Selected item; null shows the pane's resting hint.</summary>
+    [Parameter]
+    public TestItem? Item { get; set; }
 
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
@@ -42,6 +56,7 @@
 
     private IEnumerable<(string Label, ItemVerdict Verdict)> Verdicts()
     {
+        if (Item is null) yield break;
         foreach (var (label, query) in Queries)
         {
             if (string.IsNullOrWhiteSpace(query)) continue;

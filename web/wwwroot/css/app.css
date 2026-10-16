@@ -103,8 +103,8 @@ body { overflow: hidden; }
 }
 .inv-editor { flex: 0 1 24rem; min-width: 0; }
 .inv-doll { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-/* Selected-item detail box: sits under the doll (its column's spare space),
-   so clicking a pack item never grows the page. */
+/* Selected-item detail pane: reserved under the doll (fixed height, scrolls
+   inside) so selecting/deselecting a pack item never resizes the pack. */
 .inv-detail {
     box-sizing: border-box;
     width: 100%;
@@ -113,7 +113,7 @@ body { overflow: hidden; }
     border: 1px solid var(--panel-edge);
     background: #171208;
     padding: 0.4rem 0.6rem;
-    max-height: 17rem;
+    height: 11.5rem;
     overflow-y: auto;
 }
 .detail-head {
@@ -122,6 +122,7 @@ body { overflow: hidden; }
     align-items: center;
     gap: 0.5rem;
 }
+.detail-actions { display: flex; gap: 0.5rem; align-items: center; }
 .detail-head button {
     background: none;
     border: none;
@@ -132,6 +133,12 @@ body { overflow: hidden; }
     padding: 0;
 }
 .detail-head button:hover { color: #ffe9a8; }
+.detail-head .detail-remove {
+    font-size: 0.75rem;
+    border: 1px solid var(--panel-edge);
+    padding: 0.1rem 0.5rem;
+}
+.detail-head .detail-remove:hover { border-color: var(--panel-edge-hi); }
 /* Compiled-query column stretches to the doll's height; with a single strip
    the strip fills the box and the code scrolls; multiple strips scroll. */
 .inv-output {
@@ -237,7 +244,8 @@ body { overflow: hidden; }
     cursor: pointer;
 }
 .pack-placed.hit { border-color: var(--accent); background: #4a3a18; }
-.pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; }
+.pack-placed.dim { opacity: 0.4; filter: saturate(0.35); }
+.pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; opacity: 1; filter: none; }
 
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
@@ -303,40 +311,6 @@ textarea { width: 100%; box-sizing: border-box; }
 .import-line { display: flex; gap: 0.5rem; align-items: center; font-size: 0.82rem; padding: 0.1rem 0; }
 .map-none { color: #e08a8a; font-size: 0.75rem; }
 .map-one { color: var(--dim); font-size: 0.75rem; font-family: Consolas, monospace; }
-.testitems { margin-top: 0.5rem; }
-.titem {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border: 1px solid var(--panel-edge);
-    margin-bottom: 0.3rem;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-}
-.titem:hover { border-color: var(--panel-edge-hi); }
-.titem.hit { border-color: var(--accent); }
-.titem.sel { border-color: #ffe9a8; background: #1d1710; }
-.titem-dot {
-    flex: none;
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-    background: #3d3220;
-}
-.titem-dot.on { background: #ffe9a8; box-shadow: 0 0 6px #ffe9a8; }
-.titem-name { font-weight: 600; }
-.titem-cls { color: var(--dim); font-size: 0.8rem; }
-.titem-del {
-    margin-left: auto;
-    background: none;
-    border: none;
-    color: var(--dim);
-    cursor: pointer;
-    font-size: 1rem;
-    line-height: 1;
-    padding: 0;
-}
-.titem-del:hover { color: #ffe9a8; }
 .titem-badges { display: flex; gap: 0.3rem; margin: 0.2rem 0; flex-wrap: wrap; }
 .badge { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--panel-edge); color: var(--dim); }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }

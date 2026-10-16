@@ -26,7 +26,7 @@ The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 37 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 83 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -42,12 +42,17 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-- `Components/` — `PaperDoll` (9 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; click an item to select),
-  `ItemDetail` (selected item's verdicts + mapped lines under the doll),
-  `ModeSwitch`, `ClassPicker`, `ModPicker`, `QueryCard` (meter, copy, explain,
-  overflow), `ImportPanel` (paste + freeform), `TestItems` (compact rows with
-  match dot).
+- `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
+  enroll, X clears), `BackpackGrid` (12×5 test area; items highlight when
+  they match the picked mods and dim when they don't; click to select),
+  `ItemDetail` (fixed-height pane under the doll: verdicts, mapped lines,
+  remove — selecting never reflows the backpack), `ModeSwitch`, `ClassPicker`,
+  `ModPicker`, `QueryCard` (meter, copy, explain, overflow), `ImportPanel`
+  (paste + freeform), `ItemBuilder` (assemble from catalog mods; both modals
+  reject when the backpack is full).
+- Item matching for highlight/dim and detail verdicts runs on the item's
+  `Item Class:` line plus parsed and mapped catalog lines (builder-assembled
+  items match too); it engages only once the active scope has mods picked.
 - `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
   seam (URL-share and accounts are future work; see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.

@@ -50,6 +50,10 @@
             {
                 <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>
             }
+            @if (_saveError is not null)
+            {
+                <div class="field-error" id="builder-save-error">@_saveError</div>
+            }
             <div class="modrow">
                 <input id="builder-name" placeholder="item name" value="@_name"
                        @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
@@ -80,6 +84,7 @@
     private List<ModEntry> _suggestions = [];
     private List<string> _added = [];
     private List<RuleViolation> _violations = [];
+    private string? _saveError;
 
     protected override void OnParametersSet()
     {
@@ -137,6 +142,7 @@
         _added.Clear();
         _name = "";
         _search = "";
+        _saveError = null;
         await OnClose.InvokeAsync();
     }
 
@@ -147,6 +153,7 @@
 
     private void Save()
     {
+        _saveError = null;
         if (_added.Count == 0 || _violations.Any(v => v.Level == "error")) return;
         var cls = Engine.PlayableClasses().FirstOrDefault(c => c.Id == _classId);
         var parsed = new ParsedItem(cls?.Name, _rarity,
@@ -159,7 +166,11 @@
             foreach (var s in mod?.StatLines ?? [])
                 item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
         }
-        State.AddTestItem(item);
+        if (!State.AddTestItem(item))
+        {
+            _saveError = "backpack is full — remove an item first";
+            return;
+        }
         _ = Close();
     }
 }
