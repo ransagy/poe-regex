@@ -368,6 +368,7 @@ select, input {
 .qactions button, .btn {
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
     cursor: pointer; font: inherit; font-size: 0.8rem; padding: 0.2rem 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.03em;
     transition: background .12s ease, border-color .12s ease, color .12s ease;
 }
 .qactions button:hover, .btn:hover, .dlg button:hover, .advcard button:hover,
@@ -377,9 +378,11 @@ select, input {
 .btn:disabled, .btn:disabled:hover, .mode-btn:disabled, .mode-btn:disabled:hover,
 .qactions button:disabled, .dlg button:disabled, .suggest-row button:disabled,
 #pack-remove:disabled, #builder-save:disabled, #builder-cancel:disabled {
-    background: #1a1a1a; border-color: #5b5b5b; color: #9d9d9d;
-    opacity: 0.85; cursor: not-allowed;
+    background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
+    opacity: 0.72; cursor: not-allowed;
+    box-shadow: none;
 }
+#workbench-reset:disabled { background: #1a150f; color: var(--dim); border-color: #5b5b5b; opacity: 0.72; cursor: not-allowed; }
 .suggest-row button:hover, #suggest-all:hover {
     background: var(--slot-active); border-color: var(--panel-edge-hi); color: #ffe9a8;
 }
@@ -492,7 +495,7 @@ details.advanced {
     background: var(--panel);
     border: 1px solid var(--panel-edge-hi);
     border-radius: 0.2rem;
-    padding: 0.2rem 0.75rem 0.8rem;
+    padding: 0 0.75rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 .advanced-reserve {

@@ -73,7 +73,7 @@
                 <input id="builder-name" placeholder="item name" value="@_name"
                        @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
                 <button id="builder-save" class="btn" disabled="@(_added.Count == 0 || _violations.Any(v => v.Level == "error"))"
-                        @onclick="Save">accept &amp; add to backpack</button>
+                        @onclick="Save">Add</button>
                 <button id="builder-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
         </div>
