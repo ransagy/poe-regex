@@ -543,6 +543,7 @@ details.advanced > summary {
     justify-content: center;
 }
 details.advanced > summary:hover { color: var(--accent); }
+.details.advanced > .modrow:last-child { margin-bottom: 1rem; }
 
 /* Query strips inside the mode bar: one line each; the regex ellipsizes
    (full text via the native title tooltip; copy still copies all of it). */
