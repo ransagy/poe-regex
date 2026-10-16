@@ -102,7 +102,36 @@ body { overflow: hidden; }
     align-items: flex-start;
 }
 .inv-editor { flex: 0 1 24rem; min-width: 0; }
-.inv-doll { flex: 1 1 auto; min-width: 0; }
+.inv-doll { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+/* Selected-item detail box: sits under the doll (its column's spare space),
+   so clicking a pack item never grows the page. */
+.inv-detail {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 42.5rem;
+    margin: 0.6rem auto 0;
+    border: 1px solid var(--panel-edge);
+    background: #171208;
+    padding: 0.4rem 0.6rem;
+    max-height: 17rem;
+    overflow-y: auto;
+}
+.detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+.detail-head button {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+}
+.detail-head button:hover { color: #ffe9a8; }
 /* Compiled-query column stretches to the doll's height; with a single strip
    the strip fills the box and the code scrolls; multiple strips scroll. */
 .inv-output {
@@ -200,12 +229,15 @@ body { overflow: hidden; }
     background: #2a2114;
     border: 1px solid var(--panel-edge-hi);
     color: var(--ink);
+    font: inherit;
     font-size: 0.65rem;
+    text-align: left;
     overflow: hidden;
     padding: 0.1rem;
-    cursor: default;
+    cursor: pointer;
 }
 .pack-placed.hit { border-color: var(--accent); background: #4a3a18; }
+.pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; }
 
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
@@ -272,10 +304,39 @@ textarea { width: 100%; box-sizing: border-box; }
 .map-none { color: #e08a8a; font-size: 0.75rem; }
 .map-one { color: var(--dim); font-size: 0.75rem; font-family: Consolas, monospace; }
 .testitems { margin-top: 0.5rem; }
-.titem { border: 1px solid var(--panel-edge); margin-bottom: 0.4rem; padding: 0.3rem 0.5rem; }
+.titem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--panel-edge);
+    margin-bottom: 0.3rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+.titem:hover { border-color: var(--panel-edge-hi); }
 .titem.hit { border-color: var(--accent); }
-.titem-head { display: flex; justify-content: space-between; align-items: center; }
-.titem-head button { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1rem; }
+.titem.sel { border-color: #ffe9a8; background: #1d1710; }
+.titem-dot {
+    flex: none;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #3d3220;
+}
+.titem-dot.on { background: #ffe9a8; box-shadow: 0 0 6px #ffe9a8; }
+.titem-name { font-weight: 600; }
+.titem-cls { color: var(--dim); font-size: 0.8rem; }
+.titem-del {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+}
+.titem-del:hover { color: #ffe9a8; }
 .titem-badges { display: flex; gap: 0.3rem; margin: 0.2rem 0; flex-wrap: wrap; }
 .badge { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--panel-edge); color: var(--dim); }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }

@@ -46,6 +46,11 @@
             </div>
             <div class="inv-doll">
                 <PaperDoll State="State" />
+                @if (State.SelectedItemId is { } selId &&
+                     State.TestItems.FirstOrDefault(i => i.Id == selId) is { } selItem)
+                {
+                    <ItemDetail Item="selItem" State="State" Queries="_labelledQueries" />
+                }
             </div>
             @if (HasBar)
             {
@@ -95,9 +100,9 @@
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
         </div>
         <div class="pack-wrap">
-            <BackpackGrid Items="State.TestItems" HighlightIds="_highlight" />
+            <BackpackGrid State="State" HighlightIds="_highlight" />
         </div>
-        <TestItems State="State" Queries="_labelledQueries" HighlightIds="_highlight" />
+        <TestItems State="State" HighlightIds="_highlight" />
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
     </section>

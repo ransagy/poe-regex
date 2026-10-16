@@ -148,6 +148,19 @@ public class WorkbenchStateTests
     }
 
     [Fact]
+    public void SelectTestItem_Remove_ClearsSelection()
+    {
+        var state = new WorkbenchState();
+        var item = new TestItem { Name = "x", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) };
+        state.AddTestItem(item);
+        state.SelectTestItem(item.Id);
+        state.SelectedItemId.Should().Be(item.Id);
+        state.RemoveTestItem(item.Id).Should().BeTrue();
+        state.SelectedItemId.Should().BeNull();
+        state.TestItems.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Chips_PerSlotAndGlobalScopes()
     {
         var state = new WorkbenchState();

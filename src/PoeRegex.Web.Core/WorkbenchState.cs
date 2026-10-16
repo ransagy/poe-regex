@@ -231,8 +231,19 @@ public sealed class WorkbenchState
         var i = TestItems.FindIndex(t => t.Id == id);
         if (i < 0) return false;
         TestItems.RemoveAt(i);
+        if (SelectedItemId == id)
+            SelectedItemId = null;
         Notify();
         return true;
+    }
+
+    /// <summary>Backpack item whose detail box is open (view-only; not persisted).</summary>
+    public string? SelectedItemId { get; private set; }
+
+    public void SelectTestItem(string? id)
+    {
+        SelectedItemId = id;
+        Notify();
     }
 
     /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
@@ -248,6 +259,7 @@ public sealed class WorkbenchState
         Global.Included.Clear();
         Global.Excluded.Clear();
         TestItems.Clear();
+        SelectedItemId = null;
         Notify();
     }
 

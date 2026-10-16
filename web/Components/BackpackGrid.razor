@@ -3,24 +3,26 @@
 @*
   Backpack grid: the test-items area (replaces the stash panel).
   Fixed 12 x 5 cells (confirmed); items render at their footprint size.
-  Highlighted items match the view query.
+  Highlighted items match the view query; clicking one opens its detail box
+  below the paper doll.
 *@
 <div class="pack" aria-label="Backpack (test items)">
-    @foreach (var t in Items)
+    @foreach (var t in State.TestItems)
     {
         var w = Math.Max(1, t.Cols);
         var h = Math.Max(1, t.Rows);
-        <div id="pack-item-@t.Id" title="@t.Name"
-             class="pack-placed @(HighlightIds.Contains(t.Id) ? "hit" : "")"
-             style="grid-column: @(t.Col + 1) / span @w; grid-row: @(t.Row + 1) / span @h;">
+        <button type="button" id="pack-item-@t.Id" title="@t.Name — click for detail"
+                class="pack-placed @(HighlightIds.Contains(t.Id) ? "hit" : "") @(State.SelectedItemId == t.Id ? "selected" : "")"
+                style="grid-column: @(t.Col + 1) / span @w; grid-row: @(t.Row + 1) / span @h;"
+                @onclick="() => State.SelectTestItem(t.Id)">
             @t.Name
-        </div>
+        </button>
     }
 </div>
 
 @code {
-    [Parameter]
-    public IReadOnlyList<TestItem> Items { get; set; } = [];
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
 
     [Parameter]
     public IReadOnlySet<string> HighlightIds { get; set; } = new HashSet<string>();

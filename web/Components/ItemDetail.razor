@@ -1,0 +1,67 @@
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+
+@*
+  Detail box for the selected backpack item: appears under the paper doll so
+  selecting pack items never grows the page. Shows verdicts for every
+  labelled query plus the item's mapped lines.
+*@
+<div class="inv-detail" id="item-detail">
+    <div class="detail-head">
+        <span><b>@Item.Name</b>@(Item.ClassId is null ? "" : $" · {Item.ClassId}")</span>
+        <button id="detail-close" title="close detail" @onclick="() => State.SelectTestItem(null)">×</button>
+    </div>
+    <div class="titem-badges">
+        @foreach (var (label, verdict) in Verdicts())
+        {
+            <span class="badge @(verdict.Match ? "hit" : "miss")">@label: @(verdict.Match ? "match" : "no")</span>
+        }
+    </div>
+    <div class="titem-lines">
+        @if (Item.Mapped.Count == 0)
+        {
+            <div class="more">no mapped lines</div>
+        }
+        @foreach (var ml in Item.Mapped)
+        {
+            <div>@DisplayLine(ml)</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required TestItem Item { get; set; }
+
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    /// <summary>Labelled queries to test the item against (slot queries + global).</summary>
+    [Parameter, EditorRequired]
+    public required IReadOnlyList<(string Label, string? Query)> Queries { get; set; }
+
+    private IEnumerable<(string Label, ItemVerdict Verdict)> Verdicts()
+    {
+        foreach (var (label, query) in Queries)
+        {
+            if (string.IsNullOrWhiteSpace(query)) continue;
+            yield return (label, ItemMatcher.Match(query, Item.MatchLines()));
+        }
+    }
+
+    /// <summary>
+    /// Friendly line text: pasted game text stays as-is; catalog-sourced
+    /// builder lines render their per-number ranges. Matching always runs on
+    /// the representative text underneath.
+    /// </summary>
+    private string DisplayLine(MappedLine ml)
+    {
+        if (ml.SelectedModId is not null)
+        {
+            var stat = Engine.FindMod(ml.SelectedModId)?.StatLines
+                .FirstOrDefault(s => s.Line == ml.Text);
+            if (stat is not null) return ModSearch.DisplayLine(stat);
+        }
+        return ml.Text;
+    }
+}
