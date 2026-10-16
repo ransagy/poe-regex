@@ -42,20 +42,29 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
+  The mode strip holds the mode buttons on the left and the compiled-query
+  box filling the rest of the row (label, scrollable regex, length meter,
+  copy); per-slot queries for Advanced live below.
 - `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; items highlight when
-  they match the picked mods and dim when they don't; click to select),
-  `ItemDetail` (fixed-height pane under the doll: verdicts, mapped lines,
-  remove — selecting never reflows the backpack), `ModeSwitch`, `ClassPicker`,
+  enroll, X clears), `BackpackGrid` (12×5 test area; cells always size from
+  the available width so the grid fills the full row; matching items
+  highlight and non-matching ones dim; clicking an item pins its tooltip),
+  `ItemTooltip` (game-style overlay at the click point — rarity-coloured
+  name, class/rarity line, mapped lines, match verdicts; dismissed via x,
+  same tile, empty pack space, or removal; clamped to the viewport by
+  `poeRegexPlaceTooltip`), `ModeSwitch`, `ClassPicker`,
   `ModPicker`, `QueryCard` (meter, copy, explain, overflow), `ImportPanel`
   (paste + freeform), `ItemBuilder` (assemble from catalog mods; both modals
-  reject when the backpack is full).
-- Item matching for highlight/dim and detail verdicts runs on the item's
+  reject when the backpack is full). Backpack tools row: import, assemble,
+  and remove (acts on the pinned item).
+- Item matching for highlight/dim and tooltip verdicts runs on the item's
   `Item Class:` line plus parsed and mapped catalog lines (builder-assembled
   items match too); it engages only once the active scope has mods picked.
 - `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
   seam (URL-share and accounts are future work; see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
+- `wwwroot/js/tooltip.js` — flips/clamps the pinned item tooltip inside the
+  viewport after each render.
 
 Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
 `ModSearch`, `WorkbenchState`, `ItemTextParser`, `ItemMatcher`, `TestItem`,

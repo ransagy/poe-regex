@@ -148,6 +148,32 @@ public class WorkbenchStateTests
     }
 
     [Fact]
+    public void Snapshot_Restore_NotifiesOnce_AfterStateIsWhole()
+    {
+        var state = new WorkbenchState();
+        var belt = new TestItem { Name = "b", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) };
+        var snap = new WorkbenchSnapshot(1, "multi", "helmet", null,
+            new Dictionary<string, SlotCriteria> { ["helmet"] = new SlotCriteria { ClassId = "Helmet" } },
+            new SlotCriteria(), [belt]);
+
+        // Mirrors the app's persistence listener: every change captures a save.
+        var notifications = 0;
+        WorkbenchSnapshot? saved = null;
+        state.Changed += () =>
+        {
+            notifications++;
+            saved = WorkbenchSnapshot.Capture(state);
+        };
+
+        WorkbenchSnapshot.Restore(state, snap);
+
+        notifications.Should().Be(1, "restore must not leak half-applied states to observers");
+        saved!.Mode.Should().Be("multi");
+        saved.TestItems.Should().ContainSingle(i => i.Name == "b",
+            "the save triggered by restore must already see the restored backpack");
+    }
+
+    [Fact]
     public void SelectTestItem_Remove_ClearsSelection()
     {
         var state = new WorkbenchState();

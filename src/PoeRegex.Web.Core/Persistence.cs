@@ -28,7 +28,13 @@ public sealed record WorkbenchSnapshot(
         state.TestItems.ToList());
 
     /// <summary>Restore with light validation (unknown modes/slots/classes are dropped).</summary>
-    public static void Restore(WorkbenchState state, WorkbenchSnapshot snap)
+    public static void Restore(WorkbenchState state, WorkbenchSnapshot snap) =>
+        // One batch: a single Changed fires when the state is whole again, so
+        // the persistence listener saves the rebuilt snapshot — never a
+        // half-applied one with the backpack still empty.
+        state.WithSuppressedNotifications(() => RestoreCore(state, snap));
+
+    private static void RestoreCore(WorkbenchState state, WorkbenchSnapshot snap)
     {
         try { state.SetMode(snap.Mode); } catch (ArgumentOutOfRangeException) { /* keep default */ }
         if (snap.SelectedSlot is not null && GearSlot.ById(snap.SelectedSlot) is not null)

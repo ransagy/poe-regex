@@ -16,6 +16,39 @@
         <div class="panel-head"><span>Inventory</span></div>
         <div class="mode-bar">
             <ModeSwitch State="State" />
+            <div class="result-strip" id="result-strip" aria-label="Compiled queries">
+                @if (State.Mode == "multi")
+                {
+                    @if (_paste is not null)
+                    {
+                        <div class="slot-query" id="slot-query-multi">
+                            <span class="slot-query-label">combined paste</span>
+                            <code>@_paste.Query</code>
+                            <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+                            <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                        </div>
+                    }
+                    else if (_pasteOverflow is not null)
+                    {
+                        <div class="qerror" id="slot-query-multi-overflow">
+                            combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
+                            <button id="slot-besteffort-multi" class="btn" @onclick="PasteBestEffort">show best-effort</button>
+                        </div>
+                    }
+                }
+                @foreach (var t in _barTasks)
+                {
+                    <div class="slot-query" id="slot-query-@t.CardId">
+                        <span class="slot-query-label">@t.Title</span>
+                        <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
+                        @if (t.Result is not null)
+                        {
+                            <span class="meter-num">@t.Result.Length/@t.Result.Limit</span>
+                            <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                        }
+                    </div>
+                }
+            </div>
         </div>
         <div class="inv-top">
             <div class="inv-editor" aria-label="Editor">
@@ -46,57 +79,17 @@
             </div>
             <div class="inv-doll">
                 <PaperDoll State="State" />
-                <ItemDetail State="State" Item="@SelectedItem()" Queries="_labelledQueries" />
             </div>
-            @if (HasBar)
-            {
-                <div class="inv-output" aria-label="Compiled queries">
-                    <div id="slot-query-bar">
-                        @if (State.Mode == "multi")
-                        {
-                            @if (_paste is not null)
-                            {
-                                <div class="slot-query" id="slot-query-multi">
-                                    <div class="slot-query-head">
-                                        <span class="slot-query-label">combined paste</span>
-                                        <span class="meter-num">@_paste.Length/@_paste.Limit</span>
-                                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                                    </div>
-                                    <code>@_paste.Query</code>
-                                </div>
-                            }
-                            else if (_pasteOverflow is not null)
-                            {
-                                <div class="qerror" id="slot-query-multi-overflow">
-                                    combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
-                                    <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
-                                </div>
-                            }
-                        }
-                        @foreach (var t in _barTasks)
-                        {
-                            <div class="slot-query" id="slot-query-@t.CardId">
-                                <div class="slot-query-head">
-                                    <span class="slot-query-label">@t.Title</span>
-                                    @if (t.Result is not null)
-                                    {
-                                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                                    }
-                                </div>
-                                <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
         </div>
         <div class="panel-sub">Backpack — test items</div>
         <div class="modrow pack-tools">
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
+            <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
+                    title="@RemoveTitle()" @onclick="RemoveSelected">remove item</button>
         </div>
         <div class="pack-wrap">
-            <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" />
+            <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
         </div>
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
@@ -146,6 +139,9 @@
     </div>
 </details>
 
+<ItemTooltip Item="@SelectedItem()" X="_ttX" Y="_ttY"
+             Queries="_labelledQueries" OnDismiss="DismissTooltip" />
+
 @code {
     private sealed record TaskView(
         string CardId, string Title, string? ItemClass,
@@ -162,9 +158,8 @@
     private bool _builderOpen;
     private MultiPasteResult? _paste;
     private RegexLengthOverflowException? _pasteOverflow;
-
-    /// <summary>True when the compiled-query strip has anything to show.</summary>
-    private bool HasBar => _paste is not null || _pasteOverflow is not null || _barTasks.Count > 0;
+    private double _ttX;
+    private double _ttY;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,6 +201,31 @@
         try { await JS.InvokeAsync<string>("poeRegexCopy", query); }
         catch { }
     }
+
+    /// <summary>Pack tile click: pin the tooltip at the cursor; same tile dismisses.</summary>
+    private void PickItem((string Id, double X, double Y) pick)
+    {
+        if (State.SelectedItemId == pick.Id)
+        {
+            State.SelectTestItem(null);
+            return;
+        }
+        _ttX = pick.X;
+        _ttY = pick.Y;
+        State.SelectTestItem(pick.Id);
+    }
+
+    private void DismissTooltip() => State.SelectTestItem(null);
+
+    private void RemoveSelected()
+    {
+        if (State.SelectedItemId is { } id)
+            State.RemoveTestItem(id);
+    }
+
+    private string RemoveTitle() => SelectedItem() is { } item
+        ? $"remove {item.Name} from the backpack"
+        : "select a backpack item first";
 
     private void Recompute()
     {

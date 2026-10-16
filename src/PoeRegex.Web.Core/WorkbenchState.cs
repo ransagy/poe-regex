@@ -78,10 +78,35 @@ public sealed class WorkbenchState
 
     public event Action? Changed;
 
+    /// <summary>
+    /// Backstop for bulk mutations: notifications are dropped while nested
+    /// scopes are active and fire once when the outermost scope ends.
+    /// </summary>
+    private int _suppressNotify;
+
     public WorkbenchState()
     {
         foreach (var (slot, cls) in DefaultClasses)
             Slots[slot] = new SlotCriteria { ClassId = cls };
+    }
+
+    /// <summary>
+    /// Applies a batch of mutations (snapshot restore) without firing
+    /// <see cref="Changed"/> per step; one notification fires at the end.
+    /// Observers therefore never see — and the persistence listener never
+    /// saves — a half-applied state (restoring the mode used to trigger a
+    /// save while the backpack was still empty, silently dropping items on
+    /// the next load).
+    /// </summary>
+    public void WithSuppressedNotifications(Action mutate)
+    {
+        _suppressNotify++;
+        try { mutate(); }
+        finally
+        {
+            _suppressNotify--;
+            if (_suppressNotify == 0) Notify();
+        }
     }
 
     /// <summary>Criteria for a slot, or the global set when slot is null.</summary>
@@ -287,5 +312,9 @@ public sealed class WorkbenchState
         Notify();
     }
 
-    private void Notify() => Changed?.Invoke();
+    private void Notify()
+    {
+        if (_suppressNotify > 0) return;
+        Changed?.Invoke();
+    }
 }

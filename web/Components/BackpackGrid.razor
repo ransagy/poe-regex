@@ -4,20 +4,22 @@
   Backpack grid: the test-items area (replaces the stash panel).
   Fixed 12 x 5 cells (confirmed); items render at their footprint size.
   With mods picked, matching items highlight and non-matching ones dim;
-  clicking an item opens its detail pane below the paper doll. Unplaced
-  items (legacy over-capacity snapshots) stay hidden until space frees.
+  clicking an item pins its tooltip at the cursor (OnPick) and clicking
+  empty pack space dismisses it. Unplaced items (legacy over-capacity
+  snapshots) stay hidden until space frees.
 *@
-<div class="pack" aria-label="Backpack (test items)">
+<div class="pack" aria-label="Backpack (test items)" @onclick="() => State.SelectTestItem(null)">
     @foreach (var t in State.TestItems)
     {
         if (t.Row < 0 || t.Col < 0) continue;
         var w = Math.Max(1, t.Cols);
         var h = Math.Max(1, t.Rows);
         var hit = HighlightIds.Contains(t.Id);
-        <button type="button" id="pack-item-@t.Id" title="@t.Name — click for detail"
+        <button type="button" id="pack-item-@t.Id" title="@t.Name — click for details"
                 class="pack-placed @(hit ? "hit" : "") @(State.SelectedItemId == t.Id ? "selected" : "") @(DimNonMatching && !hit ? "dim" : "")"
                 style="grid-column: @(t.Col + 1) / span @w; grid-row: @(t.Row + 1) / span @h;"
-                @onclick="() => State.SelectTestItem(t.Id)">
+                @onclick="e => OnPick.InvokeAsync((t.Id, e.ClientX, e.ClientY))"
+                @onclick:stopPropagation="true">
             @t.Name
         </button>
     }
@@ -33,4 +35,8 @@
     /// <summary>Dim every non-highlighted item (mods are picked and a query exists).</summary>
     [Parameter]
     public bool DimNonMatching { get; set; }
+
+    /// <summary>Tile clicked: item id plus viewport click coordinates (for the pinned tooltip).</summary>
+    [Parameter]
+    public EventCallback<(string Id, double X, double Y)> OnPick { get; set; }
 }
