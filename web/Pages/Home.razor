@@ -165,6 +165,12 @@
         var saved = await Persistence.LoadAsync();
         if (saved is not null)
             WorkbenchSnapshot.Restore(State, saved);
+        // Silently refresh builder-assembled items against the current catalog so
+        // lines saved under an older (buggy) renderer text stop displaying.
+        var healed = false;
+        foreach (var item in State.TestItems)
+            if (item.Reheal(Engine)) healed = true;
+        if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
         Recompute();
     }
 

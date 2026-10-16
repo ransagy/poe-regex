@@ -16,7 +16,7 @@ public sealed record WorkbenchSnapshot(
     SlotCriteria Global,
     List<TestItem> TestItems)
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state) => new(
         CurrentVersion,

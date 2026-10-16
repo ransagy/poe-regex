@@ -45,12 +45,16 @@
         <ol class="suggest" aria-label="Mods">
             @foreach (var m in _suggestions.Take(MaxShown))
             {
-                var line = m.StatLines.FirstOrDefault();
+                var lines = m.StatLines;
+                var line = lines.FirstOrDefault();
                 var prefix = IsPrefix(m);
                 var display = line is null ? m.Id : ModSearch.DisplayLine(line);
+                var fullText = lines.Count > 0
+                    ? string.Join("\n", lines.Select(ModSearch.DisplayLine))
+                    : m.Id;
                 <li class="suggest-row">
                     <span class="gen-tag" title="@(prefix ? "prefix" : "suffix")">@(prefix ? "P" : "S")</span>
-                    <span class="suggest-line" title="@display">@display</span>
+                    <span class="suggest-line" title="@fullText">@display@(lines.Count > 1 ? $" (+{lines.Count - 1})" : "")</span>
                     <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
                     <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
                 </li>

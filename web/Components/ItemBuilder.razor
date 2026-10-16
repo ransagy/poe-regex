@@ -101,8 +101,8 @@
     }
 
     private string DisplayFor(string modId) =>
-        Engine.FindMod(modId)?.StatLines.FirstOrDefault() is { } sl
-            ? ModSearch.DisplayLine(sl)
+        Engine.FindMod(modId)?.StatLines is { Count: > 0 } lines
+            ? ModSearch.DisplayLine(lines[0]) + (lines.Count > 1 ? $" (×{lines.Count})" : "")
             : modId;
 
     private RuleLine RuleLineFor(string modId)
@@ -159,7 +159,7 @@
         var parsed = new ParsedItem(cls?.Name, _rarity,
             _name.Trim().Length > 0 ? _name.Trim() : $"Built {_classId}",
             [], null, null, null, null, false, []);
-        var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed };
+        var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed, Built = true };
         foreach (var id in _added)
         {
             var mod = Engine.FindMod(id);

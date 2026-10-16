@@ -20,6 +20,9 @@ public sealed class TestItem
     public string? ClassId { get; set; }
     public required ParsedItem Parsed { get; set; }
     public List<MappedLine> Mapped { get; set; } = [];
+    /// <summary>True when the item was assembled in the ItemBuilder (so its
+    /// mapped lines are synthetic and must be re-rendered from the catalog).</summary>
+    public bool Built { get; set; }
     public int Row { get; set; }
     public int Col { get; set; }
     /// <summary>Backpack footprint in cells (0 = unset, treated as 1x1).</summary>
@@ -43,5 +46,58 @@ public sealed class TestItem
         if (!string.IsNullOrEmpty(Parsed.ItemClass))
             lines.Insert(0, $"Item Class: {Parsed.ItemClass}");
         return lines;
+    }
+
+    /// <summary>Re-renders this item's mapped lines from the current catalog when
+    /// it was builder-assembled (or merely looks like one: no parsed mod
+    /// blocks but mapped mod ids are present). Returns true when the displayed
+    /// text changed (so callers can persist). Lines whose mod id is no longer
+    /// in the catalog keep their stored text as a fallback.</summary>
+    public bool Reheal(EngineService engine)
+    {
+        if (engine is null) return false;
+        if (!Built && !(Parsed.Mods.Count == 0 && Mapped.Count > 0)) return false;
+        if (Mapped.Count == 0) { Built = true; return false; }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var candidate = new List<MappedLine>(Mapped.Count);
+        foreach (var ml in Mapped)
+        {
+            if (ml.SelectedModId is not { Length: > 0 } mid || engine.FindMod(mid) is not { } mod)
+            {
+                candidate.Add(ml);
+                continue;
+            }
+            if (!seen.Add(mid))
+            {
+                candidate.Add(ml);
+                continue;
+            }
+            foreach (var sl in mod.StatLines)
+                candidate.Add(new MappedLine(sl.Line, sl.Line, ml.Rolls, ml.Candidates, mid));
+        }
+
+        var differ = candidate.Count != Mapped.Count;
+        if (!differ)
+        {
+            for (var i = 0; i < candidate.Count; i++)
+            {
+                if (!string.Equals(candidate[i].Text, Mapped[i].Text, StringComparison.Ordinal)
+                    || !string.Equals(candidate[i].CanonicalText, Mapped[i].CanonicalText, StringComparison.Ordinal))
+                {
+                    differ = true;
+                    break;
+                }
+            }
+        }
+
+        var wasBuilt = Built;
+        Built = true;
+        if (differ)
+        {
+            Mapped = candidate;
+            return true;
+        }
+        return !wasBuilt;
     }
 }
