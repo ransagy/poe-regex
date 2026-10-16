@@ -113,18 +113,18 @@ body { overflow: hidden; }
 /* Top box layout: centered mode strip above editor | doll | compiled queries;
    backpack and advanced below. */
 .inv-top {
-    flex: 0 1 auto;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) min(72vh, calc(100% - 19rem - 0.75rem));
+    flex: 1 1 auto;
+    display: flex;
     gap: 0.75rem;
-    align-items: stretch;
+    align-items: center;
 }
-/* Editor | doll. The doll gets a column exactly as wide as its height-derived
-   cap (or the available space, whichever is smaller); the editor takes the
-   rest of the row, so the doll never floats in a wide gutter. */
-.inv-editor { min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
-@media (max-width: 1200px) { .inv-editor { min-width: 16rem; } }
-.inv-doll { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+/* Editor | doll: the editor grows to consume the spare vertical room while the
+   doll stays aspect-locked (max 72vh -- its own capped height). The central
+   alignment is intentional: keeps the spare height as a single symmetric band
+   around the doll rather than a void under the backpack. */
+.inv-editor { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
+@media (max-width: 1200px) { .inv-editor { flex: 1 1 19rem; } }
+.inv-doll { flex: 0 1 auto; min-width: 0; width: min(100%, 72vh, 96vw); max-width: min(100%, 72vh, 96vw); display: flex; flex-direction: column; justify-content: center; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
    (like the game, whose gear area is slightly wider than tall so item
