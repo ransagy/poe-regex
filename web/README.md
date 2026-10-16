@@ -42,9 +42,12 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-- `Components/` — `PaperDoll` (9 gear slots), `BackpackGrid` (12×5 test area),
+- `Components/` — `PaperDoll` (9 gear slots; multi = click to focus, chips
+  enroll, X clears), `BackpackGrid` (12×5 test area; click an item to select),
+  `ItemDetail` (selected item's verdicts + mapped lines under the doll),
   `ModeSwitch`, `ClassPicker`, `ModPicker`, `QueryCard` (meter, copy, explain,
-  overflow), `ImportPanel` (paste + freeform), `TestItems` (match badges).
+  overflow), `ImportPanel` (paste + freeform), `TestItems` (compact rows with
+  match dot).
 - `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
   seam (URL-share and accounts are future work; see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
@@ -64,6 +67,8 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
 - Multi mode ends in ONE combined stash paste (anchor + per-slot exclusion
   groups, whole-text OR-in-group / AND-across-groups); per-slot queries stay
   in Advanced. Same-class slots merge (union); exclusions apply globally.
+  Membership is derived: a slot joins the group as soon as it has any
+  wanted/unwanted chips; clicking a slot only moves the editing focus.
 - The derived catalog ships prefix/suffix generations only (no implicits)
   and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
   the importer maps those via flagged approximate fallbacks.
