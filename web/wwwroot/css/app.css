@@ -375,7 +375,11 @@ select, input {
     background: var(--slot-active); border-color: var(--panel-edge-hi); color: #ffe9a8;
 }
 .btn:disabled, .btn:disabled:hover, .mode-btn:disabled, .mode-btn:disabled:hover,
-.qactions button:disabled { background: var(--slot); border-color: var(--panel-edge); color: var(--dim); cursor: default; }
+.qactions button:disabled, .dlg button:disabled, .suggest-row button:disabled,
+#pack-remove:disabled {
+    background: #1a150f; border-color: #4a3e26; color: var(--dim);
+    opacity: 0.72; cursor: not-allowed;
+}
 .suggest-row button:hover, #suggest-all:hover {
     background: var(--slot-active); border-color: var(--panel-edge-hi); color: #ffe9a8;
 }
@@ -507,6 +511,10 @@ details.advanced > summary {
     z-index: 1;
     margin: 0;
     text-align: center;
+    min-height: 2.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 details.advanced > summary:hover { color: var(--accent); }
 
