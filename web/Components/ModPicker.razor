@@ -33,25 +33,58 @@
                @oninput="OnMin" aria-label="Minimum roll: only match values at or above this" title="Only match rolls at or above this value" />
     </div>
 
-    <ol class="suggest" aria-label="Mod suggestions">
-        @if (_suggestions.Count > 0 && !_takenOnly)
-        {
-            <li><button id="suggest-all" @onclick="SelectAll">[select all @_suggestions.Count]</button></li>
-        }
-        @foreach (var m in _suggestions.Take(MaxShown))
-        {
-            var line = m.StatLines.FirstOrDefault();
-            <li class="suggest-row">
-                <span class="suggest-line">@(line is null ? m.Id : ModSearch.DisplayLine(line))</span>
-                <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
-                <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
-            </li>
-        }
-    </ol>
-    @if (_suggestions.Count > MaxShown)
+    @if (_suggestions.Count > 0 && !_takenOnly)
     {
-        <div class="more">@(_suggestions.Count - MaxShown) more… keep typing to narrow</div>
+        <button id="suggest-all" @onclick="SelectAll">[select all @_suggestions.Count]</button>
     }
+    @if (_prefixes.Count == 0 && _suffixes.Count == 0 && !_takenOnly)
+    {
+        <div class="more">no mods match the filter</div>
+    }
+    <div class="mod-cols">
+        @if (_prefixes.Count > 0)
+        {
+            <section class="mod-col">
+                <div class="mod-col-head">prefixes <span class="more">(@_prefixes.Count)</span></div>
+                <ol class="suggest" aria-label="Prefix mods">
+                    @foreach (var m in _prefixes.Take(MaxShown))
+                    {
+                        var line = m.StatLines.FirstOrDefault();
+                        <li class="suggest-row">
+                            <span class="suggest-line">@(line is null ? m.Id : ModSearch.DisplayLine(line))</span>
+                            <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
+                            <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
+                        </li>
+                    }
+                </ol>
+                @if (_prefixes.Count > MaxShown)
+                {
+                    <div class="more">@(_prefixes.Count - MaxShown) more… keep typing to narrow</div>
+                }
+            </section>
+        }
+        @if (_suffixes.Count > 0)
+        {
+            <section class="mod-col">
+                <div class="mod-col-head">suffixes <span class="more">(@_suffixes.Count)</span></div>
+                <ol class="suggest" aria-label="Suffix mods">
+                    @foreach (var m in _suffixes.Take(MaxShown))
+                    {
+                        var line = m.StatLines.FirstOrDefault();
+                        <li class="suggest-row">
+                            <span class="suggest-line">@(line is null ? m.Id : ModSearch.DisplayLine(line))</span>
+                            <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
+                            <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
+                        </li>
+                    }
+                </ol>
+                @if (_suffixes.Count > MaxShown)
+                {
+                    <div class="more">@(_suffixes.Count - MaxShown) more… keep typing to narrow</div>
+                }
+            </section>
+        }
+    </div>
     @if (_minError is not null)
     {
         <div class="field-error">@_minError</div>
@@ -76,6 +109,8 @@
     private string _minText = "";
     private string? _minError;
     private List<ModEntry> _suggestions = [];
+    private List<ModEntry> _prefixes = [];
+    private List<ModEntry> _suffixes = [];
     private bool _takenOnly;
 
     protected override void OnParametersSet() => Refresh();
@@ -94,8 +129,15 @@
         var taken = crit.Included.Select(m => m.ModId).Concat(crit.Excluded);
         var avail = ModSearch.AvailableMods(Mods, taken);
         _suggestions = ModSearch.FilterMods(avail, _search).ToList();
+        // Prefixes and suffixes render as their own lists (side by side once
+        // the editor is wide enough); everything else falls in with suffixes.
+        _prefixes = _suggestions.Where(m => IsPrefix(m)).ToList();
+        _suffixes = _suggestions.Where(m => !IsPrefix(m)).ToList();
         _takenOnly = avail.Count == 0;
     }
+
+    private static bool IsPrefix(ModEntry m) =>
+        m.GenerationType.Equals("prefix", StringComparison.OrdinalIgnoreCase);
 
     private void OnSearch(ChangeEventArgs e)
     {

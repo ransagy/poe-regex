@@ -43,17 +43,21 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
   The mode strip holds the mode buttons on the left and the compiled-query
-  box filling the rest of the row (label, scrollable regex, length meter,
-  copy); per-slot queries for Advanced live below.
+  box filling the rest of the row (one-line ellipsized regex with the full
+  text in its title, length meter, copy); per-slot queries for Advanced
+  live below.
 - `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; cells always size from
-  the available width so the grid fills the full row; matching items
-  highlight and non-matching ones dim; clicking an item pins its tooltip),
+  enroll, X clears), `BackpackGrid` (12×5 test area; cells fit the box they
+  are given — integer-snapped squares, centered — so the pack grows with the
+  window without scrolling the bench; matching items highlight and
+  non-matching ones dim; clicking an item pins its tooltip),
   `ItemTooltip` (game-style overlay at the click point — rarity-coloured
-  name, class/rarity line, mapped lines, match verdicts; dismissed via x,
-  same tile, empty pack space, or removal; clamped to the viewport by
-  `poeRegexPlaceTooltip`), `ModeSwitch`, `ClassPicker`,
-  `ModPicker`, `QueryCard` (meter, copy, explain, overflow), `ImportPanel`
+  name, class/rarity line, mapped lines; dismissed via x, same tile, empty
+  pack space, or removal; clamped to the viewport by `poeRegexPlaceTooltip`),
+  `ModeSwitch`, `ClassPicker`,
+  `ModPicker` (searchable mods split into prefix/suffix lists — side by side
+  once the editor column is wide enough), `QueryCard` (meter, copy, explain,
+  overflow), `ImportPanel`
   (paste + freeform), `ItemBuilder` (assemble from catalog mods; both modals
   reject when the backpack is full). Backpack tools row: import, assemble,
   and remove (acts on the pinned item).

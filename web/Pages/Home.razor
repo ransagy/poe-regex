@@ -22,8 +22,7 @@
                     @if (_paste is not null)
                     {
                         <div class="slot-query" id="slot-query-multi">
-                            <span class="slot-query-label">combined paste</span>
-                            <code>@_paste.Query</code>
+                            <code title="@_paste.Query">@_paste.Query</code>
                             <span class="meter-num">@_paste.Length/@_paste.Limit</span>
                             <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
                         </div>
@@ -39,8 +38,7 @@
                 @foreach (var t in _barTasks)
                 {
                     <div class="slot-query" id="slot-query-@t.CardId">
-                        <span class="slot-query-label">@t.Title</span>
-                        <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
+                        <code title="@(t.Result?.Query)">@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
                         @if (t.Result is not null)
                         {
                             <span class="meter-num">@t.Result.Length/@t.Result.Limit</span>
@@ -139,8 +137,7 @@
     </div>
 </details>
 
-<ItemTooltip Item="@SelectedItem()" X="_ttX" Y="_ttY"
-             Queries="_labelledQueries" OnDismiss="DismissTooltip" />
+<ItemTooltip Item="@SelectedItem()" X="_ttX" Y="_ttY" OnDismiss="DismissTooltip" />
 
 @code {
     private sealed record TaskView(

@@ -24,19 +24,8 @@
                 }
             </div>
         }
-        @if (Verdicts().Any())
-        {
-            <div class="tt-sep"></div>
-            <div class="titem-badges">
-                @foreach (var (label, verdict) in Verdicts())
-                {
-                    <span class="badge @(verdict.Match ? "hit" : "miss")">@label: @(verdict.Match ? "match" : "no")</span>
-                }
-            </div>
-        }
     </div>
 }
-
 @code {
     /// <summary>Pinned item; null renders nothing.</summary>
     [Parameter]
@@ -49,10 +38,6 @@
     [Parameter]
     public double Y { get; set; }
 
-    /// <summary>Labelled queries to test the item against (slot queries + global).</summary>
-    [Parameter, EditorRequired]
-    public required IReadOnlyList<(string Label, string? Query)> Queries { get; set; }
-
     [Parameter, EditorRequired]
     public required EventCallback OnDismiss { get; set; }
 
@@ -63,16 +48,6 @@
         if (Item is null) return;
         try { await JS.InvokeVoidAsync("poeRegexPlaceTooltip", _el, X, Y); }
         catch { /* element already replaced */ }
-    }
-
-    private IEnumerable<(string Label, ItemVerdict Verdict)> Verdicts()
-    {
-        if (Item is null) yield break;
-        foreach (var (label, query) in Queries)
-        {
-            if (string.IsNullOrWhiteSpace(query)) continue;
-            yield return (label, ItemMatcher.Match(query, Item.MatchLines()));
-        }
     }
 
     /// <summary>Game rarity colouring for the item name.</summary>

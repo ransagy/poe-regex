@@ -113,7 +113,12 @@ body { overflow: hidden; }
     gap: 0.75rem;
     align-items: flex-start;
 }
-.inv-editor { flex: 0 1 24rem; min-width: 0; }
+/* Editor | doll. The editor yields width on smaller viewports so the doll
+   stays roomy, and grows (with a two-column mod list) on large ones; the
+   doll column always takes the rest. */
+.inv-editor { flex: 0 1 24rem; min-width: 0; container-type: inline-size; }
+@media (min-width: 1500px) { .inv-editor { flex: 1 1 30rem; max-width: 52rem; } }
+@media (max-width: 1200px) { .inv-editor { flex: 0 1 19rem; } }
 .inv-doll { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
@@ -123,7 +128,9 @@ body { overflow: hidden; }
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
-    max-width: 42.5rem;
+    /* Capped by width and, in short-but-wide windows, by viewport height so
+       the backpack below still gets a usable area. */
+    max-width: min(44rem, 55vh);
     margin: 0 auto;
 }
 
@@ -163,23 +170,27 @@ body { overflow: hidden; }
 .gear-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .gear-slot.active .gear-label { color: #ffe9a8; }
 
-/* Backpack: fixed 12 x 5 cells (confirmed). The grid always fills the full
-   width below the editor/doll — cells size from the wrap's inline size —
-   and the rows follow at square-cell height. Cell lines are background;
-   items are explicitly placed divs. */
+/* Backpack: fixed 12 x 5 cells (confirmed). The pack fills the box it gets:
+   cells are the smaller of the width fit and the height fit, snapped down to
+   whole pixels (fractional cells drift against the pixel-snapped grid
+   pattern, so lines and items stop agreeing). It grows with the space and
+   never forces the bench to scroll. Cell lines are background; items are
+   explicitly placed divs. */
 .pack-wrap {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    /* Never shrink the backpack area below a usable pack; the bench scrolls
+       in truly short windows instead. */
+    min-height: calc(5 * 1.75rem + 10px);
     display: flex;
-    align-items: flex-start;
+    overflow: auto;
 }
 .pack {
     --pack-cell: 2.6rem;
+    margin: auto;
     display: grid;
     grid-template-columns: repeat(12, var(--pack-cell));
     grid-auto-rows: var(--pack-cell);
     gap: 2px;
-    justify-content: start;
-    width: fit-content;
     background: #14100c;
     background-image:
         linear-gradient(#3d3220 1px, transparent 1px),
@@ -188,11 +199,20 @@ body { overflow: hidden; }
     min-height: calc(5 * var(--pack-cell) + 4 * 2px);
     border: 1px solid #3d3220;
 }
-@supports (container-type: inline-size) {
-    .pack-wrap { container-type: inline-size; }
+@supports (container-type: size) {
+    .pack-wrap { container-type: size; }
     .pack {
-        --pack-cell: calc((100cqw - 24px) / 12);
-        font-size: clamp(0.65rem, 1cqw, 1.05rem);
+        --pack-cell: max(1.75rem, min(
+            calc((100cqw - 24px) / 12),
+            calc((100cqh - 10px) / 5)));
+        font-size: clamp(0.65rem, min(1cqw, 3cqh), 1.05rem);
+    }
+}
+@supports (width: round(down, 10px, 1px)) {
+    .pack {
+        --pack-cell: max(1.75rem, round(down, min(
+            calc((100cqw - 24px) / 12),
+            calc((100cqh - 10px) / 5)), 1px));
     }
 }
 .pack-placed {
@@ -207,9 +227,9 @@ body { overflow: hidden; }
     cursor: pointer;
 }
 .pack-placed.hit { border-color: var(--accent); background: #4a3a18; }
-/* Game-style dim: while a query is active, non-matching items go dark and
-   desaturated rather than merely translucent. */
-.pack-placed.dim { opacity: 0.16; filter: grayscale(1) brightness(0.6); }
+/* Lighter than the first pass: dimmed items stay recognizable as dark
+   silhouettes while matches keep the gold highlight. */
+.pack-placed.dim { opacity: 0.3; filter: grayscale(1) brightness(0.75); }
 .pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; opacity: 1; filter: none; }
 
 .queries { flex: 1; min-width: 22rem; }
@@ -237,7 +257,20 @@ select, input {
 .modrow #mod-search { flex: 3; }
 .modrow #mod-min { flex: 1; min-width: 6rem; }
 .pack-tools { margin-bottom: 0.6rem; }
-.suggest { list-style: none; margin: 0.4rem 0; padding: 0; max-height: 16rem; overflow-y: auto; }
+/* Stacked (narrow editor): one scroll region for both groups, capped so the
+   editor never hogs the height. Side-by-side (wide): each list scrolls. */
+.mod-cols { display: flex; flex-direction: column; gap: 0.4rem; max-height: 10rem; overflow-y: auto; }
+.mod-col-head {
+    text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem;
+    color: var(--dim); border-bottom: 1px dotted #3d3220; padding-bottom: 0.1rem;
+}
+.mod-col-head .more { font-size: 0.72rem; }
+.suggest { list-style: none; margin: 0.25rem 0; padding: 0; }
+@container (min-width: 34rem) {
+    .mod-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: start; max-height: none; overflow: visible; }
+    .mod-col .suggest { max-height: 15rem; overflow-y: auto; }
+}
+#suggest-all { margin: 0.3rem 0 0.1rem; }
 .suggest-row { display: flex; gap: 0.4rem; align-items: center; padding: 0.15rem 0; border-bottom: 1px dotted #3d3220; }
 .suggest-line { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-row button, #suggest-all {
@@ -353,8 +386,8 @@ details.advanced > summary {
 }
 details.advanced > summary:hover { color: var(--accent); }
 
-/* Query strips inside the mode bar: one line each; the regex code takes the
-   remaining width and scrolls horizontally instead of wrapping. */
+/* Query strips inside the mode bar: one line each; the regex ellipsizes
+   (full text via the native title tooltip; copy still copies all of it). */
 .slot-query {
     display: flex;
     align-items: center;
@@ -362,11 +395,10 @@ details.advanced > summary:hover { color: var(--accent); }
     flex: 1 1 100%;
     min-width: 0;
 }
-.slot-query-label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; color: var(--accent); white-space: nowrap; }
 .slot-query code {
     font-family: Consolas, monospace; font-size: 0.85rem;
     flex: 1 1 auto; min-width: 0; white-space: nowrap;
-    overflow-x: auto; overflow-y: hidden;
+    overflow: hidden; text-overflow: ellipsis;
 }
 .slot-query .meter-num { white-space: nowrap; }
 .slot-query button {
