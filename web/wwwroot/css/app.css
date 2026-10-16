@@ -140,10 +140,27 @@ body { overflow: hidden; }
     margin: 0 auto;
     /* Subtle zoom so the slot frames actually REACH the panel edge; the
        canonical 4:3 leaves a small corner margin. overflow: hidden trims
-       frame edges that drift past ±6% (verified no clipping of hover outline). */
+       frame edges that drift past ±6% (verified no clipping of hover outline).
+       pointer-events stays on the slots only — the doll's scaled box can no
+       longer intercept the backpack label/tools below (fixes unclickable Import
+       / Assemble / Remove strip). */
     transform: scale(1.09);
     transform-origin: center center;
     overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+/* Keep slots interactive through the (pointer-events:none) scaled doll. */
+.doll .gear-slot, .doll .slot-clear { pointer-events: auto; z-index: 1; }
+
+/* Chrome that sits under/around the scaled doll's spill-over must paint and
+   take clicks above it (right column only matters in the wide layout, but
+   stacked positioning keeps them z-order-safe too). */
+.panel.inventory > .panel-sub,
+.panel.inventory > .modrow.pack-tools,
+.pack-wrap {
+    position: relative;
+    z-index: 2;
 }
 
 .gear-slot {
@@ -292,7 +309,7 @@ select, input {
 .modrow { display: flex; gap: 0.4rem; }
 .modrow #mod-search { flex: 3; }
 .modrow #mod-min { flex: 1; min-width: 6rem; }
-.pack-tools { margin-bottom: 0.6rem; }
+.pack-tools { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 0.1rem 0; }
 /* The mod picker stretches to the bottom of the editor column; its list is
    the editor's scroll region (one column, or two in a wide editor). */
 .modpicker { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
