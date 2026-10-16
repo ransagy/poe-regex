@@ -91,6 +91,18 @@ public class ItemMappingTests
     }
 
     [Fact]
+    public void Matcher_ClassAnchor_MatchesItemClassLine()
+    {
+        // Slot and combined-paste queries start with a class anchor such as
+        // `": (Bel)"`; item lines must expose the game's `Item Class:` line
+        // or every anchored verdict comes back "no".
+        var item = new TestItem { Name = "b", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) };
+        item.MatchLines().Should().Contain("Item Class: Belts");
+        var verdict = ItemMatcher.Match("\": (Bel)\"", item.MatchLines());
+        verdict.Match.Should().BeTrue();
+    }
+
+    [Fact]
     public void Matcher_CompiledDigitPattern_MatchesRoll()
     {
         var result = Engine.Compile(

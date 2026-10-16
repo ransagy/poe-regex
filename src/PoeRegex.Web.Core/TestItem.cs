@@ -26,5 +26,16 @@ public sealed class TestItem
     public int Cols { get; set; }
     public int Rows { get; set; }
 
-    public IReadOnlyList<string> MatchLines() => Parsed.AllLines();
+    /// <summary>
+    /// Matchable lines for query verdicts: the game's `Item Class:` line
+    /// first (slot and combined-paste queries carry a class anchor phrased
+    /// against it), then base lines, name and mod lines.
+    /// </summary>
+    public IReadOnlyList<string> MatchLines()
+    {
+        var lines = new List<string>(Parsed.AllLines());
+        if (!string.IsNullOrEmpty(Parsed.ItemClass))
+            lines.Insert(0, $"Item Class: {Parsed.ItemClass}");
+        return lines;
+    }
 }
