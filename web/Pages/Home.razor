@@ -15,7 +15,7 @@
     <section class="panel inventory" aria-label="Inventory">
         <div class="panel-head"><span>Inventory</span></div>
         <div class="mode-bar">
-            <ModeSwitch State="State" Vertical="true" />
+            <ModeSwitch State="State" />
         </div>
         <div class="inv-top">
             <div class="inv-editor" aria-label="Editor">
@@ -94,7 +94,9 @@
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
         </div>
-        <BackpackGrid Items="State.TestItems" HighlightIds="_highlight" />
+        <div class="pack-wrap">
+            <BackpackGrid Items="State.TestItems" HighlightIds="_highlight" />
+        </div>
         <TestItems State="State" Queries="_labelledQueries" HighlightIds="_highlight" />
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />

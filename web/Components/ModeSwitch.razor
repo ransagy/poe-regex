@@ -1,6 +1,6 @@
 @using PoeRegex.Web.Core
 
-<div class="mode-switch @(Vertical ? "vertical" : "")" role="group" aria-label="Slot mode">
+<div class="mode-switch" role="group" aria-label="Slot mode">
     @foreach (var mode in new[] { "global", "single", "multi" })
     {
         <button id="mode-@mode"
@@ -15,7 +15,4 @@
 @code {
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
-
-    [Parameter]
-    public bool Vertical { get; set; }
 }
