@@ -26,7 +26,7 @@ The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 83 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 84 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -47,17 +47,19 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   text in its title, length meter, copy); per-slot queries for Advanced
   live below.
 - `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; cells fit the box they
-  are given — integer-snapped squares, centered — so the pack grows with the
-  window without scrolling the bench; matching items highlight and
-  non-matching ones dim; clicking an item pins its tooltip),
+  enroll, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
+  cells span the full width and the pack sits at the panel bottom — when the
+  window is too short the pack area scrolls internally, never the page;
+  matching items highlight and non-matching ones dim; clicking an item pins
+  its tooltip),
   `ItemTooltip` (game-style overlay at the click point — rarity-coloured
   name, class/rarity line, mapped lines; dismissed via x, same tile, empty
   pack space, or removal; clamped to the viewport by `poeRegexPlaceTooltip`),
   `ModeSwitch`, `ClassPicker`,
-  `ModPicker` (searchable mods split into prefix/suffix lists — side by side
-  once the editor column is wide enough), `QueryCard` (meter, copy, explain,
-  overflow), `ImportPanel`
+  `ModPicker` (searchable mods, one flat list with a P/S prefix/suffix tag
+  per line — one column, or two when the editor column is wide enough — and
+  the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
+  copy, explain, overflow), `ImportPanel`
   (paste + freeform), `ItemBuilder` (assemble from catalog mods; both modals
   reject when the backpack is full). Backpack tools row: import, assemble,
   and remove (acts on the pinned item).
