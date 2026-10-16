@@ -12,7 +12,7 @@
                 <button id="import-parse" class="btn" @onclick="Parse">preview</button>
                 @if (_parsed is not null)
                 {
-                    <button id="import-save" class="btn" disabled="@(_parsed is null || _violations.Any(v => v.Level == \"error\"))" @onclick="Save">Add</button>
+                    <button id="import-save" class="btn" disabled="@(_parsed is null || _violations.Any(v => v.Level == "error"))" @onclick="Save">Add</button>
                 }
                 <button id="import-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
