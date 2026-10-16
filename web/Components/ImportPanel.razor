@@ -9,12 +9,12 @@
             <textarea id="import-text" rows="8" placeholder="paste Ctrl+C item text…"
                       value="@_text" @oninput="OnInput" aria-label="Item text"></textarea>
             <div class="modrow">
-                <button id="import-parse" @onclick="Parse">preview</button>
+                <button id="import-parse" class="btn" @onclick="Parse">preview</button>
                 @if (_parsed is not null)
                 {
-                    <button id="import-save" @onclick="Save">accept &amp; add to backpack</button>
+                    <button id="import-save" class="btn" @onclick="Save">accept &amp; add to backpack</button>
                 }
-                <button id="import-cancel" @onclick="Close">cancel</button>
+                <button id="import-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
             @foreach (var v in _violations)
             {

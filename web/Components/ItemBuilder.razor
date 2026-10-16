@@ -55,7 +55,7 @@
                                 }
                             </span>
                         }
-                        <button id="builder-add-@m.Id" title="add @(m.GenerationType)"
+                        <button id="builder-add-@m.Id" class="btn" title="add @(m.GenerationType)"
                                 disabled="@_added.Contains(m.Id)"
                                 @onclick="() => Add(m)">+</button>
                     </li>
@@ -72,9 +72,9 @@
             <div class="modrow">
                 <input id="builder-name" placeholder="item name" value="@_name"
                        @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
-                <button id="builder-save" disabled="@(_added.Count == 0 || _violations.Any(v => v.Level == "error"))"
+                <button id="builder-save" class="btn" disabled="@(_added.Count == 0 || _violations.Any(v => v.Level == "error"))"
                         @onclick="Save">accept &amp; add to backpack</button>
-                <button id="builder-cancel" @onclick="Close">cancel</button>
+                <button id="builder-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
         </div>
     </div>
