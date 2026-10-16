@@ -18,23 +18,75 @@
 <body>
     <div id="app">
         <div class="boot-overlay">
-            <div class="boot-text">
-                <div class="boot-title">Renly&rsquo;s Recipes</div>
-                <div class="boot-sub">A Path of Exile 2 vendor regex workbench</div>
+            <div class="forge-loader" role="status">
+                <span class="sr">Loading…</span>
+                <svg viewBox="0 0 340 254" aria-hidden="true" focusable="false">
+                    <defs>
+                        <linearGradient id="fg-iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--iron-hi)"/><stop offset="1" style="stop-color:var(--iron-lo)"/></linearGradient>
+                        <linearGradient id="fg-iron-h"><stop offset="0" style="stop-color:var(--iron-lo)"/><stop offset=".3" style="stop-color:var(--iron-hi)"/><stop offset="1" style="stop-color:var(--iron-lo)"/></linearGradient>
+                        <linearGradient id="fg-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--wood-hi)"/><stop offset="1" style="stop-color:var(--wood-lo)"/></linearGradient>
+                        <linearGradient id="fg-bar"><stop offset="0" stop-color="#ff4d12"/><stop offset=".5" stop-color="#ffc04a"/><stop offset="1" stop-color="#ff4d12"/></linearGradient>
+                        <radialGradient id="fg-glow"><stop offset="0" stop-color="#ff8a1f" stop-opacity=".7"/><stop offset="1" stop-color="#ff8a1f" stop-opacity="0"/></radialGradient>
+                        <radialGradient id="fg-flash"><stop offset="0" stop-color="#fff"/><stop offset=".35" style="stop-color:var(--spark-hi)"/><stop offset="1" style="stop-color:var(--spark-lo);stop-opacity:0"/></radialGradient>
+                        <linearGradient id="fg-streak"><stop offset="0" style="stop-color:var(--spark-lo);stop-opacity:0"/><stop offset=".55" style="stop-color:var(--spark-lo)"/><stop offset="1" style="stop-color:var(--spark-hi)"/></linearGradient>
+                    </defs>
+
+                    <!-- scene offset keeps the raised hammer head and the whole composition centred inside the viewBox -->
+                    <g transform="translate(8 4)">
+                    <ellipse class="shadow" cx="160" cy="238" rx="98" ry="6"/>
+
+                    <!-- stump, anvil and hot iron: this group jolts on impact -->
+                    <g class="body">
+                      <rect x="84" y="209" width="152" height="27" rx="3" fill="url(#fg-wood)"/>
+                      <path class="grain" d="M110 214v18M150 213v20M196 214v17M220 213v18"/>
+                      <path class="anvil" d="M46 150Q70 146 98 144H228V156L208 162Q192 166 192 180V192L224 202V210H96V202L128 192V180Q128 166 112 162Q76 160 46 150Z"/>
+                      <path class="shine" d="M99 145H227"/>
+                      <rect class="notch" x="204" y="144" width="8" height="4"/>
+                      <ellipse class="glow" cx="164" cy="141" rx="56" ry="22" fill="url(#fg-glow)"/>
+                      <g transform="translate(164 144)"><g class="bar">
+                        <rect x="-24" y="-7" width="48" height="7" rx="1.5" fill="url(#fg-bar)"/>
+                        <rect class="hot" x="-24" y="-7" width="48" height="7" rx="1.5"/>
+                      </g></g>
+                    </g>
+
+                    <!-- hammer: origin is the grip, so it pivots from there -->
+                    <!-- pivot x = strike point (164) + pivot-to-head distance (100); pivot y = strike height (138) - half the head length (26) -->
+                    <g transform="translate(264 112)"><g class="hammer">
+                      <rect x="-104" y="-4" width="116" height="8" rx="3.5" fill="url(#fg-wood)"/>
+                      <rect class="grip" x="-34" y="-5" width="46" height="10" rx="4.5"/>
+                      <path class="grain" d="M-24-5V5M-16-5V5M-8-5V5M0-5V5"/>
+                      <path class="head" d="M-107.5-26H-92.5L-90-23.5V-8H-87Q-86-8-86-7V7Q-86 8-87 8H-90V23.5L-92.5 26H-107.5L-110 23.5V-23.5Z"/>
+                      <path class="bevel" d="M-108-22H-92M-108 22H-92"/>
+                    </g></g>
+
+                    <!-- impact flash at the strike point; sparks leave from the lower corners of the head -->
+                    <g transform="translate(164 138)">
+                      <g class="flash"><circle r="17" fill="url(#fg-flash)"/><path class="star" d="M0-20L3-3L20 0L3 3L0 20L-3 3L-20 0L-3-3Z"/></g>
+                    </g>
+                    <g transform="translate(174 138)">
+
+                      <g class="s" style="--x:92px;--u:36px;--f:46px;--a0:-21deg;--a1:58deg;--d:0s"><ellipse rx="6" ry="1.5" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:66px;--u:62px;--f:60px;--a0:-43deg;--a1:70deg;--d:.015s"><ellipse rx="5" ry="1.4" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:40px;--u:86px;--f:70px;--a0:-65deg;--a1:78deg;--d:.005s"><ellipse rx="6" ry="1.5" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:20px;--u:96px;--f:74px;--a0:-78deg;--a1:84deg;--d:.02s"><ellipse rx="4.5" ry="1.3" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:104px;--u:18px;--f:34px;--a0:-10deg;--a1:49deg;--d:.01s"><ellipse rx="5" ry="1.4" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:52px;--u:50px;--f:46px;--a0:-44deg;--a1:69deg;--d:.025s"><ellipse rx="4" ry="1.2" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:78px;--u:74px;--f:64px;--a0:-44deg;--a1:67deg;--d:.03s"><ellipse rx="4" ry="1.2" fill="url(#fg-streak)"/></g>
+
+                    </g>
+                    <g transform="translate(154 138)">
+                      <g class="s" style="--x:-92px;--u:36px;--f:46px;--a0:-159deg;--a1:-238deg;--d:.005s"><ellipse rx="6" ry="1.5" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-66px;--u:62px;--f:60px;--a0:-137deg;--a1:-250deg;--d:.02s"><ellipse rx="5" ry="1.4" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-40px;--u:86px;--f:70px;--a0:-115deg;--a1:-258deg;--d:0s"><ellipse rx="6" ry="1.5" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-20px;--u:96px;--f:74px;--a0:-102deg;--a1:-264deg;--d:.015s"><ellipse rx="4.5" ry="1.3" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-104px;--u:18px;--f:34px;--a0:-170deg;--a1:-229deg;--d:.025s"><ellipse rx="5" ry="1.4" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-52px;--u:50px;--f:46px;--a0:-136deg;--a1:-249deg;--d:.01s"><ellipse rx="4" ry="1.2" fill="url(#fg-streak)"/></g>
+                      <g class="s" style="--x:-78px;--u:74px;--f:64px;--a0:-136deg;--a1:-247deg;--d:.03s"><ellipse rx="4" ry="1.2" fill="url(#fg-streak)"/></g>
+                    </g>
+                    </g>
+                </svg>
+                <p class="label" aria-hidden="true">Loading<i>.</i><i>.</i><i>.</i></p>
             </div>
-            <svg class="boot-anim" viewBox="0 0 240 180" aria-hidden="true">
-                <!-- Anvil base -->
-                <rect x="70" y="130" width="100" height="14" rx="2" fill="#6b5a34"/>
-                <rect x="85" y="144" width="70" height="8" rx="1" fill="#4a3e26"/>
-                <!-- Hammer head + handle -->
-                <g class="boot-hammer">
-                    <rect x="104" y="52" width="52" height="26" rx="3" fill="#8a7c5f"/>
-                    <rect x="118" y="78" width="10" height="48" rx="2" fill="#6b5a34"/>
-                    <rect x="112" y="52" width="6" height="26" rx="1" fill="#a89878"/>
-                </g>
-                <!-- Impact spark -->
-                <circle class="boot-spark" cx="130" cy="122" r="4" fill="#c9a227" opacity="0"/>
-            </svg>
         </div>
     </div>
 
