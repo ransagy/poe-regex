@@ -44,7 +44,7 @@
     {
         foreach (var (label, query) in Queries)
         {
-            if (query is null) continue;
+            if (string.IsNullOrWhiteSpace(query)) continue;
             yield return (label, ItemMatcher.Match(query, item.MatchLines()));
         }
     }

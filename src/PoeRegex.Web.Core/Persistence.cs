@@ -57,7 +57,24 @@ public sealed record WorkbenchSnapshot(
         state.Global.Excluded.Clear();
         state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
         state.TestItems.Clear();
-        state.TestItems.AddRange(snap.TestItems);
+        foreach (var item in snap.TestItems)
+        {
+            // Heal stale pre-footprint items: derive the class footprint and
+            // re-place so old 1x1 renders (and stacks) resolve correctly.
+            if (item.Cols <= 0 || item.Rows <= 0)
+            {
+                var fp = ItemFootprints.For(item.ClassId);
+                item.Cols = fp.Cols;
+                item.Rows = fp.Rows;
+                var (row, col) = WorkbenchState.FirstFreeSpot(state.TestItems, item.Cols, item.Rows);
+                if (row >= 0)
+                {
+                    item.Row = row;
+                    item.Col = col;
+                }
+            }
+            state.TestItems.Add(item);
+        }
     }
 }
 

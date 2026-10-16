@@ -131,6 +131,23 @@ public class WorkbenchStateTests
     }
 
     [Fact]
+    public void Snapshot_Restore_HealsStaleFootprints()
+    {
+        var state = new WorkbenchState();
+        var belt = new TestItem { Name = "b", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) };
+        var talisman = new TestItem { Name = "t", ClassId = "Talisman", Parsed = ItemTextParser.Parse(FixtureTexts.Talisman) };
+        var snap = new WorkbenchSnapshot(1, "global", null, null,
+            new Dictionary<string, SlotCriteria>(), new SlotCriteria(), [belt, talisman]);
+        WorkbenchSnapshot.Restore(state, snap);
+        belt.Cols.Should().Be(2);
+        belt.Rows.Should().Be(1);
+        talisman.Cols.Should().Be(2);
+        talisman.Rows.Should().Be(2);
+        (belt.Row, belt.Col).Should().Be((0, 0));
+        (talisman.Row, talisman.Col).Should().Be((0, 2), "healed items re-place instead of stacking");
+    }
+
+    [Fact]
     public void Chips_PerSlotAndGlobalScopes()
     {
         var state = new WorkbenchState();

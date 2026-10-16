@@ -82,6 +82,15 @@ public class ItemMappingTests
     }
 
     [Fact]
+    public void Matcher_BlankQuery_MatchesNothing()
+    {
+        // A vacuous AND would light up every lab item; an empty query means
+        // "nothing picked yet", which matches nothing.
+        ItemMatcher.Match("", ["+84 to maximum Life"]).Match.Should().BeFalse();
+        ItemMatcher.Match("   ", ["+84 to maximum Life"]).Match.Should().BeFalse();
+    }
+
+    [Fact]
     public void Matcher_CompiledDigitPattern_MatchesRoll()
     {
         var result = Engine.Compile(

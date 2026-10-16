@@ -259,7 +259,7 @@
             ? [("combined paste", _paste.Query)]
             : tasks.Select(t => (t.Title, t.Result?.Query)).ToList();
         var queries = _labelledQueries
-            .Where(q => q.Query is not null).Select(q => q.Query!).ToList();
+            .Where(q => !string.IsNullOrWhiteSpace(q.Query)).Select(q => q.Query!).ToList();
         _highlight = State.TestItems
             .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
             .Select(item => item.Id).ToHashSet();

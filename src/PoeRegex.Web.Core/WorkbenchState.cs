@@ -192,10 +192,23 @@ public sealed class WorkbenchState
     public void AddTestItem(TestItem item)
     {
         var fp = ItemFootprints.For(item.ClassId);
-        var w = item.Cols > 0 ? item.Cols : fp.Cols;
-        var h = item.Rows > 0 ? item.Rows : fp.Rows;
+        item.Cols = item.Cols > 0 ? item.Cols : fp.Cols;
+        item.Rows = item.Rows > 0 ? item.Rows : fp.Rows;
+        var (row, col) = FirstFreeSpot(TestItems, item.Cols, item.Rows);
+        if (row >= 0)
+        {
+            item.Row = row;
+            item.Col = col;
+        }
+        TestItems.Add(item); // grid full: list-only
+        Notify();
+    }
+
+    /// <summary>First free top-left cell for a w x h item, or (-1,-1) when the grid is full.</summary>
+    public static (int Row, int Col) FirstFreeSpot(IReadOnlyList<TestItem> items, int w, int h)
+    {
         var taken = new HashSet<(int, int)>();
-        foreach (var t in TestItems)
+        foreach (var t in items)
             for (var dr = 0; dr < Math.Max(1, t.Rows); dr++)
                 for (var dc = 0; dc < Math.Max(1, t.Cols); dc++)
                     taken.Add((t.Row + dr, t.Col + dc));
@@ -208,18 +221,9 @@ public sealed class WorkbenchState
                         if (taken.Contains((r + dr, c + dc)))
                             free = false;
                 if (free)
-                {
-                    item.Row = r;
-                    item.Col = c;
-                    item.Cols = w;
-                    item.Rows = h;
-                    TestItems.Add(item);
-                    Notify();
-                    return;
-                }
+                    return (r, c);
             }
-        TestItems.Add(item); // grid full: list-only
-        Notify();
+        return (-1, -1);
     }
 
     public bool RemoveTestItem(string id)

@@ -18,6 +18,10 @@ public static partial class ItemMatcher
 {
     public static ItemVerdict Match(string query, IEnumerable<string> lines)
     {
+        // Nothing picked: an empty query matches nothing (a vacuous AND would
+        // light up every lab item; the game's empty search is not the lab's point).
+        if (string.IsNullOrWhiteSpace(query))
+            return new ItemVerdict(false, []);
         var list = lines.ToList();
         var verdicts = new List<TokenVerdict>();
         foreach (var (phrase, excluded) in Explainer.Tokenize(query))
