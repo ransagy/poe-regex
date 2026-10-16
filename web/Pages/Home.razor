@@ -14,6 +14,9 @@
 <div class="bench">
     <section class="panel inventory" aria-label="Inventory">
         <div class="panel-head"><span>Inventory</span></div>
+        <div class="mode-bar">
+            <ModeSwitch State="State" Vertical="true" />
+        </div>
         <div class="inv-top">
             <div class="inv-editor" aria-label="Editor">
                 @if (State.Mode == "single" && State.SelectedSlot is { } slot)
@@ -41,45 +44,53 @@
                     <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
                 }
             </div>
-            <ModeSwitch State="State" Vertical="true" />
             <div class="inv-doll">
                 <PaperDoll State="State" />
-                <div id="slot-query-bar">
-                    @if (State.Mode == "multi")
-                    {
-                        @if (_paste is not null)
-                        {
-                            <div class="slot-query" id="slot-query-multi">
-                                <span class="slot-query-label">combined paste</span>
-                                <code>@_paste.Query</code>
-                                <span class="meter-num">@_paste.Length/@_paste.Limit</span>
-                                <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                            </div>
-                        }
-                        else if (_pasteOverflow is not null)
-                        {
-                            <div class="qerror" id="slot-query-multi-overflow">
-                                combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
-                                <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
-                            </div>
-                        }
-                    }
-                    @foreach (var t in _barTasks)
-                    {
-                        <div class="slot-query" id="slot-query-@t.CardId">
-                            <span class="slot-query-label">@t.Title</span>
-                            <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
-                            @if (t.Result is not null)
-                            {
-                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                            }
-                        </div>
-                    }
-                </div>
             </div>
+            @if (HasBar)
+            {
+                <div class="inv-output" aria-label="Compiled queries">
+                    <div id="slot-query-bar">
+                        @if (State.Mode == "multi")
+                        {
+                            @if (_paste is not null)
+                            {
+                                <div class="slot-query" id="slot-query-multi">
+                                    <div class="slot-query-head">
+                                        <span class="slot-query-label">combined paste</span>
+                                        <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+                                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                                    </div>
+                                    <code>@_paste.Query</code>
+                                </div>
+                            }
+                            else if (_pasteOverflow is not null)
+                            {
+                                <div class="qerror" id="slot-query-multi-overflow">
+                                    combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
+                                    <button id="slot-besteffort-multi" @onclick="PasteBestEffort">show best-effort</button>
+                                </div>
+                            }
+                        }
+                        @foreach (var t in _barTasks)
+                        {
+                            <div class="slot-query" id="slot-query-@t.CardId">
+                                <div class="slot-query-head">
+                                    <span class="slot-query-label">@t.Title</span>
+                                    @if (t.Result is not null)
+                                    {
+                                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                                    }
+                                </div>
+                                <code>@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         </div>
         <div class="panel-sub">Backpack — test items</div>
-        <div class="modrow">
+        <div class="modrow pack-tools">
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
         </div>
@@ -148,6 +159,9 @@
     private bool _builderOpen;
     private MultiPasteResult? _paste;
     private RegexLengthOverflowException? _pasteOverflow;
+
+    /// <summary>True when the compiled-query strip has anything to show.</summary>
+    private bool HasBar => _paste is not null || _pasteOverflow is not null || _barTasks.Count > 0;
 
     protected override async Task OnInitializedAsync()
     {
