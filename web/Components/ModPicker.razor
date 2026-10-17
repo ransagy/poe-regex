@@ -194,7 +194,7 @@
         $"include \"{tier.Name}\"";
 
     private static string TierUpTitle(ModTier tier, IReadOnlyList<string> names) =>
-        $"include \"{tier.Name}\" and better: {string.Join(", ", names)}";
+        $"include \"{tier.Name}\" and better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
 
     private static string TierExcludeTitle(ModTier tier) =>
         $"exclude \"{tier.Name}\"";

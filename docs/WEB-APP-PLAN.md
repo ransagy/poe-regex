@@ -370,7 +370,8 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   stray text before an item's `Item Class:` line — the sample blob's
   lowercase `sockets` blurb — is dropped by the parser instead of rendering
   as a base-stat line; texts with no class header keep the old single-item
-  fallback. Full slnx 7+118+66 green.
+  fallback. Full slnx 7+118+66 green. (43.4 follow-up: the `↑` tooltip
+  lists only the better tiers — the picked one is already in the caption.)
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`
