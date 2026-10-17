@@ -28,8 +28,7 @@ body { overflow: hidden; }
 .shell-bar {
     display: flex;
     gap: 1rem;
-    align-items: baseline;
-    justify-content: center;
+    align-items: center;
     padding: 0.6rem 1rem;
     border-bottom: 2px solid var(--panel-edge);
     background: linear-gradient(#241c10, #171208);
