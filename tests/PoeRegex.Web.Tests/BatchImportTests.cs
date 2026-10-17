@@ -77,8 +77,46 @@ public class BatchImportTests
         // the belt's two implicits map nowhere; everything else maps.
         results.Select(r => r.Item!.Mapped.Count(m => m.SelectedModId is null))
             .Should().Equal(2, 0, 0, 0, 0);
-        // Nothing blocks: unmapped implicits are visible but not errors.
-        results.SelectMany(r => r.Violations).Should().NotContain(v => v.Level == "error");
+        // Nothing blocks, and unmapped implicits stay quiet: they never count
+        // in the rules, so the blob raises no warnings either.
+        results.SelectMany(r => r.Violations).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void UnmappedAffixCount_IgnoresImplicitBlocks()
+    {
+        // The belt's two unmapped lines are both implicit — the affix-only
+        // verdict is clean, which is what the import dialog reports.
+        var parsed = ItemTextParser.Parse(FixtureTexts.Belt);
+        var mapped = ItemImport.Map(Engine, parsed);
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(0);
+    }
+
+    [Fact]
+    public void UnmappedAffixCount_CountsUnmappedAffixLines()
+    {
+        var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
+        var mapped = ItemImport.Map(Engine, parsed);
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(0);
+        var key = mapped.Lines.Keys.First(k => parsed.Mods[k.Block].Kind != "implicit");
+        mapped.Lines.Remove(key);
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(1);
+    }
+
+    [Fact]
+    public void Materialize_UsesTheProvidedPickOverTheDefault()
+    {
+        // The carousel's per-line picker edits row picks before `add all`
+        // materializes; the edited candidate must win over the default.
+        var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
+        var mapped = ItemImport.Map(Engine, parsed);
+        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
+        var (block, line) = picks.Keys.First(k => mapped.Lines[k].ModIds.Count > 1);
+        var other = mapped.Lines[(block, line)].ModIds.First(id => id != picks[(block, line)]);
+        picks[(block, line)] = other;
+        var item = ItemImport.Materialize(parsed, mapped, picks);
+        var index = parsed.Mods.Take(block).Sum(m => m.Lines.Count) + line;
+        item.Mapped[index].SelectedModId.Should().Be(other);
     }
 
     [Fact]

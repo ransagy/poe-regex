@@ -28,14 +28,18 @@ The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 `docs/samples/real-items.txt` holds the maintainer-provided real item
 descriptions (the same five locked fixtures the parser tests use: belt,
 talisman, crossbow, socketed staff, corrupted mace). Open **import item** and
-paste the whole file — the dialog detects five items and **add all** imports
-each one (header-name-matched catalog picks, class gate and rule check per
-item, backpack-full reported per row).
+paste the whole file — the dialog detects five items and shows them as a card
+carousel (`‹ 2 / 5 ›`, one card at a time, so any paste size costs one card of
+space). Each card carries the same mapping annotations as the single-item
+flow, with per-item candidate pickers; edits are remembered per item and
+**add all** imports every unblocked item using its picks (class gate, rule
+check and backpack-full are reported per card). Unmapped implicit lines stay
+quiet: the catalog holds affixes only and implicits never count in the rules.
 
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 84 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 96 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -75,9 +79,11 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
   copy, explain, overflow), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
-  lists each item with class/mapping verdicts and an add-all; class gate, rule
-  check and backpack-full are reported per item; the single-item preview is
-  the shared card with mapping status per line), `ItemBuilder` (assemble from
+  steps through per-item cards with `‹ k / N ›` navigation and per-item
+  candidate picks; `add all (N)` imports each unblocked item with its picks;
+  class gate, rule check and backpack-full are reported per card; every
+  preview — single or batch — is the shared card with mapping status per
+  line), `ItemBuilder` (assemble from
   catalog mods in two columns — searchable suggestions left, name input,
   live card and removal chips right; Save adds exactly the card shown; both
   modals reject when the backpack is full). Backpack tools row: import,

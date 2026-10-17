@@ -429,9 +429,8 @@ textarea { width: 100%; box-sizing: border-box; }
 .rarity-rare { color: #ffff77; }
 .rarity-unique { color: #af6025; }
 .import-batch { display: flex; flex-direction: column; }
-.import-batch-row { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.85rem; padding: 0.3rem 0; border-top: 1px dotted #3d3220; }
-.import-batch-name { font-weight: 600; }
-.import-batch-sub { color: var(--dim); font-size: 0.78rem; }
+.import-nav { display: flex; align-items: baseline; gap: 0.45rem; padding: 0.35rem 0 0.45rem; }
+.import-nav-count { color: var(--dim); font-size: 0.85rem; }
 .import-batch-status { margin-left: auto; text-align: right; }
 .import-batch-ok { margin-left: auto; color: #a9c97a; font-size: 0.78rem; }
 .titem-badges { display: flex; gap: 0.3rem; margin: 0.2rem 0; flex-wrap: wrap; }

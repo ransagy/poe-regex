@@ -285,6 +285,25 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 8 — import carousel + quiet implicits.** Multi-item
+  pastes preview as a card carousel: one `ItemPreview` card at a time with
+  `‹ k / N ›` navigation, so the dialog stays single-card sized at any item
+  count. Every batch card carries the same mapping annotations as the single
+  flow plus per-item candidate pickers; picks are remembered per row (they
+  survive navigation) and `add all (N)` materializes each unblocked item with
+  its own picks — a pick edit that breaks the rules recomputes that row's
+  verdict live and drops it from the add-all count. Partial `add all` keeps
+  the dialog open and parks the carousel on the first item that still needs
+  attention; backpack-full is a transient add error kept separate from the
+  verdict, so the retry (`add all` again) stays possible. Unmapped
+  *implicit* lines are quiet everywhere (`ItemImport.UnmappedAffixCount`
+  skips implicit blocks — the catalog ships affixes only and implicits never
+  count in the rules), so the sample belt no longer reads `2 line(s) not in
+  catalog`; only unmapped prefix/suffix lines still flag.
+  Full slnx 7+96+66 green; CDP-verified: 5-card cycle with disabled ends,
+  belt card clean, pick edit honored through add-all and localStorage, 15-item
+  overfill parks at the first failure with per-card reasons and a live retry
+  count, single-item flow unchanged, 1100px keeps the page unscrolled.
 - **Follow-up round 7 — one item card everywhere.** New `ItemPreview`
   component: the single game-style card the backpack tooltip, the import
   preview and the assemble dialog all draw — rarity-coloured name,

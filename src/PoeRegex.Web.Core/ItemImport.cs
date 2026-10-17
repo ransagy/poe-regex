@@ -98,6 +98,24 @@ public static class ItemImport
         return violations;
     }
 
+    /// <summary>
+    /// Count of prefix/suffix lines that map to no catalog id. Implicit blocks
+    /// are skipped: they never participate in rule counting, so an unmapped
+    /// implicit is expected data (the catalog holds affixes only), not a
+    /// defect worth surfacing.
+    /// </summary>
+    public static int UnmappedAffixCount(ParsedItem parsed, Mapped mapped)
+    {
+        var count = 0;
+        foreach (var (block, bi) in parsed.Mods.Select((b, i) => (b, i)))
+        {
+            if (block.Kind == "implicit") continue;
+            for (var li = 0; li < block.Lines.Count; li++)
+                if (!mapped.Lines.TryGetValue((bi, li), out var m) || m.ModIds.Count == 0) count++;
+        }
+        return count;
+    }
+
     /// <summary>Assemble the test item from the parsed text, mappings and picks.</summary>
     public static TestItem Materialize(
         ParsedItem parsed, Mapped mapped, IReadOnlyDictionary<(int, int), string> picks,
