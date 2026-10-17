@@ -52,6 +52,11 @@ Reproduce the Cloudflare build locally with:
   build); `X-Robots-Tag: noindex` on all `*.pages.dev` hosts so previews
   (and the bare production `pages.dev` URL) stay out of search engines.
   A custom domain is not matched and stays indexable.
+- `build-info.json` is generated into the output on every build (commit,
+  branch, and deployment URL from Cloudflare's `CF_PAGES_*` build
+  variables, with a local `git` fallback). The Advanced debugging panel
+  shows the short commit + branch, so any deployment URL — including the
+  frozen `<hash>.pages.dev` snapshots — can be traced to its exact commit.
 
 ## CI
 

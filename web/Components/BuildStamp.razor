@@ -1,0 +1,31 @@
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+@if (_label is not null)
+{
+    <div class="hint" id="build-stamp" title="@_url">build: @_label</div>
+}
+
+@code {
+    private string? _label;
+    private string? _url;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var info = await Http.GetFromJsonAsync<BuildInfo>("build-info.json");
+            if (info?.Commit is { Length: >= 7 } commit)
+            {
+                _label = $"{commit[..7]}{(string.IsNullOrWhiteSpace(info.Branch) ? "" : $" · {info.Branch}")}";
+                _url = string.IsNullOrWhiteSpace(info.Url) ? null : info.Url;
+            }
+        }
+        catch
+        {
+            // No build-info.json (e.g. local dev server) — render nothing.
+        }
+    }
+
+    private sealed record BuildInfo(string? Commit, string? Branch, string? Url);
+}

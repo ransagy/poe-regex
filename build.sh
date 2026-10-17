@@ -27,4 +27,11 @@ chmod +x out/dotnet-install.sh
 
 find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
 
+# Stamp the build so any deployment can be traced back to a commit.
+# Cloudflare injects CF_PAGES_* during Pages builds; locally fall back to git.
+COMMIT="${CF_PAGES_COMMIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
+BRANCH="${CF_PAGES_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo local)}"
+printf '{"commit":"%s","branch":"%s","url":"%s"}\n' "$COMMIT" "$BRANCH" "${CF_PAGES_URL:-}" \
+  > out/web/wwwroot/build-info.json
+
 echo "build.sh: site ready at out/web/wwwroot"
