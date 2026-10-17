@@ -27,6 +27,12 @@ chmod +x out/dotnet-install.sh
 
 find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
 
+# index.html always links web.styles.css, but the SDK only emits that file
+# when the project has scoped CSS (.razor.css). Ship an empty one so the
+# link resolves as text/css instead of falling through the SPA rewrite to
+# index.html, which browsers reject as a stylesheet on the MIME type.
+[ -f out/web/wwwroot/web.styles.css ] || touch out/web/wwwroot/web.styles.css
+
 # Stamp the build so any deployment can be traced back to a commit.
 # Cloudflare injects CF_PAGES_* during Pages builds; locally fall back to git.
 COMMIT="${CF_PAGES_COMMIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"

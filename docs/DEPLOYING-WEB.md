@@ -34,7 +34,11 @@ The Pages build image does not include .NET, so `build.sh`:
 2. runs `dotnet publish web/web.csproj -c Release -o out/web`,
 3. deletes pre-compressed `*.br`/`*.gz` siblings — Pages compresses at
    the edge and does not serve those variants correctly,
-4. leaves the static site in `out/web/wwwroot`.
+4. creates an empty `web.styles.css` if the SDK did not emit one
+   (`index.html` links it unconditionally; without this the request falls
+   through the SPA fallback to `index.html` and the browser blocks it on
+   the MIME type),
+5. leaves the static site in `out/web/wwwroot`.
 
 Reproduce the Cloudflare build locally with:
 
