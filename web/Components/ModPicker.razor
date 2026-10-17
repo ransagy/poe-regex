@@ -1,5 +1,4 @@
 @using PoeRegex.Core.Data
-@using PoeRegex.Core.Search
 @using PoeRegex.Web.Core
 
 <div class="modpicker">
@@ -11,7 +10,7 @@
         {
             <button class="chip inc" id="chip-inc-@Scope-@inc.ModId" title="remove"
                     @onclick="() => State.RemoveInclude(Scope, inc.ModId)">
-                @DisplayFor(inc.ModId)@(inc.MinValue is null ? "" : $" ≥{inc.MinValue}")
+                @DisplayFor(inc.ModId)
             </button>
         }
         @foreach (var exc in crit.Excluded)
@@ -30,8 +29,6 @@
     <div class="modrow">
         <input id="mod-search" placeholder="type to filter mods…" value="@_search"
                @oninput="OnSearch" aria-label="Filter mods" />
-        <input id="mod-min" placeholder="min roll, e.g. 80" inputmode="decimal" value="@_minText"
-               @oninput="OnMin" aria-label="Minimum roll: only match values at or above this" title="Only match rolls at or above this value (applies to single-value mods)" />
     </div>
 
     @if (_suggestions.Count > 0 && !_takenOnly)
@@ -78,14 +75,6 @@
     {
         <div class="more">@(_suggestions.Count - MaxShown) more… keep typing to narrow</div>
     }
-    @if (_minError is not null)
-    {
-        <div class="field-error">@_minError</div>
-    }
-    @if (_minSkipped is not null)
-    {
-        <div class="more" id="min-skipped">min ignored for @_minSkipped — a multi-value line takes no single threshold</div>
-    }
 </div>
 
 @code {
@@ -103,9 +92,6 @@
     public required IReadOnlyList<ModEntry> Mods { get; set; }
 
     private string _search = "";
-    private string _minText = "";
-    private string? _minError;
-    private string? _minSkipped;
     private List<ModEntry> _suggestions = [];
     private bool _takenOnly;
 
@@ -135,74 +121,20 @@
     private void OnSearch(ChangeEventArgs e)
     {
         _search = e.Value?.ToString() ?? "";
-        _minSkipped = null;
         Refresh();
-    }
-
-    private void OnMin(ChangeEventArgs e)
-    {
-        _minText = e.Value?.ToString() ?? "";
-        _minError = null;
-        _minSkipped = null;
-    }
-
-    /// <returns>(min, valid): valid=false only when text is present but not a number.</returns>
-    private (double? min, bool valid) ParseMin()
-    {
-        var t = _minText.Trim();
-        if (t.Length == 0) { _minError = null; return (null, true); }
-        if (double.TryParse(t, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var v))
-        { _minError = null; return (v, true); }
-        _minError = $"min '{t}' is not a number";
-        return (null, false);
     }
 
     private void Include(ModEntry m)
     {
-        var (min, valid) = ParseMin();
-        if (!valid) return;
-        _minSkipped = null;
-        var applied = min;
-        if (min is not null && !SupportsMin(m))
-        {
-            applied = null;
-            _minSkipped = $"\"{m.Name ?? m.Id}\"";
-        }
-        State.AddInclude(Scope, m.Id, applied);
+        State.AddInclude(Scope, m.Id);
         Refresh();
     }
 
     private void SelectAll()
     {
-        var (min, valid) = ParseMin();
-        if (!valid) return;
-        _minSkipped = null;
-        var skipped = 0;
         foreach (var m in _suggestions)
-        {
-            var applied = min;
-            if (min is not null && !SupportsMin(m))
-            {
-                applied = null;
-                skipped++;
-            }
-            State.AddInclude(Scope, m.Id, applied);
-        }
-        if (skipped > 0) _minSkipped = $"{skipped} selected mod(s)";
+            State.AddInclude(Scope, m.Id);
         _search = "";
         Refresh();
     }
-
-    /// <summary>
-    /// A floor only compiles onto a line with exactly one rolled number
-    /// (`+46 to Accuracy Rating`): the threshold builder cannot express a
-    /// floor on multi-value lines (`Adds 2 to 43 Lightning Damage`) and falls
-    /// back to a plain text match, so the min is dropped there instead of
-    /// silently pretending. Grouped family/tier pickers will carry per-value
-    /// floors later.
-    /// </summary>
-    private static bool SupportsMin(ModEntry m) =>
-        m.StatLines.Count > 0 &&
-        m.StatLines.All(s => s.Pattern.Count(c => c == SuffixIndex.DigitPlaceholder) == 1);
 }

@@ -23,8 +23,8 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
         All.FirstOrDefault(s => s.Id == id);
 }
 
-/// <summary>One wanted (+) or unwanted (-) modifier: a catalog mod id with an optional value floor.</summary>
-public sealed record WantedMod(string ModId, double? MinValue = null);
+/// <summary>One wanted (+) or unwanted (-) modifier: a catalog mod id.</summary>
+public sealed record WantedMod(string ModId);
 
 /// <summary>Search criteria for one slot (or the global scope): base class + wanted/unwanted mods.</summary>
 public sealed class SlotCriteria
@@ -172,11 +172,11 @@ public sealed class WorkbenchState
     public string SlotClassOrDefault(string slotId) =>
         Slots.TryGetValue(slotId, out var c) && c.ClassId.Length > 0 ? c.ClassId : "Ring";
 
-    public void AddInclude(string? slot, string modId, double? minValue = null)
+    public void AddInclude(string? slot, string modId)
     {
         var list = CriteriaFor(slot).Included;
         if (!list.Any(m => m.ModId == modId))
-            list.Add(new WantedMod(modId, minValue));
+            list.Add(new WantedMod(modId));
         Notify();
     }
 

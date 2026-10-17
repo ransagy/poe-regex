@@ -58,7 +58,7 @@ public class WorkbenchStateTests
         var state = new WorkbenchState();
         state.SetMode("multi");
         state.AddInclude("body", "IncreasedLife6");
-        state.AddInclude("helmet", "IncreasedLife6", 80);
+        state.AddInclude("helmet", "IncreasedLife6");
         state.AddExclude("ring2", "reflect"); // excluded-only still enrolls
         state.ActiveSlots().Should().Equal(["helmet", "body", "ring2"]);
         state.ClearChips("body");
@@ -87,7 +87,7 @@ public class WorkbenchStateTests
         state.SetMode("multi");
         state.SelectSlot("helmet"); // editing focus
         state.SetSlotClass("body", "Helmet");
-        state.AddInclude("body", "IncreasedLife6", 80);
+        state.AddInclude("body", "IncreasedLife6");
         state.AddInclude("helmet", "IncreasedLife6");
         state.AddExclude(null, "reflect");
         var parsed = ItemTextParser.Parse(FixtureTexts.Talisman);
@@ -104,7 +104,7 @@ public class WorkbenchStateTests
         restored.MultiFocus.Should().Be("helmet");
         restored.ActiveSlots().Should().Equal(["helmet", "body"]);
         restored.SlotClassOrDefault("body").Should().Be("Helmet");
-        restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6", 80)]);
+        restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6")]);
         restored.CriteriaFor(null).Excluded.Should().Equal(["reflect"]);
         restored.TestItems.Should().HaveCount(1);
         restored.TestItems[0].Name.Should().Be("t");
@@ -128,6 +128,24 @@ public class WorkbenchStateTests
         state.MultiFocus.Should().BeNull("unknown focus slot is dropped");
         state.SlotClassOrDefault("body").Should().Be("Helmet");
         state.ActiveSlots().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Snapshot_Restore_DropsRetiredMinValues()
+    {
+        // Old snapshots carry a `minValue` on wanted mods from the retired
+        // min-roll box; loading must not resurrect a floor the UI can no
+        // longer show or edit.
+        var json = """
+            {"Version":2,"Mode":"global","SelectedSlot":null,"MultiFocus":null,
+             "Slots":{"body":{"ClassId":"Helmet","Included":[{"ModId":"IncreasedLife6","MinValue":80}],"Excluded":[]}},
+             "Global":{"ClassId":"","Included":[],"Excluded":[]},"TestItems":[]}
+            """;
+        var back = System.Text.Json.JsonSerializer.Deserialize(
+            json, WebJsonContext.Default.WorkbenchSnapshot)!;
+        var restored = new WorkbenchState();
+        WorkbenchSnapshot.Restore(restored, back);
+        restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6")]);
     }
 
     [Fact]
@@ -225,7 +243,7 @@ public class WorkbenchStateTests
     public void Chips_PerSlotAndGlobalScopes()
     {
         var state = new WorkbenchState();
-        state.AddInclude("body", "IncreasedLife6", 80);
+        state.AddInclude("body", "IncreasedLife6");
         state.AddInclude("body", "IncreasedLife6"); // dup ignored
         state.AddInclude(null, "IncreasedLife6"); // global is a separate scope
         state.AddExclude("body", "reflect");
