@@ -1,0 +1,18 @@
+# Always revalidate the app shell and boot manifest so deployments roll
+# out immediately without stale-cache integrity errors.
+/index.html
+  Cache-Control: no-cache
+
+/_framework/blazor.boot.json
+  Cache-Control: no-cache
+
+# Keep preview and *.pages.dev deployments out of search engines.
+# A custom domain is intentionally not matched and stays indexable.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:branch.:project.pages.dev/*
+  X-Robots-Tag: noindex

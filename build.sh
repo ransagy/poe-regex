@@ -1,0 +1,30 @@
+#!/bin/sh
+# Cloudflare Pages build script for the Blazor WebAssembly app.
+#
+# The Pages build image ships no .NET, so this installs the .NET 10 SDK
+# locally, publishes web/web.csproj, and leaves the static site in
+# out/web/wwwroot. Everything this script produces lives under the
+# gitignored out/ directory, so it is safe to run locally as well.
+#
+# Pages project configuration:
+#   build command:    ./build.sh
+#   output directory: out/web/wwwroot
+set -eu
+
+mkdir -p out
+
+curl -fsSL https://dot.net/v1/dotnet-install.sh > out/dotnet-install.sh
+chmod +x out/dotnet-install.sh
+./out/dotnet-install.sh -c 10.0 -InstallDir ./out/dotnet
+./out/dotnet/dotnet --version
+
+# Pre-compressed .br/.gz siblings are not served correctly by Cloudflare
+# Pages (it compresses at the edge itself). BlazorEnableCompression
+# normally suppresses them; the delete is a safety net in case the
+# property is renamed in a future SDK.
+./out/dotnet/dotnet publish web/web.csproj -c Release -o out/web \
+  -p:BlazorEnableCompression=false
+
+find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
+
+echo "build.sh: site ready at out/web/wwwroot"
