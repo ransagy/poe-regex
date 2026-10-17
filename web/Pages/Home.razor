@@ -309,7 +309,7 @@
         try
         {
             var result = Engine.Compile(
-                crit.Included.Select(m => new ModifierRequirement(m.ModId)),
+                crit.Included.SelectMany(m => m.Requirements()),
                 crit.Excluded.Select(e => new ModifierRequirement(e)),
                 itemClass: itemClass,
                 allowOverflow: allowOverflow);

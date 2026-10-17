@@ -345,6 +345,29 @@ select, input {
 .suggest-line { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Family/tier pickers: one block per stat family; expanding shows its tiers. */
+.fam-block { break-inside: avoid; }
+.suggest-row.fam-row { border-bottom: 1px solid #3d3220; }
+.suggest-row .fam-toggle {
+    flex: 1; display: flex; gap: 0.45rem; align-items: baseline; text-align: left;
+    background: transparent; border-color: transparent; padding: 0; cursor: pointer;
+    overflow: hidden;
+}
+.suggest-row .fam-toggle:hover { border-color: var(--panel-edge); background: var(--slot); }
+.fam-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; }
+.tier-count {
+    flex: none; font-size: 0.68rem; color: var(--dim);
+    border: 1px solid var(--panel-edge); border-radius: 0.6rem; padding: 0 0.35rem;
+}
+.tier-list { list-style: none; margin: 0; padding: 0 0 0 1.2rem; }
+.suggest-row.tier-row { border-bottom-style: none; padding: 0.05rem 0; }
+.tier-row .tier-name {
+    flex: none; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-style: italic; color: var(--accent); font-size: 0.82rem;
+}
+.tier-row .suggest-line { font-size: 0.78rem; color: var(--dim); }
+.chip.inc.by-name { border-color: #3f6f7a; }
 .suggest-row button, #suggest-all {
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
     cursor: pointer; padding: 0.1rem 0.5rem; font-size: 0.85rem;

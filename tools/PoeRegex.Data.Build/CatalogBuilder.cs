@@ -124,6 +124,8 @@ public static class CatalogBuilder
                 Id = modId,
                 Name = mods[modId].Name,
                 GenerationType = mods[modId].GenerationType,
+                Family = mods[modId].Type ?? "",
+                RequiredLevel = mods[modId].RequiredLevel,
                 Classes = classes.ToList(),
                 Groups = mods[modId].Groups ?? [],
                 StatLines = statLines,

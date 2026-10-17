@@ -27,29 +27,40 @@
                                @oninput="OnSearch" aria-label="Builder mod filter" />
                     </div>
                     <ol class="suggest" aria-label="Builder suggestions">
-                        @foreach (var m in _suggestions.Take(30))
+                        @foreach (var fam in _families.Take(30))
                         {
-                            var lines = m.StatLines;
-                            var line = lines.FirstOrDefault();
-                            var builderTag = (m.GenerationType.ToLowerInvariant() == "prefix") ? "prefix" : "suffix";
-                            <li class="suggest-row">
-                                <span class="gen-tag" title="@builderTag">@builderTag</span>
-                                @if (lines.Count <= 1)
+                            var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
+                            <li class="fam-block">
+                                <div class="suggest-row fam-row">
+                                    <span class="gen-tag" title="@(fam.IsPrefix ? "prefix" : "suffix")">@(fam.IsPrefix ? "prefix" : "suffix")</span>
+                                    <button class="suggest-line fam-toggle" id="builder-fam-@fam.Anchor.Id"
+                                            title="show @fam.Tiers.Count tier(s)"
+                                            @onclick="() => Toggle(fam.Key)">
+                                        <span class="fam-text">@fam.DisplayText</span>
+                                        <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
+                                    </button>
+                                    <button id="builder-add-@fam.Anchor.Id" class="btn" title="add this stat (base tier)"
+                                            @onclick="() => Add(fam.Anchor)">+</button>
+                                </div>
+                                @if (expanded)
                                 {
-                                    <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
-                                }
-                                else
-                                {
-                                    <span class="suggest-line multi">
-                                        @foreach (var sl in lines)
+                                    <ul class="tier-list">
+                                        @foreach (var tier in fam.Tiers)
                                         {
-                                            <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
+                                            <li class="suggest-row tier-row">
+                                                <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                                <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
+                                                    @foreach (var l in tier.DisplayLines)
+                                                    {
+                                                        <span class="mod-line">@l</span>
+                                                    }
+                                                </span>
+                                                <button id="builder-add-@tier.Anchor.Id" class="btn" title="add &quot;@tier.Name&quot; (@tier.Anchor.GenerationType)"
+                                                        @onclick="() => Add(tier.Anchor)">+</button>
+                                            </li>
                                         }
-                                    </span>
+                                    </ul>
                                 }
-                                <button id="builder-add-@m.Id" class="btn" title="add @(m.GenerationType)"
-                                        disabled="@_added.Contains(m.Id)"
-                                        @onclick="() => Add(m)">+</button>
                             </li>
                         }
                     </ol>
@@ -103,7 +114,8 @@
     private string _rarity = Rare;
     private string _search = "";
     private string _name = "";
-    private List<ModEntry> _suggestions = [];
+    private IReadOnlyList<ModFamily> _families = [];
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
     private List<string> _added = [];
     private List<RuleViolation> _violations = [];
     private string? _saveError;
@@ -116,10 +128,25 @@
     private void Refresh()
     {
         var taken = _added.ToHashSet(StringComparer.Ordinal);
-        _suggestions = ModSearch.FilterMods(
-            Engine.ModsForClass(_classId).Where(m => !taken.Contains(m.Id)), _search).ToList();
+        var avail = Engine.ModsForClass(_classId).Where(m => !taken.Contains(m.Id)).ToList();
+        var all = ModFamilies.Group(avail);
+        var filter = _search.Trim();
+        _families = filter.Length == 0
+            ? all
+            : all.Select(f => f with
+              {
+                  Tiers = f.Tiers
+                      .Where(t => ModSearch.FilterMods(t.Members, filter).Count > 0).ToList(),
+              })
+              .Where(f => f.Tiers.Count > 0)
+              .ToList();
         _violations = ItemRules.Validate(Engine,
             _added.Select(id => RuleLineFor(id)), _rarity).ToList();
+    }
+
+    private void Toggle(string key)
+    {
+        if (!_expanded.Add(key)) _expanded.Remove(key);
     }
 
     /// <summary>
@@ -137,7 +164,10 @@
         foreach (var id in _added)
         {
             var mod = Engine.FindMod(id);
-            foreach (var s in mod?.StatLines ?? [])
+            if (mod is null) continue;
+            var header = ItemTextParser.CatalogModHeader(mod);
+            item.Mapped.Add(new MappedLine(header, header, [], [], id, IsHeader: true));
+            foreach (var s in mod.StatLines)
                 item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
         }
         return item;

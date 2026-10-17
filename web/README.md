@@ -39,7 +39,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 102 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 115 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -74,10 +74,16 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   corrupted footer, and an optional per-line annotation slot; the card is
   the tooltip's scroll region so its border stays put), `ModeSwitch`,
   `ClassPicker`,
-  `ModPicker` (searchable mods, one flat list with a P/S prefix/suffix tag
-  per line — one column, or two when the editor column is wide enough — and
-  the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
-  copy, explain, overflow), `ImportPanel`
+  `ModPicker` (searchable mods grouped into stat families: one row per
+  family with the unioned range text and a tier-count badge, a `+` for the
+  plain stat (any tier) and a `−` for the whole family; clicking the row
+  expands its tiers — each tier row shows the affix name and its range, `+`
+  compiles the affix-name literal (specific tier), `↑` compiles that name
+  and every better tier (`… or better`, by required level), `−` excludes by
+  name; one column, or two when the editor column is wide enough — and the
+  list stretches/scrolls to fill the editor's height; typing filters tiers,
+  so `reliable` narrows to the family(ies) carrying that affix), `QueryCard`
+  (meter, copy, explain, overflow), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
   previews as `‹ card ›` with the `k / N` counter centered above the card
   and the per-item status centered under it; arrow keys step too; the paste's
@@ -89,13 +95,24 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   gate, rule check and backpack-full are reported per card; every
   preview — single or batch — is the shared card with mapping status per
   line), `ItemBuilder` (assemble from
-  catalog mods in two columns — searchable suggestions left, name input,
-  live card and removal chips right; Save adds exactly the card shown; both
-  modals reject when the backpack is full). Backpack tools row: import,
-  assemble, and remove (acts on the pinned item).
+  catalog mods in two columns — the same family/tier grouping as the picker
+  on the left, a name input, live card and removal chips right; a family `+`
+  adds its base tier, a tier `+` adds that tier; Save adds exactly the card
+  shown; both modals reject when the backpack is full). Backpack tools row:
+  import, assemble, and remove (acts on the pinned item).
+- Mod picking compiles what it says: a plain family pick keeps the stat-text
+  fragment (matches every tier); a tier pick compiles the quoted affix name
+  (`"Snowy"`), because the name is the only text that distinguishes tiers
+  in-game; `↑` compiles the whole name set from that tier up in one quoted
+  alternation. Tier order is RePoE `required_level` — the UI never shows
+  game tier numbers (the game's own numbering is not derivable from data).
 - Item matching for highlight/dim and tooltip verdicts runs on the item's
-  `Item Class:` line plus parsed and mapped catalog lines (builder-assembled
-  items match too); it engages only once the active scope has mods picked.
+  full copied advanced description: the `Item Class:` line, parsed/mapped
+  lines, and the `{ … Modifier "Name" (Tier: n) — tags }` captions — the
+  captions are where the game matches affix-name queries, so the lab agrees
+  with an in-game `snowy` search; builder-assembled items get reconstructed
+  captions too (without tier/tags, which the catalog does not carry). It
+  engages only once the active scope has mods picked.
 - `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
   seam (URL-share and accounts are future work; see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
@@ -103,7 +120,8 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   viewport after each render.
 
 Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
-`ModSearch`, `WorkbenchState`, `ItemTextParser`, `ItemMatcher`, `TestItem`,
+`ModSearch`, `ModFamilies` (family/tier grouping + union display),
+`WorkbenchState`, `ItemTextParser`, `ItemMatcher`, `TestItem`,
 `Persistence`) so it is unit-testable without a browser.
 
 ## Known limitations (all flagged for maintainer QA)
@@ -123,8 +141,8 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
   the importer maps those via flagged approximate fallbacks. Imports resolve
   by bracket ranges + header names, so a line with neither (and no plain-text
-  match) shows as ambiguous (`+N`) rather than asking — grouped family/tier
-  pickers (next round) replace that surface for the builder and picker.
+  match) shows as ambiguous (`+N`) rather than asking — the grouped
+  family/tier pickers cover that surface for the builder and picker.
 - The min-roll box is retired: a numeric floor only compiles soundly as
   whole-line text (~4-5x the length of the normal fingerprint fragment) and
   the click-time interaction never made it live or editable. Roll limiting

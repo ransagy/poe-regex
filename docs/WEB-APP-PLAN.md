@@ -186,7 +186,9 @@ the trade site — trade browsing is out of scope (dozens of filters, unknown
 regex support). In-game test evidence: the box matches advanced-description
 mod names for rares (a `"Snowy"` fragment lit a rare focus), and tier
 filters can be expressed as name fragments (`"Snowy"`) or alternations of
-names, which is what the grouped family/tier pickers (next round) compile.
+names. The grouped family/tier pickers (round 10) compile exactly that:
+family picks keep the stat-text fragment, tier picks compile the quoted
+name, `↑` compiles the tier's name and every better tier by required level.
 
 ### 9.2 Backpack footprints — FINAL (maintainer-confirmed, all existing classes)
 
@@ -291,6 +293,41 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 10 — family/tier grouped picks + the affix-name truth.**
+  The min-roll box is retired (separate commit): `WantedMod` carries no
+  `MinValue`, the picker has no min field, and stored snapshots with
+  `minValue` load normalized (unknown JSON fields are dropped) — roll
+  limiting is the tier picks below, not a text floor. Both catalogs now
+  carry the raw RePoE family key (`family` — the `type` field, which merges
+  scopes: one-hand/two-hand share a family) and `requiredLevel`; the new
+  `ModFamilies` helper groups a scope's mods into families whose row text is
+  the unioned per-number span (`+10–214 to maximum Life`; flat numbers count
+  as degenerate spans, so a base tier's `Adds 1 to 7–10 …` unions with
+  `Adds 1–19 to …`), with tiers grouped by affix name (1H/2H variants
+  merge) ordered by required level — the game's own tier numbers are never
+  shown or guessed (the crossbow `Snapping` is "(Tier: 8)" in-game but 3rd
+  by required level). `ModPicker` and `ItemBuilder` show one block per
+  family: `+` adds the plain stat (stat-text fragment — matches every
+  tier), expanding lists tier rows whose `+` compiles the quoted affix name
+  (the only text that separates tiers in-game), `↑` compiles the picked
+  tier's name plus every better tier's in one alternation, `−` excludes the
+  family (fragment) or a tier (name literal, compiled as `!"Name"`); chips
+  label exactly what compiles (`"Reliable"`, `"Snowy" +4`), plain and name
+  picks on the same anchor coexist, and exact duplicates are ignored (the
+  round-trip now keeps structural list equality). The lab's matchable text
+  became the full copied advanced description: `ParsedItem.AllLines()` adds
+  the reconstructed `{ … Modifier "Name" (Tier: n) — tags }` captions (where
+  the in-game name search actually matches), builder-assembled items
+  materialize captions from the catalog (`MappedLine.IsHeader`, skipped as
+  stat lines by the card), and `Reheal` is now idempotent — it used to
+  duplicate mapped lines on every boot (headers first, later copies for the
+  same mod dropped). Full slnx 7+115+66 green; CDP-verified: family unions
+  (`+11–550 to Accuracy Rating`, `Adds 1–19 to 7–358 Lightning Damage`),
+  tier / `↑` / name-exclusion chips and compiled bytes,
+  `+` disabled after the pick lands, imported crossbow highlights on the
+  `"Snapping"` name pick, built ring highlights on `"Hale"`, its card shows
+  the caption not the header line, mapped lines stable across reloads,
+  900px keeps the page unscrolled, and name picks survive a real reload.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

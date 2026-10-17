@@ -257,7 +257,7 @@ public sealed class EngineService
         new PasteComposer(_corpus, _strategy).Compose(
             slots.Select(s => new PasteSlotCriterion(
                 s.ClassId,
-                s.Includes.Select(m => new ModifierRequirement(m.ModId)).ToList(),
+                s.Includes.SelectMany(m => m.Requirements()).ToList(),
                 s.Label)).ToList(),
             excludes.Select(e => new ModifierRequirement(e)),
             allowOverflow);

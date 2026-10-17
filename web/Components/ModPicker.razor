@@ -8,9 +8,9 @@
     <div class="chips" aria-label="Wanted mods">
         @foreach (var inc in crit.Included)
         {
-            <button class="chip inc" id="chip-inc-@Scope-@inc.ModId" title="remove"
-                    @onclick="() => State.RemoveInclude(Scope, inc.ModId)">
-                @DisplayFor(inc.ModId)
+            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
+                    title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+                @ChipLabel(inc)
             </button>
         }
         @foreach (var exc in crit.Excluded)
@@ -31,49 +31,76 @@
                @oninput="OnSearch" aria-label="Filter mods" />
     </div>
 
-    @if (_suggestions.Count > 0 && !_takenOnly)
+    @if (_families.Count > 1)
     {
-        <button id="suggest-all" @onclick="SelectAll">[select all @_suggestions.Count]</button>
+        <button id="suggest-all" @onclick="SelectAll">[select all @_families.Count families]</button>
     }
-    @if (_suggestions.Count == 0 && !_takenOnly)
+    @if (_families.Count == 0)
     {
         <div class="more">no mods match the filter</div>
     }
     <div class="mod-list">
         <ol class="suggest" aria-label="Mods">
-            @foreach (var m in _suggestions.Take(MaxShown))
+            @foreach (var fam in _families.Take(MaxShown))
             {
-                var lines = m.StatLines;
-                var line = lines.FirstOrDefault();
-                var prefix = IsPrefix(m);
-                var display = line is null ? m.Id : ModSearch.DisplayLine(line);
-                var fullText = lines.Count > 0
-                    ? string.Join("\n", lines.Select(ModSearch.DisplayLine))
-                    : m.Id;
-                <li class="suggest-row">
-                    <span class="gen-tag" title="@(prefix ? "prefix" : "suffix")">@(prefix ? "P" : "S")</span>
-                    @if (lines.Count <= 1)
+                var plainPick = new WantedMod(fam.Anchor.Id);
+                var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
+                var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
+                <li class="fam-block">
+                    <div class="suggest-row fam-row">
+                        <span class="gen-tag" title="@(fam.IsPrefix ? "prefix" : "suffix")">@(fam.IsPrefix ? "P" : "S")</span>
+                        <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
+                                title="show @fam.Tiers.Count tier(s) — each tier is the affix name the game matches"
+                                @onclick="() => Toggle(fam.Key)">
+                            <span class="fam-text">@fam.DisplayText</span>
+                            <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
+                        </button>
+                        <button id="pick-inc-@fam.Anchor.Id" title="include this stat, any tier (compiles the stat-text fragment)"
+                                disabled="@pickedPlain"
+                                @onclick="() => Include(plainPick)">+</button>
+                        <button id="pick-exc-@fam.Anchor.Id" title="exclude this stat (any tier)"
+                                @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
+                    </div>
+                    @if (expanded)
                     {
-                        <span class="suggest-line" title="@fullText">@display</span>
-                    }
-                    else
-                    {
-                        <span class="suggest-line multi" title="@fullText">
-                            @foreach (var sl in lines)
+                        <ul class="tier-list">
+                            @foreach (var tier in fam.Tiers)
                             {
-                                <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
+                                var exactPick = new WantedMod(tier.Anchor.Id, [tier.Name]);
+                                var upNames = fam.NamesFrom(tier);
+                                var upPick = new WantedMod(tier.Anchor.Id, upNames);
+                                var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
+                                var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
+                                <li class="suggest-row tier-row">
+                                    <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                    <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
+                                        @foreach (var l in tier.DisplayLines)
+                                        {
+                                            <span class="mod-line">@l</span>
+                                        }
+                                    </span>
+                                    <button id="pick-tier-@tier.Anchor.Id" title="include &quot;@tier.Name&quot; — the game matches this affix name exactly"
+                                            disabled="@pickedExact"
+                                            @onclick="() => Include(exactPick)">+</button>
+                                    @if (upNames.Count > 1)
+                                    {
+                                        <button id="pick-tier-up-@tier.Anchor.Id" title="include &quot;@tier.Name&quot; and every better tier by required level: @string.Join(", ", upNames)"
+                                                disabled="@pickedUp"
+                                                @onclick="() => Include(upPick)">↑</button>
+                                    }
+                                    <button id="pick-tier-exc-@tier.Anchor.Id" title="exclude anything carrying the affix name &quot;@tier.Name&quot;"
+                                            @onclick="() => AddExclude(tier.Name)">−</button>
+                                </li>
                             }
-                        </span>
+                        </ul>
                     }
-                    <button id="pick-inc-@m.Id" title="include" @onclick="() => Include(m)">+</button>
-                    <button id="pick-exc-@m.Id" title="exclude" @onclick="() => State.AddExclude(Scope, m.Id)">−</button>
                 </li>
             }
         </ol>
     </div>
-    @if (_suggestions.Count > MaxShown)
+    @if (_families.Count > MaxShown)
     {
-        <div class="more">@(_suggestions.Count - MaxShown) more… keep typing to narrow</div>
+        <div class="more">@(_families.Count - MaxShown) more… keep typing to narrow</div>
     }
 </div>
 
@@ -92,31 +119,60 @@
     public required IReadOnlyList<ModEntry> Mods { get; set; }
 
     private string _search = "";
-    private List<ModEntry> _suggestions = [];
-    private bool _takenOnly;
+    private IReadOnlyList<ModFamily> _allFamilies = [];
+    private IReadOnlyList<ModFamily> _families = [];
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
 
     protected override void OnParametersSet() => Refresh();
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
 
-    /// <summary>Friendly chip text: the mod's range line, falling back to the id.</summary>
-    private string DisplayFor(string modId) =>
-        Mods.FirstOrDefault(m => m.Id == modId)?.StatLines.FirstOrDefault() is { } sl
-            ? ModSearch.DisplayLine(sl)
-            : modId;
-
     private void Refresh()
     {
-        var crit = ScopeCriteria();
-        var taken = crit.Included.Select(m => m.ModId).Concat(crit.Excluded);
-        var avail = ModSearch.AvailableMods(Mods, taken);
-        _suggestions = ModSearch.FilterMods(avail, _search).ToList();
-        _takenOnly = avail.Count == 0;
+        _allFamilies = ModFamilies.Group(Mods);
+        var filter = _search.Trim();
+        _families = filter.Length == 0
+            ? _allFamilies
+            : _allFamilies
+                .Select(f => f with
+                {
+                    Tiers = f.Tiers
+                        .Where(t => ModSearch.FilterMods(t.Members, filter).Count > 0).ToList(),
+                })
+                .Where(f => f.Tiers.Count > 0)
+                .ToList();
     }
 
-    /// <summary>Tag shown on each mod line: prefix (P) or suffix (S).</summary>
-    private static bool IsPrefix(ModEntry m) =>
-        m.GenerationType.Equals("prefix", StringComparison.OrdinalIgnoreCase);
+    private void Toggle(string key)
+    {
+        if (!_expanded.Add(key)) _expanded.Remove(key);
+    }
+
+    /// <summary>Plain picks show the family's unioned stat text (what they
+    /// match, any tier); name picks show the quoted affix name(s).</summary>
+    private string DisplayFor(string modId)
+    {
+        var mod = Mods.FirstOrDefault(m => m.Id == modId);
+        if (mod is null) return modId;
+        var fam = _allFamilies.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(mod));
+        return fam?.DisplayText
+               ?? (mod.StatLines.Count > 0 ? ModSearch.DisplayLine(mod.StatLines[0]) : mod.Id);
+    }
+
+    private string ChipKey(WantedMod pick) =>
+        pick.IsNamePick ? $"{pick.ModId}-n{pick.Names!.Count}" : pick.ModId;
+
+    private string ChipLabel(WantedMod pick) =>
+        pick.IsNamePick
+            ? (pick.Names!.Count == 1 ? $"\"{pick.Names[0]}\"" : $"\"{pick.Names[0]}\" +{pick.Names.Count - 1}")
+            : DisplayFor(pick.ModId);
+
+    private string ChipTitle(WantedMod pick) =>
+        pick.IsNamePick
+            ? pick.Names!.Count == 1
+                ? $"remove — the game matches the affix name \"{pick.Names[0]}\" exactly"
+                : $"remove — affix names this tier and better: {string.Join(", ", pick.Names)}"
+            : $"remove — any tier of this stat";
 
     private void OnSearch(ChangeEventArgs e)
     {
@@ -124,16 +180,22 @@
         Refresh();
     }
 
-    private void Include(ModEntry m)
+    private void Include(WantedMod pick)
     {
-        State.AddInclude(Scope, m.Id);
+        State.AddInclude(Scope, pick);
+        Refresh();
+    }
+
+    private void AddExclude(string term)
+    {
+        State.AddExclude(Scope, term);
         Refresh();
     }
 
     private void SelectAll()
     {
-        foreach (var m in _suggestions)
-            State.AddInclude(Scope, m.Id);
+        foreach (var fam in _families)
+            State.AddInclude(Scope, fam.Anchor.Id);
         _search = "";
         Refresh();
     }

@@ -45,6 +45,18 @@ public sealed class ModEntry
     [JsonPropertyName("generationType")]
     public required string GenerationType { get; init; }
 
+    /// <summary>RePoE family key (`type`): all tiers of one stat share it
+    /// (merges scopes, e.g. one-hand/two-hand). Empty on catalogs built
+    /// before families were captured.</summary>
+    [JsonPropertyName("family")]
+    public string Family { get; init; } = "";
+
+    /// <summary>RePoE `required_level`: tier order within a family. It is NOT
+    /// the in-game tier number (the game's own numbering is not derivable
+    /// from data), so the UI never shows it as a tier.</summary>
+    [JsonPropertyName("requiredLevel")]
+    public int RequiredLevel { get; init; }
+
     [JsonPropertyName("classes")]
     public required IReadOnlyList<string> Classes { get; init; }
 

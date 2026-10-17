@@ -57,9 +57,24 @@ public sealed record ParsedItem(
     bool Corrupted,
     IReadOnlyList<ParsedModBlock> Mods)
 {
-    /// <summary>Every matchable line: base lines + name + all mod value lines.</summary>
-    public IReadOnlyList<string> AllLines() =>
-        BaseLines.Concat(Name is null ? [] : [Name]).Concat(Mods.SelectMany(m => m.Lines.Select(l => l.Text))).ToList();
+    /// <summary>
+    /// Every matchable line — the game's copied advanced description: base
+    /// lines, the name, and each mod block's header plus value lines. Headers
+    /// matter because the in-game search matches that full text, and affix
+    /// names (e.g. `Snowy`) plus tier numbers live only in the `{ ... }`
+    /// captions. Built/imported items both feed the lab matcher from here.
+    /// </summary>
+    public IReadOnlyList<string> AllLines()
+    {
+        var lines = new List<string>(BaseLines);
+        if (Name is not null) lines.Add(Name);
+        foreach (var m in Mods)
+        {
+            lines.Add(ItemTextParser.ModHeaderText(m.Kind, m.Name, m.Tier, m.Tags));
+            lines.AddRange(m.Lines.Select(l => l.Text));
+        }
+        return lines;
+    }
 }
 
 /// <summary>
@@ -70,6 +85,25 @@ public sealed record ParsedItem(
 /// </summary>
 public static partial class ItemTextParser
 {
+    /// <summary>
+    /// Rebuilds a `{ ... Modifier ... }` caption the way the game phrases it
+    /// (e.g. `{ Prefix Modifier "Snowy" (Tier: 8) — Damage, Lightning }`).
+    /// Built items pass null tier/tags: the derived catalog carries neither.
+    /// </summary>
+    public static string ModHeaderText(string kind, string? name, int? tier, IReadOnlyList<string> tags)
+    {
+        var text = "{ " + char.ToUpperInvariant(kind.Length > 0 ? kind[0] : '?') + kind[1..] + " Modifier";
+        if (!string.IsNullOrEmpty(name)) text += " \"" + name + "\"";
+        if (tier is not null) text += $" (Tier: {tier})";
+        if (tags.Count > 0) text += " — " + string.Join(", ", tags);
+        return text + " }";
+    }
+
+    /// <summary>Header caption for a catalog mod on a built item (no tier or
+    /// tags available from the derived catalog).</summary>
+    public static string CatalogModHeader(PoeRegex.Core.Data.ModEntry mod) =>
+        ModHeaderText(mod.GenerationType, mod.Name, null, []);
+
     [GeneratedRegex(@"^Item Class:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex ItemClassRe();
     [GeneratedRegex(@"^Rarity:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]

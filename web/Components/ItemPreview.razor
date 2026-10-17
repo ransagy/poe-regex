@@ -155,6 +155,7 @@
                 var lines = new List<PreviewLine>();
                 foreach (var ml in group)
                 {
+                    if (ml.IsHeader) continue; // caption below already names the mod
                     lines.Add(new PreviewLine(DisplayText(ml, ml.Text),
                         new PreviewLineRef(-1, refIndex++, ml.Text, ml.Candidates, ml.SelectedModId)));
                 }

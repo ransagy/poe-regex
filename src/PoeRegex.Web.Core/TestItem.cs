@@ -1,12 +1,15 @@
 namespace PoeRegex.Web.Core;
 
-/// <summary>One pasted line with its catalog mapping outcome.</summary>
+/// <summary>One pasted line with its catalog mapping outcome. Header lines are
+/// the `{ … Modifier … }` captions: matchable in the lab (the game searches
+/// them) but not rendered as stat lines in the item card.</summary>
 public sealed record MappedLine(
     string Text,
     string CanonicalText,
     IReadOnlyList<double> Rolls,
     IReadOnlyList<string> Candidates,
-    string? SelectedModId);
+    string? SelectedModId,
+    bool IsHeader = false);
 
 /// <summary>
 /// A test item in the backpack lab: parsed text plus per-line catalog mapping.
@@ -68,11 +71,12 @@ public sealed class TestItem
                 candidate.Add(ml);
                 continue;
             }
-            if (!seen.Add(mid))
-            {
-                candidate.Add(ml);
-                continue;
-            }
+            // First entry of a mod re-renders its whole line set (header +
+            // stat lines); later entries for the same mod are redundant
+            // copies — dropping them keeps the heal idempotent.
+            if (!seen.Add(mid)) continue;
+            var header = ItemTextParser.CatalogModHeader(mod);
+            candidate.Add(new MappedLine(header, header, [], [], mid, IsHeader: true));
             foreach (var sl in mod.StatLines)
                 candidate.Add(new MappedLine(sl.Line, sl.Line, ml.Rolls, ml.Candidates, mid));
         }

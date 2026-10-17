@@ -89,6 +89,7 @@ public class WorkbenchStateTests
         state.SetSlotClass("body", "Helmet");
         state.AddInclude("body", "IncreasedLife6");
         state.AddInclude("helmet", "IncreasedLife6");
+        state.AddInclude("helmet", new WantedMod("ColdDamagePrefixOnWeapon4", ["Snowy", "Hailing"]));
         state.AddExclude(null, "reflect");
         var parsed = ItemTextParser.Parse(FixtureTexts.Talisman);
         state.AddTestItem(new TestItem { Name = "t", ClassId = "Talisman", Parsed = parsed });
@@ -105,6 +106,8 @@ public class WorkbenchStateTests
         restored.ActiveSlots().Should().Equal(["helmet", "body"]);
         restored.SlotClassOrDefault("body").Should().Be("Helmet");
         restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6")]);
+        restored.CriteriaFor("helmet").Included.Should().Equal(
+            [new WantedMod("IncreasedLife6"), new WantedMod("ColdDamagePrefixOnWeapon4", ["Snowy", "Hailing"])]);
         restored.CriteriaFor(null).Excluded.Should().Equal(["reflect"]);
         restored.TestItems.Should().HaveCount(1);
         restored.TestItems[0].Name.Should().Be("t");
@@ -259,6 +262,24 @@ public class WorkbenchStateTests
         state.AddInclude("body", "A");
         state.ClearChips("body");
         state.CriteriaFor("body").Included.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Chips_NamePicks_AreDistinctFromPlainPicksOnTheSameAnchor()
+    {
+        var state = new WorkbenchState();
+        const string anchor = "ColdDamagePrefixOnWeapon4";
+        state.AddInclude("weapon", anchor);                       // any tier
+        state.AddInclude("weapon", new WantedMod(anchor, ["Snowy"])); // exact tier
+        state.AddInclude("weapon", new WantedMod(anchor, ["Snowy"])); // dup ignored
+        state.AddInclude("weapon", new WantedMod(anchor, ["Snowy", "Hailing"])); // tier or better
+        state.CriteriaFor("weapon").Included.Should().HaveCount(3,
+            "plain, exact-name and name-set picks coexist on one anchor");
+
+        state.RemoveInclude("weapon", new WantedMod(anchor, ["Snowy"])).Should().BeTrue();
+        state.RemoveInclude("weapon", new WantedMod(anchor, ["Snowy"])).Should().BeFalse("already removed");
+        state.CriteriaFor("weapon").Included.Should().Equal(
+            [new WantedMod(anchor), new WantedMod(anchor, ["Snowy", "Hailing"])]);
     }
 
     [Fact]

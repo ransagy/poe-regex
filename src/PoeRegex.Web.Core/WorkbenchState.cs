@@ -23,8 +23,43 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
         All.FirstOrDefault(s => s.Id == id);
 }
 
-/// <summary>One wanted (+) or unwanted (-) modifier: a catalog mod id.</summary>
-public sealed record WantedMod(string ModId);
+/// <summary>
+/// One wanted (+) modifier pick. A plain pick (empty <see cref="Names"/>)
+/// compiles the catalog mod's stat-text fragment and matches every tier. A
+/// name pick compiles the affix name literal(s) instead, because the affix
+/// name is the only text that distinguishes tiers in-game: one name selects
+/// that tier, several select "this tier or better" (never game tier numbers —
+/// they are not derivable from data).
+/// </summary>
+public sealed record WantedMod(string ModId, IReadOnlyList<string>? Names = null)
+{
+    /// <summary>Computed; kept out of snapshots (plain picks would carry
+    /// `IsNamePick:false` noise on every entry).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsNamePick => Names is { Count: > 0 };
+
+    /// <summary>Exact-pick identity: same anchor and same names in order.</summary>
+    public bool SamePick(WantedMod other) => Equals(other);
+
+    public bool Equals(WantedMod? other) =>
+        other is not null && ModId == other.ModId &&
+        (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(ModId, StringComparer.Ordinal);
+        foreach (var name in Names ?? []) hash.Add(name, StringComparer.Ordinal);
+        return hash.ToHashCode();
+    }
+
+    /// <summary>Compile-time requirements: one free-text name per name pick,
+    /// else the catalog mod id (fragment resolution happens in the engine).</summary>
+    public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements() =>
+        IsNamePick
+            ? Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n))
+            : [new PoeRegex.Core.ModifierRequirement(ModId)];
+}
 
 /// <summary>Search criteria for one slot (or the global scope): base class + wanted/unwanted mods.</summary>
 public sealed class SlotCriteria
@@ -172,18 +207,25 @@ public sealed class WorkbenchState
     public string SlotClassOrDefault(string slotId) =>
         Slots.TryGetValue(slotId, out var c) && c.ClassId.Length > 0 ? c.ClassId : "Ring";
 
-    public void AddInclude(string? slot, string modId)
+    public void AddInclude(string? slot, string modId) => AddInclude(slot, new WantedMod(modId));
+
+    /// <summary>Adds a pick; an identical pick (anchor + names) is ignored.</summary>
+    public void AddInclude(string? slot, WantedMod pick)
     {
         var list = CriteriaFor(slot).Included;
-        if (!list.Any(m => m.ModId == modId))
-            list.Add(new WantedMod(modId));
+        if (!list.Any(m => m.SamePick(pick)))
+            list.Add(pick);
         Notify();
     }
 
-    public bool RemoveInclude(string? slot, string modId)
+    public bool RemoveInclude(string? slot, string modId) => RemoveInclude(slot, new WantedMod(modId));
+
+    /// <summary>Removes the exact pick (anchor + names); a name pick and a
+    /// plain pick on the same anchor are distinct entries.</summary>
+    public bool RemoveInclude(string? slot, WantedMod pick)
     {
         var list = CriteriaFor(slot).Included;
-        var i = list.FindIndex(m => m.ModId == modId);
+        var i = list.FindIndex(m => m.SamePick(pick));
         if (i < 0) return false;
         list.RemoveAt(i);
         Notify();
