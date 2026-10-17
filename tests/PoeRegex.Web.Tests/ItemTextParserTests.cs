@@ -23,6 +23,7 @@ public class ItemTextParserTests
         item.Mods[1].Tags.Should().Equal(["Charm"]);
         var charm = item.Mods[1].Lines[0];
         charm.Rolls.Should().Equal([1]);
+        charm.Ranges.Should().Equal((1, 3));
         charm.CanonicalText.Should().Be("Has 1 Charm Slot");
     }
 
@@ -41,11 +42,13 @@ public class ItemTextParserTests
         pre.Tier.Should().Be(4);
         pre.Tags.Should().Equal(["Damage", "Physical", "Attack"]);
         pre.Lines[0].Rolls.Should().Equal([26, 47]);
+        pre.Lines[0].Ranges.Should().Equal((19, 29), (33, 49));
         pre.Lines[0].CanonicalText.Should().Be("Adds 26 to 47 Physical Damage");
         var suf = item.Mods[1];
         suf.Name.Should().Be("of the Savant");
         suf.Tier.Should().Be(2);
         suf.Lines[0].Rolls.Should().Equal([30]);
+        suf.Lines[0].Ranges.Should().Equal((28, 30));
     }
 
     [Fact]
@@ -63,6 +66,7 @@ public class ItemTextParserTests
         var leech = item.Mods.First(m => m.Name == "of the Parched");
         leech.Tier.Should().Be(4);
         leech.Lines[0].Rolls.Should().Equal([5.1]);
+        leech.Lines[0].Ranges.Should().Equal((5, 5.9));
         leech.Lines[0].CanonicalText.Should().Be("Leeches 5.1% of Physical Damage as Mana");
     }
 
@@ -89,7 +93,9 @@ public class ItemTextParserTests
         item.BaseLines.Should().Contain("Elemental Damage: 35-59 (fire), 4-64 (lightning)");
         var light = item.Mods.First(m => m.Name == "of Light");
         light.Lines.Should().HaveCount(2);
+        light.Lines[0].Ranges.Should().Equal((21, 40));
         light.Lines[1].Text.Should().Be("10% increased Light Radius");
         light.Lines[1].Rolls.Should().BeEmpty();
+        light.Lines[1].Ranges.Should().BeEmpty();
     }
 }

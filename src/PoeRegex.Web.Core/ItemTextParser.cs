@@ -10,6 +10,30 @@ public sealed record ParsedValueLine(string Text, IReadOnlyList<double> Rolls)
 {
     /// <summary>Canonical text with parenthesized groups (ranges, tags, markers) stripped.</summary>
     public string CanonicalText { get; } = Regex.Replace(Text, @"\([^()]*\)", "").Trim();
+
+    /// <summary>
+    /// Numeric `(lo-hi)` groups in display order: `26(19-29) … 47(33-49)`
+    /// yields `[(19,29), (33,49)]`. Non-numeric groups (`(augmented)`,
+    /// `(unmet)`) yield nothing. Hyphen and both dash variants are accepted.
+    /// </summary>
+    public IReadOnlyList<(double Lo, double Hi)> Ranges { get; } = ParseRanges(Text);
+
+    private static IReadOnlyList<(double Lo, double Hi)> ParseRanges(string text)
+    {
+        var ranges = new List<(double, double)>();
+        foreach (Match m in Regex.Matches(text,
+                     @"\(\s*([+-]?\d+(?:\.\d+)?)\s*[-\u2013\u2014]\s*([+-]?\d+(?:\.\d+)?)\s*\)"))
+        {
+            if (double.TryParse(m.Groups[1].Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var lo) &&
+                double.TryParse(m.Groups[2].Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hi))
+                ranges.Add((lo, hi));
+        }
+        return ranges;
+    }
 }
 
 /// <summary>One `{ ... Modifier ... }` block with its value lines.</summary>

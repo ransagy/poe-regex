@@ -93,7 +93,8 @@ public sealed class EngineService
     /// <summary>
     /// Map a canonical pasted mod line to catalog mod ids: digit-normalize
     /// and look up the pattern, scope to the item class when known, then keep
-    /// candidates whose value span covers every displayed roll.
+    /// candidates whose value span covers every displayed roll and whose
+    /// catalog range line repeats the paste's bracketed `(lo-hi)` pairs.
     /// Exact match first; when empty, a tight spaceless fallback covers
     /// internal/external spacing differences between game text and catalog
     /// lines (e.g. `Light Radius` vs `LightRadius`), flagged approximate.
@@ -103,26 +104,32 @@ public sealed class EngineService
     /// Lines from mod generations absent from the catalog (implicits) map nowhere.
     /// </summary>
     public ModMapping MapLineToMods(
-        string? classId, string canonicalLine, IReadOnlyList<double> rolls)
+        string? classId, string canonicalLine, IReadOnlyList<double> rolls,
+        IReadOnlyList<(double Lo, double Hi)>? ranges = null)
     {
+        var rs = ranges ?? [];
         var pattern = CatalogLineNormalizer.Normalize(canonicalLine);
-        var exact = FilterMappingCandidates(classId, pattern, rolls);
+        var exact = FilterMappingCandidates(classId, pattern, rolls, rs);
         if (exact.Count > 0) return new ModMapping(exact, Approximate: false);
         var compact = Compact(pattern);
-        var spaceless = FilterByRolls(_corpus.Mods
+        var spaceless = FilterCandidates(_corpus.Mods
             .Where(m => m.StatLines.Any(s => Compact(s.Pattern) == compact))
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Select(m => m.Id)
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal), rolls);
+            .OrderBy(x => x, StringComparer.Ordinal),
+            rolls, rs, id => _corpus.FindMod(id)?.StatLines
+                .FirstOrDefault(s => Compact(s.Pattern) == compact));
         if (spaceless.Count > 0) return new ModMapping(spaceless, Approximate: true);
         var stems = WordStemGroups(canonicalLine);
-        var wordy = FilterByRolls(_corpus.Mods
+        var wordy = FilterCandidates(_corpus.Mods
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Where(m => m.StatLines.Any(s => StemsMatch(stems, Compact(s.Pattern))))
             .Select(m => m.Id)
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal), rolls);
+            .OrderBy(x => x, StringComparer.Ordinal),
+            rolls, rs, id => _corpus.FindMod(id)?.StatLines
+                .FirstOrDefault(s => StemsMatch(stems, Compact(s.Pattern))));
         return new ModMapping(wordy, Approximate: true);
     }
 
@@ -150,7 +157,8 @@ public sealed class EngineService
             g.Any(a => compactPattern.Contains(a, StringComparison.Ordinal)));
 
     private IReadOnlyList<string> FilterMappingCandidates(
-        string? classId, string pattern, IReadOnlyList<double> rolls)
+        string? classId, string pattern, IReadOnlyList<double> rolls,
+        IReadOnlyList<(double Lo, double Hi)> ranges)
     {
         var candidates = _corpus.ModsWithPattern(pattern);
         if (classId is not null)
@@ -158,23 +166,68 @@ public sealed class EngineService
                 .Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();
         var ids = candidates.Select(m => m.Id)
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal).ToList();
-        return FilterByRolls(ids, rolls);
+            .OrderBy(x => x, StringComparer.Ordinal);
+        return FilterCandidates(ids, rolls, ranges, id => _corpus.FindMod(id)?.StatLines
+            .FirstOrDefault(s => s.Pattern == pattern));
     }
 
-    private IReadOnlyList<string> FilterByRolls(IEnumerable<string> ids, IReadOnlyList<double> rolls)
+    /// <summary>
+    /// Keep candidates whose value span covers every displayed roll, then —
+    /// when the paste carries bracketed ranges — whose matched catalog line
+    /// holds the same `lo-hi` pairs in order. Ranges only narrow: a candidate
+    /// whose line has no comparable pairs counts as unrefuted, and when no
+    /// candidate survives the pairs the roll-filtered list is returned
+    /// unchanged (text matched across renderer quirks beats a hard rejection).
+    /// </summary>
+    private IReadOnlyList<string> FilterCandidates(
+        IEnumerable<string> ids, IReadOnlyList<double> rolls,
+        IReadOnlyList<(double Lo, double Hi)> ranges,
+        Func<string, StatLineEntry?> matchingLine)
     {
         var list = ids.ToList();
-        if (rolls.Count == 0) return list;
-        return list.Where(id =>
+        if (rolls.Count > 0)
+            list = list.Where(id =>
+            {
+                var mod = _corpus.FindMod(id);
+                if (mod is null) return false;
+                var lo = mod.StatLines.Min(s => s.MinValue);
+                var hi = mod.StatLines.Max(s => s.MaxValue);
+                return rolls.All(r => r >= lo && r <= hi);
+            }).ToList();
+        if (ranges.Count == 0 || list.Count == 0) return list;
+        var kept = new List<string>();
+        foreach (var id in list)
         {
-            var mod = _corpus.FindMod(id);
-            if (mod is null) return false;
-            var lo = mod.StatLines.Min(s => s.MinValue);
-            var hi = mod.StatLines.Max(s => s.MaxValue);
-            return rolls.All(r => r >= lo && r <= hi);
-        }).ToList();
+            var stat = matchingLine(id);
+            if (stat is null) { kept.Add(id); continue; }
+            var pairs = ParseRangePairs(stat.RangeLine);
+            if (pairs.Count != ranges.Count) { kept.Add(id); continue; }
+            if (PairsEqual(pairs, ranges)) kept.Add(id);
+        }
+        return kept.Count > 0 ? kept : list;
     }
+
+    /// <summary>`lo–hi` pairs of a catalog range line, in order.</summary>
+    private static IReadOnlyList<(double Lo, double Hi)> ParseRangePairs(string rangeLine)
+    {
+        var pairs = new List<(double Lo, double Hi)>();
+        foreach (Match m in Regex.Matches(rangeLine,
+                     @"(\d+(?:\.\d+)?)\s*[-\u2013\u2014]\s*(\d+(?:\.\d+)?)"))
+        {
+            if (double.TryParse(m.Groups[1].Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var lo) &&
+                double.TryParse(m.Groups[2].Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hi))
+                pairs.Add((lo, hi));
+        }
+        return pairs;
+    }
+
+    private static bool PairsEqual(
+        IReadOnlyList<(double Lo, double Hi)> a, IReadOnlyList<(double Lo, double Hi)> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => p.First.Lo == p.Second.Lo && p.First.Hi == p.Second.Hi);
 
     public ModEntry? FindMod(string id) => _corpus.FindMod(id);
 

@@ -178,9 +178,15 @@ What would make a combine possible: whole-text (rather than per-line) matching,
 e.g. `(Item Class: Rings[\s\S]*...)|(Item Class: ...)`. That semantic is
 **unverified** — the decisive in-game experiment is a one-block two-word query
 like `"Life Mana"` on an item whose Life and Mana texts sit on different
-lines: per-line predicts no match, whole-text predicts a match. Also open:
-where would the combined string be pasted — trade site (one class per search)
-or the inventory Highlight box? Until that lands, per-slot strings stand.
+lines: per-line predicts no match, whole-text predicts a match.
+
+**Paste target — resolved (maintainer, round 9)**: the strings go into the
+in-game Highlight box (stash/vendor search for campaign/endgame play), not
+the trade site — trade browsing is out of scope (dozens of filters, unknown
+regex support). In-game test evidence: the box matches advanced-description
+mod names for rares (a `"Snowy"` fragment lit a rare focus), and tier
+filters can be expressed as name fragments (`"Snowy"`) or alternations of
+names, which is what the grouped family/tier pickers (next round) compile.
 
 ### 9.2 Backpack footprints — FINAL (maintainer-confirmed, all existing classes)
 
@@ -285,6 +291,34 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
+  Per-line candidate pickers are gone: the paste already carries the
+  identifying evidence, so the importer resolves it — bracketed `(lo-hi)`
+  pairs are parsed (`ParsedValueLine.Ranges`) and `MapLineToMods` keeps only
+  candidates whose catalog range line repeats the same pairs (fallback to the
+  loose list when nothing survives, so renderer quirks never blank a line);
+  a still-ambiguous line narrows by the block header's affix name, and the
+  default pick moves to the front (`ModIds[0]` is *the* resolved affix for
+  annotations, rules and materialization alike). Annotations are read-only
+  dimmed affix names (`Reliable`, `of Light`) with `id · kind · range` in the
+  tooltip, `+N` when a line truly stays ambiguous, `~approx` on fallback
+  matches; a header that contradicts the resolved affix warns
+  (`line resolves to 'of Light', but the header says '…'`) instead of being
+  silently rewritten. The carousel is now `‹ card ›` with the `k / N`
+  counter centered above the card and the status centered under the counter;
+  ArrowLeft/ArrowRight step it while focus is anywhere in the dialog (the
+  paste box stops propagation so caret keys keep working, modifiers are
+  ignored). The min-roll box no longer lies about multi-value lines: a mod
+  whose every stat line has one rolled number keeps the real threshold,
+  anything else is added without the floor and says so (`min ignored for
+  "Snapping" — a multi-value line takes no single threshold`); the compiled
+  output is byte-identical to no-min, which is what it always silently was.
+  Full slnx 7+101+66 green; CDP-verified: belt card quiet (implicits),
+  talisman/crossbow/staff/mace cards resolve every header name (the crossbow
+  implicit's exact-text suffix maps too), approximate leech lines flag,
+  arrow keys step and the textarea keeps its caret, add-all lands all five,
+  single flow unchanged, min ignored-vs-kept pair byte-checked, 900px keeps
+  the page unscrolled with the card between the arrows.
 - **Follow-up round 8 — import carousel + quiet implicits.** Multi-item
   pastes preview as a card carousel: one `ItemPreview` card at a time with
   `‹ k / N ›` navigation, so the dialog stays single-card sized at any item

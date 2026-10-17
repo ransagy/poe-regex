@@ -1,13 +1,16 @@
+@using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 
 @if (Open)
 {
     <div class="dlg-overlay" id="import-dialog" @onclick="OnBackdrop">
-        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import item">
+        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import item"
+             @onkeydown="OnDialogKeyDown">
             <div class="panel-head"><span>Import advanced description (English)</span></div>
             <textarea id="import-text" rows="8" placeholder="paste Ctrl+C item text…"
-                      value="@_text" @oninput="OnInput" aria-label="Item text"></textarea>
+                      value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
+                      aria-label="Item text"></textarea>
             <div class="modrow">
                 <button id="import-parse" class="btn" @onclick="Parse">preview</button>
                 @if (_items.Count == 1)
@@ -30,11 +33,11 @@
             {
                 <div class="field-error" id="import-save-error">@_saveError</div>
             }
-            @if (_items.Count == 1 && _preview is not null)
+            @if (_items.Count == 1 && _preview is not null && _singleMapped is not null)
             {
                 <ItemPreview Item="_preview" Id="import-preview">
                     <LineAnnotation Context="ln">
-                        @(Annotations(_items[0], new ItemImport.Mapped(_classId, _mapped), _picked, Pick)(ln))
+                        @(Annotations(_items[0], _singleMapped)(ln))
                     </LineAnnotation>
                 </ItemPreview>
             }
@@ -42,16 +45,10 @@
             {
                 <div class="import-batch" id="import-batch">
                     <div class="more" id="import-batch-count">
-                        @_items.Count items detected — step through the cards; add all uses each item's picks
+                        @_items.Count items detected — step through the cards; add all adds every importable item
                     </div>
-                    <div class="import-nav" id="import-nav">
-                        <button id="import-prev" class="btn" aria-label="Previous item"
-                                disabled="@(_batchIndex == 0)"
-                                @onclick="() => SelectBatch(_batchIndex - 1)">‹</button>
+                    <div class="import-batch-head">
                         <span class="import-nav-count" id="import-nav-count">@(_batchIndex + 1) / @_items.Count</span>
-                        <button id="import-next" class="btn" aria-label="Next item"
-                                disabled="@(_batchIndex >= _items.Count - 1)"
-                                @onclick="() => SelectBatch(_batchIndex + 1)">›</button>
                         @if (CurrentRow is { } statusRow)
                         {
                             @if (statusRow.Added)
@@ -74,11 +71,19 @@
                     </div>
                     @if (_batchPreview is not null && CurrentRow is { } row)
                     {
-                        <ItemPreview Item="_batchPreview" Id="import-preview">
-                            <LineAnnotation Context="ln">
-                                @(Annotations(row.Parsed, row.Mapped, row.Picked, PickHandler(row))(ln))
-                            </LineAnnotation>
-                        </ItemPreview>
+                        <div class="import-carousel">
+                            <button id="import-prev" class="btn import-side-btn" aria-label="Previous item"
+                                    disabled="@(_batchIndex == 0)"
+                                    @onclick="() => SelectBatch(_batchIndex - 1)">‹</button>
+                            <ItemPreview Item="_batchPreview" Id="import-preview">
+                                <LineAnnotation Context="ln">
+                                    @(Annotations(row.Parsed, row.Mapped)(ln))
+                                </LineAnnotation>
+                            </ItemPreview>
+                            <button id="import-next" class="btn import-side-btn" aria-label="Next item"
+                                    disabled="@(_batchIndex >= _items.Count - 1)"
+                                    @onclick="() => SelectBatch(_batchIndex + 1)">›</button>
+                        </div>
                     }
                 </div>
             }
@@ -99,11 +104,9 @@
     /// <summary>One pasted item in a multi-item paste, with its verdicts.</summary>
     private sealed record BatchRow(ParsedItem Parsed, ItemImport.Mapped Mapped)
     {
-        public Dictionary<(int, int), string> Picked { get; init; } = new();
-        public IReadOnlyList<RuleViolation> Violations { get; set; } = [];
         public int Unmapped { get; } = ItemImport.UnmappedAffixCount(Parsed, Mapped);
-        /// <summary>Verdict for the current picks (gate / rule error); null = importable.</summary>
-        public string? Status { get; set; }
+        /// <summary>Verdict for the resolved affixes (gate / rule error); null = importable.</summary>
+        public string? Status { get; init; }
         /// <summary>Transient failure from the last add attempt (e.g. backpack full).</summary>
         public string? AddError { get; set; }
         public bool Added { get; set; }
@@ -115,9 +118,7 @@
     private int _batchIndex;
     private TestItem? _preview;
     private TestItem? _batchPreview;
-    private string? _classId;
-    private Dictionary<(int, int), EngineService.ModMapping> _mapped = new();
-    private Dictionary<(int, int), string> _picked = new();
+    private ItemImport.Mapped? _singleMapped;
     private List<RuleViolation> _violations = [];
     private string? _saveError;
 
@@ -135,17 +136,17 @@
         _batchIndex = 0;
         _batchPreview = null;
         _preview = null;
-        _mapped = new();
-        _picked = new();
-        _classId = null;
+        _singleMapped = null;
         _items = ItemTextParser.SplitItems(_text).Select(ItemTextParser.Parse).ToList();
         if (_items.Count == 1)
         {
             var mapped = ItemImport.Map(Engine, _items[0]);
-            _classId = mapped.ClassId;
-            _mapped = mapped.Lines;
-            _picked = ItemImport.DefaultPicks(Engine, _items[0], mapped);
-            _preview = ItemImport.Materialize(_items[0], mapped, _picked);
+            _singleMapped = mapped;
+            _preview = ItemImport.Materialize(_items[0], mapped);
+            var gate = ItemImport.Gate(Engine, mapped.ClassId);
+            _violations = gate is not null
+                ? [new RuleViolation("error", gate)]
+                : ItemImport.Validate(Engine, _items[0], mapped).ToList();
         }
         else if (IsBatch)
         {
@@ -153,12 +154,9 @@
             {
                 var mapped = ItemImport.Map(Engine, p);
                 var gate = ItemImport.Gate(Engine, mapped.ClassId);
-                var picked = ItemImport.DefaultPicks(Engine, p, mapped);
-                var violations = gate is null
-                    ? ItemImport.Validate(Engine, p, mapped, picked)
-                    : (IReadOnlyList<RuleViolation>)[];
-                var error = gate ?? violations.FirstOrDefault(v => v.Level == "error")?.Message;
-                return new BatchRow(p, mapped) { Picked = picked, Violations = violations, Status = error };
+                var error = gate ?? ItemImport.Validate(Engine, p, mapped)
+                    .FirstOrDefault(v => v.Level == "error")?.Message;
+                return new BatchRow(p, mapped) { Status = error };
             }).ToList();
             SelectBatch(0);
         }
@@ -175,39 +173,19 @@
         RefreshBatchPreview();
     }
 
-    private void RefreshBatchPreview()
-    {
-        var row = CurrentRow;
-        _batchPreview = row is null ? null : ItemImport.Materialize(row.Parsed, row.Mapped, row.Picked);
-    }
+    private void RefreshBatchPreview() =>
+        _batchPreview = CurrentRow is { } row ? ItemImport.Materialize(row.Parsed, row.Mapped) : null;
 
-    /// <summary>Carousel picks for the current row; null once the row is added (read-only).</summary>
-    private Action<(int, int), ChangeEventArgs>? PickHandler(BatchRow row) =>
-        row.Added ? null : (k, e) => BatchPick(row, k, e);
-
-    private void BatchPick(BatchRow row, (int, int) key, ChangeEventArgs e)
+    /// <summary>
+    /// Arrow keys step the batch carousel while focus is anywhere in the
+    /// dialog: the paste box stops keydown propagation so its caret and
+    /// selection keys keep working, and held modifiers are left alone.
+    /// </summary>
+    private void OnDialogKeyDown(KeyboardEventArgs e)
     {
-        if (row.Added || e.Value is not string id) return;
-        row.Picked[key] = id;
-        RecomputeRowStatus(row);
-        RefreshBatchPreview();
-    }
-
-    private void RecomputeRowStatus(BatchRow row)
-    {
-        var gate = ItemImport.Gate(Engine, row.Mapped.ClassId);
-        if (gate is not null)
-        {
-            row.Status = gate;
-            return;
-        }
-        row.Violations = ItemImport.Validate(Engine, row.Parsed, row.Mapped, row.Picked);
-        row.Status = row.Violations.FirstOrDefault(v => v.Level == "error")?.Message;
-    }
-
-    private void Pick((int, int) key, ChangeEventArgs e)
-    {
-        if (e.Value is string id) _picked[key] = id;
+        if (e.CtrlKey || e.AltKey || e.MetaKey || e.ShiftKey) return;
+        if (e.Key == "ArrowLeft") SelectBatch(_batchIndex - 1);
+        else if (e.Key == "ArrowRight") SelectBatch(_batchIndex + 1);
     }
 
     private async Task Close()
@@ -218,6 +196,7 @@
         _batchIndex = 0;
         _batchPreview = null;
         _preview = null;
+        _singleMapped = null;
         _violations = [];
         _saveError = null;
         await OnClose.InvokeAsync();
@@ -231,18 +210,9 @@
     private void Save()
     {
         _saveError = null;
-        if (_items.Count != 1) return;
-        var parsed = _items[0];
-        var gate = ItemImport.Gate(Engine, _classId);
-        if (gate is not null)
-        {
-            _saveError = gate;
-            return;
-        }
-        var mapped = new ItemImport.Mapped(_classId, _mapped);
-        _violations = ItemImport.Validate(Engine, parsed, mapped, _picked).ToList();
+        if (_items.Count != 1 || _singleMapped is null) return;
         if (_violations.Any(v => v.Level == "error")) return;
-        var item = ItemImport.Materialize(parsed, mapped, _picked);
+        var item = ItemImport.Materialize(_items[0], _singleMapped);
         if (!State.AddTestItem(item))
         {
             _saveError = "backpack is full — remove an item first";
@@ -257,7 +227,7 @@
         foreach (var row in _batch)
         {
             if (row.Added || row.Status is not null) continue;
-            var item = ItemImport.Materialize(row.Parsed, row.Mapped, row.Picked);
+            var item = ItemImport.Materialize(row.Parsed, row.Mapped);
             if (State.AddTestItem(item))
             {
                 row.Added = true;
@@ -280,16 +250,15 @@
     }
 
     /// <summary>
-    /// Shared per-line annotation for both import cards: the mapping verdict
-    /// (dim id, candidate picker) with one quieting rule — an unmapped
-    /// implicit line says nothing, because implicit blocks never count in the
-    /// rules and the affix-only catalog can't map them by design. Pass a null
-    /// pick handler to render read-only (rows already added).
+    /// Shared per-line annotation for both import cards: the resolved affix
+    /// name, dimmed, with the evidence in its tooltip (id · kind · range) and
+    /// `+N` when the line stayed ambiguous — no header name, no bracketed
+    /// ranges to break the tie. One quieting rule: an unmapped implicit line
+    /// says nothing, because implicit blocks never count in the rules and the
+    /// affix-only catalog can't map them by design.
     /// </summary>
     private RenderFragment<ItemPreview.PreviewLineRef> Annotations(
-        ParsedItem parsed, ItemImport.Mapped mapped,
-        IReadOnlyDictionary<(int, int), string> picked,
-        Action<(int, int), ChangeEventArgs>? pick)
+        ParsedItem parsed, ItemImport.Mapped mapped)
         => ln =>
         {
             var key = (ln.Block, ln.Line);
@@ -305,36 +274,27 @@
                         builder.AddMarkupContent(0, "<span class=\"iprev-annot map-none\">not in catalog</span>");
                     return;
                 }
-                if (ids.Count == 1 || pick is null)
-                {
-                    var id = picked.GetValueOrDefault(key, ids[0]);
-                    builder.OpenElement(0, "span");
-                    builder.AddAttribute(1, "class", "iprev-annot map-one");
-                    builder.AddContent(2, map!.Approximate ? $"{id} ~approx" : id);
-                    builder.CloseElement();
-                    return;
-                }
-                builder.OpenElement(0, "select");
-                builder.AddAttribute(1, "class", "iprev-annot-select");
-                builder.AddAttribute(2, "id", $"import-pick-{ln.Block}-{ln.Line}");
-                builder.AddAttribute(3, "value", picked.GetValueOrDefault(key, ids[0]));
-                builder.AddAttribute(4, "onchange",
-                    EventCallback.Factory.Create<ChangeEventArgs>(this, e => pick(key, e)));
-                foreach (var id in ids)
-                {
-                    builder.OpenElement(5, "option");
-                    builder.AddAttribute(6, "value", id);
-                    builder.AddContent(7, id);
-                    builder.CloseElement();
-                }
+                var mod = Engine.FindMod(ids[0]);
+                var label = mod?.Name ?? ids[0];
+                if (map!.Approximate) label += " ~approx";
+                if (ids.Count > 1) label += $" +{ids.Count - 1}";
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "class", "iprev-annot map-one");
+                builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
+                builder.AddContent(3, label);
                 builder.CloseElement();
-                if (map!.Approximate)
-                {
-                    builder.OpenElement(8, "span");
-                    builder.AddAttribute(9, "class", "iprev-annot map-one");
-                    builder.AddContent(10, "~approx");
-                    builder.CloseElement();
-                }
             };
         };
+
+    /// <summary>Hover text for a resolved line: id, kind, and the catalog range.</summary>
+    private static string AnnotationTitle(IReadOnlyList<string> ids, ModEntry? mod)
+    {
+        var kind = mod?.GenerationType ?? "kind unknown";
+        var range = mod?.StatLines.FirstOrDefault() is { } sl
+            ? ModSearch.DisplayLine(sl)
+            : "no catalog line";
+        var title = $"{ids[0]} · {kind} · {range}";
+        if (ids.Count > 1) title += $" — {ids.Count} catalog mods match; using this one";
+        return title;
+    }
 }

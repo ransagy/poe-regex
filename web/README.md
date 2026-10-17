@@ -39,7 +39,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 96 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 101 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -76,12 +76,20 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   `ClassPicker`,
   `ModPicker` (searchable mods, one flat list with a P/S prefix/suffix tag
   per line — one column, or two when the editor column is wide enough — and
-  the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
+  the list stretches/scrolls to fill the editor's height; the min field
+  compiles a real floor only for mods whose every stat line carries one
+  rolled number — multi-value mods are added without the floor and a note
+  says so instead of silently dropping it), `QueryCard` (meter,
   copy, explain, overflow), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
-  steps through per-item cards with `‹ k / N ›` navigation and per-item
-  candidate picks; `add all (N)` imports each unblocked item with its picks;
-  class gate, rule check and backpack-full are reported per card; every
+  previews as `‹ card ›` with the `k / N` counter centered above the card
+  and the per-item status centered under it; arrow keys step too; the paste's
+  bracketed `(lo-hi)` ranges and the block header names resolve each line, so
+  there is no candidate picker: annotations are read-only dimmed affix names
+  with `id · kind · range` in the tooltip, `+N` when a line stays ambiguous
+  and `~approx` on fallback matches, and a header name contradicting the
+  resolved affix warns; `add all (N)` imports each unblocked item; class
+  gate, rule check and backpack-full are reported per card; every
   preview — single or batch — is the shared card with mapping status per
   line), `ItemBuilder` (assemble from
   catalog mods in two columns — searchable suggestions left, name input,
@@ -116,6 +124,12 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   wanted/unwanted chips; clicking a slot only moves the editing focus.
 - The derived catalog ships prefix/suffix generations only (no implicits)
   and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
-  the importer maps those via flagged approximate fallbacks.
+  the importer maps those via flagged approximate fallbacks. Imports resolve
+  by bracket ranges + header names, so a line with neither (and no plain-text
+  match) shows as ambiguous (`+N`) rather than asking — grouped family/tier
+  pickers (round 10) replace that surface for the builder and picker.
+- The min field on the picker compiles a real threshold only when every stat
+  line of the mod has a single rolled number; multi-value floors (one box per
+  value) are the next round's scope.
 - Publish is the unoptimized interpreter build (29 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).

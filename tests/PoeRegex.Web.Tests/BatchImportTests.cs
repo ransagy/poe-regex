@@ -104,19 +104,72 @@ public class BatchImportTests
     }
 
     [Fact]
-    public void Materialize_UsesTheProvidedPickOverTheDefault()
+    public void Map_PinsBracketedLinesByRanges()
     {
-        // The carousel's per-line picker edits row picks before `add all`
-        // materializes; the edited candidate must win over the default.
+        // `+46 to Accuracy Rating` matches several mace tiers by text alone;
+        // the (33-60) bracket pair keeps only the tier that rolls it.
+        var byText = Engine.MapLineToMods("One Hand Mace", "+46 to Accuracy Rating", [46]);
+        byText.ModIds.Should().HaveCountGreaterThan(1);
         var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
         var mapped = ItemImport.Map(Engine, parsed);
-        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
-        var (block, line) = picks.Keys.First(k => mapped.Lines[k].ModIds.Count > 1);
-        var other = mapped.Lines[(block, line)].ModIds.First(id => id != picks[(block, line)]);
-        picks[(block, line)] = other;
-        var item = ItemImport.Materialize(parsed, mapped, picks);
-        var index = parsed.Mods.Take(block).Sum(m => m.Lines.Count) + line;
-        item.Mapped[index].SelectedModId.Should().Be(other);
+        mapped.Lines[(0, 0)].ModIds.Should().ContainSingle();
+        Engine.FindMod(mapped.Lines[(0, 0)].ModIds[0])!.Name.Should().Be("Reliable");
+    }
+
+    [Fact]
+    public void Map_ResolvesMaceAffixesToTheirHeaderNames()
+    {
+        // Ranges pin the bracketed lines; `10% increased Light Radius` has no
+        // numbers to check, so its header name picks among the three Light
+        // Radius tiers. Either way ModIds[0] is the resolved affix.
+        var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
+        var mapped = ItemImport.Map(Engine, parsed);
+        var resolved = new (int Block, int Line, string Name)[]
+        {
+            (0, 0, "Reliable"), (1, 0, "Arcing"), (2, 0, "of Light"),
+            (2, 1, "of Light"), (3, 0, "of Rage"),
+        };
+        foreach (var (block, line, name) in resolved)
+        {
+            var ids = mapped.Lines[(block, line)].ModIds;
+            ids.Should().NotBeEmpty($"({block},{line}) should map");
+            Engine.FindMod(ids[0])!.Name.Should().Be(name, $"({block},{line}) resolves the header affix first");
+        }
+    }
+
+    [Fact]
+    public void Map_EveryFixtureAffixResolvesToItsHeaderName()
+    {
+        foreach (var text in ItemTextParser.SplitItems(Blob))
+        {
+            var parsed = ItemTextParser.Parse(text);
+            var mapped = ItemImport.Map(Engine, parsed);
+            foreach (var (block, bi) in parsed.Mods.Select((b, i) => (b, i)))
+            {
+                if (block.Kind == "implicit") continue;
+                var ids = Enumerable.Range(0, block.Lines.Count)
+                    .Where(li => mapped.Lines.ContainsKey((bi, li)))
+                    .SelectMany(li => mapped.Lines[(bi, li)].ModIds)
+                    .ToList();
+                ids.Should().NotBeEmpty($"'{block.Name}' in '{parsed.Name}' should map");
+                ids.Select(id => Engine.FindMod(id)!.Name)
+                    .Should().Contain(block.Name!, $"'{block.Name}' should resolve among the candidates");
+            }
+        }
+    }
+
+    [Fact]
+    public void Validate_HeaderNameContradictingTheResolvedAffix_Warns()
+    {
+        // Swap a range-pinned header name for nonsense: the line still
+        // resolves (ranges outrank the header), and the mismatch surfaces as
+        // a warning rather than a silent rewrite.
+        var text = FixtureTexts.Mace.Replace("\"of Light\"", "\"of Nonsense\"");
+        var parsed = ItemTextParser.Parse(text);
+        var mapped = ItemImport.Map(Engine, parsed);
+        var violations = ItemImport.Validate(Engine, parsed, mapped);
+        violations.Should().ContainSingle(v => v.Level == "warning"
+            && v.Message.Contains("of Light") && v.Message.Contains("of Nonsense"));
     }
 
     [Fact]
@@ -152,25 +205,24 @@ public class BatchImportTests
         // The preview card indexes Mapped by flattened parse order; keep it true.
         var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
         var mapped = ItemImport.Map(Engine, parsed);
-        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
-        var item = ItemImport.Materialize(parsed, mapped, picks);
+        var item = ItemImport.Materialize(parsed, mapped);
         var expected = parsed.Mods.SelectMany(m => m.Lines.Select(l => l.Text)).ToList();
         item.Mapped.Select(m => m.Text).Should().Equal(expected);
     }
 
     [Fact]
-    public void DefaultPicks_PreferTheHeaderAffixName()
+    public void Map_PrefersTheHeaderAffixNameWhenTextIsAmbiguous()
     {
-        // `+37 to Accuracy Rating` maps to both `Reliable` (prefix) and
-        // `of Light` (suffix); the block header decides, so the pair never
-        // collapses onto one mod (which would read as a duplicate error).
+        // `10% increased Light Radius` matches all three Light Radius tiers
+        // by digit-normalized text and carries no rolls or ranges to check;
+        // the block header decides, so the pair never collapses onto one mod
+        // (which would read as a duplicate error).
+        var lightByText = Engine.MapLineToMods("One Hand Mace", "10% increased Light Radius", []);
+        lightByText.ModIds.Should().HaveCount(3);
         var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
         var mapped = ItemImport.Map(Engine, parsed);
-        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
-        var reliable = picks[(0, 0)];
-        var ofLight = picks[(2, 0)];
-        Engine.FindMod(reliable)!.Name.Should().Be("Reliable");
-        Engine.FindMod(ofLight)!.Name.Should().Be("of Light");
-        reliable.Should().NotBe(ofLight);
+        var light = mapped.Lines[(2, 1)].ModIds;
+        light.Should().ContainSingle();
+        Engine.FindMod(light[0])!.Name.Should().Be("of Light");
     }
 }

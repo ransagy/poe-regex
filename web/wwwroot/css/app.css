@@ -429,10 +429,13 @@ textarea { width: 100%; box-sizing: border-box; }
 .rarity-rare { color: #ffff77; }
 .rarity-unique { color: #af6025; }
 .import-batch { display: flex; flex-direction: column; }
-.import-nav { display: flex; align-items: baseline; gap: 0.45rem; padding: 0.35rem 0 0.45rem; }
-.import-nav-count { color: var(--dim); font-size: 0.85rem; }
-.import-batch-status { margin-left: auto; text-align: right; }
-.import-batch-ok { margin-left: auto; color: #a9c97a; font-size: 0.78rem; }
+.import-batch-head { display: flex; flex-direction: column; align-items: center; gap: 0.12rem; padding: 0.35rem 0 0.45rem; }
+.import-nav-count { color: var(--dim); font-size: 0.95rem; }
+.import-batch-status { text-align: center; }
+.import-batch-ok { text-align: center; color: #a9c97a; font-size: 0.78rem; }
+.import-carousel { display: flex; align-items: center; gap: 0.5rem; }
+.import-carousel .iprev { flex: 1 1 auto; min-width: 0; }
+.import-side-btn { flex: 0 0 auto; padding: 0.85rem 0.6rem; font-size: 1.15rem; line-height: 1; }
 .titem-badges { display: flex; gap: 0.3rem; margin: 0.2rem 0; flex-wrap: wrap; }
 .badge { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--panel-edge); color: var(--dim); }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }
@@ -459,7 +462,6 @@ textarea { width: 100%; box-sizing: border-box; }
 .iprev-line { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.06rem 0; }
 .iprev-text { flex: 1; min-width: 0; overflow-wrap: anywhere; color: #9c9ce0; }
 .iprev-annot { white-space: nowrap; }
-.iprev-annot-select { max-width: 100%; font-size: 0.7rem; background: #0d0907; color: var(--ink); border: 1px solid var(--panel-edge); }
 .iprev-corrupt { text-align: center; color: #e08a8a; font-weight: 600; }
 
 /* Game-style item tooltip: pinned overlay at the click point (never in

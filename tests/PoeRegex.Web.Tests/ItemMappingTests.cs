@@ -73,6 +73,29 @@ public class ItemMappingTests
     }
 
     [Fact]
+    public void MapLineWithRanges_PinsTheRolledTier()
+    {
+        // Text alone matches every mace accuracy prefix tier (digit runs
+        // become placeholders); the paste's (33-60) pair keeps only the tier
+        // that actually rolls it.
+        var loose = Engine.MapLineToMods("One Hand Mace", "+46 to Accuracy Rating", [46]);
+        loose.ModIds.Should().HaveCountGreaterThan(1);
+        var pinned = Engine.MapLineToMods("One Hand Mace", "+46 to Accuracy Rating", [46], [(33, 60)]);
+        pinned.ModIds.Should().ContainSingle();
+        Engine.FindMod(pinned.ModIds[0])!.Name.Should().Be("Reliable");
+    }
+
+    [Fact]
+    public void MapLineWithRanges_UnmatchablePairsFallBackToTheLooseList()
+    {
+        // Renderer quirks occasionally shift numbers; pairs that kill every
+        // candidate must not blank the line — the roll-filtered list stays.
+        var loose = Engine.MapLineToMods("One Hand Mace", "+46 to Accuracy Rating", [46]);
+        var weird = Engine.MapLineToMods("One Hand Mace", "+46 to Accuracy Rating", [46], [(999, 1000)]);
+        weird.ModIds.Should().Equal(loose.ModIds);
+    }
+
+    [Fact]
     public void Matcher_IncludedAndExcludedTokenSemantics()
     {
         var lines = new[] { "+84 to maximum Life", "Item Class: Rings" };
