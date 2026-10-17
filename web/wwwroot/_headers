@@ -1,10 +1,11 @@
-# Always revalidate the app shell and boot manifest so deployments roll
-# out immediately without stale-cache integrity errors.
+# Revalidate the app shell so deployments roll out immediately.
 /index.html
   Cache-Control: no-cache
 
-/_framework/blazor.boot.json
-  Cache-Control: no-cache
+# .NET 10 fingerprints every file in _framework/ (content hash in the
+# name), so these are safe to cache forever; new builds get new names.
+/_framework/*
+  Cache-Control: public, max-age=31536000, immutable
 
 # Keep preview and *.pages.dev deployments out of search engines.
 # A custom domain is intentionally not matched and stays indexable.

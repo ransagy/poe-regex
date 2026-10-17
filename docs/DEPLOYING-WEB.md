@@ -46,12 +46,12 @@ Reproduce the Cloudflare build locally with:
 
 - `web/wwwroot/_redirects` — `/* /index.html 200` gives SPA deep links
   (client-side routes survive a full page reload).
-- `web/wwwroot/_headers` — `no-cache` on `index.html` and
-  `_framework/blazor.boot.json` so deployments roll out immediately
-  without stale-cache integrity errors, plus `X-Robots-Tag: noindex` on
-  all `*.pages.dev` hosts so previews (and the bare production
-  `pages.dev` URL) stay out of search engines. A custom domain is not
-  matched and stays indexable.
+- `web/wwwroot/_headers` — `no-cache` on `index.html` so deployments
+  roll out immediately; `immutable` caching for `_framework/*` (every
+  file is content-fingerprinted in .NET 10, and fingerprints change per
+  build); `X-Robots-Tag: noindex` on all `*.pages.dev` hosts so previews
+  (and the bare production `pages.dev` URL) stay out of search engines.
+  A custom domain is not matched and stays indexable.
 
 ## CI
 
@@ -70,6 +70,7 @@ onto `main` and retarget the pull request.
 
 - [x] build script + headers + redirects + PR CI
 - [x] Pages project created and connected to this repository (`renlys-recipes`)
-- [ ] preview deployment verified on a feature branch
+- [x] preview deployment verified on a feature branch (headless boot to
+      rendered app; SPA deep links, wasm MIME, cache + noindex headers)
 - [ ] production deploy verified on `main`
 - [ ] custom domain (optional, later)
