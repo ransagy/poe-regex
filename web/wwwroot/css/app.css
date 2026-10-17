@@ -559,7 +559,12 @@ textarea { width: 100%; box-sizing: border-box; }
 .builder-cols { display: flex; gap: 1rem; align-items: stretch; min-height: 0; }
 .builder-left { flex: 1.25; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .builder-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.builder-left .suggest { columns: 1; overflow-y: auto; max-height: 46vh; min-height: 10rem; }
+/* No `columns` here on purpose: any columns declaration (even `columns: 1`)
+   makes the list a multicol container, and a height-constrained multicol
+   overflows into extra horizontal column boxes instead of scrolling down
+   (the dialog's mod list showed phantom side-by-side columns + a horizontal
+   scrollbar). Plain single column, vertical scroll only. */
+.builder-left .suggest { overflow-y: auto; max-height: 46vh; min-height: 10rem; }
 .builder-right .iprev { overflow-y: auto; max-height: 46vh; }
 
 /* Advanced debugging panel opens as a bottom overlay so it never shoves body

@@ -99,8 +99,11 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   line), `ItemBuilder` (assemble from
   catalog mods: the same family/tier grouping as the picker on the left
   (expanding is the only family-level action — tiers carry the `+`), a name
-  input, live card and removal chips right, one column; Save adds exactly
-  the card shown; both modals reject when the backpack is full). Backpack
+  input, live card and removal chips right; the dialog's mod list is a plain
+  single-column vertical scroll — deliberately no `columns` declaration,
+  because a height-constrained multicol spills phantom columns sideways
+  instead of scrolling down; Save adds exactly the card shown; both modals
+  reject when the backpack is full). Backpack
   tools row: import, assemble, and remove (acts on the pinned item).
 - Mod picking compiles what it says: a plain family pick keeps the stat-text
   fragment (matches every tier); a tier pick compiles the quoted affix name

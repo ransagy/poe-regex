@@ -55,7 +55,7 @@
                                                         <span class="mod-line">@l</span>
                                                     }
                                                 </span>
-                                                <button id="builder-add-@tier.Anchor.Id" class="btn" title="add &quot;@tier.Name&quot; (@tier.Anchor.GenerationType)"
+                                                <button id="builder-add-@tier.Anchor.Id" class="btn" title="@TierAddTitle(tier)"
                                                         @onclick="() => Add(tier.Anchor)">+</button>
                                             </li>
                                         }
@@ -148,6 +148,11 @@
     {
         if (!_expanded.Add(key)) _expanded.Remove(key);
     }
+
+    // Built in C#: Blazor writes attributes via DOM APIs, so `&quot;` in
+    // markup would show up verbatim in the tooltip.
+    private static string TierAddTitle(ModTier tier) =>
+        $"add \"{tier.Name}\" ({tier.Anchor.GenerationType})";
 
     /// <summary>
     /// The item as it would be added: parsed text carries the name / class /

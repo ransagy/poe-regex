@@ -81,16 +81,16 @@
                                             <span class="mod-line">@l</span>
                                         }
                                     </span>
-                                    <button id="pick-tier-@tier.Anchor.Id" title="include &quot;@tier.Name&quot; — the game matches this affix name exactly"
+                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)"
                                             disabled="@pickedExact"
                                             @onclick="() => Include(exactPick)">+</button>
                                     @if (upNames.Count > 1)
                                     {
-                                        <button id="pick-tier-up-@tier.Anchor.Id" title="include &quot;@tier.Name&quot; and every better tier by required level: @string.Join(", ", upNames)"
+                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)"
                                                 disabled="@pickedUp"
                                                 @onclick="() => Include(upPick)">↑</button>
                                     }
-                                    <button id="pick-tier-exc-@tier.Anchor.Id" title="exclude anything carrying the affix name &quot;@tier.Name&quot;"
+                                    <button id="pick-tier-exc-@tier.Anchor.Id" title="@TierExcludeTitle(tier)"
                                             @onclick="() => AddExclude(tier.Name)">−</button>
                                 </li>
                             }
@@ -175,6 +175,17 @@
                 ? $"remove — the game matches the affix name \"{pick.Names[0]}\" exactly"
                 : $"remove — affix names this tier and better: {string.Join(", ", pick.Names)}"
             : $"remove — any tier of this stat";
+
+    // Titles are built here, not as markup entities: Blazor sets attributes
+    // through DOM APIs, so a literal `&quot;` would show verbatim.
+    private static string TierPickTitle(ModTier tier) =>
+        $"include \"{tier.Name}\" — the game matches this affix name exactly";
+
+    private static string TierUpTitle(ModTier tier, IReadOnlyList<string> names) =>
+        $"include \"{tier.Name}\" and every better tier by required level: {string.Join(", ", names)}";
+
+    private static string TierExcludeTitle(ModTier tier) =>
+        $"exclude anything carrying the affix name \"{tier.Name}\"";
 
     private void OnSearch(ChangeEventArgs e)
     {

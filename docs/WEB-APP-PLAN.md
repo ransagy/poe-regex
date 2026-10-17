@@ -343,6 +343,22 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   `"Snapping"` name pick, built ring highlights on `"Hale"`, its card shows
   the caption not the header line, mapped lines stable across reloads,
   900px keeps the page unscrolled, and name picks survive a real reload.
+  **43.2 (review follow-up, separate commit):** the assemble dialog's mod
+  list showed what looked like two columns of families plus a horizontal
+  scrollbar. Root cause: the list had `columns: 1` — any `columns`
+  declaration (even `1`) makes the element a multicol container, and a
+  height-constrained multicol (`max-height: 46vh` + `overflow-y: auto`)
+  overflows into extra column boxes to the right instead of scrolling down.
+  The declaration is gone (the list is a plain single-column vertical
+  scroll; the main picker keeps its two columns because its list is not
+  height-constrained — `.mod-list` is the scroll container), with a comment
+  so it doesn't come back. Also fixed: tier tooltips in the picker and
+  builder rendered literal `&quot;` (Blazor sets attributes through DOM
+  APIs, so entity references are not decoded) — the titles are now built in
+  C# with straight quotes. CDP-verified: dialog list `scrollWidth ==
+  clientWidth`, rows all at the same x, vertical scroll bound intact
+  (`scrollHeight 771 > clientHeight 457`), main picker still two columns
+  with no horizontal overflow, tooltips read `include "Squire's" — …`.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`
