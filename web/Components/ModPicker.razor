@@ -50,8 +50,10 @@
                     <div class="suggest-row fam-row">
                         <span class="gen-tag" title="@(fam.IsPrefix ? "prefix" : "suffix")">@(fam.IsPrefix ? "P" : "S")</span>
                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
-                                title="show @fam.Tiers.Count tier(s) — each tier is the affix name the game matches"
+                                aria-expanded="@(expanded ? "true" : "false")"
+                                title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)") — each tier is the affix name the game matches"
                                 @onclick="() => Toggle(fam.Key)">
+                            <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
                             <span class="fam-text">@fam.DisplayText</span>
                             <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                         </button>

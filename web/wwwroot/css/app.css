@@ -334,7 +334,7 @@ select, input {
 .mod-list { flex: 1 1 16rem; min-height: 0; overflow-y: auto; }
 .suggest { list-style: none; margin: 0.25rem 0; padding: 0; }
 @container (min-width: 34rem) {
-    .suggest { columns: 2; column-gap: 1rem; }
+    .modpicker .suggest { columns: 2; column-gap: 1rem; }
 }
 .gen-tag {
     flex: none; font-size: 0.8rem; line-height: 1.4; color: var(--ink);
@@ -346,15 +346,20 @@ select, input {
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Family/tier pickers: one block per stat family; expanding shows its tiers. */
+/* Family/tier pickers: one block per stat family; expanding shows its tiers.
+   The family toggle reads as plain text (only +/- stay buttons) with a caret
+   as the expand/collapse affordance. */
 .fam-block { break-inside: avoid; }
 .suggest-row.fam-row { border-bottom: 1px solid #3d3220; }
 .suggest-row .fam-toggle {
     flex: 1; display: flex; gap: 0.45rem; align-items: baseline; text-align: left;
-    background: transparent; border-color: transparent; padding: 0; cursor: pointer;
-    overflow: hidden;
+    font: inherit; font-size: 0.82rem; color: inherit; letter-spacing: normal; text-transform: none;
+    background: transparent; border: none; padding: 0; cursor: pointer; overflow: hidden;
 }
-.suggest-row .fam-toggle:hover { border-color: var(--panel-edge); background: var(--slot); }
+.suggest-row .fam-toggle:hover { background: transparent; border: none; color: inherit; }
+.suggest-row .fam-toggle:hover .fam-text { color: #ffe9a8; }
+.suggest-row .fam-toggle:hover .fam-caret { color: var(--ink); }
+.fam-caret { flex: none; width: 0.9em; color: var(--dim); font-size: 0.72rem; }
 .fam-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; }
 .tier-count {
     flex: none; font-size: 0.68rem; color: var(--dim);

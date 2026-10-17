@@ -34,13 +34,13 @@
                                 <div class="suggest-row fam-row">
                                     <span class="gen-tag" title="@(fam.IsPrefix ? "prefix" : "suffix")">@(fam.IsPrefix ? "prefix" : "suffix")</span>
                                     <button class="suggest-line fam-toggle" id="builder-fam-@fam.Anchor.Id"
-                                            title="show @fam.Tiers.Count tier(s)"
+                                            aria-expanded="@(expanded ? "true" : "false")"
+                                            title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)")"
                                             @onclick="() => Toggle(fam.Key)">
+                                        <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
                                         <span class="fam-text">@fam.DisplayText</span>
                                         <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                                     </button>
-                                    <button id="builder-add-@fam.Anchor.Id" class="btn" title="add this stat (base tier)"
-                                            @onclick="() => Add(fam.Anchor)">+</button>
                                 </div>
                                 @if (expanded)
                                 {

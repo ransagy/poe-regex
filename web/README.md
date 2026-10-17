@@ -39,7 +39,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 115 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 116 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -75,13 +75,15 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   the tooltip's scroll region so its border stays put), `ModeSwitch`,
   `ClassPicker`,
   `ModPicker` (searchable mods grouped into stat families: one row per
-  family with the unioned range text and a tier-count badge, a `+` for the
-  plain stat (any tier) and a `−` for the whole family; clicking the row
-  expands its tiers — each tier row shows the affix name and its range, `+`
-  compiles the affix-name literal (specific tier), `↑` compiles that name
-  and every better tier (`… or better`, by required level), `−` excludes by
-  name; one column, or two when the editor column is wide enough — and the
-  list stretches/scrolls to fill the editor's height; typing filters tiers,
+  family naming the stat with its numbers dropped (`+ to maximum Life`,
+  `% increased Physical Damage`) — the row is a plain-text toggle (`▸`/`▾`
+  caret) with a tier-count badge, a `+` for the plain stat (any tier) and a
+  `−` for the whole family; expanding shows the tiers, each with the affix
+  name and its real range, where `+` compiles the affix-name literal
+  (specific tier), `↑` compiles that name and every better tier
+  (`… or better`, by required level), `−` excludes by name; one column, or
+  two when the editor column is wide enough — and the list
+  stretches/scrolls to fill the editor's height; typing filters tiers,
   so `reliable` narrows to the family(ies) carrying that affix), `QueryCard`
   (meter, copy, explain, overflow), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
@@ -95,17 +97,24 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   gate, rule check and backpack-full are reported per card; every
   preview — single or batch — is the shared card with mapping status per
   line), `ItemBuilder` (assemble from
-  catalog mods in two columns — the same family/tier grouping as the picker
-  on the left, a name input, live card and removal chips right; a family `+`
-  adds its base tier, a tier `+` adds that tier; Save adds exactly the card
-  shown; both modals reject when the backpack is full). Backpack tools row:
-  import, assemble, and remove (acts on the pinned item).
+  catalog mods: the same family/tier grouping as the picker on the left
+  (expanding is the only family-level action — tiers carry the `+`), a name
+  input, live card and removal chips right, one column; Save adds exactly
+  the card shown; both modals reject when the backpack is full). Backpack
+  tools row: import, assemble, and remove (acts on the pinned item).
 - Mod picking compiles what it says: a plain family pick keeps the stat-text
   fragment (matches every tier); a tier pick compiles the quoted affix name
   (`"Snowy"`), because the name is the only text that distinguishes tiers
   in-game; `↑` compiles the whole name set from that tier up in one quoted
   alternation. Tier order is RePoE `required_level` — the UI never shows
   game tier numbers (the game's own numbering is not derivable from data).
+  One limitation is inherent to text matching: when two affixes share a
+  stat line's text (e.g. the hybrid phys%+accuracy prefix and the pure
+  accuracy prefix share the accuracy line), any fragment of that line
+  recalls both — a single quoted term cannot require two different item
+  lines, so hybrid picks match either affix. Leaving it as is was a
+  maintainer call (the alternatives — quoted AND terms or range pinning —
+  were reviewed and parked).
 - Item matching for highlight/dim and tooltip verdicts runs on the item's
   full copied advanced description: the `Item Class:` line, parsed/mapped
   lines, and the `{ … Modifier "Name" (Tier: n) — tags }` captions — the

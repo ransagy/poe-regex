@@ -1,7 +1,6 @@
-using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
 using PoeRegex.Core.Data;
+using PoeRegex.Core.Search;
 
 namespace PoeRegex.Web.Core;
 
@@ -34,9 +33,9 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>Representative member for whole-family picks (base tier).</summary>
     public ModEntry Anchor => Tiers[0].Anchor;
 
-    /// <summary>Family text with each number's overall span, e.g.
-    /// "+10–214 to maximum Life". Falls back to the first member's line when
-    /// members' text shapes differ.</summary>
+    /// <summary>Family-level text with the numbers removed, e.g.
+    /// "+ to maximum Life" — it names the stat without implying one tier's
+    /// range (tier rows carry the real ranges).</summary>
     public required string DisplayText { get; init; }
 
     /// <summary>This tier's affix name and every better tier's name, by
@@ -88,73 +87,19 @@ public static class ModFamilies
         return families;
     }
 
-    /// <summary>Family-level text: all lines unioned by member, when the
-    /// members share a line shape; otherwise the first member's text.</summary>
-    public static string FamilyDisplay(IReadOnlyList<ModEntry> members) =>
-        string.Join(" · ", FamilyLines(members));
-
-    private static IReadOnlyList<string> FamilyLines(IReadOnlyList<ModEntry> members)
+    /// <summary>Family-level text: the anchor member's stat shape with the
+    /// numbers dropped (`+ to maximum Life`, `% increased Physical Damage`),
+    /// multiple lines joined with ` · `. Tier rows carry the real ranges.</summary>
+    public static string FamilyDisplay(IReadOnlyList<ModEntry> members)
     {
         var anchor = members.OrderBy(m => m.RequiredLevel).ThenBy(m => m.Id, StringComparer.Ordinal).First();
-        if (members.Count == 1 || members.Any(m => m.StatLines.Count != anchor.StatLines.Count))
-            return anchor.StatLines.Select(ModSearch.DisplayLine).ToList();
-        var lines = new List<string>(anchor.StatLines.Count);
-        for (var i = 0; i < anchor.StatLines.Count; i++)
-            lines.Add(UnionLine(members.Select(m => m.StatLines[i]).ToList()));
-        return lines;
+        return string.Join(" · ", anchor.StatLines.Select(ShapeOf));
     }
 
-    private static readonly Regex PairRe = new(
-        @"(\d+(?:\.\d+)?)(?:\s*[\u2013\u2014-]\s*(\d+(?:\.\d+)?))?", RegexOptions.Compiled);
+    /// <summary>Stat text with every digit placeholder dropped and spaces
+    /// collapsed; comparison/searching still run on the real rendered lines.</summary>
+    internal static string ShapeOf(StatLineEntry line) =>
+        WhitespaceRe.Replace(line.Pattern.Replace(SuffixIndex.DigitPlaceholder, ' '), " ").Trim();
 
-    /// <summary>One unioned stat line: every number (or `lo–hi` span) replaced
-    /// by the overall min–max across members. A flat number in one tier
-    /// (`Adds 1 to 7–10 …`) is a degenerate span, so mixed spans still union.
-    /// Falls back to the first entry when the shapes or counts differ.</summary>
-    internal static string UnionLine(IReadOnlyList<StatLineEntry> lines)
-    {
-        var parsed = lines.Select(l => Split(l.RangeLine)).ToList();
-        var count = parsed[0].Pairs.Count;
-        if (count == 0 || parsed.Any(p => p.Pairs.Count != count)
-                       || parsed.Select(p => p.Skeleton).Distinct(StringComparer.Ordinal).Count() != 1)
-            return ModSearch.DisplayLine(lines[0]);
-        var sb = new StringBuilder();
-        var parts = parsed[0].Skeleton.Split('\u0001');
-        for (var i = 0; i < parts.Length; i++)
-        {
-            sb.Append(parts[i]);
-            if (i >= count) break;
-            var lo = parsed.Min(p => p.Pairs[i].Lo);
-            var hi = parsed.Max(p => p.Pairs[i].Hi);
-            sb.Append(FormatNumber(lo));
-            if (lo != hi) sb.Append('–').Append(FormatNumber(hi));
-        }
-        var text = sb.ToString();
-        // The skeleton deliberately drops the original pairs; when nothing was
-        // actually substituted (single values), the plain line is friendlier.
-        return text.Length > 0 ? text : ModSearch.DisplayLine(lines[0]);
-    }
-
-    private static (string Skeleton, List<(double Lo, double Hi)> Pairs) Split(string rangeLine)
-    {
-        if (rangeLine.Length == 0) return ("", []);
-        var pairs = new List<(double, double)>();
-        var skeleton = PairRe.Replace(rangeLine, m =>
-        {
-            var hiText = m.Groups[2].Success ? m.Groups[2].Value : m.Groups[1].Value;
-            if (double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lo) &&
-                double.TryParse(hiText, NumberStyles.Float, CultureInfo.InvariantCulture, out var hi))
-            {
-                pairs.Add((lo, hi));
-                return "\u0001";
-            }
-            return m.Value;
-        });
-        return (skeleton, pairs);
-    }
-
-    private static string FormatNumber(double v) =>
-        Math.Abs(v - Math.Truncate(v)) < 1e-9
-            ? ((long)Math.Truncate(v)).ToString(CultureInfo.InvariantCulture)
-            : v.ToString("0.##", CultureInfo.InvariantCulture);
+    private static readonly Regex WhitespaceRe = new(@"\s{2,}", RegexOptions.Compiled);
 }

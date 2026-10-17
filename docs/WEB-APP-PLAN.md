@@ -300,29 +300,44 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   limiting is the tier picks below, not a text floor. Both catalogs now
   carry the raw RePoE family key (`family` — the `type` field, which merges
   scopes: one-hand/two-hand share a family) and `requiredLevel`; the new
-  `ModFamilies` helper groups a scope's mods into families whose row text is
-  the unioned per-number span (`+10–214 to maximum Life`; flat numbers count
-  as degenerate spans, so a base tier's `Adds 1 to 7–10 …` unions with
-  `Adds 1–19 to …`), with tiers grouped by affix name (1H/2H variants
-  merge) ordered by required level — the game's own tier numbers are never
-  shown or guessed (the crossbow `Snapping` is "(Tier: 8)" in-game but 3rd
-  by required level). `ModPicker` and `ItemBuilder` show one block per
-  family: `+` adds the plain stat (stat-text fragment — matches every
-  tier), expanding lists tier rows whose `+` compiles the quoted affix name
-  (the only text that separates tiers in-game), `↑` compiles the picked
-  tier's name plus every better tier's in one alternation, `−` excludes the
-  family (fragment) or a tier (name literal, compiled as `!"Name"`); chips
-  label exactly what compiles (`"Reliable"`, `"Snowy" +4`), plain and name
-  picks on the same anchor coexist, and exact duplicates are ignored (the
-  round-trip now keeps structural list equality). The lab's matchable text
-  became the full copied advanced description: `ParsedItem.AllLines()` adds
-  the reconstructed `{ … Modifier "Name" (Tier: n) — tags }` captions (where
+  `ModFamilies` helper groups a scope's mods into families, with tiers
+  grouped by affix name (1H/2H variants merge) ordered by required level —
+  the game's own tier numbers are never shown or guessed (the crossbow
+  `Snapping` is "(Tier: 8)" in-game but 3rd by required level). `ModPicker`
+  and `ItemBuilder` show one block per family: `+` adds the plain stat
+  (stat-text fragment — matches every tier), expanding lists tier rows
+  whose `+` compiles the quoted affix name (the only text that separates
+  tiers in-game), `↑` compiles the picked tier's name plus every better
+  tier's in one alternation, `−` excludes the family (fragment) or a tier
+  (name literal, compiled as `!"Name"`); chips label exactly what compiles
+  (`"Reliable"`, `"Snowy" +4`), plain and name picks on the same anchor
+  coexist, and exact duplicates are ignored (the round-trip now keeps
+  structural list equality). The lab's matchable text became the full
+  copied advanced description: `ParsedItem.AllLines()` adds the
+  reconstructed `{ … Modifier "Name" (Tier: n) — tags }` captions (where
   the in-game name search actually matches), builder-assembled items
   materialize captions from the catalog (`MappedLine.IsHeader`, skipped as
   stat lines by the card), and `Reheal` is now idempotent — it used to
   duplicate mapped lines on every boot (headers first, later copies for the
-  same mod dropped). Full slnx 7+115+66 green; CDP-verified: family unions
-  (`+11–550 to Accuracy Rating`, `Adds 1–19 to 7–358 Lightning Damage`),
+  same mod dropped).
+  **43.1 (maintainer review round, separate commit):** family rows are
+  plain-text toggles again — the shared `.suggest-row button` chrome
+  (uppercase etc.) is neutralized and a `▸`/`▾` caret plus `aria-expanded`
+  makes expand/collapse obvious; the family text drops the numbers instead
+  of unioning ranges (the union span read oddly): `+ to maximum Life`,
+  `% increased Physical Damage`, `Adds to Lightning Damage` — the
+  union-math code and its tests were deleted in favor of the shape text
+  (tier rows keep real ranges, chips follow the family shape); the assemble
+  dialog has no family-level `+` (tiers only) and is single-column again —
+  the two-column container rule now scopes to `.modpicker .suggest` (the
+  dialog inherited `.panel.inventory` as its container at ≥1500px). The
+  hybrid-fragment question (`% phys + accuracy` compiling a fragment that
+  also matches the pure accuracy affix) was reviewed and left as is: a
+  single quoted term is evaluated per line, so it cannot require two lines;
+  lookahead pairs would need whole-text matching plus game verification the
+  lab can't model, and quoted AND terms / range pinning were parked.
+  Full slnx 7+116+66 green; CDP-verified: family shape rows
+  (`+ to Accuracy Rating`, `Adds to Lightning Damage`) with caret toggles,
   tier / `↑` / name-exclusion chips and compiled bytes,
   `+` disabled after the pick lands, imported crossbow highlights on the
   `"Snapping"` name pick, built ring highlights on `"Hale"`, its card shows

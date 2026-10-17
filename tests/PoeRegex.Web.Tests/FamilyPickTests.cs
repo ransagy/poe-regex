@@ -18,15 +18,15 @@ public class FamilyPickTests
             .First(f => f.Key == familyKey);
 
     [Fact]
-    public void Group_LifeOnBodyArmour_UnionRangeAndTierOrder()
+    public void Group_LifeOnBodyArmour_ShapeTextAndTierOrder()
     {
         var fam = Family("Body Armour", "IncreasedLife");
         fam.IsPrefix.Should().BeTrue();
         fam.Tiers.Should().HaveCount(13);
         fam.Tiers[0].Name.Should().Be("Hale");
         fam.Tiers[^1].Name.Should().Be("Prime");
-        fam.DisplayText.Should().Be("+10–214 to maximum Life",
-            "family rows show the overall span, not one tier's range");
+        fam.DisplayText.Should().Be("+ to maximum Life",
+            "family rows drop the numbers and just name the stat");
         fam.Anchor.StatLines.Should().NotBeEmpty();
     }
 
@@ -37,7 +37,7 @@ public class FamilyPickTests
             .First(f => f.Key == "ColdDamageWeaponPrefix");
         var snowy = fam.Tiers.First(t => t.Name == "Snowy");
         snowy.Members.Should().HaveCount(2, "wand/focus and staff variants share the name");
-        fam.DisplayText.Should().Be("25–238% increased Cold Damage");
+        fam.DisplayText.Should().Be("% increased Cold Damage");
         fam.NamesFrom(snowy).Should().Equal(
             ["Snowy", "Hailing", "Arctic", "Crystalline", "Cryomancer's"],
             "tier-or-better is by required level, never game tier numbers");
@@ -45,14 +45,21 @@ public class FamilyPickTests
     }
 
     [Fact]
-    public void Group_AddedDamage_MixedFlatAndSpanNumbersStillUnion()
+    public void Group_AddedDamage_ShapeDropsBothNumbers()
     {
-        // The base tier renders `Adds 1 to 7–10` (flat first number); higher
-        // tiers carry full spans — the family row must still show the union.
         var fam = Family("Crossbow", "LocalLightningDamage");
         fam.Tiers.Should().HaveCount(10);
         fam.Tiers[0].Name.Should().Be("Humming");
-        fam.DisplayText.Should().Be("Adds 1–19 to 7–358 Lightning Damage");
+        fam.DisplayText.Should().Be("Adds to Lightning Damage");
+    }
+
+    [Fact]
+    public void Group_HybridMod_EveryLineKeptAsShape()
+    {
+        var fam = Family("Crossbow", "LocalIncreasedPhysicalDamagePercentAndAccuracyRating");
+        fam.DisplayText.Should().Be("% increased Physical Damage · + to Accuracy Rating",
+            "multi-line families name every line");
+        fam.Tiers.Should().NotBeEmpty();
     }
 
     [Fact]
