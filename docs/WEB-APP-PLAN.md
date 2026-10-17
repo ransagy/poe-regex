@@ -285,6 +285,20 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 6 — multi-item paste + name-aware default picks.**
+  `ItemTextParser.SplitItems` (a new item starts at every `Item Class:` line;
+  a pre-header stray line — the staff's `sockets` — follows the blank-line
+  boundary to its own item instead of corrupting the previous one).
+  `ItemImport` extracted from the import dialog as the pure shared pipeline
+  (resolve → map → default picks → gate → rules → materialize), used by the
+  single and batch paths; ImportPanel batch mode lists every detected item
+  (rarity, class, unmapped count) with `add all` and per-row
+  blocked/rule/backpack-full verdicts. Default picks now prefer the candidate
+  bearing the block header's affix name, then generation-kind agreement —
+  which fixes the mace's ambiguous accuracy line (`Reliable` vs `of Light`)
+  and lands `Arcing`/`Snapping`/`of the Jaguar` on the header names.
+  `docs/samples/real-items.txt` = the five fixtures as one paste blob.
+  Full slnx 7+91+66 green.
 - **Follow-up round 5 — soundness (no-false-positive rule).**
   Universal non-mod lines in every corpus (Rarity x4, Requires template,
   Item Level, Corrupted, Sockets) + class lines in the union; explain matches

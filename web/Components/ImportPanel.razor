@@ -10,9 +10,15 @@
                       value="@_text" @oninput="OnInput" aria-label="Item text"></textarea>
             <div class="modrow">
                 <button id="import-parse" class="btn" @onclick="Parse">preview</button>
-                @if (_parsed is not null)
+                @if (_items.Count == 1)
                 {
-                    <button id="import-save" class="btn" disabled="@(_parsed is null || _violations.Any(v => v.Level == "error"))" @onclick="Save">Add</button>
+                    <button id="import-save" class="btn" disabled="@(_violations.Any(v => v.Level == "error"))" @onclick="Save">Add</button>
+                }
+                @if (IsBatch)
+                {
+                    <button id="import-save-all" class="btn" disabled="@(AddableCount() == 0)" @onclick="SaveAll">
+                        add all (@AddableCount())
+                    </button>
                 }
                 <button id="import-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
@@ -24,11 +30,12 @@
             {
                 <div class="field-error" id="import-save-error">@_saveError</div>
             }
-            @if (_parsed is not null)
+            @if (_items.Count == 1)
             {
+                var parsed = _items[0];
                 <div class="import-preview" id="import-preview">
-                    <div><b>@_parsed.Name</b> (@_parsed.Rarity) — @_classId / ilvl @_parsed.ItemLevel</div>
-                    @foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
+                    <div><b>@parsed.Name</b> (@parsed.Rarity) — @_classId / ilvl @parsed.ItemLevel</div>
+                    @foreach (var (block, bi) in parsed.Mods.Select((b, i) => (b, i)))
                     {
                         <div class="import-block">
                             <span class="import-kind">@block.Kind @block.Name @(block.Tier is null ? "" : $"T{block.Tier}")</span>
@@ -66,6 +73,33 @@
                     }
                 </div>
             }
+            @if (IsBatch)
+            {
+                <div class="import-batch" id="import-batch">
+                    <div class="more" id="import-batch-count">
+                        @_items.Count items detected — add all imports each with the catalog's default picks
+                    </div>
+                    @foreach (var (row, i) in _batch.Select((r, i) => (r, i)))
+                    {
+                        <div class="import-batch-row" id="import-batch-row-@i">
+                            <span class="import-batch-name @RarityClass(row.Parsed.Rarity)">@(row.Parsed.Name ?? "unnamed item")</span>
+                            <span class="import-batch-sub">@(row.Parsed.ItemClass ?? "?") · @(row.Parsed.Rarity ?? "?")</span>
+                            @if (row.Added)
+                            {
+                                <span class="import-batch-ok">added</span>
+                            }
+                            else if (row.Status is not null)
+                            {
+                                <span class="field-error import-batch-status">@row.Status</span>
+                            }
+                            else if (row.Unmapped > 0)
+                            {
+                                <span class="map-none import-batch-status">@row.Unmapped line(s) not in catalog</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </div>
 }
@@ -80,13 +114,29 @@
     [Parameter, EditorRequired]
     public required EventCallback OnClose { get; set; }
 
+    /// <summary>One pasted item in a multi-item paste, with its verdicts.</summary>
+    private sealed record BatchRow(
+        ParsedItem Parsed,
+        ItemImport.Mapped Mapped,
+        IReadOnlyList<RuleViolation> Violations)
+    {
+        public int Unmapped { get; } = Mapped.Lines.Count(kv => kv.Value.ModIds.Count == 0);
+        public string? Status { get; set; }
+        public bool Added { get; set; }
+    }
+
     private string _text = "";
-    private ParsedItem? _parsed;
+    private List<ParsedItem> _items = [];
+    private List<BatchRow> _batch = [];
     private string? _classId;
     private Dictionary<(int, int), EngineService.ModMapping> _mapped = new();
     private Dictionary<(int, int), string> _picked = new();
     private List<RuleViolation> _violations = [];
     private string? _saveError;
+
+    private bool IsBatch => _items.Count > 1;
+
+    private int AddableCount() => _batch.Count(r => !r.Added && r.Status is null);
 
     private void OnInput(ChangeEventArgs e) => _text = e.Value?.ToString() ?? "";
 
@@ -94,18 +144,31 @@
     {
         _violations = [];
         _saveError = null;
-        _parsed = ItemTextParser.Parse(_text);
-        _classId = Engine.ResolveClassId(_parsed.ItemClass);
+        _batch = [];
         _mapped = new();
         _picked = new();
-        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
-            foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+        _classId = null;
+        _items = ItemTextParser.SplitItems(_text).Select(ItemTextParser.Parse).ToList();
+        if (_items.Count == 1)
+        {
+            var mapped = ItemImport.Map(Engine, _items[0]);
+            _classId = mapped.ClassId;
+            _mapped = mapped.Lines;
+            _picked = ItemImport.DefaultPicks(Engine, _items[0], mapped);
+        }
+        else if (IsBatch)
+        {
+            _batch = _items.Select(p =>
             {
-                var map = Engine.MapLineToMods(_classId, line.CanonicalText, line.Rolls);
-                _mapped[(bi, li)] = map;
-                if (map.ModIds.Count > 0)
-                    _picked[(bi, li)] = map.ModIds[0];
-            }
+                var mapped = ItemImport.Map(Engine, p);
+                var gate = ItemImport.Gate(Engine, mapped.ClassId);
+                var violations = gate is null
+                    ? ItemImport.Validate(Engine, p, mapped, ItemImport.DefaultPicks(Engine, p, mapped))
+                    : (IReadOnlyList<RuleViolation>)[];
+                var error = gate ?? violations.FirstOrDefault(v => v.Level == "error")?.Message;
+                return new BatchRow(p, mapped, violations) { Status = error };
+            }).ToList();
+        }
     }
 
     private void Pick((int, int) key, ChangeEventArgs e)
@@ -116,7 +179,8 @@
     private async Task Close()
     {
         _text = "";
-        _parsed = null;
+        _items = [];
+        _batch = [];
         _violations = [];
         _saveError = null;
         await OnClose.InvokeAsync();
@@ -130,51 +194,18 @@
     private void Save()
     {
         _saveError = null;
-        if (_parsed is null) return;
-        // Gate: only import what a slot query can test against (in-game classes with mods).
-        var playable = _classId is not null && Engine.InGameClasses().Any(c => c.Id == _classId);
-        if (!playable)
+        if (_items.Count != 1) return;
+        var parsed = _items[0];
+        var gate = ItemImport.Gate(Engine, _classId);
+        if (gate is not null)
         {
-            _saveError = _classId is null
-                ? "no recognizable item class: import blocked"
-                : $"class '{_classId}' has no catalog mods: import blocked";
+            _saveError = gate;
             return;
         }
-        var ruleLines = new List<RuleLine>();
-        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
-        {
-            // One entry per block (multi-line mods count once).
-            string? sel = null;
-            for (var li = 0; li < block.Lines.Count && sel is null; li++)
-                if (_mapped.TryGetValue((bi, li), out var m) && m.ModIds.Count > 0)
-                    sel = _picked.GetValueOrDefault((bi, li), m.ModIds[0]);
-            ruleLines.Add(new RuleLine(block.Kind, sel));
-        }
-        _violations = ItemRules.Validate(Engine, ruleLines, _parsed.Rarity).ToList();
-        foreach (var (block, bi) in _parsed.Mods.Select((b, i) => (b, i)))
-        {
-            if (block.Kind == "implicit") continue;
-            var mapped = block.Lines.Select((_, li) => li).Any(li =>
-                _mapped.TryGetValue((bi, li), out var m) && m.ModIds.Count > 0);
-            if (!mapped)
-                _violations.Add(new RuleViolation("warning",
-                    $"'{block.Name ?? block.Kind}' did not map to the catalog: counts may be off"));
-        }
+        var mapped = new ItemImport.Mapped(_classId, _mapped);
+        _violations = ItemImport.Validate(Engine, parsed, mapped, _picked).ToList();
         if (_violations.Any(v => v.Level == "error")) return;
-        var item = new TestItem
-        {
-            Name = _parsed.Name ?? "imported item",
-            ClassId = _classId,
-            Parsed = _parsed,
-        };
-        foreach (var (key, map) in _mapped)
-        {
-            var (bi, li) = key;
-            var line = _parsed.Mods[bi].Lines[li];
-            item.Mapped.Add(new MappedLine(
-                line.Text, line.CanonicalText, line.Rolls, map.ModIds,
-                map.ModIds.Count == 0 ? null : _picked.GetValueOrDefault(key, map.ModIds[0])));
-        }
+        var item = ItemImport.Materialize(parsed, mapped, _picked);
         if (!State.AddTestItem(item))
         {
             _saveError = "backpack is full — remove an item first";
@@ -182,4 +213,35 @@
         }
         _ = Close();
     }
+
+    private void SaveAll()
+    {
+        _saveError = null;
+        foreach (var row in _batch)
+        {
+            if (row.Added || row.Status is not null) continue;
+            var result = ItemImport.Import(Engine, row.Parsed);
+            if (result.Item is null)
+            {
+                row.Status = result.Error ?? "import blocked";
+                continue;
+            }
+            if (State.AddTestItem(result.Item)) row.Added = true;
+            else row.Status = "backpack is full — remove an item first";
+        }
+        if (_batch.All(r => r.Added))
+        {
+            _ = Close();
+            return;
+        }
+        StateHasChanged();
+    }
+
+    private static string RarityClass(string? rarity) => rarity switch
+    {
+        "Magic" => "rarity-magic",
+        "Rare" => "rarity-rare",
+        "Unique" => "rarity-unique",
+        _ => "rarity-normal",
+    };
 }

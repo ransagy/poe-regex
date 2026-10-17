@@ -427,6 +427,16 @@ textarea { width: 100%; box-sizing: border-box; }
 .import-line { display: flex; gap: 0.5rem; align-items: center; font-size: 0.82rem; padding: 0.1rem 0; }
 .map-none { color: #e08a8a; font-size: 0.75rem; }
 .map-one { color: var(--dim); font-size: 0.75rem; font-family: Consolas, monospace; }
+.rarity-normal { color: #cfcfcf; }
+.rarity-magic { color: #8888ff; }
+.rarity-rare { color: #ffff77; }
+.rarity-unique { color: #af6025; }
+.import-batch { display: flex; flex-direction: column; }
+.import-batch-row { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.85rem; padding: 0.3rem 0; border-top: 1px dotted #3d3220; }
+.import-batch-name { font-weight: 600; }
+.import-batch-sub { color: var(--dim); font-size: 0.78rem; }
+.import-batch-status { margin-left: auto; text-align: right; }
+.import-batch-ok { margin-left: auto; color: #a9c97a; font-size: 0.78rem; }
 .titem-badges { display: flex; gap: 0.3rem; margin: 0.2rem 0; flex-wrap: wrap; }
 .badge { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--panel-edge); color: var(--dim); }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }

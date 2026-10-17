@@ -67,6 +67,52 @@ public static partial class ItemTextParser
     [GeneratedRegex(@"—\s*(?<tags>.+)$")]
     private static partial Regex TagsRe();
 
+    /// <summary>
+    /// Split a paste that may hold several advanced descriptions into one text
+    /// per item: a new item starts at every `Item Class:` line. In-game pastes
+    /// can open with a stray line before that header (the socketed staff's
+    /// `sockets`); inside a multi-item paste those pre-header lines sit after
+    /// the previous item's trailing blank line, so anything after the last
+    /// blank line moves to the new item instead of corrupting the previous
+    /// one. Text without any `Item Class:` line is a single item (plain
+    /// single-item behavior).
+    /// </summary>
+    public static IReadOnlyList<string> SplitItems(string text)
+    {
+        var blocks = new List<string>();
+        var current = new List<string>();
+        var currentHasHeader = false;
+        void Flush()
+        {
+            blocks.Add(string.Join('\n', current).Trim());
+            current.Clear();
+        }
+        foreach (var raw in text.Split(['\r', '\n']))
+        {
+            var isHeader = ItemClassRe().Match(raw.Trim()).Success;
+            if (isHeader && currentHasHeader)
+            {
+                var lastBlank = current.FindLastIndex(l => l.Trim().Length == 0);
+                if (lastBlank >= 0 && lastBlank < current.Count - 1)
+                {
+                    var prefix = current.Skip(lastBlank + 1).ToList();
+                    current.RemoveRange(lastBlank + 1, current.Count - lastBlank - 1);
+                    Flush();
+                    current.AddRange(prefix);
+                }
+                else
+                {
+                    Flush();
+                }
+            }
+            currentHasHeader |= isHeader;
+            current.Add(raw);
+        }
+        if (current.Count > 0)
+            Flush();
+        return blocks;
+    }
+
     public static ParsedItem Parse(string text)
     {
         string? itemClass = null;

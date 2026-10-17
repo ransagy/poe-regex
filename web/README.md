@@ -23,6 +23,15 @@ dotnet run --project web/web.csproj
 The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 (~5 ms warm, ~165 ms cold in the interpreter build), and compiles locally.
 
+## Load the five real sample items
+
+`docs/samples/real-items.txt` holds the maintainer-provided real item
+descriptions (the same five locked fixtures the parser tests use: belt,
+talisman, crossbow, socketed staff, corrupted mace). Open **import item** and
+paste the whole file — the dialog detects five items and **add all** imports
+each one (header-name-matched catalog picks, class gate and rule check per
+item, backpack-full reported per row).
+
 ## Test
 
 ```sh
@@ -61,9 +70,11 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   per line — one column, or two when the editor column is wide enough — and
   the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
   copy, explain, overflow), `ImportPanel`
-  (paste + freeform), `ItemBuilder` (assemble from catalog mods; both modals
-  reject when the backpack is full). Backpack tools row: import, assemble,
-  and remove (acts on the pinned item).
+  (paste one advanced description, or several at once — a multi-item paste
+  lists each item with class/mapping verdicts and an add-all; class gate, rule
+  check and backpack-full are reported per item), `ItemBuilder` (assemble from
+  catalog mods; both modals reject when the backpack is full). Backpack tools
+  row: import, assemble, and remove (acts on the pinned item).
 - Item matching for highlight/dim and tooltip verdicts runs on the item's
   `Item Class:` line plus parsed and mapped catalog lines (builder-assembled
   items match too); it engages only once the active scope has mods picked.
