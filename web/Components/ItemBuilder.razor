@@ -5,73 +5,80 @@
 @if (Open)
 {
     <div class="dlg-overlay" id="builder-dialog" @onclick="OnBackdrop">
-        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Assemble item">
+        <div class="dlg dlg-builder" @onclick:stopPropagation="true" role="dialog" aria-label="Assemble item">
             <div class="panel-head"><span>Assemble test item from mods (enforced)</span></div>
-            @if (_added.Count > 0)
-            {
-                <div class="chips" style="margin-bottom: 0.5rem; border-bottom: 1px solid var(--panel-edge); padding-bottom: 0.4rem;">
-                    @foreach (var id in _added)
+            <div class="builder-cols">
+                <div class="builder-left">
+                    <div class="modrow">
+                        <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
+                            @foreach (var c in Engine.InGameClasses())
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                        <select id="builder-rarity" value="@_rarity" @onchange="e => { _rarity = e.Value?.ToString() ?? Rare; Refresh(); }" aria-label="Builder rarity">
+                            <option value="Normal">Normal</option>
+                            <option value="Magic">Magic</option>
+                            <option value="Rare">Rare</option>
+                        </select>
+                    </div>
+                    <div class="modrow">
+                        <input id="builder-search" placeholder="type to filter mods…" value="@_search"
+                               @oninput="OnSearch" aria-label="Builder mod filter" />
+                    </div>
+                    <ol class="suggest" aria-label="Builder suggestions">
+                        @foreach (var m in _suggestions.Take(30))
+                        {
+                            var lines = m.StatLines;
+                            var line = lines.FirstOrDefault();
+                            var builderTag = (m.GenerationType.ToLowerInvariant() == "prefix") ? "prefix" : "suffix";
+                            <li class="suggest-row">
+                                <span class="gen-tag" title="@builderTag">@builderTag</span>
+                                @if (lines.Count <= 1)
+                                {
+                                    <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
+                                }
+                                else
+                                {
+                                    <span class="suggest-line multi">
+                                        @foreach (var sl in lines)
+                                        {
+                                            <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
+                                        }
+                                    </span>
+                                }
+                                <button id="builder-add-@m.Id" class="btn" title="add @(m.GenerationType)"
+                                        disabled="@_added.Contains(m.Id)"
+                                        @onclick="() => Add(m)">+</button>
+                            </li>
+                        }
+                    </ol>
+                    @foreach (var v in _violations)
                     {
-                        <button class="chip inc" id="builder-del-@id" title="remove"
-                                @onclick="() => Remove(id)">@DisplayFor(id)</button>
+                        <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>
                     }
                 </div>
-            }
-            <div class="modrow">
-                <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
-                    @foreach (var c in Engine.InGameClasses())
+                <div class="builder-right">
+                    <input id="builder-name" placeholder="item name" value="@_name"
+                           @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
+                    <ItemPreview Item="PreviewItem()" Id="builder-preview" />
+                    @if (_added.Count > 0)
                     {
-                        <option value="@c.Id">@c.Name</option>
+                        <div class="chips" aria-label="Added mods">
+                            @foreach (var id in _added)
+                            {
+                                <button class="chip inc" id="builder-del-@id" title="remove: @DisplayFor(id)"
+                                        @onclick="() => Remove(id)">@ChipLabel(id)</button>
+                            }
+                        </div>
                     }
-                </select>
-                <select id="builder-rarity" value="@_rarity" @onchange="e => { _rarity = e.Value?.ToString() ?? Rare; Refresh(); }" aria-label="Builder rarity">
-                    <option value="Normal">Normal</option>
-                    <option value="Magic">Magic</option>
-                    <option value="Rare">Rare</option>
-                </select>
+                </div>
             </div>
-            <div class="modrow">
-                <input id="builder-search" placeholder="type to filter mods…" value="@_search"
-                       @oninput="OnSearch" aria-label="Builder mod filter" />
-            </div>
-            <ol class="suggest" aria-label="Builder suggestions">
-                @foreach (var m in _suggestions.Take(30))
-                {
-                    var lines = m.StatLines;
-                    var line = lines.FirstOrDefault();
-                    var builderTag = (m.GenerationType.ToLowerInvariant() == "prefix") ? "prefix" : "suffix";
-                    <li class="suggest-row">
-                        <span class="gen-tag" title="@builderTag">@builderTag</span>
-                        @if (lines.Count <= 1)
-                        {
-                            <span class="suggest-line">@(line is null ? m.Name : ModSearch.DisplayLine(line))</span>
-                        }
-                        else
-                        {
-                            <span class="suggest-line multi">
-                                @foreach (var sl in lines)
-                                {
-                                    <span class="mod-line">@ModSearch.DisplayLine(sl)</span>
-                                }
-                            </span>
-                        }
-                        <button id="builder-add-@m.Id" class="btn" title="add @(m.GenerationType)"
-                                disabled="@_added.Contains(m.Id)"
-                                @onclick="() => Add(m)">+</button>
-                    </li>
-                }
-            </ol>
-            @foreach (var v in _violations)
-            {
-                <div class="@(v.Level == "error" ? "field-error" : "more")">@v.Level: @v.Message</div>
-            }
             @if (_saveError is not null)
             {
                 <div class="field-error" id="builder-save-error">@_saveError</div>
             }
             <div class="modrow">
-                <input id="builder-name" placeholder="item name" value="@_name"
-                       @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
                 <button id="builder-save" class="btn" disabled="@(_added.Count == 0 || _violations.Any(v => v.Level == "error"))"
                         @onclick="Save">Add</button>
                 <button id="builder-cancel" class="btn" @onclick="Close">cancel</button>
@@ -115,6 +122,28 @@
             _added.Select(id => RuleLineFor(id)), _rarity).ToList();
     }
 
+    /// <summary>
+    /// The item as it would be added: parsed text carries the name / class /
+    /// rarity, mapped lines carry each catalog mod's stat lines. Feeds the
+    /// live preview card and Save alike, so dialog and backpack agree.
+    /// </summary>
+    private TestItem PreviewItem()
+    {
+        var cls = Engine.PlayableClasses().FirstOrDefault(c => c.Id == _classId);
+        var parsed = new ParsedItem(cls?.Name, _rarity,
+            _name.Trim().Length > 0 ? _name.Trim() : $"Built {cls?.Name ?? _classId}",
+            [], null, null, null, null, false, []);
+        var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed, Built = true };
+        foreach (var id in _added)
+        {
+            var mod = Engine.FindMod(id);
+            foreach (var s in mod?.StatLines ?? [])
+                item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
+        }
+        return item;
+    }
+
+    /// <summary>Full stat text for a mod (chip tooltips, saved text).</summary>
     private string DisplayFor(string modId)
     {
         var mod = Engine.FindMod(modId);
@@ -125,6 +154,12 @@
             return text;
         }
         return modId;
+    }
+
+    private string ChipLabel(string modId)
+    {
+        var mod = Engine.FindMod(modId);
+        return mod?.Name is { Length: > 0 } name ? name : modId;
     }
 
     private RuleLine RuleLineFor(string modId)
@@ -177,18 +212,7 @@
     {
         _saveError = null;
         if (_added.Count == 0 || _violations.Any(v => v.Level == "error")) return;
-        var cls = Engine.PlayableClasses().FirstOrDefault(c => c.Id == _classId);
-        var parsed = new ParsedItem(cls?.Name, _rarity,
-            _name.Trim().Length > 0 ? _name.Trim() : $"Built {_classId}",
-            [], null, null, null, null, false, []);
-        var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed, Built = true };
-        foreach (var id in _added)
-        {
-            var mod = Engine.FindMod(id);
-            foreach (var s in mod?.StatLines ?? [])
-                item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
-        }
-        if (!State.AddTestItem(item))
+        if (!State.AddTestItem(PreviewItem()))
         {
             _saveError = "backpack is full — remove an item first";
             return;

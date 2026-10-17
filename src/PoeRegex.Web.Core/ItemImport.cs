@@ -109,14 +109,16 @@ public static class ItemImport
             ClassId = mapped.ClassId,
             Parsed = parsed,
         };
-        foreach (var (key, map) in mapped.Lines)
-        {
-            var (bi, li) = key;
-            var line = parsed.Mods[bi].Lines[li];
-            item.Mapped.Add(new MappedLine(
-                line.Text, line.CanonicalText, line.Rolls, map.ModIds,
-                map.ModIds.Count == 0 ? null : picks.GetValueOrDefault(key, map.ModIds[0])));
-        }
+        // Append in parsed order (dictionary order is not contractual) so the
+        // preview card's running index lines up with the flattened mod lines.
+        foreach (var (block, bi) in parsed.Mods.Select((b, i) => (b, i)))
+            foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+            {
+                if (!mapped.Lines.TryGetValue((bi, li), out var map)) continue;
+                item.Mapped.Add(new MappedLine(
+                    line.Text, line.CanonicalText, line.Rolls, map.ModIds,
+                    map.ModIds.Count == 0 ? null : picks.GetValueOrDefault((bi, li), map.ModIds[0])));
+            }
         return item;
     }
 

@@ -285,6 +285,21 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+- **Follow-up round 7 — one item card everywhere.** New `ItemPreview`
+  component: the single game-style card the backpack tooltip, the import
+  preview and the assemble dialog all draw — rarity-coloured name,
+  class · rarity line, base stats, requires / item level / sockets / granted
+  skill, reconstructed mod headers (name, tier, tags), blue mod lines, a
+  corrupted footer, and an optional per-line annotation slot. The tooltip is
+  now a thin pinned wrapper over it (full card instead of mapped lines only;
+  the card is the tooltip's scroll region, so its border stays put). The
+  import dialog's single-item preview is the card with its mapping status
+  inline (candidate picker for ambiguous lines, `not in catalog` otherwise).
+  The assemble dialog is two columns (controls / suggestions / violations
+  left; name input, live card and removal chips right) and its Add button
+  saves exactly the card shown. `ItemImport.Materialize` appends mapped
+  lines in parse order so the card's running index always lines up.
+  Full slnx 7+93+66 green.
 - **Follow-up round 6 — multi-item paste + name-aware default picks.**
   `ItemTextParser.SplitItems` (a new item starts at every `Item Class:` line;
   a pre-header stray line — the staff's `sockets` — follows the blank-line

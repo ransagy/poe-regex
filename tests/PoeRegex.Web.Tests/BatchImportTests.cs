@@ -107,4 +107,32 @@ public class BatchImportTests
         result.Item.Should().BeNull();
         result.Error.Should().NotBeNull();
     }
+
+    [Fact]
+    public void Materialize_AppendsMappedLinesInParseOrder()
+    {
+        // The preview card indexes Mapped by flattened parse order; keep it true.
+        var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
+        var mapped = ItemImport.Map(Engine, parsed);
+        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
+        var item = ItemImport.Materialize(parsed, mapped, picks);
+        var expected = parsed.Mods.SelectMany(m => m.Lines.Select(l => l.Text)).ToList();
+        item.Mapped.Select(m => m.Text).Should().Equal(expected);
+    }
+
+    [Fact]
+    public void DefaultPicks_PreferTheHeaderAffixName()
+    {
+        // `+37 to Accuracy Rating` maps to both `Reliable` (prefix) and
+        // `of Light` (suffix); the block header decides, so the pair never
+        // collapses onto one mod (which would read as a duplicate error).
+        var parsed = ItemTextParser.Parse(FixtureTexts.Mace);
+        var mapped = ItemImport.Map(Engine, parsed);
+        var picks = ItemImport.DefaultPicks(Engine, parsed, mapped);
+        var reliable = picks[(0, 0)];
+        var ofLight = picks[(2, 0)];
+        Engine.FindMod(reliable)!.Name.Should().Be("Reliable");
+        Engine.FindMod(ofLight)!.Name.Should().Be("of Light");
+        reliable.Should().NotBe(ofLight);
+    }
 }

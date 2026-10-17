@@ -30,48 +30,39 @@
             {
                 <div class="field-error" id="import-save-error">@_saveError</div>
             }
-            @if (_items.Count == 1)
+            @if (_items.Count == 1 && _preview is not null)
             {
-                var parsed = _items[0];
-                <div class="import-preview" id="import-preview">
-                    <div><b>@parsed.Name</b> (@parsed.Rarity) — @_classId / ilvl @parsed.ItemLevel</div>
-                    @foreach (var (block, bi) in parsed.Mods.Select((b, i) => (b, i)))
-                    {
-                        <div class="import-block">
-                            <span class="import-kind">@block.Kind @block.Name @(block.Tier is null ? "" : $"T{block.Tier}")</span>
-                            @foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+                <ItemPreview Item="_preview" Id="import-preview">
+                    <LineAnnotation Context="ln">
+                        @{
+                            var key = (ln.Block, ln.Line);
+                            var map = _mapped.TryGetValue(key, out var m) ? m : null;
+                        }
+                        @if (map is null || map.ModIds.Count == 0)
+                        {
+                            <span class="iprev-annot map-none">not in catalog</span>
+                        }
+                        else if (map.ModIds.Count == 1)
+                        {
+                            <span class="iprev-annot map-one">@map.ModIds[0]@(map.Approximate ? " ~approx" : "")</span>
+                        }
+                        else
+                        {
+                            <select class="iprev-annot-select" id="import-pick-@ln.Block-@ln.Line"
+                                    value="@_picked.GetValueOrDefault(key, map.ModIds[0])"
+                                    @onchange="e => Pick(key, e)">
+                                @foreach (var id in map.ModIds)
+                                {
+                                    <option value="@id">@id</option>
+                                }
+                            </select>
+                            @if (map.Approximate)
                             {
-                                var key = (bi, li);
-                                var map = _mapped.TryGetValue(key, out var m) ? m : null;
-                                <div class="import-line">
-                                    <span>@line.Text</span>
-                                    @if (map is null || map.ModIds.Count == 0)
-                                    {
-                                        <span class="map-none">not in catalog</span>
-                                    }
-                                    else if (map.ModIds.Count == 1)
-                                    {
-                                        <span class="map-one">@map.ModIds[0]@(map.Approximate ? " ~approx" : "")</span>
-                                    }
-                                    else
-                                    {
-                                        <select id="import-pick-@bi-@li" value="@_picked.GetValueOrDefault(key, map.ModIds[0])"
-                                                @onchange="e => Pick(key, e)">
-                                            @foreach (var id in map.ModIds)
-                                            {
-                                                <option value="@id">@id</option>
-                                            }
-                                        </select>
-                                        @if (map.Approximate)
-                                        {
-                                            <span class="map-one">~approx</span>
-                                        }
-                                    }
-                                </div>
+                                <span class="iprev-annot map-one">~approx</span>
                             }
-                        </div>
-                    }
-                </div>
+                        }
+                    </LineAnnotation>
+                </ItemPreview>
             }
             @if (IsBatch)
             {
@@ -128,6 +119,7 @@
     private string _text = "";
     private List<ParsedItem> _items = [];
     private List<BatchRow> _batch = [];
+    private TestItem? _preview;
     private string? _classId;
     private Dictionary<(int, int), EngineService.ModMapping> _mapped = new();
     private Dictionary<(int, int), string> _picked = new();
@@ -145,6 +137,7 @@
         _violations = [];
         _saveError = null;
         _batch = [];
+        _preview = null;
         _mapped = new();
         _picked = new();
         _classId = null;
@@ -155,6 +148,7 @@
             _classId = mapped.ClassId;
             _mapped = mapped.Lines;
             _picked = ItemImport.DefaultPicks(Engine, _items[0], mapped);
+            _preview = ItemImport.Materialize(_items[0], mapped, _picked);
         }
         else if (IsBatch)
         {
@@ -181,6 +175,7 @@
         _text = "";
         _items = [];
         _batch = [];
+        _preview = null;
         _violations = [];
         _saveError = null;
         await OnClose.InvokeAsync();

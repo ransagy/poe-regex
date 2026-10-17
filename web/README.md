@@ -62,19 +62,26 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   window is too short the pack area scrolls internally, never the page;
   matching items highlight and non-matching ones dim; clicking an item pins
   its tooltip),
-  `ItemTooltip` (game-style overlay at the click point — rarity-coloured
-  name, class/rarity line, mapped lines; dismissed via x, same tile, empty
-  pack space, or removal; clamped to the viewport by `poeRegexPlaceTooltip`),
-  `ModeSwitch`, `ClassPicker`,
+  `ItemTooltip` (pins the shared item card at the click point; dismissed via
+  x, same tile, empty pack space, or removal; clamped to the viewport by
+  `poeRegexPlaceTooltip`), `ItemPreview` (the one game-style card — rarity
+  name, class · rarity line, base stats, requires / item level / sockets /
+  granted skill, rebuilt mod headers with tier and tags, blue mod lines, a
+  corrupted footer, and an optional per-line annotation slot; the card is
+  the tooltip's scroll region so its border stays put), `ModeSwitch`,
+  `ClassPicker`,
   `ModPicker` (searchable mods, one flat list with a P/S prefix/suffix tag
   per line — one column, or two when the editor column is wide enough — and
   the list stretches/scrolls to fill the editor's height), `QueryCard` (meter,
   copy, explain, overflow), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
   lists each item with class/mapping verdicts and an add-all; class gate, rule
-  check and backpack-full are reported per item), `ItemBuilder` (assemble from
-  catalog mods; both modals reject when the backpack is full). Backpack tools
-  row: import, assemble, and remove (acts on the pinned item).
+  check and backpack-full are reported per item; the single-item preview is
+  the shared card with mapping status per line), `ItemBuilder` (assemble from
+  catalog mods in two columns — searchable suggestions left, name input,
+  live card and removal chips right; Save adds exactly the card shown; both
+  modals reject when the backpack is full). Backpack tools row: import,
+  assemble, and remove (acts on the pinned item).
 - Item matching for highlight/dim and tooltip verdicts runs on the item's
   `Item Class:` line plus parsed and mapped catalog lines (builder-assembled
   items match too); it engages only once the active scope has mods picked.

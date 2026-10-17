@@ -1,29 +1,18 @@
 @using PoeRegex.Web.Core
-@inject EngineService Engine
 @inject IJSRuntime JS
 
 @*
   Game-style item tooltip: a fixed overlay pinned at the backpack tile click
-  point, so it never participates in layout. poeRegexPlaceTooltip flips it
-  near the viewport edges after each render. Close via the x, by clicking the
-  tile again, by clicking empty pack space, or by removing the item.
+  point, so it never participates in layout. The card itself is the shared
+  ItemPreview; poeRegexPlaceTooltip flips this wrapper near the viewport
+  edges after each render. Close via the x, by clicking the tile again, by
+  clicking empty pack space, or by removing the item.
 *@
 @if (Item is not null)
 {
     <div class="item-tooltip" id="item-tooltip" style="left:@(X + 12)px; top:@(Y + 12)px" @ref="_el">
         <button class="tt-close" id="detail-close" title="dismiss" @onclick="() => OnDismiss.InvokeAsync()">×</button>
-        <div class="tt-name @RarityClass()">@Item.Name</div>
-        <div class="tt-sub">@SubLine()</div>
-        @if (Item.Mapped.Count > 0)
-        {
-            <div class="tt-sep"></div>
-            <div class="tt-lines">
-                @foreach (var ml in Item.Mapped)
-                {
-                    <div>@DisplayLine(ml)</div>
-                }
-            </div>
-        }
+        <ItemPreview Item="Item" />
     </div>
 }
 @code {
@@ -48,37 +37,5 @@
         if (Item is null) return;
         try { await JS.InvokeVoidAsync("poeRegexPlaceTooltip", _el, X, Y); }
         catch { /* element already replaced */ }
-    }
-
-    /// <summary>Game rarity colouring for the item name.</summary>
-    private string RarityClass() => Item?.Parsed.Rarity switch
-    {
-        "Magic" => "magic",
-        "Rare" => "rare",
-        "Unique" => "unique",
-        _ => "normal",
-    };
-
-    private string SubLine()
-    {
-        var cls = Item!.Parsed.ItemClass ?? Item.ClassId ?? "unknown class";
-        var rarity = Item.Parsed.Rarity ?? "Normal";
-        return $"{cls} · {rarity}";
-    }
-
-    /// <summary>
-    /// Friendly line text: pasted game text stays as-is; catalog-sourced
-    /// builder lines render their per-number ranges. Matching always runs on
-    /// the representative text underneath.
-    /// </summary>
-    private string DisplayLine(MappedLine ml)
-    {
-        if (ml.SelectedModId is not null)
-        {
-            var stat = Engine.FindMod(ml.SelectedModId)?.StatLines
-                .FirstOrDefault(s => s.Line == ml.Text);
-            if (stat is not null) return ModSearch.DisplayLine(stat);
-        }
-        return ml.Text;
     }
 }

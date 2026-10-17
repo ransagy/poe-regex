@@ -422,9 +422,6 @@ button[id^="slot-copy-"] {
 .qexplain-tokens { font-family: Consolas, monospace; margin-bottom: 0.4rem; }
 
 textarea { width: 100%; box-sizing: border-box; }
-.import-block { margin: 0.4rem 0; border-top: 1px dotted #3d3220; padding-top: 0.3rem; }
-.import-kind { color: var(--accent); font-size: 0.8rem; }
-.import-line { display: flex; gap: 0.5rem; align-items: center; font-size: 0.82rem; padding: 0.1rem 0; }
 .map-none { color: #e08a8a; font-size: 0.75rem; }
 .map-one { color: var(--dim); font-size: 0.75rem; font-family: Consolas, monospace; }
 .rarity-normal { color: #cfcfcf; }
@@ -442,24 +439,46 @@ textarea { width: 100%; box-sizing: border-box; }
 .badge.hit { color: #ffe9a8; border-color: var(--accent); }
 .badge.miss { opacity: 0.7; }
 
+/* Shared game-style item card (ItemPreview): tooltip, import preview and
+   builder preview all draw the same box. */
+.iprev {
+    background: #100c08;
+    border: 1px solid var(--panel-edge-hi);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65);
+    padding: 0.45rem 0.7rem 0.5rem;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+}
+.iprev-name { text-align: center; font-weight: 600; font-size: 0.95rem; }
+.item-tooltip .iprev-name { padding: 0 1.2rem; }
+.iprev-sub { text-align: center; color: var(--dim); font-size: 0.78rem; margin-top: 0.1rem; }
+.iprev-sep { border-top: 1px solid #3d3220; margin: 0.35rem 0; }
+.iprev-stats { color: var(--ink); }
+.iprev-meta { color: var(--dim); }
+.iprev-mod + .iprev-mod { margin-top: 0.3rem; }
+.iprev-cap { color: var(--dim); font-size: 0.72rem; margin: 0.15rem 0 0.1rem; }
+.iprev-line { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.06rem 0; }
+.iprev-text { flex: 1; min-width: 0; overflow-wrap: anywhere; color: #9c9ce0; }
+.iprev-annot { white-space: nowrap; }
+.iprev-annot-select { max-width: 100%; font-size: 0.7rem; background: #0d0907; color: var(--ink); border: 1px solid var(--panel-edge); }
+.iprev-corrupt { text-align: center; color: #e08a8a; font-weight: 600; }
+
 /* Game-style item tooltip: pinned overlay at the click point (never in
-   layout), clamped to the viewport by poeRegexPlaceTooltip. */
+   layout), clamped to the viewport by poeRegexPlaceTooltip. The card inside
+   is the tooltip's scroll region, so the border stays put. */
 .item-tooltip {
     position: fixed;
     z-index: 40;
     width: 24rem;
     max-width: calc(100vw - 1rem);
-    max-height: min(21rem, calc(100vh - 1rem));
-    overflow-y: auto;
-    background: #100c08;
-    border: 1px solid var(--panel-edge-hi);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65);
-    padding: 0.45rem 0.7rem 0.5rem;
+    max-height: min(28rem, calc(100vh - 1rem));
 }
+.item-tooltip .iprev { max-height: inherit; overflow-y: auto; }
 .tt-close {
     position: absolute;
-    top: 0.15rem;
-    right: 0.3rem;
+    top: 0.2rem;
+    right: 0.35rem;
+    z-index: 1;
     background: none;
     border: none;
     color: var(--dim);
@@ -469,15 +488,6 @@ textarea { width: 100%; box-sizing: border-box; }
     padding: 0.1rem 0.2rem;
 }
 .tt-close:hover { color: #ffe9a8; }
-.tt-name { text-align: center; font-weight: 600; font-size: 0.95rem; padding: 0 1.2rem; }
-.tt-name.normal { color: #cfcfcf; }
-.tt-name.magic { color: #8888ff; }
-.tt-name.rare { color: #ffff77; }
-.tt-name.unique { color: #af6025; }
-.tt-sub { text-align: center; color: var(--dim); font-size: 0.78rem; margin-top: 0.1rem; }
-.tt-sep { border-top: 1px solid #3d3220; margin: 0.35rem 0; }
-.tt-lines { font-size: 0.8rem; color: #9c9ce0; }
-.tt-lines .more { color: var(--dim); }
 
 #blazor-error-ui { display: none; }
 
@@ -510,6 +520,18 @@ textarea { width: 100%; box-sizing: border-box; }
 .dlg textarea::placeholder { color: var(--dim); }
 .dlg .chips { margin: 0; padding: 0.4rem 0; border-bottom: 1px solid var(--panel-edge); }
 .dlg .modrow { gap: 0.45rem; }
+
+/* Import dialog single-item preview: a bounded game card, centered. */
+#import-preview { max-width: 32rem; width: 100%; margin: 0 auto; }
+
+/* Assemble dialog: two columns — controls and suggestions left, the live
+   item card and its removal chips right. */
+.dlg-builder { width: 56rem; }
+.builder-cols { display: flex; gap: 1rem; align-items: stretch; min-height: 0; }
+.builder-left { flex: 1.25; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.builder-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.builder-left .suggest { columns: 1; overflow-y: auto; max-height: 46vh; min-height: 10rem; }
+.builder-right .iprev { overflow-y: auto; max-height: 46vh; }
 
 /* Advanced debugging panel opens as a bottom overlay so it never shoves body
    content. Grows upward from anchored bottom? no—top-to-bottom, from ~38vh down
