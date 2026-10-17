@@ -23,8 +23,8 @@ production deploy.
 | Build output directory | `out/web/wwwroot` |
 | Production branch | `main` |
 
-Suggested project name: `poe-regex-web` (the `pages.dev` names are
-globally unique, so a fallback name may be needed).
+Project name: `renlys-recipes` (production URL:
+`renlys-recipes.pages.dev`).
 
 ## What build.sh does
 
@@ -69,7 +69,7 @@ onto `main` and retarget the pull request.
 ## Status
 
 - [x] build script + headers + redirects + PR CI
-- [ ] Pages project created and connected to this repository (dashboard)
+- [x] Pages project created and connected to this repository (`renlys-recipes`)
 - [ ] preview deployment verified on a feature branch
 - [ ] production deploy verified on `main`
 - [ ] custom domain (optional, later)
