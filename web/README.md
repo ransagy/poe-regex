@@ -39,7 +39,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 116 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 118 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -75,13 +75,15 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   the tooltip's scroll region so its border stays put), `ModeSwitch`,
   `ClassPicker`,
   `ModPicker` (searchable mods grouped into stat families: one row per
-  family naming the stat with its numbers dropped (`+ to maximum Life`,
-  `% increased Physical Damage`) — the row is a plain-text toggle (`▸`/`▾`
+  family with a PREFIX/SUFFIX tag and the stat text with its numbers dropped
+  (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
+  stack their lines) — the row is a plain-text toggle (`▸`/`▾`
   caret) with a tier-count badge, a `+` for the plain stat (any tier) and a
   `−` for the whole family; expanding shows the tiers, each with the affix
   name and its real range, where `+` compiles the affix-name literal
   (specific tier), `↑` compiles that name and every better tier
-  (`… or better`, by required level), `−` excludes by name; one column, or
+  (`… or better`, by required level), `−` excludes by name; chips join a
+  multi-line family with `/`; one column, or
   two when the editor column is wide enough — and the list
   stretches/scrolls to fill the editor's height; typing filters tiers,
   so `reliable` narrows to the family(ies) carrying that affix), `QueryCard`
@@ -155,6 +157,11 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   by bracket ranges + header names, so a line with neither (and no plain-text
   match) shows as ambiguous (`+N`) rather than asking — the grouped
   family/tier pickers cover that surface for the builder and picker.
+- Text before an item's `Item Class:` line is paste noise (the game's copy
+  can open with a stray blurb such as a lowercase `sockets`): the parser
+  drops it instead of showing it as a base-stat line. Text with no
+  `Item Class:` at all keeps the old single-item behavior (all lines are
+  base lines).
 - The min-roll box is retired: a numeric floor only compiles soundly as
   whole-line text (~4-5x the length of the normal fingerprint fragment) and
   the click-time interaction never made it live or editable. Roll limiting

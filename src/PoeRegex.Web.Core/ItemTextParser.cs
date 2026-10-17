@@ -203,7 +203,16 @@ public static partial class ItemTextParser
             if (line == "--------") { seenSeparator = true; FlushBlock(); continue; }
 
             var m = ItemClassRe().Match(line);
-            if (m.Success) { itemClass = m.Groups["v"].Value.Trim(); continue; }
+            if (m.Success)
+            {
+                // The game always prints `Item Class:` first; anything
+                // unrecognized before the first one is paste noise (e.g. a
+                // stray lowercase `sockets` blurb), never item text. Without
+                // any class line the old single-item behavior stands.
+                if (itemClass is null) baseLines.Clear();
+                itemClass = m.Groups["v"].Value.Trim();
+                continue;
+            }
             m = RarityRe().Match(line);
             if (m.Success) { rarity = m.Groups["v"].Value.Trim(); continue; }
             if (rarity is not null && !seenSeparator && !line.StartsWith('{'))

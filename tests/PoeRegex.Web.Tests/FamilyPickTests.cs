@@ -57,8 +57,11 @@ public class FamilyPickTests
     public void Group_HybridMod_EveryLineKeptAsShape()
     {
         var fam = Family("Crossbow", "LocalIncreasedPhysicalDamagePercentAndAccuracyRating");
-        fam.DisplayText.Should().Be("% increased Physical Damage · + to Accuracy Rating",
-            "multi-line families name every line");
+        fam.DisplayLines.Should().Equal(
+            ["% increased Physical Damage", "+ to Accuracy Rating"],
+            "multi-line families keep one shape per line (rendered stacked)");
+        fam.DisplayText.Should().Be("% increased Physical Damage / + to Accuracy Rating",
+            "chips join the lines with a slash");
         fam.Tiers.Should().NotBeEmpty();
     }
 

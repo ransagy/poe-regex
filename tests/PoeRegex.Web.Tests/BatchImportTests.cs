@@ -38,11 +38,11 @@ public class BatchImportTests
             "Rift Blast Molten Hammer");
         // The staff's stray pre-header `sockets` line sits after the crossbow's
         // trailing blank line — it must move to the staff, never leak into the
-        // crossbow as a bogus value line.
+        // crossbow as a bogus value line. Parsing then drops it as paste noise.
         blocks[2].Should().NotContain("sockets");
         blocks[3].Should().StartWith("sockets");
         var staff = ItemTextParser.Parse(blocks[3]);
-        staff.BaseLines.Should().Contain("sockets");
+        staff.BaseLines.Should().NotContain("sockets");
     }
 
     [Fact]

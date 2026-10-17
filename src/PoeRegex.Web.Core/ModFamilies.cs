@@ -33,10 +33,14 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>Representative member for whole-family picks (base tier).</summary>
     public ModEntry Anchor => Tiers[0].Anchor;
 
-    /// <summary>Family-level text with the numbers removed, e.g.
-    /// "+ to maximum Life" — it names the stat without implying one tier's
-    /// range (tier rows carry the real ranges).</summary>
-    public required string DisplayText { get; init; }
+    /// <summary>Family text lines with the numbers removed, e.g.
+    /// "+ to maximum Life" — one entry per stat line (hybrid families have
+    /// two); names the stat without implying one tier's range (tier rows
+    /// carry the real ranges).</summary>
+    public required IReadOnlyList<string> DisplayLines { get; init; }
+
+    /// <summary>Single-line form for chips: lines joined with `/`.</summary>
+    public string DisplayText => string.Join(" / ", DisplayLines);
 
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
@@ -65,7 +69,7 @@ public static class ModFamilies
         foreach (var famGroup in mods
                      .GroupBy(m => (Key: KeyOf(m), Gen: m.GenerationType.ToLowerInvariant()))
                      .OrderBy(g => g.Key.Gen == "prefix" ? 0 : 1)
-                     .ThenBy(g => FamilyDisplay(g.ToList()), StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(g => string.Join(" · ", FamilyLines(g.ToList())), StringComparer.OrdinalIgnoreCase)
                      .ThenBy(g => g.Key.Key, StringComparer.Ordinal))
         {
             var members = famGroup.ToList();
@@ -81,19 +85,19 @@ public static class ModFamilies
                 .ToList();
             families.Add(new ModFamily(famGroup.Key.Key, famGroup.Key.Gen == "prefix", tiers)
             {
-                DisplayText = FamilyDisplay(members),
+                DisplayLines = FamilyLines(members),
             });
         }
         return families;
     }
 
-    /// <summary>Family-level text: the anchor member's stat shape with the
-    /// numbers dropped (`+ to maximum Life`, `% increased Physical Damage`),
-    /// multiple lines joined with ` · `. Tier rows carry the real ranges.</summary>
-    public static string FamilyDisplay(IReadOnlyList<ModEntry> members)
+    /// <summary>Family-level text lines: the anchor member's stat shape with
+    /// the numbers dropped (`+ to maximum Life`, `% increased Physical
+    /// Damage`), one entry per stat line. Tier rows carry the real ranges.</summary>
+    public static IReadOnlyList<string> FamilyLines(IReadOnlyList<ModEntry> members)
     {
         var anchor = members.OrderBy(m => m.RequiredLevel).ThenBy(m => m.Id, StringComparer.Ordinal).First();
-        return string.Join(" · ", anchor.StatLines.Select(ShapeOf));
+        return anchor.StatLines.Select(ShapeOf).ToList();
     }
 
     /// <summary>Stat text with every digit placeholder dropped and spaces

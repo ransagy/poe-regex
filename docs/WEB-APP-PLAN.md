@@ -359,6 +359,18 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   clientWidth`, rows all at the same x, vertical scroll bound intact
   (`scrollHeight 771 > clientHeight 457`), main picker still two columns
   with no horizontal overflow, tooltips read `include "Squire's" — …`.
+  **43.3 (review follow-up, separate commit):** tooltips are facts only —
+  `include "Snowy"`, `include "Snowy" and better: …`, `expand 7 tier(s)`,
+  `remove (any tier)`; the wave-43 phrasing that explained engine behaviour
+  (`compiles the stat-text fragment`, `the game matches …`) is gone. Hybrid
+  families render their stat shapes on separate lines in both pickers and
+  join with `/` in chips (`% increased Physical Damage / + to Accuracy
+  Rating`). Both pickers tag rows `PREFIX`/`SUFFIX` (the main view dropped
+  its `P`/`S` shorthand; the builder's lowercase tag got uppercased). And
+  stray text before an item's `Item Class:` line — the sample blob's
+  lowercase `sockets` blurb — is dropped by the parser instead of rendering
+  as a base-stat line; texts with no class header keep the old single-item
+  fallback. Full slnx 7+118+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

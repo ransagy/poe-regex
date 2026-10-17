@@ -81,6 +81,26 @@ public class ItemTextParserTests
         item.Mods.Should().HaveCount(1);
         item.Mods[0].Tier.Should().Be(3);
         item.Mods[0].Lines[0].Rolls.Should().Equal([60]);
+        item.BaseLines.Should().NotContain("sockets",
+            "the stray pre-header blurb is paste noise, never item text");
+    }
+
+    [Fact]
+    public void Parse_JunkBeforeClassHeader_IsDropped()
+    {
+        var item = ItemTextParser.Parse(
+            "stray blurb\nItem Class: Rings\nRarity: Rare\nSome Ring\n--------\nItem Level: 80");
+        item.ItemClass.Should().Be("Rings");
+        item.BaseLines.Should().NotContain("stray blurb");
+        item.BaseLines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Parse_TextWithoutClassHeader_KeepsBaseLines()
+    {
+        var item = ItemTextParser.Parse("handwritten line one\nhandwritten line two");
+        item.ItemClass.Should().BeNull("no class header: plain single-item fallback");
+        item.BaseLines.Should().Equal(["handwritten line one", "handwritten line two"]);
     }
 
     [Fact]

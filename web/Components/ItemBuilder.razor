@@ -32,13 +32,25 @@
                             var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
                             <li class="fam-block">
                                 <div class="suggest-row fam-row">
-                                    <span class="gen-tag" title="@(fam.IsPrefix ? "prefix" : "suffix")">@(fam.IsPrefix ? "prefix" : "suffix")</span>
+                                    <span class="gen-tag">@(fam.IsPrefix ? "PREFIX" : "SUFFIX")</span>
                                     <button class="suggest-line fam-toggle" id="builder-fam-@fam.Anchor.Id"
                                             aria-expanded="@(expanded ? "true" : "false")"
                                             title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)")"
                                             @onclick="() => Toggle(fam.Key)">
                                         <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
-                                        <span class="fam-text">@fam.DisplayText</span>
+                                        <span class="fam-text @(fam.DisplayLines.Count > 1 ? "multi" : "")">
+                                            @if (fam.DisplayLines.Count == 1)
+                                            {
+                                                @fam.DisplayLines[0]
+                                            }
+                                            else
+                                            {
+                                                foreach (var fl in fam.DisplayLines)
+                                                {
+                                                    <span class="mod-line">@fl</span>
+                                                }
+                                            }
+                                        </span>
                                         <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                                     </button>
                                 </div>
