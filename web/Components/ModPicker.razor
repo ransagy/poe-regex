@@ -5,26 +5,26 @@
     @{
         var crit = ScopeCriteria();
     }
-    <div class="chips" aria-label="Wanted mods">
-        @foreach (var inc in crit.Included)
-        {
-            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
-                    title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
-                @ChipLabel(inc)
-            </button>
-        }
-        @foreach (var exc in crit.Excluded)
-        {
-            <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
-                    @onclick="() => State.RemoveExclude(Scope, exc)">
-                !@DisplayFor(exc)
-            </button>
-        }
-        @if (crit.Included.Count + crit.Excluded.Count > 0)
-        {
+    @if (crit.Included.Count + crit.Excluded.Count > 0)
+    {
+        <div class="chips" aria-label="Wanted mods">
+            @foreach (var inc in crit.Included)
+            {
+                <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
+                        title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+                    @ChipLabel(inc)
+                </button>
+            }
+            @foreach (var exc in crit.Excluded)
+            {
+                <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+                        @onclick="() => State.RemoveExclude(Scope, exc)">
+                    !@DisplayFor(exc)
+                </button>
+            }
             <button class="chip clear" id="chips-clear-@Scope" @onclick="() => State.ClearChips(Scope)">clear</button>
-        }
-    </div>
+        </div>
+    }
 
     <div class="modrow">
         <input id="mod-search" placeholder="type to filter mods…" value="@_search"

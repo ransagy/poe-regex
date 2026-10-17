@@ -24,6 +24,7 @@
                     </div>
                     <div class="modrow">
                         <input id="builder-search" placeholder="type to filter mods…" value="@_search"
+                               disabled="@IsNormal"
                                @oninput="OnSearch" aria-label="Builder mod filter" />
                     </div>
                     <ol class="suggest" aria-label="Builder suggestions">
@@ -68,6 +69,7 @@
                                                     }
                                                 </span>
                                                 <button id="builder-add-@tier.Anchor.Id" class="btn" title="@TierAddTitle(tier)"
+                                                        disabled="@(!CanAdd(tier.Anchor))"
                                                         @onclick="() => Add(tier.Anchor)">+</button>
                                             </li>
                                         }
@@ -139,9 +141,9 @@
 
     private void Refresh()
     {
-        var taken = _added.ToHashSet(StringComparer.Ordinal);
-        var avail = Engine.ModsForClass(_classId).Where(m => !taken.Contains(m.Id)).ToList();
-        var all = ModFamilies.Group(avail);
+        // Chosen mods stay in the list (their + disables via CanAdd) so the
+        // families and tiers never shift while assembling.
+        var all = ModFamilies.Group(Engine.ModsForClass(_classId));
         var filter = _search.Trim();
         _families = filter.Length == 0
             ? all
@@ -155,6 +157,10 @@
         _violations = ItemRules.Validate(Engine,
             _added.Select(id => RuleLineFor(id)), _rarity).ToList();
     }
+
+    private bool IsNormal => _rarity.Equals("Normal", StringComparison.OrdinalIgnoreCase);
+
+    private bool CanAdd(ModEntry candidate) => ItemRules.CanAdd(Engine, candidate, _added, _rarity);
 
     private void Toggle(string key)
     {
@@ -230,6 +236,7 @@
 
     private void Add(ModEntry m)
     {
+        if (!CanAdd(m)) return; // defensive: the buttons are disabled already
         if (!_added.Contains(m.Id, StringComparer.Ordinal))
             _added.Add(m.Id);
         Refresh();

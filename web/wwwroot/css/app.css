@@ -90,7 +90,7 @@ body { overflow: hidden; }
 .panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.1rem 0 0.1rem; }
 
 /* Mode strip: buttons left, compiled-query box filling the rest of the row. */
-.mode-bar { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.15rem; }
+.mode-bar { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.5rem; }
 .mode-switch { display: flex; gap: 0.4rem; flex: none; }
 .result-strip {
     flex: 1 1 auto;
@@ -126,7 +126,7 @@ body { overflow: hidden; }
    doll stays aspect-locked (max 72vh -- its own capped height). The central
    alignment is intentional: keeps the spare height as a single symmetric band
    around the doll rather than a void under the backpack. */
-.inv-editor { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
+.inv-editor { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; container-type: inline-size; }
 @media (max-width: 1200px) { .inv-editor { flex: 1 1 19rem; } }
 /* Doll column sized only to its own height-derived width (Wave 6 cap) --
    no 96vw borrowing, otherwise the cap collapses the editor column. */
@@ -304,8 +304,11 @@ body { overflow: hidden; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
 .hint { color: var(--dim); font-style: italic; }
 
-.field { display: flex; gap: 0.5rem; align-items: center; margin: 0.4rem 0; }
+.field { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
 .field > span { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Global mode has no base class: an invisible spacer keeps the editor's
+   rhythm identical so switching modes never shifts the picker. */
+.field-blank { height: 1.8rem; }
 select, input {
     background: #0d0a07;
     color: var(--ink);
@@ -316,6 +319,7 @@ select, input {
 }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
+.modpicker .chips { margin: 0 0 0.5rem; }
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }

@@ -1,3 +1,5 @@
+using PoeRegex.Core.Data;
+
 namespace PoeRegex.Web.Core;
 
 /// <summary>One rule verdict: error blocks saving, warning does not.</summary>
@@ -14,19 +16,63 @@ public sealed record RuleLine(string Kind, string? ModId);
 /// </summary>
 public static class ItemRules
 {
-    public static IReadOnlyList<RuleViolation> Validate(
-        EngineService engine, IEnumerable<RuleLine> lines, string? rarity)
-    {
-        var list = lines.ToList();
-        var violations = new List<RuleViolation>();
-
-        var (maxPrefix, maxSuffix) = rarity?.Trim().ToLowerInvariant() switch
+    /// <summary>Affix caps for a rarity; (-1, -1) for unknown (unchecked).</summary>
+    public static (int Prefix, int Suffix) CapsFor(string? rarity) =>
+        rarity?.Trim().ToLowerInvariant() switch
         {
             "normal" => (0, 0),
             "magic" => (1, 1),
             "rare" => (3, 3),
             _ => (-1, -1),
         };
+
+    /// <summary>
+    /// Whether the assemble dialog may add this catalog mod: rarity must
+    /// allow affixes, the generation must be under its cap, and the mod must
+    /// not share a family or a catalog group with anything already chosen
+    /// (no second tier of one stat, no group clash). Mirrors
+    /// <see cref="Validate"/>; keeping the picker's "no" states and the
+    /// validator's verdicts in one place.
+    /// </summary>
+    public static bool CanAdd(
+        EngineService engine, ModEntry candidate, IEnumerable<string> addedIds, string? rarity)
+    {
+        var (maxPrefix, maxSuffix) = CapsFor(rarity);
+        var kind = candidate.GenerationType.ToLowerInvariant();
+        if (kind != "prefix" && kind != "suffix") return false;
+        if ((kind == "prefix" ? maxPrefix : maxSuffix) <= 0) return false;
+
+        var prefixes = 0;
+        var suffixes = 0;
+        var usedGroups = new HashSet<string>(StringComparer.Ordinal);
+        var usedFamilies = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in addedIds)
+        {
+            if (string.Equals(id, candidate.Id, StringComparison.Ordinal)) return false;
+            var mod = engine.FindMod(id);
+            if (mod is null) continue;
+            switch (mod.GenerationType.ToLowerInvariant())
+            {
+                case "prefix": prefixes++; break;
+                case "suffix": suffixes++; break;
+            }
+            foreach (var g in mod.Groups) usedGroups.Add(g);
+            if (mod.Family.Length > 0) usedFamilies.Add(mod.Family);
+        }
+
+        if (kind == "prefix" ? prefixes >= maxPrefix : suffixes >= maxSuffix) return false;
+        if (candidate.Family.Length > 0 && usedFamilies.Contains(candidate.Family)) return false;
+        if (candidate.Groups.Any(usedGroups.Contains)) return false;
+        return true;
+    }
+
+    public static IReadOnlyList<RuleViolation> Validate(
+        EngineService engine, IEnumerable<RuleLine> lines, string? rarity)
+    {
+        var list = lines.ToList();
+        var violations = new List<RuleViolation>();
+
+        var (maxPrefix, maxSuffix) = CapsFor(rarity);
         if (maxPrefix < 0)
         {
             violations.Add(new RuleViolation("warning",

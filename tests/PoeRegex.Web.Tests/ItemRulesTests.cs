@@ -117,4 +117,56 @@ public class ItemRulesTests
         ItemRules.Validate(Engine, [new RuleLine("enchant", null)], "Rare")
             .Should().Contain(v => v.Level == "warning");
     }
+
+    [Fact]
+    public void CapsFor_MapsRarities()
+    {
+        ItemRules.CapsFor("Normal").Should().Be((0, 0));
+        ItemRules.CapsFor("Magic").Should().Be((1, 1));
+        ItemRules.CapsFor("Rare").Should().Be((3, 3));
+        ItemRules.CapsFor(null).Should().Be((-1, -1));
+    }
+
+    [Fact]
+    public void CanAdd_NormalDisablesEverything()
+    {
+        ItemRules.CanAdd(Engine, Engine.FindMod("IncreasedLife2")!, [], "Normal")
+            .Should().BeFalse("normal items carry no modifiers");
+    }
+
+    [Fact]
+    public void CanAdd_MagicCapsEachGenerationIndependently()
+    {
+        var life = Engine.FindMod("IncreasedLife2")!;      // prefix
+        var mana = Engine.FindMod("IncreasedMana2")!;      // different prefix family
+        var strength = Engine.FindMod("Strength4")!;       // suffix
+
+        ItemRules.CanAdd(Engine, mana, ["IncreasedLife2"], "Magic")
+            .Should().BeFalse("the magic prefix cap is reached");
+        ItemRules.CanAdd(Engine, strength, ["IncreasedLife2"], "Magic")
+            .Should().BeTrue("the suffix slot is still free");
+        ItemRules.CanAdd(Engine, strength, ["IncreasedLife2", "Strength4", "IncreasedMana2"], "Rare")
+            .Should().BeFalse("the suffix cap is reached for Rare");
+    }
+
+    [Fact]
+    public void CanAdd_SameFamilySecondTier_Blocked()
+    {
+        var life = Engine.FindMod("IncreasedLife2")!;
+        var nextTier = Engine.FindMod("IncreasedLife8")!;
+        ItemRules.CanAdd(Engine, life, [life.Id], "Rare").Should().BeFalse("already chosen");
+        ItemRules.CanAdd(Engine, nextTier, [life.Id], "Rare")
+            .Should().BeFalse("only one tier of a stat");
+    }
+
+    [Fact]
+    public void CanAdd_GroupClashAcrossFamilies_Blocked()
+    {
+        var life = Engine.FindMod("BeltFlaskLifeRecoveryRate1")!;
+        var mana = Engine.FindMod("BeltFlaskManaRecoveryRate1_")!;
+        life.Family.Should().NotBe(mana.Family);
+        ItemRules.CanAdd(Engine, mana, [life.Id], "Rare").Should().BeFalse();
+        ItemRules.CanAdd(Engine, life, [mana.Id], "Rare").Should().BeFalse();
+        ItemRules.CanAdd(Engine, mana, [], "Rare").Should().BeTrue();
+    }
 }

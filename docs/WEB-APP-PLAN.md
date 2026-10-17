@@ -372,6 +372,23 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   as a base-stat line; texts with no class header keep the old single-item
   fallback. Full slnx 7+118+66 green. (43.4 follow-up: the `↑` tooltip
   lists only the better tiers — the picked one is already in the caption.)
+  **43.5 (review follow-up, separate commit):** the editor keeps one 0.5rem
+  rhythm — mode bar, `BASE CLASS` selector and picker are evenly spaced
+  (the chips row renders only when it has picks; its double margins made
+  the gap below the selector 19px vs 9px above) and global mode renders an
+  invisible spacer with the selector's height (29px) so switching modes
+  never shifts the picker (measured: search top at y=177 in both modes,
+  gaps 8px/8px). The assemble dialog now disables what can't be built:
+  `ItemRules.CapsFor` extracted (Normal 0/0, Magic 1/1, Rare 3/3) and a
+  new `ItemRules.CanAdd` (same rules as `Validate`: caps, family lock — no
+  second tier of a stat — and catalog group clashes) drives every family
+  and tier `+`; Normal also disables the search and the list silently;
+  chosen mods stay listed with their `+` grayed so families never shift
+  while assembling. CDP-verified: family's 8 tier buttons all disable
+  after one pick, cross-family group clash (belt flask life vs mana
+  recovery) disables the sibling family, Magic 1+1 grays every `+` with
+  Save still enabled, Rare keeps both generations open, no new note text.
+  Full slnx 7+123+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`
