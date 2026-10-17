@@ -39,7 +39,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 123 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 126 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -109,14 +109,19 @@ cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
   tools row: import, assemble, and remove (acts on the pinned item).
 - The editor keeps one rhythm: the mode bar, the `BASE CLASS` selector and
   the mod picker are spaced with the same 0.5rem gap (the chips row renders
-  only when it has picks); in global mode an invisible spacer keeps the
-  selector's height, so switching modes never shifts the picker.
+  only when it has picks); in global mode a hidden mirror of the field
+  (same select styles, `visibility: hidden`) keeps the geometry
+  pixel-identical, so switching modes never shifts the picker.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
-  disables the whole mod list and the search (silently), Magic caps each
+  disables the whole mod list and the search (the list dims; Save still
+  works — a modless Normal item is assemblable), Magic caps each
   generation at 1, Rare at 3, and a chosen family or catalog group (e.g.
   belt flask life vs mana recovery) locks its siblings; chosen mods stay
   listed with their `+` grayed so the list never shifts while assembling.
+- Item cards (tooltip, import preview, assemble preview) show mods in the
+  game's order: implicits, then prefixes, then suffixes — stable within a
+  kind (`ItemDisplay`).
 - Mod picking compiles what it says: a plain family pick keeps the stat-text
   fragment (matches every tier); a tier pick compiles the quoted affix name
   (`"Snowy"`), because the name is the only text that distinguishes tiers

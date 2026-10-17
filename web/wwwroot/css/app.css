@@ -306,9 +306,10 @@ body { overflow: hidden; }
 
 .field { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
 .field > span { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
-/* Global mode has no base class: an invisible spacer keeps the editor's
-   rhythm identical so switching modes never shifts the picker. */
-.field-blank { height: 1.8rem; }
+/* Global mode has no base class: a hidden mirror of the field (same global
+   select styles) keeps the editor's rhythm pixel-identical so switching
+   modes never shifts the picker. */
+.field-blank { display: flex; visibility: hidden; }
 select, input {
     background: #0d0a07;
     color: var(--ink);
@@ -349,6 +350,8 @@ select, input {
 .suggest-line { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Normal rarity: mods can't be picked, the list goes inert. */
+.suggest.picker-off { opacity: 0.5; }
 
 /* Family/tier pickers: one block per stat family; expanding shows its tiers.
    The family toggle reads as plain text (only +/- stay buttons) with a caret

@@ -126,16 +126,27 @@
         var sections = new List<Section>();
         if (Item.Parsed.Mods.Count > 0)
         {
+            // Pair each block with its mapped slice first (ItemImport.Materialize
+            // appends mapped lines in this exact flattened order), then show the
+            // blocks in the game's canonical order: implicit, prefix, suffix.
             var index = 0;
+            var blocks = new List<(ParsedModBlock Block, int BlockIndex, List<MappedLine?> Mapped)>();
             foreach (var (block, bi) in Item.Parsed.Mods.Select((b, i) => (b, i)))
+            {
+                var slice = new List<MappedLine?>();
+                foreach (var _ in block.Lines)
+                {
+                    slice.Add(index < Item.Mapped.Count ? Item.Mapped[index] : null);
+                    index++;
+                }
+                blocks.Add((block, bi, slice));
+            }
+            foreach (var (block, bi, slice) in blocks.OrderBy(x => ItemDisplay.Rank(x.Block.Kind)))
             {
                 var lines = new List<PreviewLine>();
                 foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
                 {
-                    // ItemImport.Materialize appends mapped lines in this exact
-                    // flattened order, so the running index lines up.
-                    var ml = index < Item.Mapped.Count ? Item.Mapped[index] : null;
-                    index++;
+                    var ml = li < slice.Count ? slice[li] : null;
                     lines.Add(new PreviewLine(DisplayText(ml, line.Text),
                         new PreviewLineRef(bi, li, line.Text,
                             ml?.Candidates ?? [], ml?.SelectedModId)));
@@ -146,9 +157,12 @@
         else if (Item.Built)
         {
             var refIndex = 0;
-            foreach (var group in Item.Mapped.GroupBy(ml => ml.SelectedModId))
+            var groups = Item.Mapped.GroupBy(ml => ml.SelectedModId).ToList();
+            var order = ItemDisplay.OrderModIds(Engine, groups.Select(g => g.Key ?? ""));
+            foreach (var id in order)
             {
-                var mod = group.Key is null ? null : Engine.FindMod(group.Key);
+                var group = groups.First(g => (g.Key ?? "") == id);
+                var mod = id.Length > 0 ? Engine.FindMod(id) : null;
                 var caption = mod is null
                     ? null
                     : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";

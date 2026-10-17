@@ -389,6 +389,17 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   recovery) disables the sibling family, Magic 1+1 grays every `+` with
   Save still enabled, Rare keeps both generations open, no new note text.
   Full slnx 7+123+66 green.
+  **43.6 (review follow-up, separate commit):** the global-mode spacer now
+  *mirrors* the field (a hidden disabled select with the same global
+  styles) instead of hardcoding 1.8rem — all three modes put the search
+  box at exactly y=176.75 (the hardcode left a 0.2px wobble that landed on
+  a device pixel at some zooms). Normal items are assemblable: Save
+  accepts zero mods at Normal rarity (guard fixed in both the button and
+  `Save()`; the list dims and stays inert). Item cards everywhere follow
+  the game's order — implicit, prefix, suffix, stable within a kind
+  (`ItemDisplay`); built items no longer render in add order, so a
+  suffix-first assembly shows the prefix on top in the preview card and
+  the saved tooltip alike. Full slnx 7+126+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

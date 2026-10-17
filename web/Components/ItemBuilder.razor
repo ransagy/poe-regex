@@ -27,7 +27,7 @@
                                disabled="@IsNormal"
                                @oninput="OnSearch" aria-label="Builder mod filter" />
                     </div>
-                    <ol class="suggest" aria-label="Builder suggestions">
+                    <ol class="suggest @(IsNormal ? "picker-off" : "")" aria-label="Builder suggestions">
                         @foreach (var fam in _families.Take(30))
                         {
                             var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
@@ -104,7 +104,7 @@
                 <div class="field-error" id="builder-save-error">@_saveError</div>
             }
             <div class="modrow">
-                <button id="builder-save" class="btn" disabled="@(_added.Count == 0 || _violations.Any(v => v.Level == "error"))"
+                <button id="builder-save" class="btn" disabled="@((_added.Count == 0 && !IsNormal) || _violations.Any(v => v.Level == "error"))"
                         @onclick="Save">Add</button>
                 <button id="builder-cancel" class="btn" @onclick="Close">cancel</button>
             </div>
@@ -265,7 +265,7 @@
     private void Save()
     {
         _saveError = null;
-        if (_added.Count == 0 || _violations.Any(v => v.Level == "error")) return;
+        if ((_added.Count == 0 && !IsNormal) || _violations.Any(v => v.Level == "error")) return;
         if (!State.AddTestItem(PreviewItem()))
         {
             _saveError = "backpack is full — remove an item first";
