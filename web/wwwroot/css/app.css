@@ -35,6 +35,7 @@ body { overflow: hidden; }
 }
 
 .shell-title { font-size: 1.2rem; letter-spacing: 0.06em; color: var(--accent); }
+.shell-icon { width: 1.5rem; height: 1.5rem; flex: none; align-self: center; }
 .shell-sub { color: var(--dim); font-size: 0.8rem; opacity: 0.75; }
 
 .shell-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
