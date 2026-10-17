@@ -29,13 +29,14 @@ body { overflow: hidden; }
     display: flex;
     gap: 1rem;
     align-items: baseline;
+    justify-content: center;
     padding: 0.6rem 1rem;
     border-bottom: 2px solid var(--panel-edge);
     background: linear-gradient(#241c10, #171208);
 }
 
 .shell-title { font-size: 1.2rem; letter-spacing: 0.06em; color: var(--accent); }
-.shell-icon { width: 1.5rem; height: 1.5rem; flex: none; align-self: center; }
+.shell-icon { width: 2.5rem; height: 2.5rem; flex: none; align-self: center; }
 .shell-sub { color: var(--dim); font-size: 0.8rem; opacity: 0.75; }
 
 .shell-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
