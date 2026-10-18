@@ -3,9 +3,8 @@
 Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
 look-and-feel, editable gear slots, per-slot and global regex compilation
 in-browser, a backpack-grid test area with match highlighting, and English
-advanced-item import. The OpenTUI demo is frozen; the CLI contract is
-untouched. The deployed static build runs on Cloudflare Pages (see
-[`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
+advanced-item import. The CLI contract is untouched. The deployed static build
+runs on Cloudflare Pages (see [`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
 
 ## 1. Locked decisions
 
@@ -48,7 +47,7 @@ untouched. The deployed static build runs on Cloudflare Pages (see
 - **Engine facts**: `QuerySpecification` (class?, includes as mod-id-or-text +
   `MinValue`, excludes, keywords, `AllowOverflow`) compiles deterministically
   to `CompileResult{query,length,limit(250),exceeded,diagnostics}`; `explain`
-  reverses query to tokens to candidate mods; TUI logic to port
+  reverses query to tokens to candidate mods; workbench helpers
   (`playableClasses`, `availableMods`, `filterMods`, `mergeMods`,
   `generateTasks`, capacity meter).
 
@@ -101,7 +100,7 @@ untouched. The deployed static build runs on Cloudflare Pages (see
   poe2 corpus, compile one sample spec; report load/index/compile time and
   publish size (interpreter vs AOT); check raw RePoE fields for mod-group /
   affix-cap data. Exit: go/no-go numbers recorded.
-- **P2 Data service** — Classes/mods/typeahead parity with the TUI logic;
+- **P2 Data service** — Classes/mods/typeahead service;
   unit tests; determinism check. Exit: tests green.
 - **P3 Shell UI** — Paper-doll + backpack grid per the confirmed layout;
   visual sign-off against the screenshot. Exit: maintainer approval.
@@ -245,7 +244,7 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
 - **P2 Data service — DONE.** `src/PoeRegex.Web.Core`: `EngineService`
   (singleton: embedded poe2 catalog, corpus built once, classes / playable
   classes / per-class + union mods / compile / explain / validate) and
-  `ModSearch` (pure TUI-parity helpers: filter, available, merge, meter).
+  `ModSearch` (pure mod-list helpers: filter, available, merge, meter).
   `tests/PoeRegex.Web.Tests` (8 tests: playable-hides-empty, filter
   name/id/line case-insensitive, available, merge-union, meter thresholds,
   compile determinism + byte-parity with the CLI, explain recall, validate).
@@ -256,8 +255,8 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
 - **P3 Shell UI — implemented, visual QA pending.** Template chrome stripped
   (Counter/Weather/NavMenu/bootstrap removed); hand-drawn dark CSS;
   `Components/ModeSwitch`, `PaperDoll` (9 slots on a 6x5 unit grid,
-  data-driven placement), `BackpackGrid` (12x5). `WorkbenchState` mirrors TUI
-  mode semantics + 7 unit tests. CDP-verified in headless Chromium: 9 slots,
+  data-driven placement), `BackpackGrid` (12x5). `WorkbenchState` implements
+  the workbench mode semantics + 7 unit tests. CDP-verified in headless Chromium: 9 slots,
   60 cells, single default weapon, multi toggle (`body, helmet`), global dims
   the doll and yields no active slots, engine strip still byte-identical.
     Screenshot self-reviewed (layout coherent). OPEN for maintainer QA:
@@ -268,7 +267,7 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   `ModPicker` (search + min field + include/exclude + select-all + clear +
   chips), `QueryCard` (live compile, meter, copy via clipboard.js + fallback,
   diagnostics, validate status, overflow + best-effort, explain panel with
-  tokens + candidates). Shared chips across slots (TUI parity) + per-include
+  tokens + candidates). Shared chips across slots + per-include
   min values (new). CDP-verified: search `life` → 16 Crossbow rows, include →
   chip + `"feL" ":"` (byte-identical to CLI), explain shows token + 4
   candidates incl. `LifeLeechLocal2`.
@@ -295,7 +294,7 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   blocks boot) with round-trip + unknown-dropping tests; CDP-verified across a
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
-  self-reviewed (fixed `clear (r)` TUI-ism label + unstyled reset button).
+  self-reviewed (fixed the `clear (r)` label + unstyled reset button).
 - **Follow-up round 10 — family/tier grouped picks + the affix-name truth.**
   The min-roll box is retired (separate commit): `WantedMod` carries no
   `MinValue`, the picker has no min field, and stored snapshots with
@@ -418,6 +417,8 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   `provenance.md` (`build.sh` + csproj content links), and the docs note that
   the Cloudflare-hosted build includes cookieless Web Analytics. Full slnx
   10+126+66 green.
+  **43.9 (repo):** the terminal demo (`demos/`) was removed; the CLI JSON
+  contract and the web workbench are unchanged.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

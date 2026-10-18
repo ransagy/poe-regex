@@ -41,7 +41,7 @@ public sealed class EngineService
 
     public IReadOnlyList<ItemClassEntry> Classes => _corpus.Catalog.ItemClasses;
 
-    /// <summary>Classes referenced by at least one mod (TUI parity: hides flasks, currency, gems...).</summary>
+    /// <summary>Classes referenced by at least one mod (hides flasks, currency, gems...).</summary>
     public IEnumerable<ItemClassEntry> PlayableClasses() =>
         Classes.Where(c => _playableClassIds.Value.Contains(c.Id));
 

@@ -33,8 +33,6 @@ poe-regex/
   data/
     raw/                           # gitignored RePoE downloads
     catalogs/                      # checked-in, versioned: poe1.catalog.json, poe2.catalog.json
-  demos/
-    opentui-tui/                   # terminal demo (Node + OpenTUI)
   web/                             # "Renly's Recipes" Blazor WASM workbench
   docs/
     DESIGN.md

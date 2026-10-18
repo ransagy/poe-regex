@@ -5,7 +5,7 @@ using PoeRegex.Web.Core;
 namespace PoeRegex.Web.Tests;
 
 /// <summary>
-/// Web data-service tests: TUI state semantics ported to C# (filter,
+/// Web data-service tests: workbench state semantics (filter,
 /// available, union, playable classes, meter) plus engine parity through
 /// <see cref="EngineService"/> (determinism, exact-query match with the CLI,
 /// explain recall, validate).

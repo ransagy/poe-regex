@@ -3,8 +3,7 @@ using PoeRegex.Core.Data;
 namespace PoeRegex.Web.Core;
 
 /// <summary>
-/// Pure client-side mod-list helpers, ported from the TUI's
-/// `demos/opentui-tui/src/app.mjs` (filterMods, availableMods, mergeMods).
+/// Pure client-side mod-list helpers (filter, available, merge).
 /// Kept dependency-free so they are unit-testable without a browser.
 /// </summary>
 public static class ModSearch

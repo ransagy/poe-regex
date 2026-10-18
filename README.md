@@ -82,11 +82,9 @@ Every command also supports `--json` for machine-readable stdout — that's the
 cross-language integration surface (Python, Node, shell, etc.). See
 [`docs/USING-THE-ENGINE.md`](docs/USING-THE-ENGINE.md#12-using-the-engine-from-any-language-the-cli-subprocess-contract).
 
-There's also an interactive terminal demo driving the engine through that
-contract: see [`demos/opentui-tui/`](demos/opentui-tui/README.md) (build, run,
-and controls). The web reference implementation, "Renly's Recipes", runs the
-engine in-browser (Blazor WASM): see [`web/`](web/README.md). The deployed
-build is at <https://renlys-recipes.pages.dev>; deployment notes are in
+The web reference implementation, "Renly's Recipes", runs the engine
+in-browser (Blazor WASM): see [`web/`](web/README.md). The deployed build is
+at <https://renlys-recipes.pages.dev>; deployment notes are in
 [`docs/DEPLOYING-WEB.md`](docs/DEPLOYING-WEB.md).
 
 Exit codes: `0` ok, `1` error (including a query over the character limit),
@@ -134,7 +132,6 @@ Nods and kudos to the projects that made this possible:
 - [Awesome Assertions](https://github.com/AwesomeAssertions/AwesomeAssertions) — Apache 2.0 — test assertions
 - [TextCopy](https://github.com/CopyText/TextCopy) — MIT — cross-platform clipboard
 - [.NET](https://dot.net) / [System.Text.Json](https://github.com/dotnet/runtime) — MIT — runtime and JSON
-- [@opentui/core](https://github.com/anomalyco/opentui) — MIT — terminal demo
 
 ## License
 
