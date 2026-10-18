@@ -1,5 +1,8 @@
 # Poe Regex Compiler
 
+[![ci](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-c9a227.svg)](LICENSE)
+
 An engine that turns Path of Exile 1 & 2 modifier requirements into short,
 in-game-safe regex queries. PoE 2 search boxes cap regex queries at 250
 characters; this tool targets that budget by precomputing the shortest unique
