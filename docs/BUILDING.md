@@ -100,5 +100,8 @@ Artifacts per platform are named `poe-regex-<rid>` (`poe-regex-win-x64.exe`,
 ## Workflow security
 
 Workflow actions are pinned to full commit SHAs with the release tag in a
-trailing comment. `.github/dependabot.yml` updates the pins monthly, and the
-repository requires SHA pinning for workflow changes.
+trailing comment; the repository requires SHA pinning for workflow changes.
+The allowed-actions policy is set to GitHub-owned actions plus
+`softprops/action-gh-release` — add any new third-party action to that
+allowlist when introducing it. `.github/dependabot.yml` keeps the pins
+current.
