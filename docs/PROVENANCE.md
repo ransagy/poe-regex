@@ -9,7 +9,7 @@ reasoning.
 
 | What ships | Where | Source | Terms |
 | --- | --- | --- | --- |
-| Engine, CLI, web workbench, demo | `src/`, `tools/`, `web/`, `demos/` | original work for this project | MIT (`LICENSE`) |
+| Engine, CLI, web workbench | `src/`, `tools/`, `web/` | original work for this project | MIT (`LICENSE`) |
 | Derived catalogs | `data/catalogs/*.json` | RePoE exports of GGG game data | tooling MIT; data GGG-owned (below) |
 | Icon artwork | `web/wwwroot/favicon.svg`, inline shell/boot SVGs | original artwork for this project | MIT |
 | Sample item texts | `docs/samples/real-items.txt`, `FixtureTexts.cs` | in-game copy output | GGG-owned text, minimal test data |
@@ -97,5 +97,4 @@ GGG-owned text used as minimal parser/test data, not wiki or guide content.
 
 The complete list with licenses is in `NOTICE` (all MIT or Apache-2.0):
 TextCopy, .NET/Blazor, System.Text.Json, xUnit and its Visual Studio runner,
-Awesome Assertions, Microsoft.NET.Test.Sdk, coverlet, and `@opentui/core`
-(terminal demo only).
+Awesome Assertions, Microsoft.NET.Test.Sdk, and coverlet.

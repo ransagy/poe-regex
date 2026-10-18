@@ -70,8 +70,7 @@ public sealed class SlotCriteria
 }
 
 /// <summary>
-/// UI workbench state. Mode semantics mirror the TUI's
-/// `demos/opentui-tui/src/app.mjs`: single edits one slot, global selects
+/// UI workbench state. Mode semantics: single edits one slot, global selects
 /// none. Multi has no manual roster: a slot joins the multi group exactly
 /// when it has any wanted/unwanted chips, and clicking a slot only moves the
 /// editing focus. Every slot owns its own criteria so multi-slot compiles

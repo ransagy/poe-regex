@@ -5,9 +5,9 @@ Poe Regex Compiler
 Copyright (c) 2026 poe-regex contributors
 
 This repository contains the engine (src/), its data pipeline (tools/), the CLI,
-and the web reference implementation "Renly's Recipes" (web/ and demos/). The
-project is MIT licensed; see LICENSE. The complete data and asset lineage is
-documented in docs/PROVENANCE.md.
+and the web reference implementation "Renly's Recipes" (web/). The project is
+MIT licensed; see LICENSE. The complete data and asset lineage is documented in
+docs/PROVENANCE.md.
 
 Game data
 ---------
@@ -52,9 +52,6 @@ Tests:
 - Awesome Assertions (https://github.com/AwesomeAssertions/AwesomeAssertions) - Apache License 2.0
 - Microsoft.NET.Test.Sdk (https://github.com/microsoft/vstest) - MIT
 - coverlet (https://github.com/coverlet-coverage/coverlet) - MIT
-
-OpenTUI demo (demos/opentui-tui):
-- @opentui/core (https://github.com/anomalyco/opentui) - MIT
 
 Trademarks
 ----------

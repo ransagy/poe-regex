@@ -18,7 +18,7 @@ public class WorkbenchStateTests
         var state = new WorkbenchState();
         state.SetMode("global");
         state.ActiveSlots().Should().BeEmpty();
-        state.SelectSlot("helmet"); // ignored in global, like the TUI
+        state.SelectSlot("helmet"); // ignored in global mode
         state.ActiveSlots().Should().BeEmpty();
     }
 
