@@ -137,18 +137,20 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   only when it has picks); in global mode a hidden mirror of the field
   (same select styles, `visibility: hidden`) keeps the geometry
   pixel-identical, so switching modes never shifts the picker.
-- Picks live in a one-line rail: it never wraps or grows, so a large pick set
-  can't push the picker out of the panel. Directional `‹ +N` / `+N ›` pagers
-  sit in reserved gutters and always show the true count — gold-accented and
-  clickable when there is something that way, dashed and grayed when there
-  isn't — and page by chip-aligned windows (the rail scrollbar is hidden; the
-  mouse wheel scrolls it sideways, and at the rail's ends the wheel does
-  nothing — the family list is deliberately not wheel-linked; trackpad and
-  keyboard focus work as usual). `clear` carries the destructive red at rest
-  and is pinned beside the rail; adding picks never moves the rail, and
-  removals keep the leading chip pinned (best effort). The compiled-query box
-  keeps its value when over budget: the full string stays, the `k/N` meter
-  shows the red `OVER` state, and copy stays enabled.
+- Picks live in a one-line rail that sits permanently between the text filter
+  and the mod list — present but inert with no picks (pagers at `+0`, clear
+  disabled) — and it never wraps or grows, so a large pick set can't push the
+  picker out of the panel. Directional SVG-chevron pagers sit in reserved
+  gutters and always show the true count — gold-accented and clickable when
+  there is something that way, dashed and grayed when there isn't — and page
+  by chip-aligned windows (the rail scrollbar is hidden; the mouse wheel
+  scrolls it sideways, and at the rail's ends the wheel does nothing — the
+  family list is deliberately not wheel-linked; trackpad and keyboard focus
+  work as usual). `clear` carries the destructive red at rest (gray when
+  disabled) and is pinned beside the rail; adding picks never moves the rail,
+  and removals keep the leading chip pinned (best effort). The compiled-query
+  box keeps its value when over budget: the full string stays, the `k/N`
+  meter shows the red `OVER` state, and copy stays enabled.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
   disables the whole mod list and the search (the list dims; Save still

@@ -7,35 +7,6 @@
     @{
         var crit = ScopeCriteria();
     }
-    @if (crit.Included.Count + crit.Excluded.Count > 0)
-    {
-        <div class="chips-row" id="@RailRowId">
-            <button type="button" class="chips-more start" data-dir="-1" aria-label="show earlier picks" disabled>
-                <span class="dir" aria-hidden="true">‹</span><span class="n">+0</span>
-            </button>
-            <div class="chips" aria-label="Wanted mods">
-                @foreach (var inc in crit.Included)
-                {
-                    <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
-                            title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
-                        @ChipLabel(inc)
-                    </button>
-                }
-                @foreach (var exc in crit.Excluded)
-                {
-                    <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
-                            @onclick="() => State.RemoveExclude(Scope, exc)">
-                        !@DisplayFor(exc)
-                    </button>
-                }
-            </div>
-            <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
-                <span class="n">+0</span><span class="dir" aria-hidden="true">›</span>
-            </button>
-            <button class="chip clear" id="chips-clear-@Scope" @onclick="() => State.ClearChips(Scope)">clear</button>
-        </div>
-    }
-
     <div class="modrow">
         @* The add-all button is the filter's right edge; it only exists
            while a filter is typed (matching every family is not a workflow). *@
@@ -48,6 +19,37 @@
                         disabled="@_bulkOverflow" @onclick="SelectAll">++</button>
             }
         </div>
+    </div>
+
+    @* Picks rail: permanent between the filter and the list, so the chips
+       never pop in above the filter; with no picks it sits inert (pagers at
+       +0, clear disabled). *@
+    <div class="chips-row" id="@RailRowId">
+        <button type="button" class="chips-more start" data-dir="-1" aria-label="show earlier picks" disabled>
+            <svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M6.5 1.5L2 6l4.5 4.5" /></svg><span class="n">+0</span>
+        </button>
+        <div class="chips" aria-label="Wanted mods">
+            @foreach (var inc in crit.Included)
+            {
+                <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
+                        title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+                    @ChipLabel(inc)
+                </button>
+            }
+            @foreach (var exc in crit.Excluded)
+            {
+                <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+                        @onclick="() => State.RemoveExclude(Scope, exc)">
+                    !@DisplayFor(exc)
+                </button>
+            }
+        </div>
+        <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
+            <span class="n">+0</span><svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1.5 1.5L6 6l-4.5 4.5" /></svg>
+        </button>
+        <button class="chip clear" id="chips-clear-@Scope"
+                disabled="@(crit.Included.Count + crit.Excluded.Count == 0)"
+                @onclick="() => State.ClearChips(Scope)">clear</button>
     </div>
 
     @if (_families.Count == 0)
@@ -166,8 +168,6 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var crit = ScopeCriteria();
-        if (crit.Included.Count + crit.Excluded.Count == 0) return;
         try
         {
             await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
