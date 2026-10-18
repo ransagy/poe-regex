@@ -10,10 +10,25 @@ GitHub App — there are no deploy secrets in this repository.
 | Event | Deployment | URL |
 | --- | --- | --- |
 | Push to production branch (`main`) | production | <https://renlys-recipes.pages.dev> |
-| Push to any other branch / any PR | preview | `<branch>.<project>.pages.dev` and `<hash>.<project>.pages.dev` |
+| Push to any other branch (except `dependabot/*`) / any PR | preview | `<branch>.<project>.pages.dev` and `<hash>.<project>.pages.dev` |
 
-Every pull request gets a preview deployment; merging to `main` is the
-production deploy.
+Every pull request from an in-repo branch gets a preview deployment, except
+Dependabot branches; merging to `main` is the production deploy.
+
+## When builds run
+
+Two filters on the Pages project decide whether a push builds at all
+(Settings → Build):
+
+- **Preview branches**: all branches except `dependabot/*` — dependency PRs
+  change manifests, not the site, and stay out of the deployment history.
+- **Build watch paths**: `web/`, `src/`, `data/catalogs/`, `build.sh`,
+  `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md`. Docs-only or workflow-only
+  pushes (including merges) skip the build, so the current deployment — and
+  its `build-info.json` commit — stays until the next app-relevant change.
+
+If a new file becomes part of the build, add it to the watch paths in the
+Pages project settings.
 
 ## Pages project configuration
 
@@ -93,4 +108,6 @@ alias (`<branch>.<project>.pages.dev`).
       rendered app; SPA deep links, wasm MIME, cache + noindex headers)
 - [x] production deploy verified on `main` (build-info trace, noindex,
       `_framework` immutable caching)
+- [x] build filters: no previews for `dependabot/*`, docs-only pushes skip
+      the build (watch paths)
 - [ ] custom domain (optional, later)
