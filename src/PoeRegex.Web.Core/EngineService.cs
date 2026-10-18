@@ -46,13 +46,16 @@ public sealed class EngineService
         Classes.Where(c => _playableClassIds.Value.Contains(c.Id));
 
     /// <summary>
-    /// Base types with no in-game presence yet (maintainer-confirmed): excluded
-    /// from pickers, but the catalog still carries them.
+    /// Base types with no in-game presence yet (maintainer-confirmed), plus
+    /// datamined leftovers — excluded from pickers, but the catalog still
+    /// carries them. Not listed: `Warstaff`, whose poe2 export entry carries
+    /// the Quarterstaves class (38 released quarterstaff bases).
     /// </summary>
     public static readonly HashSet<string> NotInGameClassIds = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Dagger", "Claw", "Flail", "Warstaff",
+        "Dagger", "Claw", "Flail",
         "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
+        "FishingRod", "TrapTool",
     };
 
     /// <summary>Playable classes actually in the game (picker scope).</summary>
