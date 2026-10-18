@@ -22,8 +22,9 @@ Two filters on the Pages project decide whether a push builds at all
 
 - **Preview branches**: all branches except `dependabot/*` — dependency PRs
   change manifests, not the site, and stay out of the deployment history.
-- **Build watch paths**: `web/`, `src/`, `data/catalogs/`, `build.sh`,
-  `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md`. Docs-only or workflow-only
+- **Build watch paths**: `web/*`, `src/*`, `data/catalogs/*`, `build.sh`,
+  `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md` (directory entries need the
+  trailing `*`; exact file paths do not). Docs-only or workflow-only
   pushes (including merges) skip the build, so the current deployment — and
   its `build-info.json` commit — stays until the next app-relevant change.
 
@@ -42,6 +43,20 @@ production is never touched. It needs two repository settings:
 
 The same workflow can be run manually (Actions → *cleanup-preview* → Run
 workflow) with a branch name.
+
+### Security notes
+
+- The token lives only as an Actions secret, is referenced by this one
+  workflow, and is masked in logs (verified: runs show `***`, never the value).
+- Fork pull requests never receive secrets and the job skips them; no workflow
+  uses `pull_request_target` or `workflow_run`.
+- Keep the Cloudflare token scoped to **Account → Cloudflare Pages → Edit**
+  (the narrowest available — Pages permissions are account-wide), set an
+  expiry, and rotate it on schedule.
+- Anyone with **write access** to this repository can read repository secrets
+  by editing a workflow, so the collaborator list is the trust boundary. If
+  the token ever leaks, delete it in the Cloudflare dashboard and set a new
+  secret; the workflow degrades gracefully without it.
 
 ## Pages project configuration
 
