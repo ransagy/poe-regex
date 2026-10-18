@@ -295,6 +295,32 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
+- **Follow-up round 11 — feedback round 1, picker discipline + budget truth
+  (part 1 of 3).** The stray "select all" button is gone. `++` now caps the
+  filter's right edge (layered double-plus glyph) and exists only while a
+  filter is typed; it adds every matching family in **one** state
+  notification (`WorkbenchState.AddIncludes`) instead of a compile + snapshot
+  save per chip — the old path froze the page at ~200 families and then pushed
+  the picker out of the panel, burying the clear chip. Picks now render in a
+  one-line rail with `… +N` pager chips in reserved gutters (chip-aligned
+  paging, hidden scrollbar, `clear` pinned outside the rail): a large pick set
+  can't grow the editor, and `++` jumps to the newly added chips. `++` is
+  disabled when the prospective compile (current picks + every match,
+  previewed with `allowOverflow` through `SlotBudget.Preview`) would exceed
+  the game's 250-character limit; the tooltip carries the reason and the
+  prospective k/N. Over budget now keeps its value everywhere: the web call
+  sites always compile with `allowOverflow: true`, the strip shows the full
+  string with the existing k/N meter in its red `OVER` state, and copy stays
+  enabled — the whole best-effort path (buttons, `_bestEffortCards`, the
+  multi overflow placeholder, `QueryCard` overflow) is deleted. CDP-verified:
+  18 "life" matches → 131/250 in one batch with the filter kept; "damage"
+  (56 matches) blocked at 267/250 and "a" (194) at 810/250; rail one line at
+  1920/900 with working paging and a pinned clear; 320/250 OVER still renders
+  the full 320-char string with copy enabled and no placeholder. Full slnx
+  10+131+66 green. QA note: family-level picks whose stat text is a prefix of
+  a hybrid line (e.g. helmet `% increased Armour` vs `% increased Armour and
+  Energy Shield`) resolve to no fragment and contribute nothing — a
+  pre-existing engine gap, parked with the hybrid-recall work.
 - **Follow-up round 10 — family/tier grouped picks + the affix-name truth.**
   The min-roll box is retired (separate commit): `WantedMod` carries no
   `MinValue`, the picker has no min field, and stored snapshots with

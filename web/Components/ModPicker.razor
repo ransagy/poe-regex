@@ -1,5 +1,7 @@
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
+@inject EngineService Engine
+@inject IJSRuntime JS
 
 <div class="modpicker">
     @{
@@ -7,34 +9,47 @@
     }
     @if (crit.Included.Count + crit.Excluded.Count > 0)
     {
-        <div class="chips" aria-label="Wanted mods">
-            @foreach (var inc in crit.Included)
-            {
-                <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
-                        title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
-                    @ChipLabel(inc)
-                </button>
-            }
-            @foreach (var exc in crit.Excluded)
-            {
-                <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
-                        @onclick="() => State.RemoveExclude(Scope, exc)">
-                    !@DisplayFor(exc)
-                </button>
-            }
+        <div class="chips-row" id="@RailRowId">
+            <button type="button" class="chips-more start" data-dir="-1" aria-label="show picks hidden at the start">…</button>
+            <div class="chips" aria-label="Wanted mods">
+                @foreach (var inc in crit.Included)
+                {
+                    <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
+                            title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+                        @ChipLabel(inc)
+                    </button>
+                }
+                @foreach (var exc in crit.Excluded)
+                {
+                    <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+                            @onclick="() => State.RemoveExclude(Scope, exc)">
+                        !@DisplayFor(exc)
+                    </button>
+                }
+            </div>
+            <button type="button" class="chips-more end" data-dir="1" aria-label="show picks hidden at the end">…</button>
             <button class="chip clear" id="chips-clear-@Scope" @onclick="() => State.ClearChips(Scope)">clear</button>
         </div>
     }
 
     <div class="modrow">
-        <input id="mod-search" placeholder="type to filter mods…" value="@_search"
-               @oninput="OnSearch" aria-label="Filter mods" />
+        @* The add-all button is the filter's right edge; it only exists
+           while a filter is typed (matching every family is not a workflow). *@
+        <div class="search-unit">
+            <input id="mod-search" placeholder="type to filter mods…" value="@_search"
+                   @oninput="OnSearch" aria-label="Filter mods" />
+            @if (_bulkVisible)
+            {
+                <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
+                        disabled="@_bulkOverflow" @onclick="SelectAll">
+                    <svg class="bulk-glyph" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                        <path d="M2.5 5.5H8.5M5.5 2.5V8.5M5.5 8.5H11.5M8.5 5.5V11.5" />
+                    </svg>
+                </button>
+            }
+        </div>
     </div>
 
-    @if (_families.Count > 1)
-    {
-        <button id="suggest-all" @onclick="SelectAll">[select all @_families.Count families]</button>
-    }
     @if (_families.Count == 0)
     {
         <div class="more">no mods match the filter</div>
@@ -136,8 +151,39 @@
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private bool _bulkVisible;
+    private bool _bulkOverflow;
+    private int _bulkNew;
+    private int _bulkLength;
+    private int _bulkLimit;
+    private bool _scrollRailToEnd;
+
+    private string RailRowId => $"chips-row-{Scope ?? "global"}";
+
+    /// <summary>Item class the scope compiles with (null in global mode).</summary>
+    private string? ScopeClassId => Scope is null ? null : State.CriteriaFor(Scope).ClassId;
 
     protected override void OnParametersSet() => Refresh();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var crit = ScopeCriteria();
+        var hasChips = crit.Included.Count + crit.Excluded.Count > 0;
+        try
+        {
+            if (hasChips)
+                await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
+            if (_scrollRailToEnd)
+            {
+                _scrollRailToEnd = false;
+                await JS.InvokeVoidAsync("poeRegexChipsEnd", RailRowId);
+            }
+        }
+        catch
+        {
+            // No JS yet (static render) — the next interactive render syncs.
+        }
+    }
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
 
@@ -155,6 +201,39 @@
                 })
                 .Where(f => f.Tiers.Count > 0)
                 .ToList();
+        UpdateBulk();
+    }
+
+    /// <summary>
+    /// The add-all button exists only while a filter is typed; it is disabled
+    /// when adding every match would push the compiled query over the game's
+    /// character limit (previewed with allowOverflow — never throws).
+    /// </summary>
+    private void UpdateBulk()
+    {
+        _bulkVisible = false;
+        _bulkOverflow = false;
+        _bulkNew = 0;
+        if (_search.Trim().Length == 0 || _families.Count == 0) return;
+        var crit = ScopeCriteria();
+        var picks = _families.Select(f => new WantedMod(f.Anchor.Id)).ToList();
+        _bulkNew = picks.Count(p => !crit.Included.Any(m => m.SamePick(p)));
+        if (_bulkNew < 2) return; // one match: the row's own + is the action
+        var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
+        _bulkLength = preview.Length;
+        _bulkLimit = preview.Limit;
+        _bulkOverflow = preview.Exceeded;
+        _bulkVisible = true;
+    }
+
+    private string BulkTitle()
+    {
+        var what = _bulkNew == _families.Count
+            ? $"add all {_bulkNew} matching stats"
+            : $"add all {_bulkNew} matching stats ({_families.Count} match)";
+        return _bulkOverflow
+            ? $"{what} — would exceed the game's character limit ({_bulkLength}/{_bulkLimit}); narrow the filter"
+            : $"{what} ({_bulkLength}/{_bulkLimit} characters)";
     }
 
     private void Toggle(string key)
@@ -217,11 +296,13 @@
         Refresh();
     }
 
+    /// <summary>Adds every family matching the filter in one notification and
+    /// leaves the filter in place; the rail jumps to the new chips.</summary>
     private void SelectAll()
     {
-        foreach (var fam in _families)
-            State.AddInclude(Scope, fam.Anchor.Id);
-        _search = "";
+        if (_bulkOverflow) return;
+        var added = State.AddIncludes(Scope, _families.Select(f => new WantedMod(f.Anchor.Id)));
+        if (added > 0) _scrollRailToEnd = true;
         Refresh();
     }
 }

@@ -333,14 +333,52 @@ select, input {
 }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
-.modpicker .chips { margin: 0 0 0.5rem; }
+/* ModPickers show picks in a one-line rail with pager chips in reserved
+   gutters: they never overlap a pick, and the gutters only appear once the
+   rail actually overflows (so no layout coupling when everything fits). */
+.chips-row { display: flex; gap: 0.3rem; margin: 0 0 0.5rem; align-items: stretch; }
+.modpicker .chips {
+    position: relative;
+    flex: 1 1 auto; min-width: 0;
+    flex-wrap: nowrap; overflow-x: auto; margin: 0;
+    scrollbar-width: none; -ms-overflow-style: none;
+}
+.modpicker .chips::-webkit-scrollbar { display: none; }
+.modpicker .chips > * { flex: none; }
+.chips-more {
+    display: none; flex: none; align-items: center; justify-content: center;
+    width: 3.2rem; overflow: hidden; white-space: nowrap;
+    font: inherit; font-size: 0.75rem; padding: 0.15rem 0;
+    border: 1px dashed var(--panel-edge); background: var(--panel); color: var(--dim);
+    cursor: pointer;
+}
+.chips-more.show { display: inline-flex; }
+.chips-more.hid { visibility: hidden; }
+.chips-more:hover { color: var(--ink); border-color: var(--panel-edge-hi); }
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
 .chip.clear { border-style: dashed; color: var(--dim); }
 
 .modrow { display: flex; gap: 0.4rem; }
-.modrow #mod-search { flex: 3; }
+/* Filter + its right-edge "add all matches" button read as one unit: the
+   button caps the input's frame (absolutely placed so it can never affect
+   the row's height, whatever the UA does with buttons). */
+.search-unit { position: relative; display: flex; flex: 3; min-width: 0; }
+.search-unit #mod-search { flex: 1 1 auto; min-width: 0; padding-right: 2.4rem; }
+.search-unit #suggest-all {
+    position: absolute; top: -1px; bottom: -1px; right: -1px;
+    display: inline-flex; align-items: center; box-sizing: border-box;
+    padding: 0 0.5rem; font-size: 0.85rem;
+}
+.search-unit #suggest-all .bulk-glyph {
+    width: 0.95rem; height: 0.95rem; fill: none;
+    stroke: currentColor; stroke-width: 1.4;
+}
+.search-unit #suggest-all:disabled {
+    background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
+    opacity: 0.72; cursor: not-allowed;
+}
 .modrow #mod-min { flex: 1; min-width: 6rem; }
 .pack-tools { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 0.1rem 0; }
 /* The mod picker stretches to the bottom of the editor column; its list is
@@ -358,7 +396,6 @@ select, input {
     flex: none; font-size: 0.8rem; line-height: 1.4; color: var(--ink);
     border: 1px solid var(--panel-edge); padding: 0 0.4rem; min-width: 4.2rem; text-align: center;
 }
-#suggest-all { margin: 0.3rem 0 0.1rem; }
 .suggest-row { display: flex; gap: 0.4rem; align-items: center; padding: 0.15rem 0; border-bottom: 1px dotted #3d3220; break-inside: avoid; }
 .suggest-line { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
@@ -669,6 +706,9 @@ details.advanced > .reset-row {
     overflow: hidden; text-overflow: ellipsis;
 }
 .slot-query .meter-num { white-space: nowrap; }
+/* Over the game's search-box limit: the string keeps its value, the k/N
+   meter carries the warning. */
+.slot-query.over .meter-num { color: #f08a8a; }
 .slot-query button {
     background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
     cursor: pointer; font: inherit; font-size: 0.8rem; padding: 0.2rem 0.7rem; white-space: nowrap;

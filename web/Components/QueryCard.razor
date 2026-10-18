@@ -16,13 +16,6 @@
         }
     </div>
 
-    @if (_overflow is not null)
-    {
-        <div class="qerror" id="qcard-@CardId-overflow">
-            over budget: @_overflow.RequestedLength/@_overflow.Limit.
-            <button id="qcard-@CardId-besteffort" @onclick="OnBestEffort">show best-effort</button>
-        </div>
-    }
     @if (_result is not null)
     {
         <div class="qquery" id="qcard-@CardId-query">@_result.Query</div>
@@ -75,14 +68,7 @@
     [Parameter]
     public CompileResult? Result { get; set; }
 
-    [Parameter]
-    public RegexLengthOverflowException? Overflow { get; set; }
-
-    [Parameter]
-    public EventCallback OnBestEffort { get; set; }
-
     private CompileResult? _result;
-    private RegexLengthOverflowException? _overflow;
     private ExplainResult? _explain;
     private bool _showExplain;
     private string _copyStatus = "";
@@ -90,7 +76,6 @@
     protected override void OnParametersSet()
     {
         _result = Result;
-        _overflow = Overflow;
         if (_result is null) _showExplain = false;
         _explain = null;
     }
