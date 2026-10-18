@@ -279,8 +279,9 @@ ships as AOT binaries — see [`BUILDING.md`](BUILDING.md).)
 
 The engine and catalogs ship under MIT. The catalog content is community
 extraction of Grinding Gear Games-owned game data (via RePoE); see `NOTICE` for
-the exact terms, and [`DESIGN.md`](DESIGN.md) §1 for the sourcing policy. If you
-redistribute catalogs, keep the attribution in `NOTICE` intact.
+the exact terms, [`PROVENANCE.md`](PROVENANCE.md) for the full data lineage, and
+[`DESIGN.md`](DESIGN.md) §1 for the sourcing policy. If you redistribute
+catalogs, keep the attribution in `NOTICE` intact.
 
 ## 12. Using the engine from any language: the CLI subprocess contract
 

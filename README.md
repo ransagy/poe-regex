@@ -1,22 +1,34 @@
 # Poe Regex Compiler
 
-A compiler engine that turns Path of Exile 1 & 2 trade-filter modifier requirements
-into short, in-game-safe regex queries. PoE 2 trade search caps regex queries at
-250 characters; this tool targets that budget by precomputing the shortest unique
+An engine that turns Path of Exile 1 & 2 modifier requirements into short,
+in-game-safe regex queries. PoE 2 search boxes cap regex queries at 250
+characters; this tool targets that budget by precomputing the shortest unique
 fragment for every mod line and assembling deterministic, AND-ed quoted blocks.
+
+The repository contains the engine, its data pipeline, the CLI, and the web
+reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly
+workbench that compiles queries in-browser for the in-game Highlight search.
+The deployed build is at <https://renlys-recipes.pages.dev> (link-only;
+excluded from search engines).
 
 ## Design
 
-- **Data pipeline** (`tools/PoeRegex.Data.Build`): fetches pinned RePoE exports,
-  renders each mod's stat text, fingerprints every line via a suffix-array index,
-  and emits a compact derived catalog (`data/catalogs/*.json`). Raw RePoE JSON is
-  dev-only and gitignored; only derived catalogs ship.
+- **Data pipeline** (`tools/PoeRegex.Data.Build`): fetches RePoE's hosted
+  exports (the fetch date is recorded as the catalog's `dataVersion`), renders
+  each mod's stat text, fingerprints every line via a suffix-array index, and
+  emits a compact derived catalog (`data/catalogs/*.json`). Raw RePoE JSON is
+  dev-only and gitignored; only derived catalogs ship. See
+  [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **Engine** (`src/PoeRegex.Core`): consumes a catalog through `ICatalogSource`,
   validates fragments against per-game grammar, selects the shortest safe
   fingerprint (or a value-threshold digit-range pattern), factors common prefixes
   across included mods, and enforces the game's character limit. Output is
   deterministic.
 - **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.
+- **Web workbench** (`web/`, "Renly's Recipes"): Blazor WebAssembly running
+  `PoeRegex.Core` in the browser — gear slots, live queries for the in-game
+  Highlight box, an item-import lab, and a test-item backpack. Static site,
+  no backend, no network calls.
 - **Tests** (`tests/`): engine unit tests plus no-false-positive property tests
   over both shipped catalogs.
 
@@ -67,8 +79,10 @@ cross-language integration surface (Python, Node, shell, etc.). See
 
 There's also an interactive terminal demo driving the engine through that
 contract: see [`demos/opentui-tui/`](demos/opentui-tui/README.md) (build, run,
-and controls). A local-only web workbench running the engine in-browser
-(Blazor WASM) lives in [`web/`](web/README.md).
+and controls). The web reference implementation, "Renly's Recipes", runs the
+engine in-browser (Blazor WASM): see [`web/`](web/README.md). The deployed
+build is at <https://renlys-recipes.pages.dev>; deployment notes are in
+[`docs/DEPLOYING-WEB.md`](docs/DEPLOYING-WEB.md).
 
 Exit codes: `0` ok, `1` error (including a query over the character limit),
 `2` usage error.
@@ -80,7 +94,9 @@ dotnet run --project tools/PoeRegex.Data.Build -- fetch --game poe1 --out data/r
 dotnet run --project tools/PoeRegex.Data.Build -- build --game poe1 --raw data/raw/poe1 --catalog data/catalogs/poe1.catalog.json
 ```
 
-Re-running after a league patch re-sources the latest exports.
+Re-running after a league patch re-sources the latest exports. The catalogs
+record the fetch date and contain only the derived subset described in
+[`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 ## Acknowledgements
 
@@ -91,10 +107,11 @@ Sources and prior art from the Path of Exile community this project builds on:
     exports this project fetches.
   - Original project `brather1ng/RePoE` (https://github.com/brather1ng/RePoE).
   - The underlying game data is owned by Grinding Gear Games; see `NOTICE`.
-- **PyPoE** (https://github.com/OmegaK2/PyPoE) — MIT-licensed. The stat-text
-  renderer (`StatTextRenderer`) is an algorithm port of PyPoE's
-  `TranslationString.format_string` (variant selection, `index_handlers`, and
-  value substitution), which itself mirrors the in-game advanced mod description.
+- **PyPoE** (https://github.com/OmegaK2/PyPoE; maintained fork
+  https://github.com/Project-Path-of-Exile-Wiki/PyPoE) — GPL-3.0. Behavioural
+  prior art for stat-text rendering: our renderer (`StatTextRenderer`) is an
+  independent implementation of RePoE's documented translation format, and no
+  PyPoE code is incorporated. See [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **Community grammar knowledge** — the trade-search regex conventions this tool
   targets (quoted-block AND `"A" "B"`, `!` negation, lookaheads and custom
   keywords on PoE 2, the 250-character query limit) are treated as functional
@@ -105,19 +122,22 @@ Sources and prior art from the Path of Exile community this project builds on:
 
 Nods and kudos to the projects that made this possible:
 
-- [PyPoE](https://github.com/OmegaK2/PyPoE) — MIT — translation/rendering prior art
+- [PyPoE](https://github.com/OmegaK2/PyPoE) — GPL-3.0 — behavioural prior art for rendering (no code incorporated)
 - [RePoE](https://github.com/repoe-fork/repoe) — MIT — game-data extraction
 - [RePoE (original)](https://github.com/brather1ng/RePoE) — MIT — upstream project
 - [xUnit](https://github.com/xunit/xunit) — Apache 2.0 — test framework
 - [Awesome Assertions](https://github.com/AwesomeAssertions/AwesomeAssertions) — Apache 2.0 — test assertions
 - [TextCopy](https://github.com/CopyText/TextCopy) — MIT — cross-platform clipboard
 - [.NET](https://dot.net) / [System.Text.Json](https://github.com/dotnet/runtime) — MIT — runtime and JSON
+- [@opentui/core](https://github.com/anomalyco/opentui) — MIT — terminal demo
 
 ## License
 
-MIT. This project is not affiliated with Grinding Gear Games; Path of Exile is a
-registered trademark of GGG. Derived catalog data is community extraction from
-RePoE (GGG-owned data) — see `NOTICE`.
+MIT. The repository also contains the web reference implementation
+("Renly's Recipes"). This project is not affiliated with Grinding Gear Games;
+Path of Exile is a registered trademark of GGG. Derived catalog data is
+community extraction from RePoE (GGG-owned data) — see `NOTICE` and
+[`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 ## AI disclosure
 
