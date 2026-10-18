@@ -133,12 +133,40 @@ public sealed class EngineCorpus
                 return false;
             }
         }
+        // Class lines are covered by the loop above; here only mod and
+        // universal lines may disqualify the prefix.
+        return ClassTermQuiet(System.Text.RegularExpressions.Regex.Escape(prefix));
+    }
+
+    /// <summary>
+    /// True when `: innerTerm` matches no universal or mod line (class lines
+    /// are excluded — the class-set check is <see cref="ClassTermExact"/>).
+    /// The acceptance test for merged alternation terms like `.*Hand M`.
+    /// </summary>
+    public bool ClassTermQuiet(string innerTerm)
+    {
+        var test = ": " + innerTerm;
         foreach (var (_, real) in EnsureUnionIndex().RealLines)
         {
-            // Class lines are covered by the loop above; here only mod and
-            // universal lines may disqualify the prefix.
             if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
             if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// True when `: innerTerm` matches the `Item Class:` line of every class
+    /// in <paramref name="classIds"/> (by id) and of no other catalog class.
+    /// </summary>
+    public bool ClassTermExact(string innerTerm, IReadOnlyCollection<string> classIds)
+    {
+        var test = ": " + innerTerm;
+        var wanted = new HashSet<string>(classIds, StringComparer.Ordinal);
+        foreach (var cls in _catalog.ItemClasses)
+        {
+            var hit = System.Text.RegularExpressions.Regex.IsMatch(
+                $"Item Class: {cls.Name}", test, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (wanted.Contains(cls.Id) != hit) return false;
         }
         return true;
     }

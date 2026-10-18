@@ -295,6 +295,34 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
+- **Follow-up round 12 — paste class alternations fold suffixes; the
+  in-game class audit.** Combined pastes were blowing the budget on class
+  alternations: every group token repeats the scope's classes and
+  `One Hand M|Two Hand M` appeared in full wherever both mace classes were
+  listed. New `ClassAlternation.Build` folds terms sharing a suffix into
+  `.*<suffix>` (trimmed, so the reported shape is exactly `.*Hand M`),
+  accepted only when the merged term matches *exactly* the same classes
+  (`EngineCorpus.ClassTermExact`, by `Item Class:` line over the catalog) and
+  stays quiet against every universal and mod line (`ClassTermQuiet`, which
+  now also backs `PrefixClean`); merges only when the alternation gets
+  shorter, and per list — a group whose "others" holds only one mace keeps
+  the plain prefix. Applied to the anchor and every group's others; the
+  reported six-slot paste now composes `": (Be|Bod|Boo|G|Hel|.*Hand M)"`-style
+  anchors instead of repeating both mace prefixes. Tests:
+  `ClassAlternationTests` (merge, single class, no shared suffix, exactness)
+  plus a `MultiPasteTests` composition asserting the merged anchor and both
+  group forms; a shared `RealCatalog` helper replaces the duplicated loaders.
+  Class audit (maintainer-confirmed): `Warstaff` carries the **Quarterstaves**
+  class in the poe2 export (38 released quarterstaff bases) and returns to
+  the pickers; `Talisman` is the druid **weapon** class and joins
+  weapon/offhand (removed from `SlotClasses.NonWeapon`); `FishingRod` and
+  `TrapTool` are datamined leftovers and leave the pickers. The weapon and
+  offhand lists stay intentionally identical (dual wield, plus pointing both
+  slots at different base types as the stand-in while weapon sets don't
+  exist). CDP-verified: the dropdown lists exactly Wands, One/Two Hand
+  Maces, Bow, Staff, Crossbow, Sceptre, Spear, Buckler, Shield, Quiver,
+  Focus, Quarterstaves, Talismans; a One Hand Mace weapon + Two Hand Mace
+  offhand multi composes `": (.*Hand M)" "d P"`. Full slnx 10+126+71 green.
 - **Follow-up round 10 — family/tier grouped picks + the affix-name truth.**
   The min-roll box is retired (separate commit): `WantedMod` carries no
   `MinValue`, the picker has no min field, and stored snapshots with

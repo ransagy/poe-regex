@@ -10,15 +10,7 @@ namespace PoeRegex.Core.Tests;
 /// </summary>
 public class MultiPasteTests
 {
-    private static EngineCorpus Corpus()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir is not null && !Directory.Exists(Path.Combine(dir, "data", "catalogs")))
-            dir = Path.GetDirectoryName(dir);
-        if (dir is null) throw new DirectoryNotFoundException("repo root not found");
-        var path = Path.Combine(dir, "data", "catalogs", "poe2.catalog.json");
-        return new EngineCorpus(new FileCatalogSource(path).Load(GameTarget.PoE2));
-    }
+    private static EngineCorpus Corpus() => RealCatalog.Corpus();
 
     private static PasteComposer Composer(EngineCorpus corpus) =>
         new(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
@@ -90,6 +82,26 @@ public class MultiPasteTests
         ],
         [new ModifierRequirement("reflect")]);
         result.Query.Should().Contain("!\"reflect\"");
+    }
+
+    [Fact]
+    public void Combine_FoldsSharedClassSuffixes_InAnchorAndOthers()
+    {
+        var corpus = Corpus();
+        // Free-text requirements keep the test independent of fragment
+        // resolution: the groups still form and validate.
+        var result = Composer(corpus).Compose(
+        [
+            new PasteSlotCriterion("Belt", [new ModifierRequirement("qqqq")], "belt"),
+            new PasteSlotCriterion("One Hand Mace", [new ModifierRequirement("wwww")], "weapon"),
+            new PasteSlotCriterion("Two Hand Mace", [new ModifierRequirement("wwww")], "offhand"),
+        ], []);
+        result.Anchor.Should().Be(": (Be|.*Hand M)");
+        var belt = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["Belt"]));
+        belt.Token.Should().StartWith(": (.*Hand M)|");
+        var maces = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["One Hand Mace", "Two Hand Mace"]));
+        maces.Token.Should().StartWith(": (Be)|");
+        result.Diagnostics.Should().BeEmpty();
     }
 
     [Fact]

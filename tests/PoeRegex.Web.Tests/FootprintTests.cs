@@ -55,9 +55,9 @@ public class FootprintTests
         SlotClasses.AllowedFor("amulet", playable).Should().Equal(["Amulet"]);
         SlotClasses.AllowedFor("body", playable).Should().Equal(["Body Armour"]);
         var weapon = SlotClasses.AllowedFor("weapon", playable);
-        weapon.Should().Contain(["Crossbow", "Bow", "Shield", "Quiver"]);
+        weapon.Should().Contain(["Crossbow", "Bow", "Shield", "Quiver", "Warstaff", "Talisman"]);
         weapon.Should().NotContain(["Ring", "Amulet", "Belt", "Helmet", "Body Armour",
-            "Gloves", "Boots", "Talisman"]);
+            "Gloves", "Boots"]);
         foreach (var slot in new[] { "weapon", "offhand", "helmet", "body", "gloves", "boots",
                      "belt", "amulet", "ring1", "ring2" })
         {
