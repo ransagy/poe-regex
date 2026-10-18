@@ -36,6 +36,7 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("+30 to maximum Life");
+        lines[0].RangeLine.Should().Be("+20–30 to maximum Life");
     }
 
     [Fact]
@@ -58,6 +59,7 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("25% increased Attack Speed");
+        lines[0].RangeLine.Should().Be("20–25% increased Attack Speed");
     }
 
     [Fact]
@@ -83,6 +85,38 @@ public class StatTextRendererTests
         var lines = renderer.RenderMod(mod.Stats);
         lines.Should().ContainSingle();
         lines[0].Line.Should().Be("Adds 2 to 4 Physical Damage to Attacks");
+        lines[0].RangeLine.Should().Be("Adds 1–2 to 3–4 Physical Damage to Attacks");
+    }
+
+    [Fact]
+    public void MergedEntry_TreatsAbsentStatAsZero()
+    {
+        // Mirrors local_physical_damage_+% ↔ local_weapon_no_physical_damage:
+        // the paired "no physical damage" stat only exists on uniques, but the
+        // normal variant is keyed on it being absent (value 0).
+        var renderer = CreateRenderer("{}", """
+[
+  { "English": [
+      { "condition": [{}, {"min": 1}], "format": ["ignore", "ignore"], "index_handlers": [[], []],
+        "string": "No [Physical] Damage" },
+      { "condition": [{"min": 1}, {"min": 0, "max": 0}], "format": ["#", "ignore"], "index_handlers": [[], []],
+        "string": "{0}% increased [Physical] Damage" }
+    ],
+    "ids": ["local_physical_damage_+%", "local_weapon_no_physical_damage"] }
+]
+""");
+        var mod = new RePoESchema.Mod
+        {
+            Domain = "item",
+            GenerationType = "prefix",
+            Stats = [new RePoESchema.ModStat { Id = "local_physical_damage_+%", Min = 40, Max = 49 }],
+        };
+
+        var lines = renderer.RenderMod(mod.Stats);
+
+        lines.Should().ContainSingle();
+        lines[0].Line.Should().Be("49% increased Physical Damage");
+        lines[0].RangeLine.Should().Be("40–49% increased Physical Damage");
     }
 
     [Fact]
@@ -110,9 +144,13 @@ public class StatTextRendererTests
 public class NormalizeTests
 {
     [Fact]
-    public void StripBracketMarkup_TakesFirstAlternative()
+    public void StripBracketMarkup_KeepsDisplayAlternative()
     {
         StatTextRenderer.StripBracketMarkup("+8 to [Strength|Strength]").Should().Be("+8 to Strength");
+        StatTextRenderer.StripBracketMarkup("+8 to maximum [EnergyShield|Energy Shield]")
+            .Should().Be("+8 to maximum Energy Shield");
+        StatTextRenderer.StripBracketMarkup("{0}% increased [ElementalDamage|Elemental] Damage with [Attack|Attacks]")
+            .Should().Be("{0}% increased Elemental Damage with Attacks");
         StatTextRenderer.StripBracketMarkup("Consuming [Glory] grants you {0}%").Should().Be("Consuming Glory grants you {0}%");
         StatTextRenderer.StripBracketMarkup("no brackets").Should().Be("no brackets");
     }

@@ -47,6 +47,10 @@ public static class RePoESchema
         [JsonPropertyName("text")] public string? Text { get; init; }
         [JsonPropertyName("domain")] public required string Domain { get; init; }
         [JsonPropertyName("generation_type")] public required string GenerationType { get; init; }
+        /// <summary>RePoE family key: every tier of one stat shares it (merges scopes, e.g. 1H/2H).</summary>
+        [JsonPropertyName("type")] public string? Type { get; init; }
+        /// <summary>Tier order within a family (NOT the in-game tier number).</summary>
+        [JsonPropertyName("required_level")] public int RequiredLevel { get; init; }
         [JsonPropertyName("stats")] public required List<ModStat> Stats { get; init; }
         [JsonPropertyName("groups")] public List<string>? Groups { get; init; }
         [JsonPropertyName("spawn_weights")] public List<SpawnWeight>? SpawnWeights { get; init; }

@@ -1,0 +1,211 @@
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+
+@*
+  Shared game-style item card: the backpack tooltip, the import preview and
+  the assemble dialog all render through this one component, so pasted and
+  built items read the same everywhere. Mod lines flow through an optional
+  LineAnnotation slot (the import dialog puts its mapping status / candidate
+  picker there); everything else is the item's own text, nothing invented.
+*@
+<div class="iprev" id="@Id">
+    <div class="iprev-name @RarityClass">@Item.Name</div>
+    <div class="iprev-sub">@SubLine()</div>
+    @if (Item.Parsed.BaseLines.Count > 0)
+    {
+        <div class="iprev-sep"></div>
+        <div class="iprev-stats">
+            @foreach (var l in Item.Parsed.BaseLines)
+            {
+                <div>@l</div>
+            }
+        </div>
+    }
+    @if (HasMeta())
+    {
+        <div class="iprev-sep"></div>
+        <div class="iprev-meta">
+            @if (Item.Parsed.Requires is not null)
+            {
+                <div>Requires: @Item.Parsed.Requires</div>
+            }
+            @if (Item.Parsed.ItemLevel is not null)
+            {
+                <div>Item Level: @Item.Parsed.ItemLevel</div>
+            }
+            @if (Item.Parsed.Sockets is { Length: > 0 } sockets)
+            {
+                <div>Sockets: @sockets</div>
+            }
+            @if (Item.Parsed.GrantsSkill is { Length: > 0 } skill)
+            {
+                <div>Grants Skill: @skill</div>
+            }
+        </div>
+    }
+    @{
+        var sections = Sections();
+    }
+    @if (sections.Count > 0)
+    {
+        <div class="iprev-sep"></div>
+        @foreach (var section in sections)
+        {
+            <div class="iprev-mod">
+                @if (section.Caption is not null)
+                {
+                    <div class="iprev-cap">@section.Caption</div>
+                }
+                @foreach (var line in section.Lines)
+                {
+                    <div class="iprev-line">
+                        <span class="iprev-text">@line.Text</span>
+                        @if (LineAnnotation is not null)
+                        {
+                            @LineAnnotation(line.Ref)
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+    @if (Item.Parsed.Corrupted)
+    {
+        <div class="iprev-sep"></div>
+        <div class="iprev-corrupt">Corrupted</div>
+    }
+</div>
+
+@code {
+    /// <summary>One rendered mod line plus the caller's hook for annotations.</summary>
+    public sealed record PreviewLineRef(
+        int Block, int Line, string Text,
+        IReadOnlyList<string> Candidates, string? SelectedModId);
+
+    private sealed record Section(string? Caption, IReadOnlyList<PreviewLine> Lines);
+    private sealed record PreviewLine(string Text, PreviewLineRef Ref);
+
+    /// <summary>The item to draw. Callers build throwaway TestItems for previews.</summary>
+    [Parameter, EditorRequired]
+    public required TestItem Item { get; set; }
+
+    /// <summary>Optional per-mod-line slot (mapping status, candidate picker).</summary>
+    [Parameter]
+    public RenderFragment<PreviewLineRef>? LineAnnotation { get; set; }
+
+    /// <summary>Optional DOM id on the card root (QA / tests).</summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    private string RarityClass => Item.Parsed.Rarity switch
+    {
+        "Magic" => "rarity-magic",
+        "Rare" => "rarity-rare",
+        "Unique" => "rarity-unique",
+        _ => "rarity-normal",
+    };
+
+    private string SubLine()
+    {
+        var cls = Item.Parsed.ItemClass ?? Item.ClassId ?? "unknown class";
+        var rarity = Item.Parsed.Rarity ?? "Normal";
+        return $"{cls} · {rarity}";
+    }
+
+    private bool HasMeta() =>
+        Item.Parsed.Requires is not null || Item.Parsed.ItemLevel is not null ||
+        Item.Parsed.Sockets is { Length: > 0 } || Item.Parsed.GrantsSkill is { Length: > 0 };
+
+    /// <summary>
+    /// Pasted items render their parsed blocks with the game's own headers;
+    /// built items render one section per catalog mod (header in the
+    /// suggestion-list style, lines expanded by the catalog).
+    /// </summary>
+    private List<Section> Sections()
+    {
+        var sections = new List<Section>();
+        if (Item.Parsed.Mods.Count > 0)
+        {
+            // Pair each block with its mapped slice first (ItemImport.Materialize
+            // appends mapped lines in this exact flattened order), then show the
+            // blocks in the game's canonical order: implicit, prefix, suffix.
+            var index = 0;
+            var blocks = new List<(ParsedModBlock Block, int BlockIndex, List<MappedLine?> Mapped)>();
+            foreach (var (block, bi) in Item.Parsed.Mods.Select((b, i) => (b, i)))
+            {
+                var slice = new List<MappedLine?>();
+                foreach (var _ in block.Lines)
+                {
+                    slice.Add(index < Item.Mapped.Count ? Item.Mapped[index] : null);
+                    index++;
+                }
+                blocks.Add((block, bi, slice));
+            }
+            foreach (var (block, bi, slice) in blocks.OrderBy(x => ItemDisplay.Rank(x.Block.Kind)))
+            {
+                var lines = new List<PreviewLine>();
+                foreach (var (line, li) in block.Lines.Select((l, i) => (l, i)))
+                {
+                    var ml = li < slice.Count ? slice[li] : null;
+                    lines.Add(new PreviewLine(DisplayText(ml, line.Text),
+                        new PreviewLineRef(bi, li, line.Text,
+                            ml?.Candidates ?? [], ml?.SelectedModId)));
+                }
+                sections.Add(new Section(Caption(block), lines));
+            }
+        }
+        else if (Item.Built)
+        {
+            var refIndex = 0;
+            var groups = Item.Mapped.GroupBy(ml => ml.SelectedModId).ToList();
+            var order = ItemDisplay.OrderModIds(Engine, groups.Select(g => g.Key ?? ""));
+            foreach (var id in order)
+            {
+                var group = groups.First(g => (g.Key ?? "") == id);
+                var mod = id.Length > 0 ? Engine.FindMod(id) : null;
+                var caption = mod is null
+                    ? null
+                    : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";
+                var lines = new List<PreviewLine>();
+                foreach (var ml in group)
+                {
+                    if (ml.IsHeader) continue; // caption below already names the mod
+                    lines.Add(new PreviewLine(DisplayText(ml, ml.Text),
+                        new PreviewLineRef(-1, refIndex++, ml.Text, ml.Candidates, ml.SelectedModId)));
+                }
+                sections.Add(new Section(caption, lines));
+            }
+        }
+        return sections;
+    }
+
+    /// <summary>
+    /// Pasted lines keep their game text (rolls and ranges included); when a
+    /// catalog mod is picked, its friendly range rendering is preferred.
+    /// </summary>
+    private string DisplayText(MappedLine? ml, string raw)
+    {
+        if (ml?.SelectedModId is not null)
+        {
+            var stat = Engine.FindMod(ml.SelectedModId)?.StatLines
+                .FirstOrDefault(s => s.Line == ml.Text);
+            if (stat is not null) return ModSearch.DisplayLine(stat);
+        }
+        return raw;
+    }
+
+    /// <summary>Reconstruct the paste's mod header from its parsed parts.</summary>
+    private static string Caption(ParsedModBlock block)
+    {
+        var kind = block.Kind switch
+        {
+            "implicit" => "Implicit",
+            "prefix" => "Prefix",
+            _ => "Suffix",
+        };
+        var name = block.Name is null ? "" : $" \"{block.Name}\"";
+        var tier = block.Tier is null ? "" : $" (Tier: {block.Tier})";
+        var tags = block.Tags.Count > 0 ? $" — {string.Join(", ", block.Tags)}" : "";
+        return $"{{ {kind} Modifier{name}{tier}{tags} }}";
+    }
+}

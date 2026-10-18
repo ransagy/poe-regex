@@ -45,8 +45,24 @@ public sealed class ModEntry
     [JsonPropertyName("generationType")]
     public required string GenerationType { get; init; }
 
+    /// <summary>RePoE family key (`type`): all tiers of one stat share it
+    /// (merges scopes, e.g. one-hand/two-hand). Empty on catalogs built
+    /// before families were captured.</summary>
+    [JsonPropertyName("family")]
+    public string Family { get; init; } = "";
+
+    /// <summary>RePoE `required_level`: tier order within a family. It is NOT
+    /// the in-game tier number (the game's own numbering is not derivable
+    /// from data), so the UI never shows it as a tier.</summary>
+    [JsonPropertyName("requiredLevel")]
+    public int RequiredLevel { get; init; }
+
     [JsonPropertyName("classes")]
     public required IReadOnlyList<string> Classes { get; init; }
+
+    /// <summary>RePoE mod group names (one-mod-per-group exclusivity). Empty when unknown.</summary>
+    [JsonPropertyName("groups")]
+    public IReadOnlyList<string> Groups { get; init; } = [];
 
     [JsonPropertyName("statLines")]
     public required IReadOnlyList<StatLineEntry> StatLines { get; init; }
@@ -57,6 +73,14 @@ public sealed class StatLineEntry
     /// <summary>Human-readable rendered line with the representative (max) value.</summary>
     [JsonPropertyName("line")]
     public required string Line { get; init; }
+
+    /// <summary>
+    /// Friendly range rendering with each number's tier span
+    /// (e.g. "Adds 1–2 to 3–4 Physical Damage"). Empty when unknown;
+    /// display code falls back to <see cref="Line"/>.
+    /// </summary>
+    [JsonPropertyName("rangeLine")]
+    public string RangeLine { get; init; } = "";
 
     /// <summary>Value-agnostic form: every digit-run replaced by a single placeholder character.</summary>
     [JsonPropertyName("pattern")]

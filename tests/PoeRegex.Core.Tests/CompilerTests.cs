@@ -23,7 +23,7 @@ public class CompilerTests
         });
 
         result.Query.Should().Contain("\"");
-        result.Query.Should().Contain("\":\""); // class anchor block
+        result.Query.Should().Contain("\": Ri\""); // class anchor block (distinctive, never bare ":")
         result.Exceeded.Should().BeFalse();
         result.Length.Should().BeLessThan(result.Limit);
 
@@ -48,7 +48,7 @@ public class CompilerTests
         });
 
         result.Query.Should().Contain("|");
-        result.Query.Should().Contain("\":\""); // class anchor block
+        result.Query.Should().Contain("\": Ri\""); // class anchor block (distinctive, never bare ":")
         result.Query.Should().Contain("\"");
 
         var explainer = new Explainer(new EngineCorpus(TestCatalog.Build()));

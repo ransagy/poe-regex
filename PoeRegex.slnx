@@ -2,12 +2,17 @@
   <Folder Name="/src/">
     <Project Path="src/PoeRegex.Cli/PoeRegex.Cli.csproj" />
     <Project Path="src/PoeRegex.Core/PoeRegex.Core.csproj" />
+    <Project Path="src/PoeRegex.Web.Core/PoeRegex.Web.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PoeRegex.Core.Tests/PoeRegex.Core.Tests.csproj" />
     <Project Path="tests/PoeRegex.Data.Build.Tests/PoeRegex.Data.Build.Tests.csproj" />
+    <Project Path="tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/PoeRegex.Data.Build/PoeRegex.Data.Build.csproj" />
+  </Folder>
+  <Folder Name="/web/">
+    <Project Path="web/web.csproj" />
   </Folder>
 </Solution>

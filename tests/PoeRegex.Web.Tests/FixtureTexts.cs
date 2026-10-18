@@ -1,0 +1,115 @@
+namespace PoeRegex.Web.Tests;
+
+/// <summary>Maintainer-provided English advanced item descriptions (shared fixtures).</summary>
+internal static class FixtureTexts
+{
+    internal const string Belt = """
+            Item Class: Belts
+            Rarity: Normal
+            Utility Belt
+            --------
+            Requires: Level 55
+            --------
+            Item Level: 80
+            --------
+            { Implicit Modifier }
+            20% of Flask Recovery applied Instantly
+            { Implicit Modifier — Charm }
+            Has 1(1-3) Charm Slot
+    """;
+
+    internal const string Talisman = """
+            Item Class: Talismans
+            Rarity: Magic
+            Annealed Wildwood Talisman of the Savant
+            --------
+            Physical Damage: 93-159 (augmented)
+            Critical Hit Chance: 8.00%
+            Attacks per Second: 1.25
+            --------
+            Requires: Level 70, 98 (unmet) Str, 72 Int
+            --------
+            Item Level: 79
+            --------
+            { Prefix Modifier "Annealed" (Tier: 4) — Damage, Physical, Attack }
+            Adds 26(19-29) to 47(33-49) Physical Damage
+            { Suffix Modifier "of the Savant" (Tier: 2) — Attribute }
+            +30(28-30) to Intelligence
+    """;
+
+    internal const string Crossbow = """
+            Item Class: Crossbows
+            Rarity: Rare
+            Foe Core
+            Gemini Crossbow
+            --------
+            Physical Damage: 28-112
+            Lightning Damage: 2-43 (lightning)
+            Critical Hit Chance: 5.00%
+            Attacks per Second: 1.60
+            Reload Time: 1.10
+            --------
+            Requires: Level 78, 89 (unmet) Str, 89 Dex
+            --------
+            Item Level: 79
+            --------
+            { Implicit Modifier — Attack }
+            Loads an additional bolt
+            --------
+            { Prefix Modifier "Snapping" (Tier: 8) — Damage, Elemental, Lightning, Attack }
+            Adds 2(1-3) to 43(31-43) Lightning Damage
+            { Suffix Modifier "of the Parched" (Tier: 4) — Mana, Physical, Attack }
+            Leeches 5.1(5-5.9)% of Physical Damage as Mana
+            { Suffix Modifier "of the Vampire" (Tier: 1) — Life, Physical, Attack }
+            Leeches 9.79(9-9.9)% of Physical Damage as Life
+            { Suffix Modifier "of the Jaguar" (Tier: 2) — Attribute }
+            +28(28-30) to Dexterity
+    """;
+
+    internal const string Staff = """
+            sockets
+            Item Class: Staves
+            Rarity: Magic
+            Chiming Staff of the Glacier
+            --------
+            Requires: Level 36, 46 Int
+            --------
+            Sockets: S S
+            --------
+            Item Level: 80
+            --------
+            Grants Skill: Level 18 Sigil of Power
+            --------
+            { Suffix Modifier "of the Glacier" (Tier: 3) — Elemental, Cold, Ailment }
+            60(51-60)% increased Freeze Buildup
+    """;
+
+    internal const string Mace = """
+            Item Class: One Hand Maces
+            Rarity: Rare
+            Rift Blast
+            Molten Hammer
+            --------
+            Physical Damage: 35-59
+            Elemental Damage: 35-59 (fire), 4-64 (lightning)
+            Critical Hit Chance: 5.00%
+            Attacks per Second: 1.45
+            --------
+            Requires: Level 77, 163 (unmet) Str
+            --------
+            Item Level: 79
+            --------
+            { Prefix Modifier "Reliable" (Tier: 8) — Attack }
+            +46(33-60) to Accuracy Rating
+            { Prefix Modifier "Arcing" (Tier: 5) — Damage, Elemental, Lightning, Attack }
+            Adds 4(1-4) to 64(63-82) Lightning Damage
+            { Suffix Modifier "of Light" (Tier: 2) — Attack }
+            +37(21-40) to Accuracy Rating
+            10% increased Light Radius
+            { Suffix Modifier "of Rage" (Tier: 4) — Damage, Attack, Critical }
+            +16(14-16)% to Critical Damage Bonus
+            --------
+            Corrupted
+    """;
+
+}

@@ -1,0 +1,41 @@
+@using PoeRegex.Web.Core
+@inject IJSRuntime JS
+
+@*
+  Game-style item tooltip: a fixed overlay pinned at the backpack tile click
+  point, so it never participates in layout. The card itself is the shared
+  ItemPreview; poeRegexPlaceTooltip flips this wrapper near the viewport
+  edges after each render. Close via the x, by clicking the tile again, by
+  clicking empty pack space, or by removing the item.
+*@
+@if (Item is not null)
+{
+    <div class="item-tooltip" id="item-tooltip" style="left:@(X + 12)px; top:@(Y + 12)px" @ref="_el">
+        <button class="tt-close" id="detail-close" title="dismiss" @onclick="() => OnDismiss.InvokeAsync()">×</button>
+        <ItemPreview Item="Item" />
+    </div>
+}
+@code {
+    /// <summary>Pinned item; null renders nothing.</summary>
+    [Parameter]
+    public TestItem? Item { get; set; }
+
+    /// <summary>Viewport click coordinates the tooltip is pinned to.</summary>
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter, EditorRequired]
+    public required EventCallback OnDismiss { get; set; }
+
+    private ElementReference _el;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Item is null) return;
+        try { await JS.InvokeVoidAsync("poeRegexPlaceTooltip", _el, X, Y); }
+        catch { /* element already replaced */ }
+    }
+}

@@ -111,6 +111,7 @@ public static class CatalogBuilder
                 statLines.Add(new StatLineEntry
                 {
                     Line = line.Line,
+                    RangeLine = line.RangeLine,
                     Pattern = line.Pattern,
                     MinValue = line.MinValue,
                     MaxValue = line.MaxValue,
@@ -123,7 +124,10 @@ public static class CatalogBuilder
                 Id = modId,
                 Name = mods[modId].Name,
                 GenerationType = mods[modId].GenerationType,
+                Family = mods[modId].Type ?? "",
+                RequiredLevel = mods[modId].RequiredLevel,
                 Classes = classes.ToList(),
+                Groups = mods[modId].Groups ?? [],
                 StatLines = statLines,
             });
         }
@@ -182,6 +186,11 @@ public static class CatalogBuilder
         string classLine)
     {
         var corpus = new List<string>(classLines.TryGetValue(classId, out var set) ? set : new HashSet<string>());
+        // Same universal non-mod lines the runtime oracle sees, so embedded
+        // fingerprints avoid them too. The class line must stay LAST: callers
+        // fingerprint it via corpus.Count - 1.
+        foreach (var u in PoeRegex.Core.Compilation.EngineCorpus.UniversalLines)
+            corpus.Add(StatTextRenderer.NormalizeDigits(u));
         corpus.Add(classLine);
         return corpus;
     }

@@ -42,6 +42,107 @@ public sealed class EngineCorpus
         public required List<(string Pattern, string Real)> RealLines { get; init; }
     }
 
+    /// <summary>
+    /// Non-mod lines present on real items: rarity lines (Normal/Magic/Rare
+    /// seen on game copies, Unique by identical shape), the requires shapes
+    /// (level-only, level + one/two attributes, inline (unmet)/(augmented)
+    /// markers), item level, corrupted, sockets, and base item stats
+    /// (defensive lines on armour pieces, damage lines on weapons, granted
+    /// skills) from maintainer captures. Fingerprints and class prefixes must
+    /// avoid these exactly like mod lines (the false-positive rule covers
+    /// unrelated lines; same-text cross-class matches stay legal).
+    /// </summary>
+    public static readonly IReadOnlyList<string> UniversalLines =
+    [
+        "Rarity: Normal",
+        "Rarity: Magic",
+        "Rarity: Rare",
+        "Rarity: Unique",
+        "Requires: Level 55",
+        "Requires: Level 36, 46 Int",
+        "Requires: Level 77, 163 (unmet) Str",
+        "Requires: Level 70, 98 (unmet) Str, 72 Int",
+        "Requires: Level 59, 44 Str, 44 Dex",
+        "Requires: Level 62, 38 (augmented) Str, 38 (augmented) Int",
+        "Item Level: 80",
+        "Corrupted",
+        "Sockets: S S",
+        "Sockets: S",
+        "Armour: 115",
+        "Armour: 138 (augmented)",
+        "Evasion Rating: 117",
+        "Evasion Rating: 117 (augmented)",
+        "Energy Shield: 49",
+        "Energy Shield: 86 (augmented)",
+        "Block chance: 32%",
+        "Block chance: 32% (augmented)",
+        "Physical Damage: 35-59",
+        "Physical Damage: 93-159 (augmented)",
+        "Elemental Damage: 35-59 (fire), 4-64 (lightning)",
+        "Lightning Damage: 2-43 (lightning)",
+        "Critical Hit Chance: 5.00%",
+        "Attacks per Second: 1.45",
+        "Reload Time: 1.10",
+        "Grants Skill: Raise Shield",
+        "Grants Skill: Level 18 Sigil of Power",
+    ];
+
+    /// <summary>Normalized patterns of <see cref="UniversalLines"/>.</summary>
+    public static readonly HashSet<string> UniversalPatterns = UniversalLines
+        .Select(CatalogLineNormalizer.Normalize).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Shortest class-name prefix unique across all catalog class names
+    /// (case-insensitive), extended until its `: prefix` form matches only
+    /// that class's `Item Class:` line and no mod or universal line in the
+    /// corpus. Used for class anchors and paste class groups so they isolate
+    /// the class instead of matching every colon line. Falls back to the full
+    /// name (callers surface residual risk as diagnostics).
+    /// </summary>
+    public string ClassNamePrefix(string itemClass)
+    {
+        var entry = FindItemClass(itemClass);
+        var name = entry?.Name ?? itemClass;
+        var allNames = _catalog.ItemClasses.Select(c => c.Name).ToList();
+        var len = 1;
+        for (; len < name.Length; len++)
+        {
+            var p = name[..len];
+            if (allNames.Count(n => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)) == 1)
+                break;
+        }
+        len = Math.Min(len, name.Length);
+        while (len < name.Length && !PrefixClean(name[..len], name))
+            len++;
+        return name[..len];
+    }
+
+    private bool PrefixClean(string prefix, string className)
+    {
+        var test = ": " + System.Text.RegularExpressions.Regex.Escape(prefix);
+        foreach (var cls in _catalog.ItemClasses)
+        {
+            var line = $"Item Class: {cls.Name}";
+            var hit = System.Text.RegularExpressions.Regex.IsMatch(line, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (cls.Name.Equals(className, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!hit) return false;
+            }
+            else if (hit)
+            {
+                return false;
+            }
+        }
+        foreach (var (_, real) in EnsureUnionIndex().RealLines)
+        {
+            // Class lines are covered by the loop above; here only mod and
+            // universal lines may disqualify the prefix.
+            if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
+            if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
+        }
+        return true;
+    }
+
     public EngineCorpus(Catalog catalog)
     {
         _catalog = catalog;
@@ -62,9 +163,21 @@ public sealed class EngineCorpus
     public IReadOnlyList<string> ClassesForMod(string modId) =>
         _modsById.TryGetValue(modId, out var mod) ? mod.Classes : [];
 
-    /// <summary>Real (un-normalized) copy-text lines on a class, with their patterns.</summary>
+    /// <summary>
+    /// Real (un-normalized) copy-text lines on a class, with their patterns,
+    /// including universal non-mod lines (used by the regex oracle).
+    /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesForClass(string itemClass) =>
         _byClass.TryGetValue(itemClass, out var ci) ? ci.AllRealLines : [];
+
+    /// <summary>
+    /// Matchable copy-text lines on a class: real lines minus universal
+    /// non-mod lines (used by explain/matching; the oracle still sees all).
+    /// </summary>
+    public IReadOnlyList<(string Pattern, string Real)> MatchableLinesForClass(string itemClass) =>
+        _byClass.TryGetValue(itemClass, out var ci)
+            ? ci.AllRealLines.Where(x => !UniversalPatterns.Contains(x.Pattern)).ToList()
+            : [];
 
     /// <summary>Real copy-text lines across every class (global scope), with their patterns.</summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
@@ -208,7 +321,10 @@ public sealed class EngineCorpus
     {
         if (_union is not null) return _union;
 
-        var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern).Distinct().ToList();
+        var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
+            .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
+            .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+            .Distinct().ToList();
         patterns.Sort(StringComparer.Ordinal);
         var patternToIndex = new Dictionary<string, int>();
         for (var i = 0; i < patterns.Count; i++) patternToIndex[patterns[i]] = i;
@@ -216,6 +332,8 @@ public sealed class EngineCorpus
         var realLines = _catalog.Mods
             .SelectMany(m => m.StatLines)
             .Select(sl => (sl.Pattern, sl.Line))
+            .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
+            .Concat(_catalog.ItemClasses.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
             .Distinct()
             .ToList();
 
@@ -254,12 +372,18 @@ public sealed class EngineCorpus
                 foreach (var sl in mod.StatLines) Add(cls, sl.Pattern, sl.Line);
             }
         }
+        foreach (var cls in catalog.ItemClasses)
+        {
+            foreach (var u in UniversalLines)
+                Add(cls.Id, CatalogLineNormalizer.Normalize(u), u);
+        }
 
         var result = new Dictionary<string, ClassIndex>();
         foreach (var cls in catalog.ItemClasses)
         {
             var patterns = patternsByClass.GetValueOrDefault(cls.Id) ?? new HashSet<string>();
             var classLinePattern = CatalogLineNormalizer.Normalize($"Item Class: {cls.Name}");
+            foreach (var u in UniversalLines) patterns.Add(CatalogLineNormalizer.Normalize(u));
             var corpus = new List<string>(patterns) { classLinePattern };
             corpus.Sort(StringComparer.Ordinal);
 

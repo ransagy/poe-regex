@@ -295,6 +295,7 @@ internal static class Program
                 Id = m.Id,
                 Name = m.Name,
                 Line = m.StatLines.FirstOrDefault()?.Line ?? "",
+                Range = m.StatLines.FirstOrDefault()?.RangeLine ?? "",
             }).ToList();
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(payload, new CliJsonContext(JsonOptions).ListJsonModEntry));
         }
@@ -302,8 +303,9 @@ internal static class Program
         {
             foreach (var m in list)
             {
-                var first = m.StatLines.FirstOrDefault()?.Line ?? "";
-                Console.WriteLine($"{m.Id}\t{m.Name ?? ""}\t{first}");
+                var first = m.StatLines.FirstOrDefault();
+                var display = string.IsNullOrEmpty(first?.RangeLine) ? first?.Line ?? "" : first.RangeLine;
+                Console.WriteLine($"{m.Id}\t{m.Name ?? ""}\t{display}");
             }
         }
         return ExitOk;
@@ -313,7 +315,8 @@ internal static class Program
     {
         if ((mod.Name ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)) return true;
         if (mod.Id.Contains(search, StringComparison.OrdinalIgnoreCase)) return true;
-        return mod.StatLines.Any(sl => sl.Line.Contains(search, StringComparison.OrdinalIgnoreCase));
+        return mod.StatLines.Any(sl => sl.Line.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || sl.RangeLine.Contains(search, StringComparison.OrdinalIgnoreCase));
     }
 
     // ---- validate ----

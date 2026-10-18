@@ -1,0 +1,119 @@
+@using PoeRegex.Web.Core
+
+@*
+  Paper doll: the nine gear slots arranged like the PoE2 inventory panel
+  (hand-drawn CSS, no game assets). Slots are absolutely positioned in a
+  fixed-aspect panel (like the game: fixed frames, not a shared grid).
+  Positions follow the in-game panel (maintainer-reviewed).
+
+  Single mode: the selected slot is active. Global: dimmed, inert.
+  Multi mode: clicking a slot moves the editing focus (accent outline);
+  slots with chips are enrolled and filled.
+*@
+<div class="doll @(State.Mode == "global" ? "dimmed" : "")" aria-label="Equipment" aria-disabled="@(State.Mode == "global")">
+    @foreach (var slot in GearSlot.All)
+    {
+        var enrolled = State.Enrolled(slot.Id);
+        var active = State.Mode == "multi" ? enrolled : State.ActiveSlots().Contains(slot.Id);
+        var focused = State.Mode == "multi" ? State.MultiFocus == slot.Id : active;
+        <button id="slot-@slot.Id"
+                class="gear-slot @(active ? "active" : "") @(focused ? "focused" : "")"
+                style="@Placement(slot)"
+                aria-pressed="@active"
+                title="@slot.Label"
+                @onclick="() => State.SelectSlot(slot.Id)">
+            <span class="gear-label">@slot.Label</span>
+        </button>
+    }
+    @if (State.Mode != "global")
+    {
+        @foreach (var slot in GearSlot.All)
+        {
+            if (State.Enrolled(slot.Id))
+            {
+                <button id="slot-clear-@slot.Id"
+                        class="slot-clear"
+                        style="@ClearPlacement(slot)"
+                        title="clear @slot.Label mods"
+                        aria-label="clear @slot.Label mods"
+                        @onclick="() => State.ClearChips(slot.Id)">×</button>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    // Cell-grid layout transcribed from the in-game PoE2 gear panel.
+    // One cell (c) = ring/amulet; helmet/gloves/boots are 2x2, body 2x3,
+    // belt 2x1, weapon/offhand 2 x (4c+2V). Gutters are two classes:
+    // thin vertical V = 0.2c (weapon/ring bottoms -> gloves/boots, amulet ->
+    // ring, helmet -> body, body -> belt) and wide horizontal H = 0.44c
+    // (weapon <-> ring, ring <-> armour, ring2 <-> offhand). Everything is
+    // derived from one chain and uniformly scaled to fit the 4:3 panel.
+    private const double GutterHFactor = 0.44; // horizontal gutter, in cells
+    private const double GutterVFactor = 0.20; // vertical gutter, in cells
+    private const double MarginFactor = 0.70;  // side margin, in cells (reduced: slots reach further into the panel corner gutters)
+
+    /// <summary>One cell, in physical units (panel is 100 wide x 75 tall).</summary>
+    private static double Cell => 100.0 / (8 + 4 * GutterHFactor + 2 * MarginFactor);
+
+    /// <summary>Slot rectangle in physical units (x right, y down).</summary>
+    private static (double X, double Y, double W, double H) Geom(string id)
+    {
+        const double panelH = 75.0;
+        double c = Cell;
+        double gh = GutterHFactor * c, gv = GutterVFactor * c, m = MarginFactor * c;
+        double mt = (panelH - (6 * c + 3 * gv)) / 2; // vertical margins, centered
+
+        double xWeapon = m;
+        double xRing1 = xWeapon + 2 * c + gh;
+        double xBody = xRing1 + c + gh;
+        double xRing2 = xBody + 2 * c + gh;
+        double xOff = xRing2 + c + gh;
+
+        double yWeapon = mt;                 // weapon top = helmet top - V
+        double yHelmet = mt + gv;
+        double yAmulet = yHelmet + 2 * c;    // amulet top = helmet bottom
+        double yRing = yAmulet + c + gv;     // ring bottom = weapon bottom
+        double yBody = yHelmet + 2 * c + gv;
+        double yGloves = yRing + c + gv;     // also boots; bottoms flush with belt
+        double yBelt = yBody + 3 * c + gv;
+
+        return id switch
+        {
+            "weapon" => (xWeapon, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "offhand" => (xOff, yWeapon, 2 * c, 4 * c + 2 * gv),
+            "helmet" => (xBody, yHelmet, 2 * c, 2 * c),
+            "amulet" => (xRing2, yAmulet, c, c),
+            "body" => (xBody, yBody, 2 * c, 3 * c),
+            "ring1" => (xRing1, yRing, c, c),
+            "ring2" => (xRing2, yRing, c, c),
+            "gloves" => (xRing1 - c, yGloves, 2 * c, 2 * c),
+            "belt" => (xBody, yBelt, 2 * c, c),
+            "boots" => (xRing2, yGloves, 2 * c, 2 * c),
+            _ => (0, 0, 0, 0),
+        };
+    }
+
+    private static string Placement(GearSlot slot)
+    {
+        var (x, y, w, h) = Geom(slot.Id);
+        return Rect(x, y, w, h);
+    }
+
+    /// <summary>Clear-X badge at the slot's top-right corner (stays square).</summary>
+    private static string ClearPlacement(GearSlot slot)
+    {
+        var (x, y, w, _) = Geom(slot.Id);
+        double s = Cell * 0.5;
+        double inset = Cell * 0.1;
+        return Rect(x + w - s - inset, y + inset, s, s);
+    }
+
+    private static string Rect(double left, double top, double width, double height) =>
+        FormattableString.Invariant(
+            $"left:{left:0.###}%; top:{top * 4.0 / 3:0.###}%; width:{width:0.###}%; height:{height * 4.0 / 3:0.###}%;");
+}

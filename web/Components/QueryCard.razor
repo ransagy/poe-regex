@@ -1,0 +1,117 @@
+@using PoeRegex.Core
+@using PoeRegex.Core.Explain
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+@inject IJSRuntime JS
+
+<div class="qcard" id="qcard-@CardId">
+    <div class="qcard-head"><span>@Title</span>
+        @if (_result is not null)
+        {
+            <span class="meter" title="@_result.Length/@_result.Limit">
+                <span class="meter-bar meter-@ModSearch.MeterColor(_result.Length, _result.Limit)"
+                      style="width:@(Math.Round(ModSearch.MeterRatio(_result.Length, _result.Limit) * 100))%"></span>
+            </span>
+            <span class="meter-num">@_result.Length/@_result.Limit@(_result.Exceeded ? " OVER" : "")</span>
+        }
+    </div>
+
+    @if (_overflow is not null)
+    {
+        <div class="qerror" id="qcard-@CardId-overflow">
+            over budget: @_overflow.RequestedLength/@_overflow.Limit.
+            <button id="qcard-@CardId-besteffort" @onclick="OnBestEffort">show best-effort</button>
+        </div>
+    }
+    @if (_result is not null)
+    {
+        <div class="qquery" id="qcard-@CardId-query">@_result.Query</div>
+        <div class="qactions">
+            <button id="qcard-@CardId-copy" @onclick="Copy">copy</button>
+            <button id="qcard-@CardId-explain" @onclick="ToggleExplain">
+                @(_showExplain ? "hide explain" : "explain")
+            </button>
+            <span class="qcopy-status">@_copyStatus</span>
+            @if (Engine.Validate(_result.Query) is { } warn)
+            {
+                <span class="qwarn">validate: @warn.Code</span>
+            }
+        </div>
+        @foreach (var d in _result.Diagnostics)
+        {
+            <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+        }
+        @if (_showExplain && _explain is not null)
+        {
+            <div class="qexplain" id="qcard-@CardId-explain-panel">
+                <div class="qexplain-tokens">
+                    @foreach (var t in _explain.Tokens)
+                    {
+                        <div>@(t.Excluded ? "!" : "")"@t.Phrase" [@t.Kind] ×@t.Matches.Count</div>
+                    }
+                </div>
+                <div class="qexplain-mods">
+                    candidates: @_explain.Mods.Count
+                    @foreach (var m in _explain.Mods.Take(25))
+                    {
+                        <div>@m.Id (@string.Join(",", m.Classes))</div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string CardId { get; set; }
+
+    [Parameter, EditorRequired]
+    public required string Title { get; set; }
+
+    [Parameter]
+    public string? ItemClass { get; set; }
+
+    [Parameter]
+    public CompileResult? Result { get; set; }
+
+    [Parameter]
+    public RegexLengthOverflowException? Overflow { get; set; }
+
+    [Parameter]
+    public EventCallback OnBestEffort { get; set; }
+
+    private CompileResult? _result;
+    private RegexLengthOverflowException? _overflow;
+    private ExplainResult? _explain;
+    private bool _showExplain;
+    private string _copyStatus = "";
+
+    protected override void OnParametersSet()
+    {
+        _result = Result;
+        _overflow = Overflow;
+        if (_result is null) _showExplain = false;
+        _explain = null;
+    }
+
+    private void ToggleExplain()
+    {
+        _showExplain = !_showExplain;
+        if (_showExplain && _result is not null)
+            _explain = Engine.Explain(_result.Query, ItemClass);
+    }
+
+    private async Task Copy()
+    {
+        if (_result is null) return;
+        try
+        {
+            _copyStatus = await JS.InvokeAsync<string>("poeRegexCopy", _result.Query);
+        }
+        catch
+        {
+            _copyStatus = "unavailable";
+        }
+    }
+}
