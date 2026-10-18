@@ -1,6 +1,7 @@
-// One-line chip rail: shows pager chips in reserved gutters when the rail
-// overflows, keeps their counts honest, and pages the rail by a window.
-// Wired lazily per row; scroll/resize keep it in sync afterwards.
+// One-line chip rail: pager chips in reserved gutters (with direction and
+// hidden counts), wheel-to-horizontal scrolling, and best-effort scroll
+// anchoring so removals before the viewport don't slide the picks.
+// Wired lazily per row; scroll/resize keep the pager in sync afterwards.
 (function () {
   function railOf(row) {
     return row ? row.querySelector(".chips") : null;
@@ -11,18 +12,45 @@
     btn.classList.remove("show", "hid");
   }
 
-  function label(btn, n, what) {
+  function label(btn, n, what, atStart) {
     if (!btn) return;
-    const text = "\u2026 +" + n;
+    const text = atStart ? "\u2039 +" + n : "+" + n + " \u203A";
     if (btn.textContent !== text) btn.textContent = text;
-    const title = what + " (" + n + ")";
+    const title = what + " (" + n + " hidden)";
     if (btn.title !== title) {
       btn.title = title;
       btn.setAttribute("aria-label", title);
     }
   }
 
-  function sync(row) {
+  // Remember the chip pinned at the left edge (and its offset) so a removal
+  // somewhere before the viewport can be compensated on the next sync.
+  function remember(row, rail) {
+    const r = rail.getBoundingClientRect();
+    let anchor = null;
+    for (const el of rail.children) {
+      if (el.getBoundingClientRect().left >= r.left - 1) {
+        anchor = el;
+        break;
+      }
+    }
+    if (!anchor) {
+      delete row.dataset.anchor;
+      delete row.dataset.anchorDx;
+      return;
+    }
+    row.dataset.anchor = anchor.id;
+    row.dataset.anchorDx = String(anchor.offsetLeft - rail.scrollLeft);
+  }
+
+  function restoreAnchor(row, rail) {
+    if (!row.dataset.anchor) return;
+    const anchor = document.getElementById(row.dataset.anchor);
+    if (!anchor || !rail.contains(anchor)) return;
+    rail.scrollLeft = anchor.offsetLeft - Number(row.dataset.anchorDx || 0);
+  }
+
+  function sync(row, fromRender) {
     const rail = railOf(row);
     if (!rail) return;
     const start = row.querySelector(".chips-more.start");
@@ -33,12 +61,16 @@
     if (!overflowing) {
       hide(start);
       hide(end);
+      remember(row, rail);
       return;
     }
     // Reserve both gutters (they are display:none until the first overflow;
     // showing them can only narrow the rail, so this never flips back).
     start.classList.add("show");
     end.classList.add("show");
+    // Only a render-driven sync restores the anchor: scrolling must never be
+    // fought (paging animations fire scroll events of their own).
+    if (fromRender) restoreAnchor(row, rail);
     const r = rail.getBoundingClientRect();
     let before = 0;
     let after = 0;
@@ -57,9 +89,10 @@
     const endN = after + (clipEnd ? 1 : 0);
     start.classList.toggle("hid", startN === 0);
     end.classList.toggle("hid", endN === 0);
-    if (startN > 0) label(start, startN, "show picks hidden at the start");
-    if (endN > 0) label(end, endN, "show picks hidden at the end");
-    if (overflowing !== wasPaged) requestAnimationFrame(() => sync(row));
+    if (startN > 0) label(start, startN, "show earlier picks", true);
+    if (endN > 0) label(end, endN, "show later picks", false);
+    remember(row, rail);
+    if (overflowing !== wasPaged) requestAnimationFrame(() => sync(row, fromRender));
   }
 
   function page(rail, dir) {
@@ -87,35 +120,37 @@
     if (row.dataset.wired) return;
     row.dataset.wired = "1";
     const rail = railOf(row);
-    rail.addEventListener("scroll", () => sync(row), { passive: true });
-    if (window.ResizeObserver) new ResizeObserver(() => sync(row)).observe(rail);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => sync(row));
+    rail.addEventListener("scroll", () => sync(row, false), { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(() => sync(row, false)).observe(rail);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => sync(row, false));
     for (const btn of row.querySelectorAll(".chips-more")) {
       btn.addEventListener("click", () => page(rail, Number(btn.dataset.dir) || 1));
     }
+    rail.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal gesture
+      if (row.dataset.paged !== "1") return;
+      const step = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rail.clientWidth : 1;
+      const delta = e.deltaY * step;
+      const atStart = rail.scrollLeft <= 0;
+      const atEnd = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 1;
+      if ((delta < 0 && atStart) || (delta > 0 && atEnd)) {
+        // At the rail's ends the family list (a sibling, so browsers won't
+        // chain to it) keeps the wheel moving.
+        const list = row.parentElement ? row.parentElement.querySelector(".mod-list") : null;
+        if (!list) return;
+        list.scrollTop += delta;
+        e.preventDefault();
+        return;
+      }
+      rail.scrollLeft += delta;
+      e.preventDefault();
+    }, { passive: false });
   }
 
   window.poeRegexChipsSync = function (rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
     wire(row);
-    sync(row);
-  };
-
-  window.poeRegexChipsEnd = function (rowId) {
-    const row = document.getElementById(rowId);
-    if (!row) return;
-    const rail = railOf(row);
-    if (!rail) return;
-    // Jump to the tail, left-aligned on a chip start so the newest picks read
-    // as full labels rather than half ones.
-    const max = rail.scrollWidth - rail.clientWidth;
-    let target = 0;
-    for (const el of rail.children) {
-      if (el.offsetLeft <= max) target = el.offsetLeft;
-      else break;
-    }
-    rail.scrollLeft = target;
-    sync(row);
+    sync(row, true);
   };
 })();

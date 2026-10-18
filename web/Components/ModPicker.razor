@@ -10,7 +10,7 @@
     @if (crit.Included.Count + crit.Excluded.Count > 0)
     {
         <div class="chips-row" id="@RailRowId">
-            <button type="button" class="chips-more start" data-dir="-1" aria-label="show picks hidden at the start">…</button>
+            <button type="button" class="chips-more start" data-dir="-1" aria-label="show earlier picks">‹</button>
             <div class="chips" aria-label="Wanted mods">
                 @foreach (var inc in crit.Included)
                 {
@@ -27,7 +27,7 @@
                     </button>
                 }
             </div>
-            <button type="button" class="chips-more end" data-dir="1" aria-label="show picks hidden at the end">…</button>
+            <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks">›</button>
             <button class="chip clear" id="chips-clear-@Scope" @onclick="() => State.ClearChips(Scope)">clear</button>
         </div>
     }
@@ -41,11 +41,7 @@
             @if (_bulkVisible)
             {
                 <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
-                        disabled="@_bulkOverflow" @onclick="SelectAll">
-                    <svg class="bulk-glyph" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
-                        <path d="M2.5 5.5H8.5M5.5 2.5V8.5M5.5 8.5H11.5M8.5 5.5V11.5" />
-                    </svg>
-                </button>
+                        disabled="@_bulkOverflow" @onclick="SelectAll">++</button>
             }
         </div>
     </div>
@@ -156,7 +152,6 @@
     private int _bulkNew;
     private int _bulkLength;
     private int _bulkLimit;
-    private bool _scrollRailToEnd;
 
     private string RailRowId => $"chips-row-{Scope ?? "global"}";
 
@@ -168,16 +163,10 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         var crit = ScopeCriteria();
-        var hasChips = crit.Included.Count + crit.Excluded.Count > 0;
+        if (crit.Included.Count + crit.Excluded.Count == 0) return;
         try
         {
-            if (hasChips)
-                await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
-            if (_scrollRailToEnd)
-            {
-                _scrollRailToEnd = false;
-                await JS.InvokeVoidAsync("poeRegexChipsEnd", RailRowId);
-            }
+            await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
         }
         catch
         {
@@ -297,12 +286,12 @@
     }
 
     /// <summary>Adds every family matching the filter in one notification and
-    /// leaves the filter in place; the rail jumps to the new chips.</summary>
+    /// leaves the filter in place. The rail keeps its scroll position (picks
+    /// append, so nothing shifts); the pagers reveal what is off-screen.</summary>
     private void SelectAll()
     {
         if (_bulkOverflow) return;
-        var added = State.AddIncludes(Scope, _families.Select(f => new WantedMod(f.Anchor.Id)));
-        if (added > 0) _scrollRailToEnd = true;
+        State.AddIncludes(Scope, _families.Select(f => new WantedMod(f.Anchor.Id)));
         Refresh();
     }
 }

@@ -297,14 +297,18 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
 - **Follow-up round 11 — feedback round 1, picker discipline + budget truth
   (part 1 of 3).** The stray "select all" button is gone. `++` now caps the
-  filter's right edge (layered double-plus glyph) and exists only while a
+  filter's right edge (a text `++`; the first layered SVG read as a sideways
+  DNA strand at 15px) and exists only while a
   filter is typed; it adds every matching family in **one** state
   notification (`WorkbenchState.AddIncludes`) instead of a compile + snapshot
   save per chip — the old path froze the page at ~200 families and then pushed
   the picker out of the panel, burying the clear chip. Picks now render in a
-  one-line rail with `… +N` pager chips in reserved gutters (chip-aligned
-  paging, hidden scrollbar, `clear` pinned outside the rail): a large pick set
-  can't grow the editor, and `++` jumps to the newly added chips. `++` is
+  one-line rail with directional `‹ +N` / `+N ›` pager chips in reserved
+  gutters (chip-aligned paging, hidden scrollbar, the mouse wheel scrolls the
+  rail sideways and continues into the mod list at either end, `clear` pinned
+  outside the rail): a large pick set
+  can't grow the editor, and adds never move the rail (removals restore a
+  best-effort anchor so the leading chip stays put). `++` is
   disabled when the prospective compile (current picks + every match,
   previewed with `allowOverflow` through `SlotBudget.Preview`) would exceed
   the game's 250-character limit; the tooltip carries the reason and the
@@ -316,7 +320,12 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   18 "life" matches → 131/250 in one batch with the filter kept; "damage"
   (56 matches) blocked at 267/250 and "a" (194) at 810/250; rail one line at
   1920/900 with working paging and a pinned clear; 320/250 OVER still renders
-  the full 320-char string with copy enabled and no placeholder. Full slnx
+  the full 320-char string with copy enabled and no placeholder. Review
+  tweaks (same PR): the wheel scrolls the rail sideways and continues into the
+  mod list at either end; a blank rail stays at `scrollLeft 0` after `++`
+  (no end-jump); removing an off-screen chip leaves the leading chip at the
+  same x (anchor compensation); pager labels carry direction
+  (`‹ +N` / `+N ›`). Full slnx
   10+131+66 green. QA note: family-level picks whose stat text is a prefix of
   a hybrid line (e.g. helmet `% increased Armour` vs `% increased Armour and
   Energy Shield`) resolve to no fragment and contribute nothing — a

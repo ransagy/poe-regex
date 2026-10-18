@@ -368,12 +368,9 @@ select, input {
 .search-unit #mod-search { flex: 1 1 auto; min-width: 0; padding-right: 2.4rem; }
 .search-unit #suggest-all {
     position: absolute; top: -1px; bottom: -1px; right: -1px;
-    display: inline-flex; align-items: center; box-sizing: border-box;
-    padding: 0 0.5rem; font-size: 0.85rem;
-}
-.search-unit #suggest-all .bulk-glyph {
-    width: 0.95rem; height: 0.95rem; fill: none;
-    stroke: currentColor; stroke-width: 1.4;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box;
+    padding: 0 0.5rem; font-family: Consolas, monospace; font-size: 0.95rem;
 }
 .search-unit #suggest-all:disabled {
     background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
