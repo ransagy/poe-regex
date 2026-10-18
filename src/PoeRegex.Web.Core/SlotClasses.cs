@@ -2,14 +2,15 @@ namespace PoeRegex.Web.Core;
 
 /// <summary>
 /// Which item classes fit each gear slot. Armour/accessory slots are 1:1;
-/// the weapon slot takes weapons and offhands (everything playable except
-/// the slotted armour/accessory classes and talismans).
+/// the weapon and offhand slots take everything else — weapons and offhands
+/// alike (dual wielding is legal, and pointing both slots at different base
+/// types is the intended stand-in while weapon sets don't exist).
 /// </summary>
 public static class SlotClasses
 {
     private static readonly HashSet<string> NonWeapon = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Helmet", "Body Armour", "Gloves", "Boots", "Belt", "Amulet", "Ring", "Talisman",
+        "Helmet", "Body Armour", "Gloves", "Boots", "Belt", "Amulet", "Ring",
     };
 
     public static IReadOnlyList<string> AllowedFor(string slotId, IEnumerable<string> playableIds)

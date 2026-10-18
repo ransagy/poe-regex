@@ -25,15 +25,16 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void InGameClasses_ExcludesUnreleasedBases()
+    public void InGameClasses_ExcludesUnreleasedAndDataminedBases()
     {
         var ids = Engine.InGameClasses().Select(c => c.Id).ToList();
         ids.Should().NotContain([
-            "Dagger", "Claw", "Flail", "Warstaff",
-            "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe"]);
+            "Dagger", "Claw", "Flail",
+            "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
+            "FishingRod", "TrapTool"]);
         ids.Should().Contain(["Ring", "Crossbow", "Bow", "Staff", "Spear", "Wand",
-            "Sceptre", "Shield", "Focus", "Buckler", "Quiver", "FishingRod", "TrapTool"]);
-        ids.Should().HaveCount(Engine.PlayableClasses().Count() - 8);
+            "Sceptre", "Shield", "Focus", "Buckler", "Quiver", "Warstaff", "Talisman"]);
+        ids.Should().HaveCount(Engine.PlayableClasses().Count() - 9);
     }
 
     [Fact]

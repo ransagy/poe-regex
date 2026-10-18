@@ -24,10 +24,11 @@ public sealed record MultiPasteResult
 
 /// <summary>
 /// Composes per-slot criteria into a single stash-paste string: an anchor
-/// group listing every selected slot's class prefix, plus one group per
-/// modded criterion listing all selected prefixes EXCEPT its targets OR'd
-/// with the target's mod fragments. Whole-text multiline matching, OR inside
-/// groups, AND across groups. Deterministic output; enforces the game limit.
+/// group over every selected slot's class alternation (see
+/// <see cref="ClassAlternation"/>), plus one group per modded criterion
+/// listing all selected classes EXCEPT its targets OR'd with the target's mod
+/// fragments. Whole-text multiline matching, OR inside groups, AND across
+/// groups. Deterministic output; enforces the game limit.
 /// </summary>
 public sealed class PasteComposer
 {
@@ -83,9 +84,8 @@ public sealed class PasteComposer
         merged.Sort((a, b) => string.CompareOrdinal(a.ItemClass, b.ItemClass));
 
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
-        var prefixes = scope.ToDictionary(c => c, ClassPrefix, StringComparer.Ordinal);
 
-        var anchorInner = ": (" + string.Join("|", scope.Select(c => _strategy.EscapeLiteral(prefixes[c]))) + ")";
+        var anchorInner = ": (" + ClassAlternation.Build(_corpus, _strategy, scope) + ")";
         var anchorDiag = _strategy.ValidateFragment(anchorInner);
         if (anchorDiag is not null) diagnostics.Add(anchorDiag);
         ValidateAnchor(anchorInner, scope, diagnostics);
@@ -114,11 +114,10 @@ public sealed class PasteComposer
                 if (_corpus.FindMod(req.Value) is not null) sources.Add(req.Value);
             }
             if (frags.Count == 0) continue;
-            var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal))
-                .Select(c => prefixes[c]).ToList();
+            var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal)).ToList();
             var factored = CompactionEngine.FactorCommonPrefixes(frags);
             var token = others.Count > 0
-                ? ": (" + string.Join("|", others.Select(p => _strategy.EscapeLiteral(p))) + ")|" + string.Join("|", factored)
+                ? ": (" + ClassAlternation.Build(_corpus, _strategy, others) + ")|" + string.Join("|", factored)
                 : string.Join("|", factored);
             var tokenDiag = _strategy.ValidateFragment(token);
             if (tokenDiag is not null) diagnostics.Add(tokenDiag);
