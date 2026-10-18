@@ -75,13 +75,6 @@
     remember(row, rail);
   }
 
-  function forward(row, delta) {
-    // The family list is a sibling, so browsers never chain to it natively.
-    const list = row.parentElement ? row.parentElement.querySelector(".mod-list") : null;
-    if (!list) return;
-    list.scrollTop += delta;
-  }
-
   function page(rail, dir) {
     const items = Array.from(rail.children);
     if (items.length === 0) return;
@@ -120,11 +113,7 @@
       const max = rail.scrollWidth - rail.clientWidth;
       const canScroll = max > 0 &&
         ((delta < 0 && rail.scrollLeft > 0) || (delta > 0 && rail.scrollLeft < max - 1));
-      if (!canScroll) {
-        forward(row, delta);
-        e.preventDefault();
-        return;
-      }
+      if (!canScroll) return; // at the ends nothing else moves — the list stays unlinked
       rail.scrollLeft += delta;
       e.preventDefault();
     }, { passive: false });

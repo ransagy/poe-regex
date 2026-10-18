@@ -346,24 +346,25 @@ select, input {
 .modpicker .chips::-webkit-scrollbar { display: none; }
 .modpicker .chips > * { flex: none; }
 .chips-more {
-    display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 0.15rem;
+    display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 0.2rem;
     width: 2.9rem; overflow: hidden; white-space: nowrap;
     font: inherit; font-size: 0.75rem; padding: 0.15rem 0;
-    border: 1px dashed var(--panel-edge); background: var(--panel); color: var(--dim);
+    border: 1px solid var(--panel-edge-hi); background: var(--slot-active); color: var(--dim);
     cursor: pointer;
 }
-.chips-more .dir { color: inherit; }
-.chips-more:not(:disabled) .dir { color: var(--ink); font-size: 1rem; line-height: 1; }
+.chips-more .dir { color: #ffe9a8; font-size: 1.1rem; line-height: 1; }
 .chips-more .n { font-size: 0.72rem; }
-.chips-more:hover:not(:disabled) { color: var(--ink); border-color: var(--panel-edge-hi); }
+.chips-more:hover:not(:disabled) .n { color: var(--ink); }
 .chips-more:disabled {
-    background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
+    border-style: dashed; background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
     opacity: 0.72; cursor: not-allowed;
 }
+.chips-more:disabled .dir { color: inherit; font-size: 1rem; }
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
-.chip.clear { border-style: dashed; color: var(--dim); }
+.chip.clear { border-style: dashed; background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; }
+.chip.clear:hover { background: #4a2018; color: #ffb0b0; border-color: #b95555; }
 
 .modrow { display: flex; gap: 0.4rem; }
 /* Filter + its right-edge "add all matches" button read as one unit: the
@@ -498,7 +499,7 @@ button[id^="slot-copy-"] {
     background: var(--slot-active); border-color: var(--panel-edge-hi); color: #ffe9a8;
 }
 .result-strip button { color: var(--dim); }
-.chip.clear:hover, .chip.inc:hover, .chip.exc:hover {
+.chip.inc:hover, .chip.exc:hover {
     background: #3a1814; color: #ff9b9b; border-color: #8a3f3f;
 }
 .mode-btn:hover { color: #ffe9a8; border-color: var(--panel-edge-hi); background: var(--slot-active); }

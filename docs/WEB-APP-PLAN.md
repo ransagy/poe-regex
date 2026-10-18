@@ -333,8 +333,8 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   the picker out of the panel, burying the clear chip. Picks now render in a
   one-line rail with directional `‹ +N` / `+N ›` pager chips in reserved
   gutters (chip-aligned paging, hidden scrollbar, the mouse wheel scrolls the
-  rail sideways and continues into the mod list at either end, `clear` pinned
-  outside the rail): a large pick set
+  rail sideways only — no list linkage — `clear` pinned outside the rail):
+  a large pick set
   can't grow the editor, and adds never move the rail (removals restore a
   best-effort anchor so the leading chip stays put). `++` is
   disabled when the prospective compile (current picks + every match,
@@ -349,12 +349,13 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   (56 matches) blocked at 267/250 and "a" (194) at 810/250; rail one line at
   1920/900 with working paging and a pinned clear; 320/250 OVER still renders
   the full 320-char string with copy enabled and no placeholder. Review
-  tweaks (same PR): the wheel scrolls the rail sideways and continues into the
-  mod list when the rail can't move; a blank rail stays at `scrollLeft 0`
+  tweaks (same PR): the wheel scrolls the rail sideways only (the family list
+  is not wheel-linked); a blank rail stays at `scrollLeft 0`
   after `++` (no end-jump); removing an off-screen chip leaves the leading
   chip at the same x (anchor compensation); the pagers sit in their gutters
-  permanently with direction and true counts (`‹ +N` / `+N ›`), disabled and
-  grayed at 0; the `++` tooltip says "matching families" and the button is
+  permanently with direction and true counts (`‹ +N` / `+N ›`), gold-accented
+  when they can move and dashed-gray at 0, and `clear` carries the destructive
+  red at rest; the `++` tooltip says "matching families" and the button is
   frame-flush with the filter at the filter's own font size. Full slnx
   10+131+66 green. QA note: family-level picks whose stat text is a prefix of
   a hybrid line (e.g. helmet `% increased Armour` vs `% increased Armour and

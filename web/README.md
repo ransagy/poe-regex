@@ -139,11 +139,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   pixel-identical, so switching modes never shifts the picker.
 - Picks live in a one-line rail: it never wraps or grows, so a large pick set
   can't push the picker out of the panel. Directional `‹ +N` / `+N ›` pagers
-  sit in reserved gutters and always show the true count — disabled and grayed
-  when nothing is hidden that way — and page by chip-aligned windows (the rail
-  scrollbar is hidden; the mouse wheel scrolls it sideways and continues into
-  the mod list when the rail can't move; trackpad and keyboard focus work as
-  usual). `clear` is pinned beside it, adding picks never moves the rail, and
+  sit in reserved gutters and always show the true count — gold-accented and
+  clickable when there is something that way, dashed and grayed when there
+  isn't — and page by chip-aligned windows (the rail scrollbar is hidden; the
+  mouse wheel scrolls it sideways, and at the rail's ends the wheel does
+  nothing — the family list is deliberately not wheel-linked; trackpad and
+  keyboard focus work as usual). `clear` carries the destructive red at rest
+  and is pinned beside the rail; adding picks never moves the rail, and
   removals keep the leading chip pinned (best effort). The compiled-query box
   keeps its value when over budget: the full string stays, the `k/N` meter
   shows the red `OVER` state, and copy stays enabled.
