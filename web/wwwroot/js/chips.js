@@ -1,26 +1,11 @@
-// One-line chip rail: pager chips in reserved gutters (with direction and
-// hidden counts), wheel-to-horizontal scrolling, and best-effort scroll
-// anchoring so removals before the viewport don't slide the picks.
-// Wired lazily per row; scroll/resize keep the pager in sync afterwards.
+// One-line chip rail: pagers always sit in their gutters with the true count
+// (disabled + grayed when nothing is hidden that way), the mouse wheel scrolls
+// the rail sideways (and continues into the family list when the rail can't
+// move), and a best-effort anchor keeps the leading chip pinned across
+// removals. Wired lazily per row; scroll/resize keep it in sync afterwards.
 (function () {
   function railOf(row) {
     return row ? row.querySelector(".chips") : null;
-  }
-
-  function hide(btn) {
-    if (!btn) return;
-    btn.classList.remove("show", "hid");
-  }
-
-  function label(btn, n, what, atStart) {
-    if (!btn) return;
-    const text = atStart ? "\u2039 +" + n : "+" + n + " \u203A";
-    if (btn.textContent !== text) btn.textContent = text;
-    const title = what + " (" + n + " hidden)";
-    if (btn.title !== title) {
-      btn.title = title;
-      btn.setAttribute("aria-label", title);
-    }
   }
 
   // Remember the chip pinned at the left edge (and its offset) so a removal
@@ -50,24 +35,24 @@
     rail.scrollLeft = anchor.offsetLeft - Number(row.dataset.anchorDx || 0);
   }
 
+  function setPager(btn, n, atStart) {
+    if (!btn) return;
+    const span = btn.querySelector(".n");
+    const text = "+" + n;
+    if (span && span.textContent !== text) span.textContent = text;
+    btn.disabled = n === 0;
+    const title = n > 0
+      ? (atStart ? "show earlier picks (" : "show later picks (") + n + " hidden)"
+      : (atStart ? "no earlier picks" : "no later picks");
+    if (btn.title !== title) {
+      btn.title = title;
+      btn.setAttribute("aria-label", title);
+    }
+  }
+
   function sync(row, fromRender) {
     const rail = railOf(row);
     if (!rail) return;
-    const start = row.querySelector(".chips-more.start");
-    const end = row.querySelector(".chips-more.end");
-    const overflowing = rail.scrollWidth > rail.clientWidth + 1;
-    const wasPaged = row.dataset.paged === "1";
-    row.dataset.paged = overflowing ? "1" : "0";
-    if (!overflowing) {
-      hide(start);
-      hide(end);
-      remember(row, rail);
-      return;
-    }
-    // Reserve both gutters (they are display:none until the first overflow;
-    // showing them can only narrow the rail, so this never flips back).
-    start.classList.add("show");
-    end.classList.add("show");
     // Only a render-driven sync restores the anchor: scrolling must never be
     // fought (paging animations fire scroll events of their own).
     if (fromRender) restoreAnchor(row, rail);
@@ -85,14 +70,16 @@
         if (b.right > r.right + 1) clipEnd = true;
       }
     }
-    const startN = before + (clipStart ? 1 : 0);
-    const endN = after + (clipEnd ? 1 : 0);
-    start.classList.toggle("hid", startN === 0);
-    end.classList.toggle("hid", endN === 0);
-    if (startN > 0) label(start, startN, "show earlier picks", true);
-    if (endN > 0) label(end, endN, "show later picks", false);
+    setPager(row.querySelector(".chips-more.start"), before + (clipStart ? 1 : 0), true);
+    setPager(row.querySelector(".chips-more.end"), after + (clipEnd ? 1 : 0), false);
     remember(row, rail);
-    if (overflowing !== wasPaged) requestAnimationFrame(() => sync(row, fromRender));
+  }
+
+  function forward(row, delta) {
+    // The family list is a sibling, so browsers never chain to it natively.
+    const list = row.parentElement ? row.parentElement.querySelector(".mod-list") : null;
+    if (!list) return;
+    list.scrollTop += delta;
   }
 
   function page(rail, dir) {
@@ -128,17 +115,13 @@
     }
     rail.addEventListener("wheel", (e) => {
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal gesture
-      if (row.dataset.paged !== "1") return;
       const step = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rail.clientWidth : 1;
       const delta = e.deltaY * step;
-      const atStart = rail.scrollLeft <= 0;
-      const atEnd = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 1;
-      if ((delta < 0 && atStart) || (delta > 0 && atEnd)) {
-        // At the rail's ends the family list (a sibling, so browsers won't
-        // chain to it) keeps the wheel moving.
-        const list = row.parentElement ? row.parentElement.querySelector(".mod-list") : null;
-        if (!list) return;
-        list.scrollTop += delta;
+      const max = rail.scrollWidth - rail.clientWidth;
+      const canScroll = max > 0 &&
+        ((delta < 0 && rail.scrollLeft > 0) || (delta > 0 && rail.scrollLeft < max - 1));
+      if (!canScroll) {
+        forward(row, delta);
         e.preventDefault();
         return;
       }

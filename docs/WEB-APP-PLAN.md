@@ -322,10 +322,12 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   1920/900 with working paging and a pinned clear; 320/250 OVER still renders
   the full 320-char string with copy enabled and no placeholder. Review
   tweaks (same PR): the wheel scrolls the rail sideways and continues into the
-  mod list at either end; a blank rail stays at `scrollLeft 0` after `++`
-  (no end-jump); removing an off-screen chip leaves the leading chip at the
-  same x (anchor compensation); pager labels carry direction
-  (`‹ +N` / `+N ›`). Full slnx
+  mod list when the rail can't move; a blank rail stays at `scrollLeft 0`
+  after `++` (no end-jump); removing an off-screen chip leaves the leading
+  chip at the same x (anchor compensation); the pagers sit in their gutters
+  permanently with direction and true counts (`‹ +N` / `+N ›`), disabled and
+  grayed at 0; the `++` tooltip says "matching families" and the button is
+  frame-flush with the filter at the filter's own font size. Full slnx
   10+131+66 green. QA note: family-level picks whose stat text is a prefix of
   a hybrid line (e.g. helmet `% increased Armour` vs `% increased Armour and
   Energy Shield`) resolve to no fragment and contribute nothing — a

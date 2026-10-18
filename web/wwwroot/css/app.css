@@ -346,15 +346,20 @@ select, input {
 .modpicker .chips::-webkit-scrollbar { display: none; }
 .modpicker .chips > * { flex: none; }
 .chips-more {
-    display: none; flex: none; align-items: center; justify-content: center;
-    width: 3.2rem; overflow: hidden; white-space: nowrap;
+    display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 0.15rem;
+    width: 2.9rem; overflow: hidden; white-space: nowrap;
     font: inherit; font-size: 0.75rem; padding: 0.15rem 0;
     border: 1px dashed var(--panel-edge); background: var(--panel); color: var(--dim);
     cursor: pointer;
 }
-.chips-more.show { display: inline-flex; }
-.chips-more.hid { visibility: hidden; }
-.chips-more:hover { color: var(--ink); border-color: var(--panel-edge-hi); }
+.chips-more .dir { color: inherit; }
+.chips-more:not(:disabled) .dir { color: var(--ink); font-size: 1rem; line-height: 1; }
+.chips-more .n { font-size: 0.72rem; }
+.chips-more:hover:not(:disabled) { color: var(--ink); border-color: var(--panel-edge-hi); }
+.chips-more:disabled {
+    background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
+    opacity: 0.72; cursor: not-allowed;
+}
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
@@ -367,10 +372,10 @@ select, input {
 .search-unit { position: relative; display: flex; flex: 3; min-width: 0; }
 .search-unit #mod-search { flex: 1 1 auto; min-width: 0; padding-right: 2.4rem; }
 .search-unit #suggest-all {
-    position: absolute; top: -1px; bottom: -1px; right: -1px;
+    position: absolute; top: 0; bottom: 0; right: 0;
     display: inline-flex; align-items: center; justify-content: center;
     box-sizing: border-box;
-    padding: 0 0.5rem; font-family: Consolas, monospace; font-size: 0.95rem;
+    padding: 0 0.5rem; font-family: Consolas, monospace; font-size: 0.85rem;
 }
 .search-unit #suggest-all:disabled {
     background: #1a150f; border-color: #5b5b5b; color: #9d9d9d;
