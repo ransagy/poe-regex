@@ -24,7 +24,7 @@ bindings) running under Node with the experimental FFI flag.
 
 ```sh
 cd demos/opentui-tui
-npm install
+npm ci
 npm run build:cli   # or: export POE_REGEX_BIN=/path/to/PoeRegex.Cli
 ```
 
