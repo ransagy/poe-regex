@@ -100,3 +100,9 @@ git tag v0.1.0 && git push origin v0.1.0
 Artifacts per platform are named `poe-regex-<rid>` (`poe-regex-win-x64.exe`,
 `poe-regex-linux-x64`, `poe-regex-osx-arm64`, `poe-regex-osx-x64`) plus their
 `.pdb`/`.dbg` symbol files.
+
+## Workflow security
+
+Workflow actions are pinned to full commit SHAs with the release tag in a
+trailing comment. `.github/dependabot.yml` updates the pins monthly, and the
+repository requires SHA pinning for workflow changes.
