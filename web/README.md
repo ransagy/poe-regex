@@ -3,9 +3,11 @@
 Blazor WebAssembly app that runs `PoeRegex.Core` **in the browser**: a
 PoE2-inventory-style workbench with editable gear slots, live-compiled regex
 queries, a backpack test-items lab, and English advanced-description import.
-No backend, no network calls, no game assets (all panels are hand-drawn
-CSS/SVG). The deployed static build is at
-<https://renlys-recipes.pages.dev> (link-only; noindex).
+No backend and no app-level network calls; no game assets (all panels are
+hand-drawn CSS/SVG). The deployed static build is at
+<https://renlys-recipes.pages.dev> (link-only; noindex) and includes
+Cloudflare Web Analytics — cookieless page-view counts injected by the host,
+not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 
 Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
 Deployment: [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
@@ -37,6 +39,12 @@ The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 Cloudflare Pages image, publishes the app, and stamps the commit into
 `build-info.json`. See [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
 
+The Pages project has Cloudflare Web Analytics enabled, so Pages injects its
+cookieless beacon into the served HTML. It is not part of the app source; if
+you host your own copy, disable it in the project settings or leave it out.
+The build also ships `license.txt`, `notice.txt` and `provenance.md`, linked
+from the Advanced panel.
+
 ## Load the five real sample items
 
 `docs/samples/real-items.txt` holds the maintainer-provided real item
@@ -61,8 +69,8 @@ Scripted browser verification (publish + serve + headless Chromium driven
 over CDP; `publish` output goes to a temp dir, never into the repo):
 
 ```sh
-dotnet publish web/web.csproj -c Release -o /tmp/opencode/webpub
-cd /tmp/opencode/webpub/wwwroot && python3 -m http.server 8080
+dotnet publish web/web.csproj -c Release -o /tmp/webpub
+cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 # in another shell: chromium --headless=new --remote-debugging-port=9222 http://127.0.0.1:8080/
 ```
 

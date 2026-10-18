@@ -28,7 +28,9 @@ excluded from search engines).
 - **Web workbench** (`web/`, "Renly's Recipes"): Blazor WebAssembly running
   `PoeRegex.Core` in the browser — gear slots, live queries for the in-game
   Highlight box, an item-import lab, and a test-item backpack. Static site,
-  no backend, no network calls.
+  no backend; the app makes no network calls of its own (the Cloudflare-hosted
+  build includes cookieless Cloudflare Web Analytics — see
+  [`web/README.md`](web/README.md)).
 - **Tests** (`tests/`): engine unit tests plus no-false-positive property tests
   over both shipped catalogs.
 

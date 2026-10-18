@@ -33,6 +33,11 @@ find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
 # index.html, which browsers reject as a stylesheet on the MIME type.
 [ -f out/web/wwwroot/web.styles.css ] || touch out/web/wwwroot/web.styles.css
 
+# Ship the license notices with the published copy of the site.
+cp LICENSE out/web/wwwroot/license.txt
+cp NOTICE out/web/wwwroot/notice.txt
+cp docs/PROVENANCE.md out/web/wwwroot/provenance.md
+
 # Stamp the build so any deployment can be traced back to a commit.
 # Cloudflare injects CF_PAGES_* during Pages builds; locally fall back to git.
 COMMIT="${CF_PAGES_COMMIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"

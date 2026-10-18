@@ -58,8 +58,8 @@ Reproduce the Cloudflare build locally with:
   link-only). A custom domain is not matched and stays indexable.
 - `build-info.json` is generated into the output on every build (commit,
   branch, and deployment URL from Cloudflare's `CF_PAGES_*` build
-  variables, with a local `git` fallback). The Advanced debugging panel
-  shows the short commit + branch, so any deployment URL — including the
+  variables, with a local `git` fallback). The Advanced panel shows the short
+  commit + branch, so any deployment URL — including the
   frozen `<hash>.pages.dev` snapshots — can be traced to its exact commit.
 
 ## CI
@@ -68,6 +68,22 @@ Reproduce the Cloudflare build locally with:
 pushes to `main`. It needs no Cloudflare credentials; deploys are owned
 by the Cloudflare GitHub App integration. The CLI release pipeline
 (`release.yml`) is unchanged.
+
+## Analytics
+
+The Pages project has Cloudflare Web Analytics enabled. Pages injects its
+cookieless beacon (`static.cloudflareinsights.com`) into every served HTML
+response; it is not part of the app source. Disable it in the project
+settings if you redeploy this site without analytics. Details:
+<https://developers.cloudflare.com/web-analytics/>.
+
+## Deployment retention
+
+Only the current production deployment is kept. After a deploy is verified on
+the production URL (build-info trace plus an app boot check), older production
+and preview deployments are deleted through the Cloudflare API so their hash
+and branch URLs stop resolving. Deleting a preview also removes its branch
+alias (`<branch>.<project>.pages.dev`).
 
 ## Status
 

@@ -12,12 +12,13 @@ untouched. The deployed static build runs on Cloudflare Pages (see
 - **Runtime**: Blazor WebAssembly standalone (`net10.0`) running
   `src/PoeRegex.Core` in-process. Core is BCL-only, `IsAotCompatible`,
   source-generated JSON (`CatalogJsonContext`), no file/threading use, and the
-  poe2 catalog ships embedded (520 KB).
+  poe2 catalog ships embedded (~730 KiB).
 - **Game scope**: PoE2 only (multi-quoted-group AND, `!` negation, lookahead).
   PoE1 stays in the catalog but is not loaded.
-- **Gear slots (9)**: weapon (single concept; swaps irrelevant) / helmet / body
-  armour / gloves / boots / belt / amulet / ring x2. Out of scope: charms,
-  flasks, skill bar, currency, stash panel, weapon-swap distinction.
+- **Gear slots (10)**: weapon + offhand (single concept; swaps irrelevant) /
+  helmet / body armour / gloves / boots / belt / amulet / ring x2. Out of
+  scope: charms, flasks, skill bar, currency, stash panel, weapon-swap
+  distinction.
 - **Test area**: the inventory backpack grid (fixed in-game size, not
   scrollable, game-sized multi-cell items supported). No separate stash view.
 - **Highlight semantics**: mirrors the in-game Highlight box. In a slot context
@@ -410,6 +411,13 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   records the full data and asset lineage, and the docs no longer call the
   workbench local-only. Deployment (Cloudflare Pages; `main` → production) is
   documented in `DEPLOYING-WEB.md`. Full slnx 10+126+66 green.
+  **43.8 (public-readiness follow-up):** the header carries a source link at
+  the far end; the Advanced panel is titled just "Advanced", with the build
+  stamp and license/notice/provenance links sharing its bottom row with
+  "reset workbench"; the published site ships `license.txt`, `notice.txt` and
+  `provenance.md` (`build.sh` + csproj content links), and the docs note that
+  the Cloudflare-hosted build includes cookieless Web Analytics. Full slnx
+  10+126+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

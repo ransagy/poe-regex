@@ -37,6 +37,19 @@ body { overflow: hidden; }
 .shell-title { font-size: 1.2rem; letter-spacing: 0.06em; color: var(--accent); }
 .shell-icon { width: 2.5rem; height: 2.5rem; flex: none; align-self: center; }
 .shell-sub { color: var(--dim); font-size: 0.8rem; opacity: 0.75; }
+/* Source link sits at the far end of the header strip. */
+.shell-repo {
+    margin-left: auto;
+    flex: none;
+    white-space: nowrap;
+    color: var(--dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-bottom: 1px dotted #5a4a2a;
+    padding-bottom: 0.05rem;
+}
+.shell-repo:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 .shell-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 
@@ -576,7 +589,7 @@ textarea { width: 100%; box-sizing: border-box; }
 .builder-left .suggest { overflow-y: auto; max-height: 46vh; min-height: 10rem; }
 .builder-right .iprev { overflow-y: auto; max-height: 46vh; }
 
-/* Advanced debugging panel opens as a bottom overlay so it never shoves body
+/* Advanced panel opens as a bottom overlay so it never shoves body
    content. Grows upward from anchored bottom? no—top-to-bottom, from ~38vh down
    to a capped height, with the summary stuck as a visible collapse handle. */
 details.advanced {
@@ -619,7 +632,27 @@ details.advanced > summary {
     justify-content: center;
 }
 details.advanced > summary:hover { color: var(--accent); }
-details.advanced > .reset-row { margin-bottom: 1rem; }
+details.advanced > .reset-row {
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.adv-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.adv-meta .hint { font-size: 0.8rem; }
+.legal-links { display: flex; gap: 0.6rem; font-size: 0.8rem; }
+.legal-links a {
+    color: var(--dim);
+    text-decoration: none;
+    border-bottom: 1px dotted #5a4a2a;
+    padding-bottom: 0.05rem;
+}
+.legal-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* Query strips inside the mode bar: one line each; the regex ellipsizes
    (full text via the native title tooltip; copy still copies all of it). */
