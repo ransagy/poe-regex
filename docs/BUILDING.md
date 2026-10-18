@@ -66,6 +66,20 @@ The OpenTUI demo (`demos/opentui-tui/`) publishes the CLI with the same AOT
 settings via `npm run build:cli` (outputs to the repo `out/` directory); see
 its README for build/test/run instructions.
 
+## Web workbench ("Renly's Recipes")
+
+The Blazor WebAssembly app lives in `web/` and embeds the catalogs, so it needs
+no data fetch for development:
+
+```sh
+dotnet run --project web/web.csproj
+```
+
+For the Cloudflare Pages build, `./build.sh` installs the .NET 10 SDK into the
+gitignored `out/` directory, publishes the app, and stamps the commit into
+`build-info.json`. See [`DEPLOYING-WEB.md`](DEPLOYING-WEB.md) and
+[`../web/README.md`](../web/README.md).
+
 ## CI / GitHub Releases
 
 `.github/workflows/release.yml` builds all four platforms, runs the test suite,

@@ -92,9 +92,8 @@
 </div>
 
 <details class="panel advanced" id="advanced-debug">
-    <summary>Advanced debugging (engine output)</summary>
+    <summary>Advanced</summary>
     <div id="engine-status">@_engineStatus</div>
-    <BuildStamp />
     @if (_paste is not null)
     {
         <div class="qcard" id="combined-paste">
@@ -134,6 +133,14 @@
         <button id="workbench-reset" class="btn btn-danger"
                 title="Destructive: clears every slot's class and mods plus the backpack lab"
                 @onclick="ResetWorkbench">reset workbench</button>
+        <div class="adv-meta">
+            <BuildStamp />
+            <span class="legal-links">
+                <a href="license.txt" target="_blank" rel="noopener noreferrer">license</a>
+                <a href="notice.txt" target="_blank" rel="noopener noreferrer">notice</a>
+                <a href="provenance.md" target="_blank" rel="noopener noreferrer">data provenance</a>
+            </span>
+        </div>
     </div>
 </details>
 

@@ -5,7 +5,7 @@ as work progresses so it can be resumed after interruptions.
 
 ## Status
 
-Repo: `https://github.com/ransagy/poe-regex` (private), branch `main`.
+Repo: `https://github.com/ransagy/poe-regex` (public), branch `main`.
 Baseline: commit `91a147a` (CLI subprocess API). All prior phases (AOT releases,
 release workflow, docs) are complete and pushed.
 
@@ -122,7 +122,7 @@ Reversibility guarantee + spec-concept TUI demo.
 
 ## Reference
 
-- Original spec: `/home/ransagy/Downloads/poe-regex.md` (UI blueprint in §7).
+- Original spec: maintainer-provided design document (UI blueprint in §7; not in the repo).
 - Engine design: `docs/DESIGN.md`; integration: `docs/USING-THE-ENGINE.md`.
 - Build/publish: `docs/BUILDING.md`; policy: `CONTRIBUTING.md`, `NOTICE`.
 

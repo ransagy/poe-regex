@@ -1,33 +1,65 @@
 NOTICE
 ======
 
-Path of Exile Regex Compiler Engine
+Poe Regex Compiler
 Copyright (c) 2026 poe-regex contributors
+
+This repository contains the engine (src/), its data pipeline (tools/), the CLI,
+and the web reference implementation "Renly's Recipes" (web/ and demos/). The
+project is MIT licensed; see LICENSE. The complete data and asset lineage is
+documented in docs/PROVENANCE.md.
 
 Game data
 ---------
-Game data in this repository's catalogs was compiled using exports provided by
-the open-source RePoE project contributors (https://github.com/repoe-fork/repoe),
-a derivative of the original RePoE project (https://github.com/brather1ng/RePoE).
+The catalogs in data/catalogs/ are a derived subset produced by
+tools/PoeRegex.Data.Build from RePoE's hosted exports
+(https://repoe-fork.github.io; repository
+https://github.com/repoe-fork/repoe, a fork of
+https://github.com/brather1ng/RePoE).
 
-The contents of the game data files are owned by Grinding Gear Games Limited and
-are used here as a minimal derived subset (human-readable mod text and derived
-search fingerprints). Redistribution and use must be in accordance with Grinding
-Gear Games' terms of use.
+RePoE and its generated data files are distributed under the MIT License
+(Copyright (c) 2016 brather1ng). RePoE's license adds: "Contents of generated
+files (all files in the `data` directory) are owned by Grinding Gear Games and
+shall not be used or published without being in accordance with their terms of
+use."
+
+The contents of the game data are owned by Grinding Gear Games Limited
+("GGG"). This repository ships only a minimal derived subset (item class names,
+mod ids and affix names, generation/family/level metadata, rendered modifier
+text, and derived search fingerprints); raw RePoE exports are never
+redistributed. Redistribution and use must be in accordance with GGG's terms of
+use.
 
 Third-Party Notices
 -------------------
-- RePoE (https://github.com/repoe-fork/repoe) - extracted game data
-- PyPoE (https://github.com/OmegaK2/PyPoE) - MIT License; the stat-text
-  rendering algorithm is ported from its TranslationString.format_string
-- xUnit - Apache License 2.0
-- Awesome Assertions - Apache License 2.0
-- TextCopy - MIT License
-- System.Text.Json - MIT License
+Application runtime:
+- .NET 10 / ASP.NET Core Blazor WebAssembly (https://dotnet.microsoft.com/) - MIT
+- System.Text.Json (https://github.com/dotnet/runtime) - MIT
+- TextCopy (https://github.com/CopyText/TextCopy) - MIT
+
+Build-time data pipeline:
+- RePoE (https://github.com/repoe-fork/repoe) - MIT; extracted game data
+- RePoE, original project (https://github.com/brather1ng/RePoE) - MIT
+- PyPoE (https://github.com/OmegaK2/PyPoE; maintained fork
+  https://github.com/Project-Path-of-Exile-Wiki/PyPoE) - GNU GPL v3.0.
+  Behavioural prior art for stat-text rendering only; no PyPoE code is
+  incorporated in the current sources, so its license does not apply to any
+  file here.
+
+Tests:
+- xUnit (https://github.com/xunit/xunit) - Apache License 2.0
+- xunit.runner.visualstudio (https://github.com/xunit/visualstudio.xunit) - Apache License 2.0
+- Awesome Assertions (https://github.com/AwesomeAssertions/AwesomeAssertions) - Apache License 2.0
+- Microsoft.NET.Test.Sdk (https://github.com/microsoft/vstest) - MIT
+- coverlet (https://github.com/coverlet-coverage/coverlet) - MIT
+
+OpenTUI demo (demos/opentui-tui):
+- @opentui/core (https://github.com/anomalyco/opentui) - MIT
 
 Trademarks
 ----------
 Path of Exile is a registered trademark of Grinding Gear Games Limited.
+"Renly's Recipes" is the name of this project's web reference implementation.
 
-This application is an independent community project and is not affiliated with,
+This is an independent community project and is not affiliated with,
 authorized by, or endorsed by Grinding Gear Games or Tencent.

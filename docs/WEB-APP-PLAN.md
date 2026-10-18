@@ -1,21 +1,24 @@
 # poe-regex Web App Plan (locked)
 
-Local-only Blazor WebAssembly workbench with the PoE2 inventory look-and-feel,
-editable gear slots, per-slot and global regex compilation in-browser, a
-backpack-grid test area with match highlighting, and English advanced-item
-import. The OpenTUI demo is frozen; the CLI contract is untouched.
+Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
+look-and-feel, editable gear slots, per-slot and global regex compilation
+in-browser, a backpack-grid test area with match highlighting, and English
+advanced-item import. The OpenTUI demo is frozen; the CLI contract is
+untouched. The deployed static build runs on Cloudflare Pages (see
+[`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
 
 ## 1. Locked decisions
 
 - **Runtime**: Blazor WebAssembly standalone (`net10.0`) running
   `src/PoeRegex.Core` in-process. Core is BCL-only, `IsAotCompatible`,
   source-generated JSON (`CatalogJsonContext`), no file/threading use, and the
-  poe2 catalog ships embedded (520 KB).
+  poe2 catalog ships embedded (~730 KiB).
 - **Game scope**: PoE2 only (multi-quoted-group AND, `!` negation, lookahead).
   PoE1 stays in the catalog but is not loaded.
-- **Gear slots (9)**: weapon (single concept; swaps irrelevant) / helmet / body
-  armour / gloves / boots / belt / amulet / ring x2. Out of scope: charms,
-  flasks, skill bar, currency, stash panel, weapon-swap distinction.
+- **Gear slots (10)**: weapon + offhand (single concept; swaps irrelevant) /
+  helmet / body armour / gloves / boots / belt / amulet / ring x2. Out of
+  scope: charms, flasks, skill bar, currency, stash panel, weapon-swap
+  distinction.
 - **Test area**: the inventory backpack grid (fixed in-game size, not
   scrollable, game-sized multi-cell items supported). No separate stash view.
 - **Highlight semantics**: mirrors the in-game Highlight box. In a slot context
@@ -400,6 +403,21 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   (`ItemDisplay`); built items no longer render in add order, so a
   suffix-first assembly shows the prefix on top in the preview card and
   the saved tooltip alike. Full slnx 7+126+66 green.
+  **43.7 (public-readiness):** licensing and provenance pass. The stat-text
+  renderer was rewritten as an independent implementation of RePoE's
+  documented translation format (behaviour pinned by rebuilding both catalogs
+  byte-for-byte from the local raw exports); PyPoE's GPL-3.0 status is stated
+  correctly (behavioural prior art, no code incorporated), `PROVENANCE.md`
+  records the full data and asset lineage, and the docs no longer call the
+  workbench local-only. Deployment (Cloudflare Pages; `main` → production) is
+  documented in `DEPLOYING-WEB.md`. Full slnx 10+126+66 green.
+  **43.8 (public-readiness follow-up):** the header carries a source link at
+  the far end; the Advanced panel is titled just "Advanced", with the build
+  stamp and license/notice/provenance links sharing its bottom row with
+  "reset workbench"; the published site ships `license.txt`, `notice.txt` and
+  `provenance.md` (`build.sh` + csproj content links), and the docs note that
+  the Cloudflare-hosted build includes cookieless Web Analytics. Full slnx
+  10+126+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

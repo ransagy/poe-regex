@@ -1,15 +1,15 @@
 # Path of Exile Regex Compiler Engine — Design Specification
 
-**Target stack:** .NET 10 (LTS), pure-BCL core (WASM-safe for a later web UI), CLI-first.
-**License:** MIT (project); deps: xUnit (Apache 2.0), System.Text.Json (MIT), Awesome Assertions (Apache 2.0), TextCopy (MIT).
-**Scope:** English client only. v0.1 = engine + CLI + test suite; web UI deferred.
+**Target stack:** .NET 10 (LTS), pure-BCL core (WASM-safe), CLI-first.
+**License:** MIT (project); third-party components are all MIT or Apache-2.0 (see `NOTICE`). Catalog data is a derived subset of GGG-owned game data extracted by RePoE — see `PROVENANCE.md`.
+**Scope:** English client only. v0.1 = engine + CLI + test suite. The web reference implementation ("Renly's Recipes") lives in `web/`, documented in `WEB-APP-PLAN.md` and `DEPLOYING-WEB.md`.
 
 ---
 
 ## 1. Data & Licensing Policy
 
-- **Upstream:** `repoe-fork/repoe` gh-pages exports — PoE 1 at root, PoE 2 under `/poe2`. Each export has a pinned game version recorded in the catalog (`DataVersion`). Re-fetching is a repeatable build step (`PoeRegex.Data.Build`), designed so league patches re-source cleanly.
-- **Distribution:** only **derived catalogs** ship (human-readable mod-text lines + precomputed fingerprints). Raw RePoE JSON is dev-only and gitignored. This is tolerated community use, not clean compliance — the repo ships a `NOTICE` with RePoE attribution and GGG trademark/affiliation disclaimers.
+- **Upstream:** `repoe-fork/repoe` gh-pages exports — PoE 1 at root, PoE 2 under `/poe2`. The exports carry no version field; the catalog records the fetch date as `DataVersion`. Re-fetching is a repeatable build step (`PoeRegex.Data.Build`), designed so league patches re-source cleanly. Full lineage and refresh procedure: [`PROVENANCE.md`](PROVENANCE.md).
+- **Distribution:** only **derived catalogs** ship (human-readable mod-text lines + precomputed fingerprints). Raw RePoE JSON is dev-only and gitignored. RePoE's license states that generated data files are owned by GGG and must be used per GGG's terms; the repo ships attribution and trademark/affiliation disclaimers in `NOTICE` and records the exact subset in `PROVENANCE.md`.
 - RePoE data files are GGG-owned per RePoE's `LICENSE.md`; the project deliberately distributes the minimal derived subset (short factual text + fingerprints) rather than raw extracted data.
 - **Grammar/validation sources:** the trade-search regex grammar is treated as a *functional fact* of GGG's trade sites and is described in our own words only. No content (prose, example query strings, or snippets) is reproduced from community wikis, forums, subreddits, or guide sites. In particular: poewiki/poe2wiki content is **CC BY-NC-SA 3.0** (non-commercial + share-alike, incompatible with this MIT repo) and poe.re/poe2.re publish without a license — both are consulted at most for factual understanding by humans and never copied. Reddit threads and Maxroll/Mobalytics are treated as all-rights-reserved and unused. All query→expected-string test cases are self-authored, modeled on functional behavior.
 - **Why self-authored fixtures are sufficient:** trade-search query strings are *functional optima*. The shortest unique fragment for a given mod line is dictated by the catalog data, not by creative authorship, so any correct implementation converges on the same output. Self-authored fixtures therefore naturally match what community tooling produces (independent creation, not reproduction), without copying anyone's expression.
@@ -19,22 +19,30 @@
 
 ```
 poe-regex/
-  PoeRegex.sln
+  PoeRegex.slnx
   src/
     PoeRegex.Core/                 # engine, grammar, compaction, catalogs (net10.0, BCL-only)
     PoeRegex.Cli/                  # interactive + batch (net10.0)
+    PoeRegex.Web.Core/             # browser-facing services (net10.0, AOT-compatible)
   tools/
     PoeRegex.Data.Build/           # dev-time ingestion + fingerprint builder (net10.0)
   tests/
     PoeRegex.Core.Tests/
     PoeRegex.Data.Build.Tests/
+    PoeRegex.Web.Tests/
   data/
     raw/                           # gitignored RePoE downloads
     catalogs/                      # checked-in, versioned: poe1.catalog.json, poe2.catalog.json
+  demos/
+    opentui-tui/                   # terminal demo (Node + OpenTUI)
+  web/                             # "Renly's Recipes" Blazor WASM workbench
   docs/
     DESIGN.md
     BUILDING.md
+    DEPLOYING-WEB.md
+    PROVENANCE.md
     USING-THE-ENGINE.md
+    WEB-APP-PLAN.md
   NOTICE
   LICENSE
   README.md

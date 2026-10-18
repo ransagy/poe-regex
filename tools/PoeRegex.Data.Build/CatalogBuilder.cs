@@ -132,7 +132,7 @@ public static class CatalogBuilder
             });
         }
 
-        var dataVersion = ReadVersionFile(game, rawDir);
+        var dataVersion = ReadVersionFile(rawDir);
 
         return new Catalog
         {
@@ -172,9 +172,13 @@ public static class CatalogBuilder
         return result;
     }
 
-    private static string ReadVersionFile(string game, string rawDir)
+    /// <summary>
+    /// The catalog's dataVersion is the fetch date of the raw exports: RePoE's
+    /// hosted files carry no version field, so the mods file's write time (set
+    /// when `fetch` downloaded it) is used.
+    /// </summary>
+    private static string ReadVersionFile(string rawDir)
     {
-        // RePoE serves the version in the HTML index; fall back to the mods file mtime.
         var modsPath = Path.Combine(rawDir, "mods.min.json");
         if (File.Exists(modsPath)) return File.GetLastWriteTimeUtc(modsPath).ToString("yyyy-MM-dd");
         return "unknown";

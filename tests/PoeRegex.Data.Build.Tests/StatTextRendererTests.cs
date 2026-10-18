@@ -120,6 +120,78 @@ public class StatTextRendererTests
     }
 
     [Fact]
+    public void TighterConditionWins()
+    {
+        // RePoE's stat_translations docs: each variant has a condition per id;
+        // the variant that pins the value most precisely describes it.
+        var renderer = CreateRenderer("{}", """
+[
+  { "English": [
+      { "condition": [{}], "format": ["#"], "index_handlers": [[]], "string": "generic {0}" },
+      { "condition": [{"min": 1}], "format": ["#"], "index_handlers": [[]], "string": "bounded {0}" },
+      { "condition": [{"min": 1, "max": 10}], "format": ["#"], "index_handlers": [[]], "string": "tight {0}" }
+    ],
+    "ids": ["value_stat"] }
+]
+""");
+        var mod = new RePoESchema.Mod
+        {
+            Domain = "item",
+            GenerationType = "prefix",
+            Stats = [new RePoESchema.ModStat { Id = "value_stat", Min = 5, Max = 5 }],
+        };
+        var lines = renderer.RenderMod(mod.Stats);
+        lines.Should().ContainSingle();
+        lines[0].Line.Should().Be("tight 5");
+    }
+
+    [Fact]
+    public void EqualConditionsKeepTheFirstVariant()
+    {
+        var renderer = CreateRenderer("{}", """
+[
+  { "English": [
+      { "condition": [{}], "format": ["#"], "index_handlers": [[]], "string": "first {0}" },
+      { "condition": [{}], "format": ["#"], "index_handlers": [[]], "string": "second {0}" }
+    ],
+    "ids": ["value_stat"] }
+]
+""");
+        var mod = new RePoESchema.Mod
+        {
+            Domain = "item",
+            GenerationType = "prefix",
+            Stats = [new RePoESchema.ModStat { Id = "value_stat", Min = 5, Max = 5 }],
+        };
+        renderer.RenderMod(mod.Stats).Should().ContainSingle()
+            .Which.Line.Should().Be("first 5");
+    }
+
+    [Fact]
+    public void MaxRollDrivesVariantSelection()
+    {
+        // The displayed line is the max roll, and the variant conditions are
+        // matched against that same value (a range's high end).
+        var renderer = CreateRenderer("{}", """
+[
+  { "English": [
+      { "condition": [{"max": 15}], "format": ["#"], "index_handlers": [[]], "string": "low {0}" },
+      { "condition": [{"min": 16}], "format": ["#"], "index_handlers": [[]], "string": "high {0}" }
+    ],
+    "ids": ["value_stat"] }
+]
+""");
+        var mod = new RePoESchema.Mod
+        {
+            Domain = "item",
+            GenerationType = "prefix",
+            Stats = [new RePoESchema.ModStat { Id = "value_stat", Min = 10, Max = 20 }],
+        };
+        renderer.RenderMod(mod.Stats).Should().ContainSingle()
+            .Which.Line.Should().Be("high 20");
+    }
+
+    [Fact]
     public void Pattern_NormalizesDigits()
     {
         var renderer = CreateRenderer("{}", """

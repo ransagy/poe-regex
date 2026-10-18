@@ -14,4 +14,12 @@
     <ProjectReference Include="..\src\PoeRegex.Web.Core\PoeRegex.Web.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Legal notices ship with the app and are linked from the Advanced panel.
+         build.sh also copies them after publish (Cloudflare runs build.sh). -->
+    <Content Include="..\LICENSE" Link="wwwroot\license.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\NOTICE" Link="wwwroot\notice.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\docs\PROVENANCE.md" Link="wwwroot\provenance.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
