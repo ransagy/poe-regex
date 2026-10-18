@@ -1,9 +1,11 @@
 # poe-regex Web App Plan (locked)
 
-Local-only Blazor WebAssembly workbench with the PoE2 inventory look-and-feel,
-editable gear slots, per-slot and global regex compilation in-browser, a
-backpack-grid test area with match highlighting, and English advanced-item
-import. The OpenTUI demo is frozen; the CLI contract is untouched.
+Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
+look-and-feel, editable gear slots, per-slot and global regex compilation
+in-browser, a backpack-grid test area with match highlighting, and English
+advanced-item import. The OpenTUI demo is frozen; the CLI contract is
+untouched. The deployed static build runs on Cloudflare Pages (see
+[`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
 
 ## 1. Locked decisions
 
@@ -400,6 +402,14 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   (`ItemDisplay`); built items no longer render in add order, so a
   suffix-first assembly shows the prefix on top in the preview card and
   the saved tooltip alike. Full slnx 7+126+66 green.
+  **43.7 (public-readiness):** licensing and provenance pass. The stat-text
+  renderer was rewritten as an independent implementation of RePoE's
+  documented translation format (behaviour pinned by rebuilding both catalogs
+  byte-for-byte from the local raw exports); PyPoE's GPL-3.0 status is stated
+  correctly (behavioural prior art, no code incorporated), `PROVENANCE.md`
+  records the full data and asset lineage, and the docs no longer call the
+  workbench local-only. Deployment (Cloudflare Pages; `main` → production) is
+  documented in `DEPLOYING-WEB.md`. Full slnx 10+126+66 green.
 - **Follow-up round 9 — import truth (ranges + resolved names) + carousel.**
   Per-line candidate pickers are gone: the paste already carries the
   identifying evidence, so the importer resolves it — bracketed `(lo-hi)`

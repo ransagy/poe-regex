@@ -1,12 +1,15 @@
-# poe-regex workbench (web)
+# Renly's Recipes — the poe-regex web workbench
 
-Local-only Blazor WebAssembly app that runs `PoeRegex.Core` **in the
-browser**: a PoE2-inventory-style workbench with editable gear slots,
-live-compiled regex queries, a backpack test-items lab, and English
-advanced-description import. No backend, no network calls, no game assets
-(all panels are hand-drawn CSS/SVG).
+Blazor WebAssembly app that runs `PoeRegex.Core` **in the browser**: a
+PoE2-inventory-style workbench with editable gear slots, live-compiled regex
+queries, a backpack test-items lab, and English advanced-description import.
+No backend, no network calls, no game assets (all panels are hand-drawn
+CSS/SVG). The deployed static build is at
+<https://renlys-recipes.pages.dev> (link-only; noindex).
 
 Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
+Deployment: [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
+Data/asset provenance: [`docs/PROVENANCE.md`](../docs/PROVENANCE.md).
 
 ## Prerequisites
 
@@ -22,6 +25,17 @@ dotnet run --project web/web.csproj
 
 The app loads the embedded poe2 catalog, builds the suffix-index corpus once
 (~5 ms warm, ~165 ms cold in the interpreter build), and compiles locally.
+
+## Build for deployment
+
+```sh
+./build.sh
+# static site in out/web/wwwroot
+```
+
+`build.sh` installs the .NET 10 SDK into `out/` (gitignored) for the
+Cloudflare Pages image, publishes the app, and stamps the commit into
+`build-info.json`. See [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
 
 ## Load the five real sample items
 
