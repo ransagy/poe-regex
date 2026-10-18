@@ -205,3 +205,5 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   comes from tier picks instead (a tier's affix name implies its range).
 - Publish is the unoptimized interpreter build (29 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).
+
+<!-- preview-cleanup QA (temporary) -->
