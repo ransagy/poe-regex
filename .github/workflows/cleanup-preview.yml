@@ -1,0 +1,63 @@
+name: cleanup-preview
+
+# Delete a branch's Cloudflare Pages preview deployments once its pull request
+# is closed (merged or not), so preview copies do not linger. Production is
+# never touched. Also runnable manually with a branch name.
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch whose preview deployments to delete'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: cleanup
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: Delete preview deployments for the branch
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PROJECT: renlys-recipes
+          BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "CF_API_TOKEN secret or CF_ACCOUNT_ID variable is not configured; skipping."
+            exit 0
+          fi
+          if [ -z "${BRANCH:-}" ] || [ "$BRANCH" = "main" ]; then
+            echo "Nothing to clean for branch '${BRANCH:-}'; skipping."
+            exit 0
+          fi
+
+          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/$CF_PROJECT/deployments"
+          echo "Cleaning preview deployments for branch: $BRANCH"
+
+          total=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" "$base?per_page=25&page=1" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("result_info",{}).get("total_pages",1))')
+
+          for page in $(seq 1 "${total:-1}"); do
+            curl -sS -H "Authorization: Bearer $CF_API_TOKEN" "$base?per_page=25&page=$page" \
+              | BRANCH="$BRANCH" python3 -c '
+          import json, os, sys
+          branch = os.environ["BRANCH"]
+          for dep in json.load(sys.stdin).get("result") or []:
+              meta = (dep.get("deployment_trigger") or {}).get("metadata") or {}
+              if dep.get("environment") == "preview" and meta.get("branch") == branch:
+                  print(dep["id"])
+          ' | while read -r id; do
+              curl -sS -X DELETE -H "Authorization: Bearer $CF_API_TOKEN" "$base/$id?force=true" >/dev/null
+              echo "deleted preview deployment $id"
+            done
+          done
+          echo "cleanup done"

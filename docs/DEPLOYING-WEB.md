@@ -30,6 +30,19 @@ Two filters on the Pages project decide whether a push builds at all
 If a new file becomes part of the build, add it to the watch paths in the
 Pages project settings.
 
+## Preview cleanup
+
+`.github/workflows/cleanup-preview.yml` deletes a branch's preview deployments
+when its pull request closes (merged or not), using the Cloudflare API;
+production is never touched. It needs two repository settings:
+
+- variable `CF_ACCOUNT_ID` — the Cloudflare account id;
+- secret `CF_API_TOKEN` — an API token with **Account → Cloudflare Pages →
+  Edit** for this account (create it in the Cloudflare dashboard).
+
+The same workflow can be run manually (Actions → *cleanup-preview* → Run
+workflow) with a branch name.
+
 ## Pages project configuration
 
 | Setting | Value |
