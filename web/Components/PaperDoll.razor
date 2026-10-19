@@ -6,38 +6,33 @@
   fixed-aspect panel (like the game: fixed frames, not a shared grid).
   Positions follow the in-game panel (maintainer-reviewed).
 
-  Single mode: the selected slot is active. Global: dimmed, inert.
-  Multi mode: clicking a slot moves the editing focus (accent outline);
-  slots with chips are enrolled and filled.
+  Advanced mode only (simple mode has no slots): clicking a slot moves the
+  editing focus (accent outline); slots with picks are enrolled and filled.
 *@
-<div class="doll @(State.Mode == "global" ? "dimmed" : "")" aria-label="Equipment" aria-disabled="@(State.Mode == "global")">
+<div class="doll" aria-label="Equipment">
     @foreach (var slot in GearSlot.All)
     {
         var enrolled = State.Enrolled(slot.Id);
-        var active = State.Mode == "multi" ? enrolled : State.ActiveSlots().Contains(slot.Id);
-        var focused = State.Mode == "multi" ? State.MultiFocus == slot.Id : active;
+        var focused = State.FocusedSlot == slot.Id;
         <button id="slot-@slot.Id"
-                class="gear-slot @(active ? "active" : "") @(focused ? "focused" : "")"
+                class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "")"
                 style="@Placement(slot)"
-                aria-pressed="@active"
+                aria-pressed="@enrolled"
                 title="@slot.Label"
                 @onclick="() => State.SelectSlot(slot.Id)">
             <span class="gear-label">@slot.Label</span>
         </button>
     }
-    @if (State.Mode != "global")
+    @foreach (var slot in GearSlot.All)
     {
-        @foreach (var slot in GearSlot.All)
+        if (State.Enrolled(slot.Id))
         {
-            if (State.Enrolled(slot.Id))
-            {
-                <button id="slot-clear-@slot.Id"
-                        class="slot-clear"
-                        style="@ClearPlacement(slot)"
-                        title="clear @slot.Label mods"
-                        aria-label="clear @slot.Label mods"
-                        @onclick="() => State.ClearChips(slot.Id)">×</button>
-            }
+            <button id="slot-clear-@slot.Id"
+                    class="slot-clear"
+                    style="@ClearPlacement(slot)"
+                    title="clear @slot.Label mods"
+                    aria-label="clear @slot.Label mods"
+                    @onclick="() => State.ClearChips(slot.Id)">×</button>
         }
     }
 </div>

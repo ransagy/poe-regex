@@ -1,14 +1,17 @@
 @using PoeRegex.Web.Core
 
-<div class="mode-switch" role="group" aria-label="Search scope">
-    @foreach (var (mode, label, hint) in Options)
+@* Two stacked options instead of a segmented row: each states what the mode
+   means, so no separate explanation is needed. *@
+<div class="mode-stack" role="group" aria-label="Search mode">
+    @foreach (var (mode, label, blurb) in Options)
     {
-        <button id="mode-@mode"
-                class="mode-btn @(State.Mode == mode ? "active" : "")"
-                title="@hint"
-                aria-pressed="@(State.Mode == mode)"
+        var active = State.Mode == mode;
+        <button id="mode-@mode" class="mode-opt @(active ? "active" : "")"
+                title="@blurb" aria-pressed="@active"
                 @onclick="() => State.SetMode(mode)">
-            @label
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span class="mode-name">@label</span>
+            <span class="mode-blurb">@blurb</span>
         </button>
     }
 </div>
@@ -17,10 +20,9 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    private static readonly (string Mode, string Label, string Hint)[] Options =
+    private static readonly (string Mode, string Label, string Blurb)[] Options =
     [
-        ("global", "all items", "one search string, not tied to a slot"),
-        ("single", "one slot", "the search string for the slot selected on the paper doll"),
-        ("multi", "several slots", "each slot keeps its own picks; the paste combines them"),
+        ("simple", "Simple", "same mods for every item"),
+        ("advanced", "Advanced", "different mods per slot"),
     ];
 }

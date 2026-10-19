@@ -63,6 +63,28 @@ public static class ModFamilies
     public static string KeyOf(ModEntry mod) =>
         mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
 
+    /// <summary>
+    /// Families offered before the user types: the usual goals across gear
+    /// (defence, resistances, attributes, speed, damage). Scope-dependent —
+    /// keys missing from the current scope are simply skipped.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CommonKeys = new HashSet<string>(StringComparer.Ordinal)
+    {
+        // prefixes
+        "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
+        "LocalFireDamage", "LocalColdDamage", "LocalLightningDamage",
+        "LocalEnergyShield", "LocalPhysicalDamageReductionRating", "LocalEvasionRating",
+        "BaseSpirit",
+        // suffixes
+        "FireResistance", "ColdResistance", "LightningResistance", "ChaosResistance",
+        "Strength", "Dexterity", "Intelligence",
+        "MovementVelocity", "LocalIncreasedAttackSpeed", "LocalBaseCriticalStrikeChance",
+        "LocalAccuracyRating", "ManaRegeneration",
+    };
+
+    /// <summary>True when the family is in the pre-typing shortlist.</summary>
+    public static bool IsCommon(ModFamily family) => CommonKeys.Contains(family.Key);
+
     public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods)
     {
         var families = new List<ModFamily>();

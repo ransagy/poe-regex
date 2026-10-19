@@ -61,7 +61,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 131 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 132 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -77,17 +77,20 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-  The page leads with the search-string bar: a "your search string" label,
-  what the string covers (`all items`, `weapon · One Hand Mace`,
-  `combined paste · 3 slots`), a local "copy → paste into the game's item
-  search" hint, the one-line ellipsized regex (full text in its title), the
-  k/N meter with the red `OVER` state, and copy. Before the first pick it
-  says "pick mods below — the string builds here" instead of showing an
-  empty box. Below it the scope row: `search covers` + the segmented
-  all-items / one-slot / several-slots toggle + its `(?)` explanation.
-  Per-slot queries for Advanced live below.
-- `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
+  The page starts with the mode choice: two stacked options (`Simple` /
+  `Advanced`) that state their meaning — "same mods for every item" /
+  "different mods per slot". The flow then reads down the left column: what
+  to find (`ModPicker`; advanced adds the paper doll as the slot selector and
+  starts unfocused with "click a slot on the doll to pick its mods"), then
+  the search-string bar — a "your search string" label, what it covers
+  (`all items`, `helmet · Helmet`, `combined paste · N slots`), a local
+  "copy → paste into the game's item search" hint, the regex line with the
+  k/N meter (red `OVER`) and copy; before the first pick it says "nothing to
+  show yet — pick mods to build the string". The right rail holds the
+  advanced doll, the test-items tools and the backpack. Per-slot queries for
+  Advanced live below.
+- `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
+  edit it, slots with picks enroll and fill, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
   cells span the full width in the stacked layout and a bounded column under
   the paper doll from 1500px up — when the
   window is too short the pack area scrolls internally, never the page;
@@ -99,26 +102,31 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   name, class · rarity line, base stats, requires / item level / sockets /
   granted skill, rebuilt mod headers with tier and tags, blue mod lines, a
   corrupted footer, and an optional per-line annotation slot; the card is
-  the tooltip's scroll region so its border stays put), `ModeSwitch` (the
-  segmented scope toggle: all items / one slot / several slots), `HelpTip`
+  the tooltip's scroll region so its border stays put), `ModeSwitch` (two
+  stacked options — simple = same mods everywhere, advanced = per-slot mods),
+  `HelpTip`
   (the sparse `(?)` cards — scope toggle and test items — click to open,
   backdrop or Escape to close), `ClassPicker`,
   `ModPicker` (searchable mods grouped into stat families: one row per
   family with a PREFIX/SUFFIX tag and the stat text with its numbers dropped
   (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
   stack their lines) — the row is a plain-text toggle (`▸`/`▾`
-  caret) with a tier-count badge, a `+` for the plain stat (any tier) and a
-  `−` for the whole family; expanding shows the tiers, each with the affix
-  name and its real range, where `+` compiles the affix-name literal
+  caret) with a dim tier count, a quiet `+` for the plain stat (any tier) and
+  a dim `−` for the whole family; expanding shows the tiers, each with the
+  affix name and its real range, where `+` compiles the affix-name literal
   (specific tier), `↑` compiles that name and every better tier
   (`… or better`, by required level), `−` excludes by name; chips join a
-  multi-line family with `/`; with a filter typed, a `++` cap on the search
+  multi-line family with `/`; rows sit under sticky `PREFIXES` / `SUFFIXES`
+  headers (two columns when the editor is wide, stacked when narrow; no
+  per-row tags) and the family tooltip names the content (`show 6 tiers:
+  % increased Movement Speed`); with a filter typed, a `++` cap on the search
   box's right edge adds every matching family in one batch (disabled, with the
   prospective k/N in its tooltip, when that would exceed the game's
-  250-character limit; one match keeps the row's own `+`); one column, or
-  two when the editor column is wide enough — and the list
-  stretches/scrolls to fill the editor's height; typing filters tiers,
-  so `reliable` narrows to the family(ies) carrying that affix), `QueryCard`
+  250-character limit; one match keeps the row's own `+`); before typing,
+  only a short curated shortlist shows ("common picks — type to search all
+  194 families"); the list stretches/scrolls to fill the editor's height;
+  typing filters tiers, so `reliable` narrows to the family(ies) carrying
+  that affix), `QueryCard`
   (meter with the OVER state, copy, explain), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
   previews as `‹ card ›` with the `k / N` counter centered above the card
@@ -140,9 +148,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   reject when the backpack is full). Backpack
   tools row: a `Test items` label with its own `(?)` card, then import,
   assemble, and remove (acts on the pinned item).
-- The editor keeps one rhythm: the scope row, the `BASE CLASS` selector and
+- The editor keeps one rhythm: the mode row, the `BASE CLASS` selector and
   the mod picker are spaced with the same 0.5rem gap (the picks rail renders
-  always, inert when empty); in global mode a hidden mirror of the field
+  always, inert when empty); in simple mode a hidden mirror of the field
   (same select styles, `visibility: hidden`) keeps the geometry
   pixel-identical, so switching modes never shifts the picker.
 - Picks live in a one-line rail that sits permanently between the text filter

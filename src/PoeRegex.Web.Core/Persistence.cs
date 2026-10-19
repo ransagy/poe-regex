@@ -16,13 +16,13 @@ public sealed record WorkbenchSnapshot(
     SlotCriteria Global,
     List<TestItem> TestItems)
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state) => new(
         CurrentVersion,
         state.Mode,
-        state.SelectedSlot,
-        state.MultiFocus,
+        null, // single mode retired; kept for loading v2 snapshots
+        state.FocusedSlot,
         state.Slots.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
         state.Global,
         state.TestItems.ToList());
@@ -34,20 +34,25 @@ public sealed record WorkbenchSnapshot(
         // half-applied one with the backpack still empty.
         state.WithSuppressedNotifications(() => RestoreCore(state, snap));
 
+    /// <summary>Maps retired mode names onto the two-mode model.</summary>
+    private static (string Mode, string? Focus) ModeOf(WorkbenchSnapshot snap) => snap.Mode switch
+    {
+        "advanced" => ("advanced", snap.MultiFocus),
+        "multi" => ("advanced", snap.MultiFocus),
+        // v2 single mode: its slot becomes the advanced editing focus.
+        "single" => ("advanced", snap.SelectedSlot ?? snap.MultiFocus),
+        _ => ("simple", null),
+    };
+
     private static void RestoreCore(WorkbenchState state, WorkbenchSnapshot snap)
     {
-        try { state.SetMode(snap.Mode); } catch (ArgumentOutOfRangeException) { /* keep default */ }
-        if (snap.SelectedSlot is not null && GearSlot.ById(snap.SelectedSlot) is not null)
+        var (mode, focus) = ModeOf(snap);
+        try { state.SetMode(mode); } catch (ArgumentOutOfRangeException) { /* keep default */ }
+        if (mode == "advanced" && focus is not null && GearSlot.ById(focus) is not null)
         {
-            try
-            {
-                if (state.Mode == "global") state.SetMode("single");
-                state.SelectSlot(snap.SelectedSlot);
-            }
+            try { state.FocusSlot(focus); }
             catch (ArgumentOutOfRangeException) { /* keep default */ }
         }
-        if (snap.MultiFocus is not null && GearSlot.ById(snap.MultiFocus) is not null)
-            state.FocusSlot(snap.MultiFocus);
         foreach (var (slot, crit) in snap.Slots)
         {
             if (GearSlot.ById(slot) is null) continue;

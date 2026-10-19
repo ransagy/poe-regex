@@ -295,29 +295,39 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
-- **Follow-up round 13 — feedback round 1, part 2: the page explains itself
-  and leads with the artifact.** The compiled query moved out of the mode
-  strip into a full-width search-string bar under the header: a "your search
-  string" label, what it covers (`all items` / `weapon · One Hand Mace` /
-  `combined paste · N slots`), a local "copy → paste into the game's item
-  search" hint, the regex line with the k/N meter (red `OVER` unchanged), and
-  copy; with no picks it says "pick mods below — the string builds here"
-  instead of showing an empty box. The scope row below is now a labelled
-  segmented control (`search covers` + plain-word buttons) with a `(?)` card
-  explaining the three modes (element ids unchanged). Per the maintainer, no
-  app-flow blurb: each region holds its own — the picks rail carries its own
-  empty hint ("picks collect here — use + on a stat"), the multi hint is in
-  plain words, and the backpack row gained a `Test items` label plus a `(?)`
-  card (import = paste from the game, assemble = build from catalog mods,
-  matches light up). New `HelpTip` component: click opens a card (same
-  visual language as the item tooltip), backdrop or Escape closes, the card
-  takes focus for keyboard dismissal. Wide layout: the bar and scope row
-  occupy grid rows 1–2, the right column's reserved chrome grew 300 → 360px,
-  and the pack tools never wrap their labels (tight-band sizing at
-  1500–1720px). CDP-verified: empty/populated bar states, scope text per mode
-  (`all items`, `Weapon · Crossbow`, `combined paste`), popover open/close by
-  Escape and backdrop, 1920/900×1200/1600×900 with no page or pack scroll,
-  test-items row on one line. Full slnx 10+131+71 green (UI-only change).
+- **Follow-up round 13 — feedback round 1, part 2: mode first, criteria
+  second, result last.** Two modes replace three: **Simple** (same mods for
+  every item — the old global) and **Advanced** (different mods per slot —
+  the old multi); the middle "single" mode is gone, since advanced with one
+  enrolled slot composes the same terms (anchor + fragment group) as the
+  retired single compile. The choice is two stacked self-describing options
+  (dot + name + "same mods for every item" / "different mods per slot"); the
+  `search covers` label and its (?) are gone, and there is no app-flow blurb
+  or step numbering — each region holds its own. The search-string bar moved
+  from the top into the flow column under the picker (label, what it covers,
+  the local paste hint, the regex with the k/N meter, copy; empty state
+  "nothing to show yet — pick mods to build the string"). Advanced starts
+  unfocused with "click a slot on the doll to pick its mods"; **the paper
+  doll renders only in advanced** (simple has no slots). The picker was
+  de-cluttered: sticky `PREFIXES`/`SUFFIXES` section headers replace the
+  per-row PREFIX/SUFFIX tags (two columns wide, stacked narrow), tier counts
+  are dim text instead of badges, `+`/`−` are quiet glyphs that only take a
+  hover surface (`−` dim at rest, red on hover), rows get a hover highlight,
+  and the family tooltip names its content ("show 6 tiers: % increased
+  Movement Speed"). Before typing, the list is a curated shortlist
+  (`ModFamilies.CommonKeys`: life/mana, local damage, defences, Spirit;
+  resistances, attributes, movement/attack speed, crit, accuracy, mana regen)
+  with "common picks — type to search all N families"; scopes without
+  curated hits show only that line. The assemble dialog keeps its per-row
+  tags. Snapshot v3 migrates retired modes (global→simple, single→advanced +
+  that slot focused, multi→advanced); `SelectedSlot`/`MultiFocus` are gone
+  (`FocusedSlot`). The wide grid gives the flow column the left side and the
+  doll + test items the right (simple hides the doll and pulls the rail up);
+  the side column formula was re-tuned (R=270) so the 12×5 pack fits without
+  its own scrollbars at 1600×900 / 1920×1080 / 2560×1440. CDP-verified: mode
+  states, curated vs filtered lists, content tooltips, migration of a real
+  v2 single-mode snapshot (advanced + helmet focus + query), no page/pack
+  scroll at 1600×900 and 900×1200. Full slnx 10+132+71 green.
 - **Follow-up round 12 — paste class alternations fold suffixes; the
   in-game class audit.** Combined pastes were blowing the budget on class
   alternations: every group token repeats the scope's classes and

@@ -18,6 +18,19 @@ public class FamilyPickTests
             .First(f => f.Key == familyKey);
 
     [Fact]
+    public void CommonFamilies_AllExist_AndCoverBothGens()
+    {
+        var families = ModFamilies.Group(Engine.PlayableMods());
+        var keys = families.Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in ModFamilies.CommonKeys)
+            keys.Should().Contain(key, $"curated family '{key}' must exist in the catalog");
+        var common = families.Where(ModFamilies.IsCommon).ToList();
+        common.Should().Contain(f => f.IsPrefix);
+        common.Should().Contain(f => !f.IsPrefix);
+        common.Should().HaveCountLessThan(30, "the pre-typing list stays a shortlist");
+    }
+
+    [Fact]
     public void Group_LifeOnBodyArmour_ShapeTextAndTierOrder()
     {
         var fam = Family("Body Armour", "IncreasedLife");

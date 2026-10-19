@@ -92,14 +92,11 @@ public sealed class WorkbenchState
         ["ring2"] = "Ring",
     };
 
-    /// <summary>Global is the first and default mode (one string for chosen mods).</summary>
-    public string Mode { get; private set; } = "global";
+    /// <summary>Simple is the default: one mod set for every item.</summary>
+    public string Mode { get; private set; } = "simple";
 
-    /// <summary>Single mode: the active slot id (default: weapon).</summary>
-    public string? SelectedSlot { get; private set; } = null;
-
-    /// <summary>Multi mode: the slot whose editor is showing (membership is derived from chips).</summary>
-    public string? MultiFocus { get; private set; } = null;
+    /// <summary>Advanced: the slot whose editor is showing (membership is derived from picks).</summary>
+    public string? FocusedSlot { get; private set; } = null;
 
     /// <summary>Per-slot criteria (class + wanted/unwanted mods).</summary>
     public Dictionary<string, SlotCriteria> Slots { get; } = new(StringComparer.Ordinal);
@@ -149,15 +146,9 @@ public sealed class WorkbenchState
 
     public void SetMode(string mode)
     {
-        if (mode is not ("single" or "global" or "multi"))
-            throw new ArgumentOutOfRangeException(nameof(mode), mode, "expected single|global|multi");
+        if (mode is not ("simple" or "advanced"))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "expected simple|advanced");
         Mode = mode;
-        if (mode == "global")
-            SelectedSlot = null;
-        else if (mode == "single" && SelectedSlot is null)
-            SelectedSlot = "weapon";
-        else if (mode == "multi")
-            MultiFocus ??= SelectedSlot ?? "weapon";
         Notify();
     }
 
@@ -165,35 +156,29 @@ public sealed class WorkbenchState
     {
         if (GearSlot.ById(slotId) is null)
             throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
-        if (Mode == "global")
+        if (Mode == "simple")
             return;
-        if (Mode == "single")
-            SelectedSlot = slotId;
-        else
-            MultiFocus = slotId;
+        FocusedSlot = slotId;
         Notify();
     }
 
-    /// <summary>Set the multi editing focus directly (snapshot restore).</summary>
+    /// <summary>Set the advanced editing focus directly (snapshot restore).</summary>
     public void FocusSlot(string slotId)
     {
         if (GearSlot.ById(slotId) is null)
             throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
-        MultiFocus = slotId;
+        FocusedSlot = slotId;
         Notify();
     }
 
-    /// <summary>True when a slot has any wanted/unwanted chips (multi enrollment).</summary>
+    /// <summary>True when a slot has any wanted/unwanted chips (advanced enrollment).</summary>
     public bool Enrolled(string slotId) =>
         Slots.TryGetValue(slotId, out var c) && (c.Included.Count > 0 || c.Excluded.Count > 0);
 
-    /// <summary>Slots the query engine should compile for (global: none).</summary>
-    public IReadOnlyList<string> ActiveSlots() => Mode switch
-    {
-        "global" => [],
-        "single" => SelectedSlot is null ? [] : [SelectedSlot],
-        _ => GearSlot.All.Where(s => Enrolled(s.Id)).Select(s => s.Id).ToList(),
-    };
+    /// <summary>Slots the query engine should compile for (simple: none).</summary>
+    public IReadOnlyList<string> ActiveSlots() => Mode == "simple"
+        ? []
+        : GearSlot.All.Where(s => Enrolled(s.Id)).Select(s => s.Id).ToList();
 
     public void SetSlotClass(string slotId, string classId)
     {
@@ -358,9 +343,8 @@ public sealed class WorkbenchState
     /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
     public void Reset()
     {
-        Mode = "global";
-        SelectedSlot = null;
-        MultiFocus = null;
+        Mode = "simple";
+        FocusedSlot = null;
         Slots.Clear();
         foreach (var (slot, cls) in DefaultClasses)
             Slots[slot] = new SlotCriteria { ClassId = cls };
