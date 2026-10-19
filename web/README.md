@@ -61,7 +61,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 132 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 134 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -88,8 +88,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   pick it says "nothing to show yet — pick mods to build the string". Per-slot
   queries for More info live below.
 - `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
-  edit it, slots with picks enroll and fill, X clears; the focused
-  weapon/offhand slot carries its base-class select inside the card),
+  edit it, slots with picks enroll and fill, X clears; weapon/offhand
+  always carry their base-class select above the slot label inside the
+  card),
   `BackpackGrid` (12×5 test area; integer-snapped square
   cells span the full width in the stacked layout and a bounded column under
   the paper doll from 1500px up — when the
@@ -105,13 +106,14 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   the tooltip's scroll region so its border stays put), `ModeSwitch` (two
   stacked options — simple = same mods everywhere, advanced = per-slot mods),
   `HelpTip` (the test-items `(?)` card — click to open, backdrop or Escape to
-  close), `PicksRail` (the picks rail above the result: chips, pagers, clear;
-  in advanced it names the focused slot), `ModPicker` (searchable mods
+  close), `PicksRail` (the picks rail above the result: a `selected mods`
+  header, chips, pagers, clear; it never repeats the result's slot scope), `ModPicker` (searchable mods
   grouped into stat families: one row per family with the stat text with its
   numbers dropped
   (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
   stack their lines) — the row is a plain-text toggle (`▸`/`▾`
-  caret) with a dim tier count, a quiet `+` for the plain stat (any tier) and
+  caret) with a dim tier count, a quiet `+` for the plain stat (any tier,
+  compiled across every tier variant) and
   a dim `−` for the whole family; expanding shows the tiers, each with the
   affix name and its real range, where `+` compiles the affix-name literal
   (specific tier), `↑` compiles that name and every better tier
@@ -123,8 +125,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   box's right edge adds every matching family in one batch (disabled, with the
   prospective k/N in its tooltip, when that would exceed the game's
   250-character limit; one match keeps the row's own `+`); before typing,
-  only a short curated shortlist shows ("common picks — type to search all
-  194 families"); the list stretches/scrolls to fill the editor's height;
+  only a short curated shortlist shows ("showing common picks — type to
+  search all 194 families"); the list stretches/scrolls to fill the editor's height;
   typing filters tiers, so `reliable` narrows to the family(ies) carrying
   that affix), `QueryCard`
   (meter with the OVER state, copy, explain), `ImportPanel`
@@ -153,8 +155,18 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   rail sits directly above the result ("this is what you chose, this is what
   it makes") and stays present but inert with no picks (pagers at `+0`,
   clear disabled). There is no separate base-class row: simple is classless,
-  and in advanced the focused weapon/offhand slot carries its class select
-  inside the card (every other slot is 1:1 with its class).
+  and in advanced weapon/offhand always carry their class select above the
+  slot label inside the card (every other slot is 1:1 with its class).
+- Fragments are chosen by `FragmentSelector` (Core) rather than a fixed
+  fingerprint: every contiguous substring, anchored prefix/suffix, one
+  wildcard bridge, and `\d`/`\d+`/`.` placeholder rendering is tried in the
+  target scope, and the shortest candidate that recalls all of the stat's
+  real lines and matches no foreign line wins. Wildcard candidates must keep a
+  whole stat word (4+ letters) and each anchor must be a whole word or 3+
+  letters, which rejects shape-only strings such as `%.*r$`. The catalog
+  audit (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
+  scope/pattern fragments with .NET Regex, 2,104 simple/slot compiles, 788
+  family flows, and 210 class-pair pastes.
 - Picks live in a one-line rail that never wraps or grows, so a large pick
   set can't push the picker out of the panel. Directional SVG-chevron pagers
   sit in reserved gutters and always show the true count — gold-accented and

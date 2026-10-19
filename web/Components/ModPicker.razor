@@ -23,7 +23,7 @@
     @if (_families.Count == 0)
     {
         <div class="more">@(_search.Trim().Length == 0
-            ? $"type to search all {_allFamilies.Count} families"
+            ? _placeholder
             : "no mods match the filter")</div>
     }
     else
@@ -43,7 +43,7 @@
                         <ol class="suggest" aria-label="@header mods">
                             @foreach (var fam in list)
                             {
-                                var plainPick = new WantedMod(fam.Anchor.Id);
+                                var plainPick = fam.Pick();
                                 var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
                                 var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
                                 <li class="fam-block">
@@ -158,7 +158,7 @@
     private void Refresh()
     {
         _allFamilies = ModFamilies.Group(Mods);
-        _placeholder = $"type to search all {_allFamilies.Count} families";
+        _placeholder = $"showing common picks — type to search all {_allFamilies.Count} families";
         var filter = _search.Trim();
         _families = filter.Length == 0
             ? _allFamilies.Where(ModFamilies.IsCommon).ToList()
@@ -188,7 +188,7 @@
         _bulkNew = 0;
         if (_search.Trim().Length == 0 || _families.Count == 0) return;
         var crit = ScopeCriteria();
-        var picks = _families.Select(f => new WantedMod(f.Anchor.Id)).ToList();
+        var picks = _families.Select(f => f.Pick()).ToList();
         _bulkNew = picks.Count(p => !crit.Included.Any(m => m.SamePick(p)));
         if (_bulkNew < 2) return; // one match: the row's own + is the action
         var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
@@ -259,7 +259,7 @@
     private void SelectAll()
     {
         if (_bulkOverflow) return;
-        State.AddIncludes(Scope, _families.Select(f => new WantedMod(f.Anchor.Id)));
+        State.AddIncludes(Scope, _families.Select(f => f.Pick()));
         Refresh();
     }
 }

@@ -48,7 +48,7 @@
             </div>
         </div>
 
-        <PicksRail State="State" Scope="@RailScope" Mods="@RailMods" ShowHint="@RailHint" Label="@RailLabel" />
+        <PicksRail State="State" Scope="@RailScope" Mods="@RailMods" ShowHint="@RailHint" Label="selected mods" />
 
         <div class="result-bar">
             <div class="rb-head">
@@ -56,6 +56,10 @@
                 @if (scopeText.Length > 0)
                 {
                     <span class="rb-scope">@scopeText</span>
+                }
+                @if (UnresolvedDiagnostics() is { Count: > 0 } unresolved)
+                {
+                    <span class="rb-unresolved" id="rb-unresolved" title="@UnresolvedTitle(unresolved)">@unresolved.Count unresolved</span>
                 }
                 <span class="rb-hint">copy → paste into the game's item search</span>
             </div>
@@ -313,6 +317,22 @@
         return new TaskView(cardId, title, itemClass, result);
     }
 
+    /// <summary>
+    /// Distinct skipped picks across the visible compiles (and the combined
+    /// paste). The result bar carries a quiet count when this is non-zero; the
+    /// title is the engine's factual diagnostic text.
+    /// </summary>
+    private List<CompilerDiagnostic> UnresolvedDiagnostics() =>
+        _tasks.SelectMany(t => t.Result.Diagnostics)
+            .Concat(_paste?.Diagnostics ?? [])
+            .Where(d => d.Code == "unresolved-modifier")
+            .GroupBy(d => d.Message, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
+
+    private static string UnresolvedTitle(IReadOnlyList<CompilerDiagnostic> diagnostics) =>
+        string.Join("\n", diagnostics.Select(d => d.Message));
+
     private static string MeterTitle(int length, int limit) =>
         length > limit
             ? $"{length}/{limit} characters — {length - limit} over the game's search box limit"
@@ -329,11 +349,6 @@
 
     /// <summary>The rail shows its "+ to add" hint only where a picker is available.</summary>
     private bool RailHint => State.Mode == "simple" || State.FocusedSlot is not null;
-
-    /// <summary>Dim lead-in for the advanced rail, e.g. "helmet picks".</summary>
-    private string? RailLabel => State.Mode == "advanced" && State.FocusedSlot is { } focus
-        ? $"{(GearSlot.ById(focus)?.Label ?? focus).ToLowerInvariant()} picks"
-        : null;
 
     /// <summary>Mods for the rail/picker scope (empty while advanced is unfocused).</summary>
     private IReadOnlyList<ModEntry> RailMods =>

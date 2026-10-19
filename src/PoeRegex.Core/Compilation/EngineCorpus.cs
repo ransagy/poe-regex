@@ -321,10 +321,27 @@ public sealed class EngineCorpus
     public string? GlobalFingerprint(string modId, string linePattern, bool avoidPlaceholder, bool caseInsensitive = false)
     {
         if (!_modsById.TryGetValue(modId, out _)) return null;
+        return ShortestUniqueSubstringForPattern(linePattern, null, avoidPlaceholder, caseInsensitive);
+    }
+
+    /// <summary>
+    /// Shortest substring of a normalized pattern that is unique in the scope
+    /// (one class, or the union when <paramref name="itemClass"/> is null).
+    /// </summary>
+    public string? ShortestUniqueSubstringForPattern(
+        string linePattern, string? itemClass, bool avoidPlaceholder, bool caseInsensitive = true)
+    {
+        if (itemClass is not null)
+        {
+            if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
+            if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
+            var index = caseInsensitive ? ci.FoldIndex : ci.Index;
+            return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
+        }
         var union = EnsureUnionIndex();
-        if (!union.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
-        var index = caseInsensitive ? union.FoldIndex : union.Index;
-        return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
+        if (!union.PatternToIndex.TryGetValue(linePattern, out var unionIdx)) return null;
+        var unionIndex = caseInsensitive ? union.FoldIndex : union.Index;
+        return unionIndex.ShortestUniqueSubstring(unionIdx, avoidPlaceholder);
     }
 
     /// <summary>
@@ -343,6 +360,24 @@ public sealed class EngineCorpus
             if (!allowedPatterns.Contains(pattern)) return false;
         }
         return matchedAny;
+    }
+
+    /// <summary>
+    /// Patterns in the scope whose text contains <paramref name="literal"/>
+    /// (case-insensitive). A regex fragment that contains this literal can
+    /// only match those patterns, so the selector's oracle can skip the rest
+    /// of the corpus. The literal must not contain the digit placeholder.
+    /// </summary>
+    public IReadOnlyList<string> PatternsMatchingLiteral(string literal, string? itemClass)
+    {
+        if (literal.Length == 0) return [];
+        if (itemClass is not null)
+        {
+            if (!_byClass.TryGetValue(itemClass, out var ci)) return [];
+            return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Index.ClassCorpus[i]).ToList();
+        }
+        var union = EnsureUnionIndex();
+        return union.FoldIndex.LinesMatching(literal).Select(i => union.Index.ClassCorpus[i]).ToList();
     }
 
     private UnionIndex EnsureUnionIndex()

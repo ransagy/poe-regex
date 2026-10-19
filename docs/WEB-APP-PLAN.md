@@ -295,6 +295,40 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
+- **Follow-up round 14 — feedback round 2: minimal fragments, family
+  variants, and the safety audit.** The regex resolver was replaced by a real
+  minimiser (`FragmentSelector`): all literal substrings, anchored
+  prefixes/suffixes, one wildcard bridge (`.*`/`.+`/`.`), placeholder
+  renderings (`\d`, `\d+`, `.`), and optional per-line `^`/`$`; every
+  candidate is checked for recall (all of the stat's real lines) and safety
+  (no other stat's line) in the scope. Wildcards must keep at least one whole
+  stat word (4+ letters) and each anchor must be a whole word or 3+ letters,
+  so shapes like `%.*r$` and `ty$` are rejected; the oracle scans only
+  patterns containing a required literal (10x faster on the long lines).
+  Example results: `Adds # to # Cold Damage` → `\d Cold.+age$` (13, fixes
+  the silent simple-mode gap), `Adds # to # Cold damage to Attacks` →
+  `Cold.*Attacks$` (14), `% increased Armour` → `d Armour$` (9),
+  `% increased maximum Life` → `to.+Life` (8 globally),
+  `Allies … Elemental Resistances` → `Allies.*ces$` (12). The full audit
+  covers 867 distinct (scope, pattern) fragments with .NET Regex (not the
+  selector's matcher): every real line recalled, zero foreign matches; 2,104
+  simple/slot compiles with zero unresolved; 720 one-slot pastes and 435
+  class-pair pastes with clean anchors/group recall. Family picks now carry
+  every tier variant (`ModFamily.Pick()` → `WantedMod.VariantModIds`), so the
+  three singular/plural/numbered families (`GrenadeProjectiles`,
+  `GrenadeCooldownUse`, `AdditionalAmmo`) no longer match only their anchor
+  tier; the 788 family flows (194 global + 594 slot) pass. The web flow also
+  gains a quiet `N unresolved` tag in the result bar (deduped diagnostic
+  tooltip), a `selected mods` rail header (instead of repeating the result's
+  slot scope), aligned mode blurbs with more label gap, a filter→section gap,
+  the "showing common picks — type to search all N families" placeholder,
+  always-visible weapon/offhand class selects above the slot label, and a
+  quieter closed More info label. CDP-verified at 1920×1080, 1600×900 and
+  900×1200: mode row/blurbs align, no page scroll, class selects visible and
+  labels intact, closed More info is a faint bottom label. Full slnx
+  10+134+84 green. In-game `.`/`.*` newline behavior remains to be checked
+  manually with a generated wildcard string (the catalog audit cannot prove
+  the game's line semantics).
 - **Follow-up round 13 — feedback round 1, part 2: mode first, mods second,
   result third.** Two modes replace three: **Simple** (same mods for every
   item — the old global) and **Advanced** (different mods per slot — the old

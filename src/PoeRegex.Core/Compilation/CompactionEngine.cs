@@ -11,83 +11,46 @@ public sealed class CompactionEngine
 {
     private readonly EngineCorpus _corpus;
     private readonly ICompilerStrategy _strategy;
+    private readonly FragmentSelector _selector;
 
     public CompactionEngine(EngineCorpus corpus, ICompilerStrategy strategy)
     {
         _corpus = corpus;
         _strategy = strategy;
+        _selector = new FragmentSelector(corpus, strategy);
     }
 
     /// <summary>
-    /// Selects the regex fragment for a single modifier requirement on the
-    /// selected class. Returns null when the modifier cannot be represented.
+    /// Selects the shortest safe regex fragment for a single modifier
+    /// requirement in the selected scope. Returns null when the modifier
+    /// cannot be represented.
     /// </summary>
     public string? SelectFragment(ModifierRequirement requirement, string? itemClass)
     {
         var mod = _corpus.FindMod(requirement.Value);
         if (mod is null) return null;
+        if (mod.StatLines.Count == 0) return null;
 
-        // Choose the mod's single best stat line: prefer one present on the class.
-        var lines = itemClass is not null
-            ? mod.StatLines.Where(sl => sl.Fingerprints.ContainsKey(itemClass)).ToList()
-            : mod.StatLines.ToList();
-        if (lines.Count == 0) lines = mod.StatLines.ToList();
-        if (lines.Count == 0) return null;
-
-        // Prefer the shortest placeholder-free fingerprint so the emitted fragment
-        // stays a plain literal substring that trade search matches directly.
+        // Hybrid mods have more than one line. The selector is scope-aware and
+        // validates each line against the real copy text; keep the shortest.
         string? best = null;
         StatLineEntry? bestLine = null;
-        foreach (var line in lines)
+        foreach (var line in mod.StatLines)
         {
-            var fp = GetFingerprint(mod.Id, line.Pattern, itemClass, avoidPlaceholder: true);
-            if (fp is null) continue;
-            if (best is null || fp.Length < best.Length)
+            var fragment = _selector.Select(line.Pattern, itemClass);
+            if (fragment is null) continue;
+            if (best is null || fragment.Length < best.Length)
             {
-                best = fp;
-                bestLine = line;
-            }
-        }
-
-        // Escape any literal regex metacharacters so a plain fingerprint matches
-        // literally rather than being interpreted as regex syntax. This must happen
-        // before the fallback path, which replaces best with an already-escaped
-        // regex fragment (its \d+ quantifier must not be escaped again).
-        if (best is not null && bestLine is not null)
-        {
-            best = _strategy.EscapeLiteral(best);
-        }
-
-        // No line has a placeholder-free unique substring: fall back to the shortest
-        // fingerprint, expanding digit placeholders into a digit-run matcher and
-        // re-validating uniqueness against real copy text.
-        if (best is null)
-        {
-            foreach (var line in lines)
-            {
-                var fp = GetFingerprint(mod.Id, line.Pattern, itemClass, avoidPlaceholder: false);
-                if (fp is null || !ContainsPlaceholder(fp)) continue;
-                var fragment = ExpandPlaceholders(fp);
-                if (fragment is null) continue;
-                if (!IsFragmentSafe(itemClass, fragment, line.Pattern)) continue;
                 best = fragment;
                 bestLine = line;
-                break;
             }
-            if (best is null) return null;
         }
+        if (best is null || bestLine is null) return null;
 
-        if (requirement.MinValue is not null && best is not null && bestLine is not null)
-        {
+        if (requirement.MinValue is not null)
             return BuildThresholdFragment(bestLine, requirement.MinValue.Value, itemClass, best);
-        }
         return best;
     }
-
-    private string? GetFingerprint(string modId, string linePattern, string? itemClass, bool avoidPlaceholder) =>
-        itemClass is not null
-            ? _corpus.Fingerprint(modId, linePattern, itemClass, avoidPlaceholder, caseInsensitive: true)
-            : _corpus.GlobalFingerprint(modId, linePattern, avoidPlaceholder, caseInsensitive: true);
 
     private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
     {
@@ -95,27 +58,6 @@ public sealed class CompactionEngine
         return itemClass is not null
             ? _corpus.RegexSafeOnClass(itemClass, fragment, allowed)
             : _corpus.GlobalRegexSafe(fragment, allowed);
-    }
-
-    private static bool ContainsPlaceholder(string s) => s.IndexOf(SuffixIndex.DigitPlaceholder) >= 0;
-
-    /// <summary>
-    /// Replaces every digit placeholder in a fragment with a digit-run matcher and
-    /// escapes regex metacharacters, producing a literal-matching regex fragment.
-    /// </summary>
-    private string? ExpandPlaceholders(string fragment)
-    {
-        var sb = new System.Text.StringBuilder(fragment.Length + 8);
-        var literalStart = 0;
-        for (var i = 0; i < fragment.Length; i++)
-        {
-            if (fragment[i] != SuffixIndex.DigitPlaceholder) continue;
-            if (i > literalStart) sb.Append(_strategy.EscapeLiteral(fragment.Substring(literalStart, i - literalStart)));
-            sb.Append(@"\d+");
-            literalStart = i + 1;
-        }
-        if (literalStart < fragment.Length) sb.Append(_strategy.EscapeLiteral(fragment.Substring(literalStart)));
-        return sb.ToString();
     }
 
     /// <summary>
@@ -190,12 +132,19 @@ public sealed class CompactionEngine
                 continue;
             }
             var prefix = LongestCommonPrefix(items);
-            var suffix = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
-                ? string.Join("|", items.Select(s => s.Substring(prefix.Length)))
+            var suffixes = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
+                ? items.Select(s => s.Substring(prefix.Length)).ToList()
                 : null;
-            if (suffix is not null)
+            // Do not split an escape or a wildcard token, and do not put a
+            // quantifier at the start of an alternative (`\d` + `+...`).
+            var splittable = suffixes is not null
+                && prefix.Length >= 2
+                && !EndsWithOddBackslash(prefix)
+                && !prefix.EndsWith('.')
+                && suffixes.All(s => s.Length > 0 && s[0] is not ('*' or '+' or '?' or '{' or '|' or ')'));
+            if (splittable)
             {
-                var factored = prefix + "(" + suffix + ")";
+                var factored = prefix + "(" + string.Join("|", suffixes!) + ")";
                 // Only use if actually shorter than the union.
                 var union = string.Join("|", items);
                 if (factored.Length < union.Length) result.Add(factored);
@@ -207,6 +156,13 @@ public sealed class CompactionEngine
             }
         }
         return result;
+    }
+
+    private static bool EndsWithOddBackslash(string s)
+    {
+        var count = 0;
+        for (var i = s.Length - 1; i >= 0 && s[i] == '\\'; i--) count++;
+        return count % 2 == 1;
     }
 
     private static string LongestCommonPrefix(IReadOnlyList<string> strings)

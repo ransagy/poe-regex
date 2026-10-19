@@ -1,0 +1,487 @@
+using PoeRegex.Core.Search;
+
+namespace PoeRegex.Core.Compilation;
+
+/// <summary>
+/// Finds the shortest fragment that selects one stat text and nothing else in
+/// a scope, using regex selectors when they genuinely shorten the string.
+///
+/// Candidate space (per normalized line pattern):
+///  - every contiguous substring (the shortest unique one comes from the
+///    suffix index; prefixes/suffixes are tried with the per-line anchors),
+///  - two literal pieces bridged by one wildcard, with optional <c>^</c>/<c>$</c>,
+///  - placeholders rendered as <c>\d</c>, <c>\d+</c> or <c>.</c>.
+///
+/// Wildcard candidates must retain at least one whole stat word (four or more
+/// letters) so the result still reads as the stat instead of a shape like
+/// <c>%.*r$</c>. Every candidate is checked for recall (it matches every real
+/// line of the stat) and safety (it matches no line of another stat) against
+/// the real copy text of the scope. Ties prefer more anchors, then a stricter
+/// wildcard, then more letters.
+/// </summary>
+public sealed class FragmentSelector
+{
+    private const int MinWildcardLength = 6;
+    private const int MaxSearchLength = 48;
+    private static readonly string[] TwoWildcards = [".+", ".*"];
+    private static readonly string[] ThreeWildcards = [".+", ".*", "."];
+
+    private readonly EngineCorpus _corpus;
+    private readonly ICompilerStrategy _strategy;
+    private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
+    private readonly Dictionary<string, ScopeData> _scopes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<(int Start, int End)>> _words = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Scope, string Target, string Hint), List<string>> _foreignCache = new();
+
+    public FragmentSelector(EngineCorpus corpus, ICompilerStrategy strategy)
+    {
+        _corpus = corpus;
+        _strategy = strategy;
+    }
+
+    private sealed class ScopeData
+    {
+        public required Dictionary<string, List<string>> ByPattern { get; init; }
+        public required List<(string Pattern, string Real)> All { get; init; }
+    }
+
+    /// <summary>
+    /// The shortest safe fragment for <paramref name="pattern"/> in the scope
+    /// (<paramref name="itemClass"/> null means the union of every class).
+    /// Returns null only when the pattern has no real line in the scope.
+    /// </summary>
+    public string? Select(string pattern, string? itemClass)
+    {
+        var key = (itemClass ?? "\0", pattern);
+        if (_cache.TryGetValue(key, out var cached)) return cached;
+        var result = SelectCore(pattern, itemClass);
+        _cache[key] = result;
+        return result;
+    }
+
+    private string? SelectCore(string pattern, string? itemClass)
+    {
+        var scope = GetScope(itemClass);
+        if (!scope.ByPattern.TryGetValue(pattern, out var targetList) || targetList.Count == 0) return null;
+        var others = scope.All
+            .Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
+            .Select(x => x.Real)
+            .ToList();
+
+        var plain = BestPlain(pattern, itemClass, targetList, others);
+        if (plain is not null && plain.Length <= MinWildcardLength) return plain;
+
+        // A global-safe fragment is safe on every class and matches every
+        // class's copy of the pattern; use it as a fallback for class scopes.
+        string? best = plain;
+        if (itemClass is not null)
+        {
+            var global = Select(pattern, null);
+            if (global is not null && (best is null || global.Length < best.Length)) best = global;
+        }
+        if (best is not null && best.Length <= MinWildcardLength) return best;
+
+        var bound = best?.Length ?? int.MaxValue;
+        var wildcard = FindWildcard(pattern, itemClass, targetList, others, Math.Min(bound, MaxSearchLength + 1));
+        if (wildcard is not null && (best is null || wildcard.Length < best.Length)) best = wildcard;
+
+        if (best is not null) return best;
+
+        // The whole line with per-line anchors is always safe and recalls every
+        // real line; it is the unconditional fallback (never expected in data).
+        var whole = WholeLine(pattern);
+        if (whole is not null && Validate(whole, itemClass, pattern, targetList, others)) return whole;
+        return null;
+    }
+
+    private ScopeData GetScope(string? itemClass)
+    {
+        var key = itemClass ?? "\0";
+        if (_scopes.TryGetValue(key, out var cached)) return cached;
+        var all = itemClass is null
+            ? _corpus.RealLinesGlobal().ToList()
+            : _corpus.RealLinesForClass(itemClass).ToList();
+        var byPattern = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var (pattern, real) in all)
+        {
+            if (!byPattern.TryGetValue(pattern, out var list))
+            {
+                list = [];
+                byPattern[pattern] = list;
+            }
+            list.Add(real);
+        }
+        var data = new ScopeData { ByPattern = byPattern, All = all };
+        _scopes[key] = data;
+        return data;
+    }
+
+    /// <summary>Shortest safe contiguous fragment (substring, prefix or suffix).</summary>
+    private string? BestPlain(string pattern, string? itemClass, List<string> targets, List<string> others)
+    {
+        var candidates = new HashSet<string>(StringComparer.Ordinal);
+        var unique = _corpus.ShortestUniqueSubstringForPattern(pattern, itemClass, avoidPlaceholder: false);
+        if (unique is not null)
+        {
+            var at = pattern.IndexOf(unique, StringComparison.Ordinal);
+            if (at >= 0) AddRenderings(candidates, pattern, at, at + unique.Length);
+        }
+        var uniqueNoPlaceholder = _corpus.ShortestUniqueSubstringForPattern(pattern, itemClass, avoidPlaceholder: true);
+        if (uniqueNoPlaceholder is not null)
+            candidates.Add(_strategy.EscapeLiteral(uniqueNoPlaceholder));
+
+        // Anchored prefixes and suffixes. Shape-only anchors like `ty$` are
+        // rejected: an anchored candidate must keep at least one whole word.
+        for (var end = 4; end <= pattern.Length; end++)
+            AddRenderings(candidates, pattern, 0, end, prefixAnchor: true, requireWord: true);
+        for (var start = 0; start <= pattern.Length - 4; start++)
+            AddRenderings(candidates, pattern, start, pattern.Length, suffixAnchor: true, requireWord: true);
+
+        // The whole line is the long-but-always-safe fallback.
+        AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true);
+        AddRenderings(candidates, pattern, 0, pattern.Length, suffixAnchor: true);
+        AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true, suffixAnchor: true);
+
+        foreach (var candidate in candidates.OrderBy(c => c.Length).ThenBy(c => AnchorCount(c), Comparer<int>.Create((a, b) => b.CompareTo(a))).ThenBy(c => c, StringComparer.Ordinal))
+        {
+            if (Validate(candidate, itemClass, pattern, targets, others)) return candidate;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Adds the placeholder renderings of one literal range to the set, with
+    /// the requested per-line anchors. The range must be a contiguous piece of
+    /// the normalized pattern.
+    /// </summary>
+    private void AddRenderings(
+        HashSet<string> into, string pattern, int start, int end,
+        bool prefixAnchor = false, bool suffixAnchor = false, bool requireWord = false)
+    {
+        if (start < 0 || end <= start || end > pattern.Length) return;
+        if (requireWord && !HasWholeWord(pattern, start, end)) return;
+        foreach (var rendered in Renderings(pattern, start, end))
+        {
+            into.Add((prefixAnchor ? "^" : "") + rendered + (suffixAnchor ? "$" : ""));
+        }
+    }
+
+    /// <summary>True when the range fully contains at least one word (4+ letters, word-bounded).</summary>
+    private bool HasWholeWord(string pattern, int start, int end) => HasWord(pattern, start, end, minLength: 4);
+
+    private bool HasWord(string pattern, int start, int end, int minLength)
+    {
+        foreach (var (wordStart, wordEnd) in Words(pattern))
+        {
+            if (wordEnd - wordStart >= minLength && wordStart >= start && wordEnd <= end) return true;
+        }
+        return false;
+    }
+
+    private List<(int Start, int End)> Words(string pattern)
+    {
+        if (_words.TryGetValue(pattern, out var cached)) return cached;
+        var words = new List<(int, int)>();
+        var i = 0;
+        while (i < pattern.Length)
+        {
+            if (!char.IsAsciiLetter(pattern[i])) { i++; continue; }
+            var start = i;
+            while (i < pattern.Length && char.IsAsciiLetter(pattern[i])) i++;
+            words.Add((start, i));
+        }
+        _words[pattern] = words;
+        return words;
+    }
+
+    /// <summary>All placeholder renderings of a range, shortest first.</summary>
+    private List<string> Renderings(string pattern, int start, int end)
+    {
+        var parts = new List<string>();
+        var literalStart = start;
+        for (var i = start; i < end; i++)
+        {
+            if (pattern[i] != SuffixIndex.DigitPlaceholder) continue;
+            if (i > literalStart) parts.Add(_strategy.EscapeLiteral(pattern[literalStart..i]));
+            parts.Add("\0"); // placeholder marker
+            literalStart = i + 1;
+        }
+        if (literalStart < end) parts.Add(_strategy.EscapeLiteral(pattern[literalStart..end]));
+
+        var result = new List<string> { "" };
+        var placeholders = parts.Count(p => p == "\0");
+        if (placeholders > 4)
+        {
+            // Pathological line: keep only the uniform renderings.
+            result.Clear();
+            result.Add(string.Concat(parts.Select(p => p == "\0" ? "." : p)));
+            result.Add(string.Concat(parts.Select(p => p == "\0" ? @"\d" : p)));
+            result.Add(string.Concat(parts.Select(p => p == "\0" ? @"\d+" : p)));
+            return result.Distinct().OrderBy(s => s.Length).ThenBy(s => s, StringComparer.Ordinal).ToList();
+        }
+
+        foreach (var part in parts)
+        {
+            if (part != "\0")
+            {
+                for (var i = 0; i < result.Count; i++) result[i] += part;
+                continue;
+            }
+            var next = new List<string>(result.Count * 3);
+            foreach (var prefix in result)
+            {
+                next.Add(prefix + ".");
+                next.Add(prefix + @"\d");
+                next.Add(prefix + @"\d+");
+            }
+            result = next;
+        }
+        return result
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(s => s.Length)
+            .ThenBy(s => s, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Searches one-wildcard fragments by increasing rendered length. Only
+    /// lengths below <paramref name="bound"/> are considered; the first safe
+    /// candidate at the smallest length wins.
+    /// </summary>
+    private string? FindWildcard(string pattern, string? itemClass, List<string> targets, List<string> others, int bound)
+    {
+        var n = pattern.Length;
+        bound = Math.Min(bound, MaxSearchLength + 1);
+        if (bound <= MinWildcardLength) return null;
+
+        var words = Words(pattern);
+        var buckets = new HashSet<string>?[bound];
+        var renderCache = new List<string>?[n + 1, n + 1];
+
+        List<string> Piece(int a, int b)
+        {
+            if (renderCache[a, b] is { } cached) return cached;
+            var rendered = Renderings(pattern, a, b);
+            renderCache[a, b] = rendered;
+            return rendered;
+        }
+
+        bool HasWord(int a, int b)
+        {
+            foreach (var (start, end) in words)
+                if (end - start >= 4 && start >= a && end <= b) return true;
+            return false;
+        }
+
+        bool HasAnchor(int a, int b)
+        {
+            foreach (var (start, end) in words)
+                if (start >= a && end <= b) return true;
+            var letters = 0;
+            for (var p = a; p < b; p++)
+                if (char.IsAsciiLetter(pattern[p])) letters++;
+            return letters >= 3;
+        }
+
+        void Add(string candidate)
+        {
+            if (candidate.Length >= bound) return;
+            var bucket = buckets[candidate.Length] ??= new HashSet<string>(StringComparer.Ordinal);
+            bucket.Add(candidate);
+        }
+
+        for (var i = 0; i < n - 1; i++)
+            for (var k = i + 1; k < n; k++)
+            {
+                if (!HasAnchor(i, k)) continue;
+                var aHasWord = HasWord(i, k);
+                var aRenderings = Piece(i, k);
+                var startVariants = i == 0 ? 2 : 1;
+                for (var l = k + 1; l < n; l++)
+                {
+                    var gap = l - k;
+                    var wildcards = TwoWildcards;
+                    var wildcardCount = 2;
+                    if (gap == 1 && (pattern[k] == SuffixIndex.DigitPlaceholder || _strategy.EscapeLiteral(pattern[k].ToString()).Length > 1))
+                    {
+                        wildcards = ThreeWildcards;
+                        wildcardCount = 3;
+                    }
+                    for (var j = l + 1; j <= n; j++)
+                    {
+                        if (!HasAnchor(l, j)) continue;
+                        if (!aHasWord && !HasWord(l, j)) continue;
+                        var minPieceLength = (k - i) + (j - l);
+                        // Wildcard is at least one char; anchors are optional.
+                        if (minPieceLength + 1 >= bound) continue;
+                        var endVariants = j == n ? 2 : 1;
+                        var bRenderings = Piece(l, j);
+                        foreach (var aText in aRenderings)
+                            foreach (var bText in bRenderings)
+                            {
+                                var baseLength = aText.Length + bText.Length;
+                                for (var wi = 0; wi < wildcardCount; wi++)
+                                {
+                                    var wildcard = wildcards[wi];
+                                    var length = baseLength + wildcard.Length;
+                                    for (var sv = 0; sv < startVariants; sv++)
+                                        for (var ev = 0; ev < endVariants; ev++)
+                                        {
+                                            var total = length + sv + ev;
+                                            if (total >= bound) continue;
+                                            Add((sv == 1 ? "^" : "") + aText + wildcard + bText + (ev == 1 ? "$" : ""));
+                                        }
+                                }
+                            }
+                    }
+                }
+            }
+
+        for (var length = MinWildcardLength; length < bound; length++)
+        {
+            var bucket = buckets[length];
+            if (bucket is null || bucket.Count == 0) continue;
+            foreach (var candidate in bucket
+                         .OrderByDescending(AnchorCount)
+                         .ThenBy(WildcardRank)
+                         .ThenByDescending(LetterCount)
+                         .ThenBy(c => c, StringComparer.Ordinal))
+            {
+                if (Validate(candidate, itemClass, pattern, targets, others)) return candidate;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Whole line with per-line anchors; guaranteed recall when the scope has the pattern.</summary>
+    private string WholeLine(string pattern)
+    {
+        var sb = new System.Text.StringBuilder(pattern.Length + 8);
+        sb.Append('^');
+        var literalStart = 0;
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            if (pattern[i] != SuffixIndex.DigitPlaceholder) continue;
+            if (i > literalStart) sb.Append(_strategy.EscapeLiteral(pattern[literalStart..i]));
+            sb.Append(@"\d+");
+            literalStart = i + 1;
+        }
+        if (literalStart < pattern.Length) sb.Append(_strategy.EscapeLiteral(pattern[literalStart..]));
+        sb.Append('$');
+        return sb.ToString();
+    }
+
+    private bool Validate(string candidate, string? itemClass, string pattern, List<string> targets, List<string> others)
+    {
+        var matcher = FragmentMatcher.Parse(candidate);
+        // Recall first: candidates that miss one of the stat's own lines are
+        // rejected after a handful of matches instead of scanning the scope.
+        foreach (var line in targets)
+            if (!matcher.IsMatch(line)) return false;
+
+        // A required literal in the candidate can only match patterns that
+        // contain it; scan that subset instead of every foreign line.
+        var hint = LiteralHint(candidate);
+        var foreign = hint is null ? others : ForeignLines(itemClass, pattern, hint, others);
+        foreach (var line in foreign)
+            if (matcher.IsMatch(line)) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Foreign real lines that can possibly match a candidate containing the
+    /// given literal (case-insensitive). Falls back to the full list when the
+    /// subset is not smaller.
+    /// </summary>
+    private List<string> ForeignLines(string? itemClass, string targetPattern, string hint, List<string> allOthers)
+    {
+        var key = (itemClass ?? "\0", targetPattern, hint);
+        if (_foreignCache.TryGetValue(key, out var cached)) return cached;
+        var patterns = _corpus.PatternsMatchingLiteral(hint, itemClass);
+        if (patterns.Count == 0) return allOthers;
+        var scope = GetScope(itemClass);
+        var lines = new List<string>();
+        foreach (var p in patterns)
+        {
+            if (string.Equals(p, targetPattern, StringComparison.Ordinal)) continue;
+            if (scope.ByPattern.TryGetValue(p, out var real)) lines.AddRange(real);
+        }
+        var result = lines.Count < allOthers.Count ? lines : allOthers;
+        _foreignCache[key] = result;
+        return result;
+    }
+
+    /// <summary>
+    /// Longest literal run in a fragment (3+ characters, at least two
+    /// alphanumeric). Used as a safe pre-filter for the false-positive scan.
+    /// </summary>
+    private static string? LiteralHint(string fragment)
+    {
+        var best = "";
+        var current = new System.Text.StringBuilder();
+        void Flush()
+        {
+            if (current.Length > best.Length && current.Length >= 3 &&
+                current.ToString().Count(char.IsLetterOrDigit) >= 2)
+                best = current.ToString();
+            current.Clear();
+        }
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            var c = fragment[i];
+            if (c == '\\' && i + 1 < fragment.Length)
+            {
+                var n = fragment[i + 1];
+                if (n == 'd')
+                {
+                    Flush();
+                    i++;
+                    if (i + 1 < fragment.Length && fragment[i + 1] == '+') i++;
+                }
+                else
+                {
+                    current.Append(n);
+                    i++;
+                }
+                continue;
+            }
+            if (c is '^' or '$' or '.' or '*' or '+' or '(' or ')' or '[' or ']' or '{' or '}' or '|' or '?')
+            {
+                Flush();
+                continue;
+            }
+            current.Append(c);
+        }
+        Flush();
+        return best.Length >= 3 ? best : null;
+    }
+
+    private static int AnchorCount(string candidate) =>
+        (candidate.StartsWith('^') ? 1 : 0) + (candidate.EndsWith('$') ? 1 : 0);
+
+    private static int WildcardRank(string candidate) =>
+        candidate.Contains(".*", StringComparison.Ordinal) ? 2
+        : candidate.Contains(".+", StringComparison.Ordinal) ? 1
+        : 0;
+
+    private static int LetterCount(string candidate)
+    {
+        var count = 0;
+        for (var i = 0; i < candidate.Length; i++)
+        {
+            if (candidate[i] == '\\' && i + 1 < candidate.Length)
+            {
+                if (candidate[i + 1] == 'd')
+                {
+                    i++;
+                    if (i + 1 < candidate.Length && candidate[i + 1] == '+') i++;
+                    continue;
+                }
+                i++;
+                continue;
+            }
+            if (char.IsAsciiLetter(candidate[i])) count++;
+        }
+        return count;
+    }
+}

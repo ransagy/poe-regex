@@ -10,15 +10,16 @@
 
   Advanced mode only (simple mode has no slots): clicking a slot moves the
   editing focus (accent outline); slots with picks are enrolled and filled.
-  Weapon/offhand are the only slots with a base-class choice, so the focused
-  one carries the class select inside its card; every other slot is 1:1.
+  Weapon/offhand are the only slots with a base-class choice, so each carries
+  its class select above the slot label inside the card (always visible);
+  every other slot is 1:1.
 *@
 <div class="doll" aria-label="Equipment">
     @foreach (var slot in GearSlot.All)
     {
         var enrolled = State.Enrolled(slot.Id);
         var focused = State.FocusedSlot == slot.Id;
-        var showClass = focused && slot.Id is "weapon" or "offhand";
+        var showClass = slot.Id is "weapon" or "offhand";
         <div class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "")"
              style="@Placement(slot)">
             <button id="slot-@slot.Id" type="button" class="gear-focus"
@@ -26,15 +27,18 @@
                     @onclick="() => State.SelectSlot(slot.Id)"></button>
             @if (showClass)
             {
-                <select class="gear-class" aria-label="@slot.Label base class"
-                        value="@State.SlotClassOrDefault(slot.Id)"
-                        @onchange="e => SetClass(slot.Id, e)"
-                        @onclick:stopPropagation="true">
-                    @foreach (var cls in ClassOptions(slot.Id))
-                    {
-                        <option value="@cls.Id">@cls.Name</option>
-                    }
-                </select>
+                <div class="gear-stack">
+                    <select class="gear-class" aria-label="@slot.Label base class"
+                            value="@State.SlotClassOrDefault(slot.Id)"
+                            @onchange="e => SetClass(slot.Id, e)"
+                            @onclick:stopPropagation="true">
+                        @foreach (var cls in ClassOptions(slot.Id))
+                        {
+                            <option value="@cls.Id">@cls.Name</option>
+                        }
+                    </select>
+                    <span class="gear-label">@slot.Label</span>
+                </div>
             }
             else
             {

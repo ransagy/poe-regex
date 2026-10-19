@@ -31,34 +31,46 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
 /// that tier, several select "this tier or better" (never game tier numbers —
 /// they are not derivable from data).
 /// </summary>
-public sealed record WantedMod(string ModId, IReadOnlyList<string>? Names = null)
+public sealed record WantedMod(
+    string ModId,
+    IReadOnlyList<string>? Names = null,
+    IReadOnlyList<string>? VariantModIds = null)
 {
     /// <summary>Computed; kept out of snapshots (plain picks would carry
     /// `IsNamePick:false` noise on every entry).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNamePick => Names is { Count: > 0 };
 
-    /// <summary>Exact-pick identity: same anchor and same names in order.</summary>
+    /// <summary>Exact-pick identity: same anchor, names, and family variants in order.</summary>
     public bool SamePick(WantedMod other) => Equals(other);
 
     public bool Equals(WantedMod? other) =>
         other is not null && ModId == other.ModId &&
-        (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal);
+        (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal) &&
+        (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal);
 
     public override int GetHashCode()
     {
         var hash = new HashCode();
         hash.Add(ModId, StringComparer.Ordinal);
         foreach (var name in Names ?? []) hash.Add(name, StringComparer.Ordinal);
+        foreach (var id in VariantModIds ?? []) hash.Add(id, StringComparer.Ordinal);
         return hash.ToHashCode();
     }
 
-    /// <summary>Compile-time requirements: one free-text name per name pick,
-    /// else the catalog mod id (fragment resolution happens in the engine).</summary>
-    public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements() =>
-        IsNamePick
-            ? Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n))
-            : [new PoeRegex.Core.ModifierRequirement(ModId)];
+    /// <summary>
+    /// Compile-time requirements: one free-text name per name pick; for a
+    /// plain family pick, every tier variant's mod id (the engine ORs the
+    /// fragments, so a singular/plural or numbered variant is not missed);
+    /// otherwise the catalog mod id.
+    /// </summary>
+    public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements()
+    {
+        if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
+        if (VariantModIds is { Count: > 0 })
+            return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id));
+        return [new PoeRegex.Core.ModifierRequirement(ModId)];
+    }
 }
 
 /// <summary>Search criteria for one slot (or the global scope): base class + wanted/unwanted mods.</summary>

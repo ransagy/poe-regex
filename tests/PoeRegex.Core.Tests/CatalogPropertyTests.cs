@@ -71,18 +71,20 @@ public class CatalogPropertyTests
     }
 
     /// <summary>
-    /// Regression guard for the digit-placeholder leak: no generated query may
-    /// contain the value token control character, and non-threshold single-mod
-    /// fragments must be plain literals (no unescaped regex metacharacters).
+    /// Regression guard for the digit-placeholder leak and unresolved picks:
+    /// every mod compiles on every class, the emitted fragment contains no
+    /// control character, and it matches one of the mod's real copy-text lines.
+    /// The fragment audit separately proves recall and false-positive safety.
     /// </summary>
     [Theory]
     [MemberData(nameof(Catalogs))]
-    public void EveryGeneratedSingleModQuery_IsLiteralAndSafe(GameTarget game)
+    public void EveryGeneratedSingleModQuery_ResolvesAndAvoidsPlaceholder(GameTarget game)
     {
         var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
         var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
         var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
         var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
+        var quoted = new System.Text.RegularExpressions.Regex("\"([^\"]*)\"");
 
         var checkedCount = 0;
         foreach (var mod in corpus.Mods)
@@ -94,11 +96,17 @@ public class CatalogPropertyTests
                     ItemClass = cls,
                     IncludedModifiers = [new ModifierRequirement(mod.Id)],
                 });
+                result.Diagnostics.Should().NotContain(d => d.Code == "unresolved-modifier",
+                    $"mod {mod.Id} on {cls} must resolve");
                 result.Query.Should().NotContain(
                     placeholder,
                     $"query for {mod.Id} on {cls} must not contain the digit placeholder (got '{result.Query}')");
-                HasUnescapedMetachar(result.Query).Should().BeFalse(
-                    $"query for {mod.Id} on {cls} must not contain an unescaped regex metacharacter (got '{result.Query}')");
+                var fragment = quoted.Match(result.Query);
+                fragment.Success.Should().BeTrue($"query for {mod.Id} on {cls} must carry a quoted fragment");
+                var text = fragment.Groups[1].Value;
+                mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(
+                        sl.Line, text, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    .Should().BeTrue($"fragment '{text}' of {mod.Id} must match one of its copy-text lines");
                 checkedCount++;
             }
         }
@@ -106,13 +114,12 @@ public class CatalogPropertyTests
     }
 
     /// <summary>
-    /// Global (no class) queries resolve catalog mods to a union-corpus fingerprint:
-    /// no control char, no unescaped metacharacter, and the emitted fragment matches
-    /// at least one real copy-text line of the mod.
+    /// Global (no class) queries resolve every catalog mod to a fragment with
+    /// no control char; the audit proves recall/safety over the whole corpus.
     /// </summary>
     [Theory]
     [MemberData(nameof(Catalogs))]
-    public void EveryGlobalQuery_ResolvesToAMatchingLiteral(GameTarget game)
+    public void EveryGlobalQuery_ResolvesToAMatchingFragment(GameTarget game)
     {
         var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
         var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
@@ -126,10 +133,10 @@ public class CatalogPropertyTests
             {
                 IncludedModifiers = [new ModifierRequirement(mod.Id)],
             });
-            if (result.Diagnostics.Any(d => d.Code == "unresolved-modifier")) continue;
+            result.Diagnostics.Should().NotContain(d => d.Code == "unresolved-modifier",
+                $"global mod {mod.Id} must resolve");
 
             result.Query.Should().NotContain(placeholder, $"global query for {mod.Id} must not contain the digit placeholder (got '{result.Query}')");
-            HasUnescapedMetachar(result.Query).Should().BeFalse($"global query for {mod.Id} must not contain an unescaped metacharacter (got '{result.Query}')");
 
             var fragment = result.Query.Trim().Trim('"');
             fragment.Should().NotBeNullOrEmpty($"global query for {mod.Id} must resolve to a fragment");
@@ -137,7 +144,7 @@ public class CatalogPropertyTests
             matches.Should().BeTrue($"global fragment '{fragment}' of {mod.Id} must match one of its copy-text lines");
             checkedCount++;
         }
-        checkedCount.Should().BeGreaterThan(1000, "expected most mods to resolve globally");
+        checkedCount.Should().BeGreaterThan(1000, "expected every mod to resolve globally");
     }
 
     /// <summary>
@@ -174,17 +181,4 @@ public class CatalogPropertyTests
         }
     }
 
-    private static bool HasUnescapedMetachar(string s)
-    {
-        const string metachars = "|.+*?()[]{}$^";
-        for (var i = 0; i < s.Length; i++)
-        {
-            var c = s[i];
-            if (metachars.IndexOf(c) < 0) continue;
-            if (i > 0 && s[i - 1] == '\\') continue; // escaped literal
-            if (c == '+' && i > 1 && s[i - 1] == 'd' && s[i - 2] == '\\') continue; // \d+ digit-run quantifier
-            return true;
-        }
-        return false;
-    }
 }

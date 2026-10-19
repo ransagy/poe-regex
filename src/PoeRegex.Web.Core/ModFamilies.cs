@@ -42,6 +42,21 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>Single-line form for chips: lines joined with `/`.</summary>
     public string DisplayText => string.Join(" / ", DisplayLines);
 
+    /// <summary>
+    /// The family pick: the anchor plus every tier variant. Compiling all
+    /// variant mod ids ORs their fragments, so a family whose tiers differ in
+    /// wording (singular/plural, an explicit "2") still matches every tier.
+    /// </summary>
+    public WantedMod Pick() => new(
+        Anchor.Id,
+        null,
+        Tiers.SelectMany(t => t.Members)
+            .Where(m => m.StatLines.Count > 0)
+            .Select(m => m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList());
+
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) => Tiers

@@ -103,14 +103,15 @@ body { overflow: hidden; }
 .panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.1rem 0 0.1rem; }
 
 /* Mode row: the first decision. Two stacked options that describe themselves. */
-.mode-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.mode-bar { display: flex; align-items: center; gap: 1.4rem; margin-bottom: 0.5rem; }
 .section-label {
     color: var(--dim); font-size: 0.8rem; text-transform: uppercase;
     letter-spacing: 0.08em; white-space: nowrap;
 }
-.mode-stack { display: flex; flex-direction: column; gap: 0.15rem; min-width: 22rem; }
+.mode-stack { display: flex; flex-direction: column; gap: 0.15rem; min-width: 26rem; }
 .mode-opt {
-    display: flex; align-items: baseline; gap: 0.5rem;
+    display: grid; grid-template-columns: 0.55rem 6.4rem minmax(0, 1fr);
+    column-gap: 0.5rem; align-items: baseline;
     padding: 0.1rem 0; border: none; background: transparent;
     color: var(--dim); font: inherit; font-size: 0.85rem;
     cursor: pointer; text-align: left;
@@ -119,6 +120,7 @@ body { overflow: hidden; }
 .mode-dot {
     width: 0.55rem; height: 0.55rem; border-radius: 50%;
     border: 1px solid var(--panel-edge-hi); flex: none; align-self: center;
+    grid-row: 1;
 }
 .mode-name { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.78rem; color: var(--ink); }
 .mode-blurb { font-size: 0.78rem; color: var(--dim); }
@@ -140,6 +142,10 @@ body { overflow: hidden; }
     letter-spacing: 0.1em; white-space: nowrap;
 }
 .rb-scope { color: var(--ink); font-size: 0.78rem; white-space: nowrap; }
+.rb-unresolved {
+    color: #c9b98a; font-size: 0.72rem; white-space: nowrap;
+    border: 1px solid var(--panel-edge); padding: 0 0.3rem;
+}
 .rb-hint { color: var(--dim); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
 .rb-empty { color: var(--dim); font-size: 0.8rem; padding: 0.1rem 0; }
 .result-strip { display: flex; align-items: center; gap: 0.5rem; min-width: 0; min-height: 1.6rem; }
@@ -197,11 +203,17 @@ body { overflow: hidden; }
     position: absolute; inset: 0; z-index: 1;
     background: transparent; border: none; padding: 0; cursor: pointer;
 }
-.gear-class {
+.gear-stack {
     position: absolute; left: 6%; right: 6%; bottom: 5%; z-index: 2;
+    display: flex; flex-direction: column; gap: 0.08rem; align-items: stretch;
+    pointer-events: none;
+}
+.gear-class {
     background: #171208; color: var(--ink); border: 1px solid var(--panel-edge);
     font: inherit; font-size: 0.66rem; padding: 0.05rem 0.1rem;
+    pointer-events: auto; width: 100%; box-sizing: border-box;
 }
+.gear-stack .gear-label { pointer-events: none; text-align: center; }
 .gear-slot {
     position: absolute;
     background: radial-gradient(circle at 50% 35%, #2e2517, var(--slot) 70%);
@@ -429,7 +441,7 @@ select, input {
 /* Basis 0: the mod list never inflates the editor's intrinsic height; it
    simply fills whatever the stretched editor gives it (and scrolls). */
 /* Mod list grows to consume the editor's inherited height rather than 4rem. */
-.mod-list { flex: 1 1 16rem; min-height: 0; overflow-y: auto; }
+.mod-list { flex: 1 1 16rem; min-height: 0; overflow-y: auto; margin-top: 0.55rem; }
 .suggest { list-style: none; margin: 0.25rem 0; padding: 0; }
 /* Family sections: prefixes and suffixes side by side when the column is
    wide, stacked when it shrinks; headers stick while the list scrolls. */
@@ -706,6 +718,20 @@ details.advanced {
     flex: 0 0 auto;
     height: 2.2rem;
     margin: 0 1rem 1rem;
+}
+details.advanced:not([open]) {
+    background: transparent;
+    border-color: transparent;
+    outline: none;
+    box-shadow: none;
+    max-height: 1.9rem;
+    overflow: visible;
+}
+details.advanced:not([open]) > summary {
+    opacity: 0.55;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    background: transparent;
 }
 details.advanced > summary {
     cursor: pointer;
