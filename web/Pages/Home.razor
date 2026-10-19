@@ -16,33 +16,24 @@
         <div class="mode-bar">
             <ModeSwitch State="State" />
             <div class="result-strip" id="result-strip" aria-label="Compiled queries">
-                @if (State.Mode == "multi")
+                @if (State.Mode == "multi" && _paste is not null)
                 {
-                    @if (_paste is not null)
-                    {
-                        <div class="slot-query" id="slot-query-multi">
-                            <code title="@_paste.Query">@_paste.Query</code>
-                            <span class="meter-num">@_paste.Length/@_paste.Limit</span>
-                            <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                        </div>
-                    }
-                    else if (_pasteOverflow is not null)
-                    {
-                        <div class="qerror" id="slot-query-multi-overflow">
-                            combined paste over budget: @_pasteOverflow.RequestedLength/@_pasteOverflow.Limit.
-                            <button id="slot-besteffort-multi" class="btn" @onclick="PasteBestEffort">show best-effort</button>
-                        </div>
-                    }
+                    <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-multi">
+                        <code title="@_paste.Query">@_paste.Query</code>
+                        <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
+                            @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
+                        </span>
+                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                    </div>
                 }
                 @foreach (var t in _barTasks)
                 {
-                    <div class="slot-query" id="slot-query-@t.CardId">
-                        <code title="@(t.Result?.Query)">@(t.Result?.Query ?? $"over budget ({t.Overflow?.RequestedLength}/{t.Overflow?.Limit})")</code>
-                        @if (t.Result is not null)
-                        {
-                            <span class="meter-num">@t.Result.Length/@t.Result.Limit</span>
-                            <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                        }
+                    <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
+                        <code title="@t.Result.Query">@t.Result.Query</code>
+                        <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
+                            @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
+                        </span>
+                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
                     </div>
                 }
             </div>
@@ -103,7 +94,7 @@
                     <span class="meter-bar meter-@ModSearch.MeterColor(_paste.Length, _paste.Limit)"
                           style="width:@(Math.Round(ModSearch.MeterRatio(_paste.Length, _paste.Limit) * 100))%"></span>
                 </span>
-                <span class="meter-num">@_paste.Length/@_paste.Limit</span>
+                <span class="meter-num">@_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")</span>
             </div>
             <div class="qquery" id="combined-paste-query">@_paste.Query</div>
             <div class="qactions">
@@ -125,9 +116,7 @@
     }
     @foreach (var t in _tasks)
     {
-        <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass"
-                   Result="@t.Result" Overflow="@t.Overflow"
-                   OnBestEffort="() => BestEffort(t.CardId)" />
+        <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass" Result="@t.Result" />
     }
     <div class="modrow reset-row">
         <button id="workbench-reset" class="btn btn-danger"
@@ -148,8 +137,7 @@
 
 @code {
     private sealed record TaskView(
-        string CardId, string Title, string? ItemClass,
-        CompileResult? Result, RegexLengthOverflowException? Overflow);
+        string CardId, string Title, string? ItemClass, CompileResult Result);
 
     private string _engineStatus = "booting...";
     private List<TaskView> _tasks = [];
@@ -157,11 +145,9 @@
     private List<(string Label, string? Query)> _labelledQueries = [];
     private HashSet<string> _highlight = [];
     private bool _dimNonMatching;
-    private readonly HashSet<string> _bestEffortCards = new(StringComparer.Ordinal);
     private bool _importOpen;
     private bool _builderOpen;
     private MultiPasteResult? _paste;
-    private RegexLengthOverflowException? _pasteOverflow;
     private double _ttX;
     private double _ttY;
 
@@ -179,20 +165,6 @@
             if (item.Reheal(Engine)) healed = true;
         if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
         Recompute();
-    }
-
-    private void BestEffort(string cardId)
-    {
-        _bestEffortCards.Add(cardId);
-        Recompute();
-        StateHasChanged();
-    }
-
-    private void PasteBestEffort()
-    {
-        _bestEffortCards.Add("multi");
-        Recompute();
-        StateHasChanged();
     }
 
     private void CloseImport() => _importOpen = false;
@@ -241,7 +213,6 @@
     {
         var tasks = new List<TaskView>();
         _paste = null;
-        _pasteOverflow = null;
         if (State.Mode == "global")
         {
             tasks.Add(CompileTask("global", "global", null, State.Global));
@@ -256,22 +227,18 @@
             }
             if (active.Count > 0)
             {
-                try
-                {
-                    _paste = Engine.Combine(
-                        active.Select(s =>
-                        {
-                            var crit = State.CriteriaFor(s);
-                            return ($"{s} ({crit.ClassId})", crit.ClassId, (IEnumerable<WantedMod>)crit.Included);
-                        }),
-                        active.SelectMany(s => State.CriteriaFor(s).Excluded)
-                            .Concat(State.Global.Excluded).Distinct(StringComparer.Ordinal),
-                        allowOverflow: _bestEffortCards.Contains("multi"));
-                }
-                catch (RegexLengthOverflowException ex)
-                {
-                    _pasteOverflow = ex;
-                }
+                // Over-budget pastes keep their value: the strip shows the full
+                // string with the k/N meter in its over state (allowOverflow
+                // never throws); the in-game box is the judge, not the compiler.
+                _paste = Engine.Combine(
+                    active.Select(s =>
+                    {
+                        var crit = State.CriteriaFor(s);
+                        return ($"{s} ({crit.ClassId})", crit.ClassId, (IEnumerable<WantedMod>)crit.Included);
+                    }),
+                    active.SelectMany(s => State.CriteriaFor(s).Excluded)
+                        .Concat(State.Global.Excluded).Distinct(StringComparer.Ordinal),
+                    allowOverflow: true);
             }
         }
         else
@@ -288,7 +255,7 @@
             : State.Mode == "multi" ? [] : tasks;
         _labelledQueries = State.Mode == "multi" && _paste is not null
             ? [("combined paste", _paste.Query)]
-            : tasks.Select(t => (t.Title, t.Result?.Query)).ToList();
+            : tasks.Select(t => (t.Title, (string?)t.Result.Query)).ToList();
         var queries = _labelledQueries
             .Where(q => !string.IsNullOrWhiteSpace(q.Query)).Select(q => q.Query!).ToList();
         // Highlight/dim only once the active scope actually has mods picked:
@@ -314,26 +281,24 @@
 
     private TaskView CompileTask(string cardId, string title, string? itemClass, SlotCriteria crit)
     {
-        var allowOverflow = _bestEffortCards.Contains(cardId);
-        try
-        {
-            var result = Engine.Compile(
-                crit.Included.SelectMany(m => m.Requirements()),
-                crit.Excluded.Select(e => new ModifierRequirement(e)),
-                itemClass: itemClass,
-                allowOverflow: allowOverflow);
-            return new TaskView(cardId, title, itemClass, result, null);
-        }
-        catch (RegexLengthOverflowException ex)
-        {
-            return new TaskView(cardId, title, itemClass, null, ex);
-        }
+        // allowOverflow: a picked string always keeps its value; over-budget
+        // states render with the k/N meter instead of a placeholder.
+        var result = Engine.Compile(
+            crit.Included.SelectMany(m => m.Requirements()),
+            crit.Excluded.Select(e => new ModifierRequirement(e)),
+            itemClass: itemClass,
+            allowOverflow: true);
+        return new TaskView(cardId, title, itemClass, result);
     }
+
+    private static string MeterTitle(int length, int limit) =>
+        length > limit
+            ? $"{length}/{limit} characters — {length - limit} over the game's search box limit"
+            : $"{length} of {limit} characters";
 
     private async Task ResetWorkbench()
     {
         await Persistence.ClearAsync();
-        _bestEffortCards.Clear();
         State.Reset(); // notifies -> recompute + save of defaults
     }
 

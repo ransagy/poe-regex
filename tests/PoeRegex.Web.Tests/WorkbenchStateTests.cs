@@ -283,6 +283,24 @@ public class WorkbenchStateTests
     }
 
     [Fact]
+    public void AddIncludes_BatchesOneNotification_AndIgnoresDuplicates()
+    {
+        var state = new WorkbenchState();
+        var notified = 0;
+        state.Changed += () => notified++;
+
+        var added = state.AddIncludes("body",
+            [new WantedMod("IncreasedLife6"), new WantedMod("IncreasedLife6"), new WantedMod("Strength4")]);
+
+        added.Should().Be(2, "the duplicate pick is ignored");
+        notified.Should().Be(1, "bulk adds notify once, not per pick");
+        state.CriteriaFor("body").Included.Should().HaveCount(2);
+
+        state.AddIncludes("body", [new WantedMod("Strength4")]).Should().Be(0);
+        notified.Should().Be(1, "a no-op bulk add does not notify");
+    }
+
+    [Fact]
     public void SlotClass_DefaultsAndOverride()
     {
         var state = new WorkbenchState();

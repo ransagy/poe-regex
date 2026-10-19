@@ -217,6 +217,25 @@ public sealed class WorkbenchState
         Notify();
     }
 
+    /// <summary>
+    /// Adds several picks as one notification (bulk actions like "add all
+    /// matching"): one recompile/save instead of one per chip. Identical
+    /// picks are ignored; returns how many were actually added.
+    /// </summary>
+    public int AddIncludes(string? slot, IEnumerable<WantedMod> picks)
+    {
+        var list = CriteriaFor(slot).Included;
+        var added = 0;
+        foreach (var pick in picks)
+        {
+            if (list.Any(m => m.SamePick(pick))) continue;
+            list.Add(pick);
+            added++;
+        }
+        if (added > 0) Notify();
+        return added;
+    }
+
     public bool RemoveInclude(string? slot, string modId) => RemoveInclude(slot, new WantedMod(modId));
 
     /// <summary>Removes the exact pick (anchor + names); a name pick and a
