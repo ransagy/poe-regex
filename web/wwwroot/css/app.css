@@ -102,29 +102,40 @@ body { overflow: hidden; }
 
 .panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.1rem 0 0.1rem; }
 
-/* Mode strip: buttons left, compiled-query box filling the rest of the row. */
-.mode-bar { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.5rem; }
-.mode-switch { display: flex; gap: 0.4rem; flex: none; }
-.result-strip {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: #171208;
-    border: 1px solid var(--panel-edge);
-    padding: 0.15rem 0.5rem;
-    min-height: 2.2rem;
+/* Search-string bar: the artifact, full width under the header. The label row
+   says what it is and where it goes; the query row is the string itself. */
+.result-bar {
+    display: flex; flex-direction: column; gap: 0.2rem;
+    background: #171208; border: 1px solid var(--panel-edge);
+    padding: 0.3rem 0.5rem;
+    margin-bottom: 0.5rem;
 }
+.rb-head { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+.rb-label {
+    color: var(--accent); font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.1em; white-space: nowrap;
+}
+.rb-scope { color: var(--ink); font-size: 0.78rem; white-space: nowrap; }
+.rb-hint { color: var(--dim); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
+.rb-empty { color: var(--dim); font-size: 0.8rem; padding: 0.1rem 0; }
+.result-strip { display: flex; align-items: center; gap: 0.5rem; min-width: 0; min-height: 1.6rem; }
+/* Scope row: label + segmented control + its (?) */
+.scope-bar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.scope-label {
+    color: var(--dim); font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.08em; white-space: nowrap;
+}
+.mode-switch { display: inline-flex; }
 .mode-btn {
     background: var(--slot);
     color: var(--dim);
     border: 1px solid var(--panel-edge);
-    padding: 0.35rem 1.1rem;
+    padding: 0.28rem 0.9rem;
     cursor: pointer;
     font: inherit;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
+.mode-btn + .mode-btn { margin-left: -1px; }
 .mode-btn.active { color: #ffe9a8; border-color: var(--panel-edge-hi); background: var(--slot-active); }
 
 /* Top box layout: centered mode strip above editor | doll | compiled queries;
@@ -297,18 +308,17 @@ body { overflow: hidden; }
         display: grid;
         grid-template-columns: minmax(0, 1fr)
             clamp(28rem,
-                calc((100cqh - 300px) * 6 / 7),
+                calc((100cqh - 360px) * 6 / 7),
                 min(60rem, 55vw));
         grid-template-rows: auto auto auto auto minmax(0, 1fr);
         column-gap: 0.75rem;
     }
     .inv-top { display: contents; } /* editor/doll become grid items */
-    .panel.inventory > .panel-head { grid-column: 1 / -1; grid-row: 1; }
-    .panel.inventory > .mode-bar { grid-column: 1 / -1; grid-row: 2; }
+    .panel.inventory > .result-bar { grid-column: 1 / -1; grid-row: 1; }
+    .panel.inventory > .scope-bar { grid-column: 1 / -1; grid-row: 2; }
     .inv-editor { grid-column: 1; grid-row: 3 / 6; max-width: none; }
     .inv-doll { grid-column: 2; grid-row: 3; justify-content: flex-start; max-width: 100%; }
-    .panel.inventory > .panel-sub { grid-column: 2; grid-row: 4; justify-self: start; align-self: center; margin: 0.1rem 0 0; }
-    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 4; justify-self: end; align-self: center; margin: 0.1rem 0; }
+    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 4; justify-self: stretch; align-self: center; margin: 0.1rem 0; }
     .panel.inventory > .pack-wrap { grid-column: 2; grid-row: 5; }
     .doll { max-width: 100%; }
 }
@@ -316,6 +326,32 @@ body { overflow: hidden; }
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
 .hint { color: var(--dim); font-style: italic; }
+
+/* Help (?): a small bordered button that opens a readable card. */
+.help { position: relative; display: inline-flex; align-items: center; }
+.help-btn {
+    width: 1.35rem; height: 1.35rem; padding: 0; line-height: 1;
+    border: 1px solid var(--panel-edge); background: var(--slot); color: var(--dim);
+    font: inherit; font-size: 0.78rem; cursor: pointer;
+}
+.help-btn:hover, .help-btn[aria-expanded="true"] {
+    color: #ffe9a8; border-color: var(--panel-edge-hi); background: var(--slot-active);
+}
+.help-backdrop { position: fixed; inset: 0; z-index: 40; }
+.help-pop {
+    position: absolute; top: calc(100% + 0.35rem); left: 0; z-index: 41;
+    width: max-content; max-width: min(24rem, calc(100vw - 3rem));
+    background: var(--panel); border: 1px solid var(--panel-edge-hi);
+    outline: 1px solid #000;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 0.65rem; font-size: 0.8rem; color: var(--ink); line-height: 1.35;
+    text-transform: none; letter-spacing: normal;
+}
+.help-right .help-pop { left: auto; right: 0; }
+.help-pop:focus { outline: 1px solid #000; }
+.help-pop ul { margin: 0; padding-left: 1rem; }
+.help-pop li + li { margin-top: 0.25rem; }
+.help-pop b { color: #ffe9a8; font-weight: normal; }
 
 .field { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
 .field > span { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -363,6 +399,10 @@ select, input {
     opacity: 0.72; cursor: not-allowed;
 }
 .chips-more:disabled .dir { color: inherit; }
+.chips-empty {
+    color: var(--dim); font-size: 0.78rem; align-self: center;
+    padding-left: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
@@ -390,7 +430,19 @@ select, input {
     opacity: 0.72; cursor: not-allowed;
 }
 .modrow #mod-min { flex: 1; min-width: 6rem; }
-.pack-tools { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 0.1rem 0; }
+.pack-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.4rem; row-gap: 0.25rem; margin: 0.1rem 0; }
+.pack-tools .pack-label { flex: none; }
+.pack-tools .btn { flex: none; white-space: nowrap; }
+@media (min-width: 1500px) and (max-width: 1720px) {
+    /* The right column is tight at the wide-layout threshold; keep the tools
+       row on one line. */
+    .pack-tools { gap: 0.3rem; }
+    .pack-tools .btn { padding: 0.2rem 0.45rem; letter-spacing: 0.01em; }
+}
+.pack-label {
+    margin-right: auto; display: inline-flex; align-items: center; gap: 0.35rem;
+    color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;
+}
 /* The mod picker stretches to the bottom of the editor column; its list is
    the editor's scroll region (one column, or two in a wide editor). */
 .modpicker { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }

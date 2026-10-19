@@ -295,6 +295,29 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
+- **Follow-up round 13 — feedback round 1, part 2: the page explains itself
+  and leads with the artifact.** The compiled query moved out of the mode
+  strip into a full-width search-string bar under the header: a "your search
+  string" label, what it covers (`all items` / `weapon · One Hand Mace` /
+  `combined paste · N slots`), a local "copy → paste into the game's item
+  search" hint, the regex line with the k/N meter (red `OVER` unchanged), and
+  copy; with no picks it says "pick mods below — the string builds here"
+  instead of showing an empty box. The scope row below is now a labelled
+  segmented control (`search covers` + plain-word buttons) with a `(?)` card
+  explaining the three modes (element ids unchanged). Per the maintainer, no
+  app-flow blurb: each region holds its own — the picks rail carries its own
+  empty hint ("picks collect here — use + on a stat"), the multi hint is in
+  plain words, and the backpack row gained a `Test items` label plus a `(?)`
+  card (import = paste from the game, assemble = build from catalog mods,
+  matches light up). New `HelpTip` component: click opens a card (same
+  visual language as the item tooltip), backdrop or Escape closes, the card
+  takes focus for keyboard dismissal. Wide layout: the bar and scope row
+  occupy grid rows 1–2, the right column's reserved chrome grew 300 → 360px,
+  and the pack tools never wrap their labels (tight-band sizing at
+  1500–1720px). CDP-verified: empty/populated bar states, scope text per mode
+  (`all items`, `Weapon · Crossbow`, `combined paste`), popover open/close by
+  Escape and backdrop, 1920/900×1200/1600×900 with no page or pack scroll,
+  test-items row on one line. Full slnx 10+131+71 green (UI-only change).
 - **Follow-up round 12 — paste class alternations fold suffixes; the
   in-game class audit.** Combined pastes were blowing the budget on class
   alternations: every group token repeats the scope's classes and

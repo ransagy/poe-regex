@@ -43,6 +43,10 @@
                     !@DisplayFor(exc)
                 </button>
             }
+            @if (crit.Included.Count + crit.Excluded.Count == 0)
+            {
+                <span class="chips-empty">picks collect here — use + on a stat</span>
+            }
         </div>
         <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
             <span class="n">+0</span><svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1.5 1.5L6 6l-4.5 4.5" /></svg>

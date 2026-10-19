@@ -77,10 +77,15 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-  The mode strip holds the mode buttons on the left and the compiled-query
-  box filling the rest of the row (one-line ellipsized regex with the full
-  text in its title, length meter, copy); per-slot queries for Advanced
-  live below.
+  The page leads with the search-string bar: a "your search string" label,
+  what the string covers (`all items`, `weapon · One Hand Mace`,
+  `combined paste · 3 slots`), a local "copy → paste into the game's item
+  search" hint, the one-line ellipsized regex (full text in its title), the
+  k/N meter with the red `OVER` state, and copy. Before the first pick it
+  says "pick mods below — the string builds here" instead of showing an
+  empty box. Below it the scope row: `search covers` + the segmented
+  all-items / one-slot / several-slots toggle + its `(?)` explanation.
+  Per-slot queries for Advanced live below.
 - `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
   enroll, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
   cells span the full width in the stacked layout and a bounded column under
@@ -94,8 +99,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   name, class · rarity line, base stats, requires / item level / sockets /
   granted skill, rebuilt mod headers with tier and tags, blue mod lines, a
   corrupted footer, and an optional per-line annotation slot; the card is
-  the tooltip's scroll region so its border stays put), `ModeSwitch`,
-  `ClassPicker`,
+  the tooltip's scroll region so its border stays put), `ModeSwitch` (the
+  segmented scope toggle: all items / one slot / several slots), `HelpTip`
+  (the sparse `(?)` cards — scope toggle and test items — click to open,
+  backdrop or Escape to close), `ClassPicker`,
   `ModPicker` (searchable mods grouped into stat families: one row per
   family with a PREFIX/SUFFIX tag and the stat text with its numbers dropped
   (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
@@ -131,10 +138,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   because a height-constrained multicol spills phantom columns sideways
   instead of scrolling down; Save adds exactly the card shown; both modals
   reject when the backpack is full). Backpack
-  tools row: import, assemble, and remove (acts on the pinned item).
-- The editor keeps one rhythm: the mode bar, the `BASE CLASS` selector and
-  the mod picker are spaced with the same 0.5rem gap (the chips row renders
-  only when it has picks); in global mode a hidden mirror of the field
+  tools row: a `Test items` label with its own `(?)` card, then import,
+  assemble, and remove (acts on the pinned item).
+- The editor keeps one rhythm: the scope row, the `BASE CLASS` selector and
+  the mod picker are spaced with the same 0.5rem gap (the picks rail renders
+  always, inert when empty); in global mode a hidden mirror of the field
   (same select styles, `visibility: hidden`) keeps the geometry
   pixel-identical, so switching modes never shifts the picker.
 - Picks live in a one-line rail that sits permanently between the text filter

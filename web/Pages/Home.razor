@@ -13,30 +13,59 @@
 
 <div class="bench">
     <section class="panel inventory" aria-label="Inventory">
-        <div class="mode-bar">
-            <ModeSwitch State="State" />
-            <div class="result-strip" id="result-strip" aria-label="Compiled queries">
-                @if (State.Mode == "multi" && _paste is not null)
+        @{
+            var barQuery = BarQuery();
+        }
+        <div class="result-bar">
+            <div class="rb-head">
+                <span class="rb-label">Your search string</span>
+                <span class="rb-scope">@ScopeText()</span>
+                <span class="rb-hint">copy → paste into the game's item search</span>
+            </div>
+            <div class="result-strip" id="result-strip" aria-label="Compiled search string">
+                @if (barQuery.Length > 0)
                 {
-                    <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-multi">
-                        <code title="@_paste.Query">@_paste.Query</code>
-                        <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
-                            @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
-                        </span>
-                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                    </div>
+                    @if (State.Mode == "multi" && _paste is not null)
+                    {
+                        <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-multi">
+                            <code title="@_paste.Query">@_paste.Query</code>
+                            <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
+                                @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
+                            </span>
+                            <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var t in _barTasks)
+                        {
+                            <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
+                                <code title="@t.Result.Query">@t.Result.Query</code>
+                                <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
+                                    @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
+                                </span>
+                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                            </div>
+                        }
+                    }
                 }
-                @foreach (var t in _barTasks)
+                else
                 {
-                    <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
-                        <code title="@t.Result.Query">@t.Result.Query</code>
-                        <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
-                            @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
-                        </span>
-                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                    </div>
+                    <span class="rb-empty">pick mods below — the string builds here</span>
                 }
             </div>
+        </div>
+
+        <div class="scope-bar">
+            <span class="scope-label">search covers</span>
+            <ModeSwitch State="State" />
+            <HelpTip Title="what the scope buttons mean">
+                <ul>
+                    <li><b>all items</b> — one string that isn't tied to a slot.</li>
+                    <li><b>one slot</b> — the string describes the slot selected on the paper doll.</li>
+                    <li><b>several slots</b> — each slot keeps its own picks; the paste combines them.</li>
+                </ul>
+            </HelpTip>
         </div>
         <div class="inv-top">
             <div class="inv-editor" aria-label="Editor">
@@ -54,7 +83,7 @@
                     }
                     else
                     {
-                        <div class="hint">click a slot on the paper doll to edit it — slots with mods join the multi group</div>
+                        <div class="hint">click a slot on the doll to pick its mods — slots with picks join this search</div>
                     }
                 }
                 else
@@ -68,6 +97,16 @@
             </div>
         </div>
         <div class="modrow pack-tools">
+            <div class="pack-label">
+                Test items
+                <HelpTip Title="what test items are for" Class="help-right">
+                    <ul>
+                        <li><b>import item</b> — paste an item copied from the game.</li>
+                        <li><b>assemble item</b> — build one from catalog mods.</li>
+                        <li>A search string lights up the matching items in the backpack.</li>
+                    </ul>
+                </HelpTip>
+            </div>
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
             <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
@@ -295,6 +334,31 @@
         length > limit
             ? $"{length}/{limit} characters — {length - limit} over the game's search box limit"
             : $"{length} of {limit} characters";
+
+    /// <summary>The single string shown in the search-string bar for the current scope.</summary>
+    private string BarQuery() =>
+        State.Mode == "multi"
+            ? _paste?.Query ?? ""
+            : _barTasks.FirstOrDefault()?.Result.Query ?? "";
+
+    /// <summary>What the bar's string covers, in plain words.</summary>
+    private string ScopeText()
+    {
+        if (State.Mode == "single" && State.SelectedSlot is { } slot)
+        {
+            var label = GearSlot.ById(slot)?.Label ?? slot;
+            var cls = State.SlotClassOrDefault(slot);
+            return string.Equals(label, cls, StringComparison.OrdinalIgnoreCase)
+                ? label
+                : $"{label} · {cls}";
+        }
+        if (State.Mode == "multi")
+        {
+            var n = State.ActiveSlots().Count;
+            return n == 0 ? "combined paste" : $"combined paste · {n} slot{(n == 1 ? "" : "s")}";
+        }
+        return "all items";
+    }
 
     private async Task ResetWorkbench()
     {

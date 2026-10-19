@@ -1,13 +1,14 @@
 @using PoeRegex.Web.Core
 
-<div class="mode-switch" role="group" aria-label="Slot mode">
-    @foreach (var mode in new[] { "global", "single", "multi" })
+<div class="mode-switch" role="group" aria-label="Search scope">
+    @foreach (var (mode, label, hint) in Options)
     {
         <button id="mode-@mode"
                 class="mode-btn @(State.Mode == mode ? "active" : "")"
+                title="@hint"
                 aria-pressed="@(State.Mode == mode)"
                 @onclick="() => State.SetMode(mode)">
-            @mode
+            @label
         </button>
     }
 </div>
@@ -15,4 +16,11 @@
 @code {
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
+
+    private static readonly (string Mode, string Label, string Hint)[] Options =
+    [
+        ("global", "all items", "one search string, not tied to a slot"),
+        ("single", "one slot", "the search string for the slot selected on the paper doll"),
+        ("multi", "several slots", "each slot keeps its own picks; the paste combines them"),
+    ];
 }
