@@ -162,7 +162,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   wildcard bridge, and `\d`/`\d+`/`.` placeholder rendering is tried in the
   target scope, and the shortest candidate that recalls all of the stat's
   real lines and matches no foreign line wins. Wildcard candidates must keep a
-  whole stat word (4+ letters) and each anchor must be a whole word or 3+
+  whole stat word (4+ letters) and each anchor must be a 3+ letter word or 3+
   letters, which rejects shape-only strings such as `%.*r$`. The catalog
   audit (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
   scope/pattern fragments with .NET Regex, 2,104 simple/slot compiles, 788

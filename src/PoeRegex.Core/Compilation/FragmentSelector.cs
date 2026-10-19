@@ -16,8 +16,10 @@ namespace PoeRegex.Core.Compilation;
 /// letters) so the result still reads as the stat instead of a shape like
 /// <c>%.*r$</c>. Every candidate is checked for recall (it matches every real
 /// line of the stat) and safety (it matches no line of another stat) against
-/// the real copy text of the scope. Ties prefer more anchors, then a stricter
-/// wildcard, then more letters.
+/// the real copy text of the scope. Wildcard pieces must each contain a
+/// 3+ letter word or 3+ letters, so a stopword like <c>to</c> cannot anchor a
+/// shape. Ties prefer more anchors, then a stricter wildcard, then more
+/// letters.
 /// </summary>
 public sealed class FragmentSelector
 {
@@ -275,8 +277,10 @@ public sealed class FragmentSelector
 
         bool HasAnchor(int a, int b)
         {
+            // A 2-letter stopword ("to", "an") is too shape-like to anchor a
+            // wildcard; require a 3+ letter word or 3+ letters in the piece.
             foreach (var (start, end) in words)
-                if (start >= a && end <= b) return true;
+                if (end - start >= 3 && start >= a && end <= b) return true;
             var letters = 0;
             for (var p = a; p < b; p++)
                 if (char.IsAsciiLetter(pattern[p])) letters++;

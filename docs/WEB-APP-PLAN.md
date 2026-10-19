@@ -302,13 +302,14 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   renderings (`\d`, `\d+`, `.`), and optional per-line `^`/`$`; every
   candidate is checked for recall (all of the stat's real lines) and safety
   (no other stat's line) in the scope. Wildcards must keep at least one whole
-  stat word (4+ letters) and each anchor must be a whole word or 3+ letters,
+  stat word (4+ letters) and each anchor must be a 3+ letter word or 3+ letters,
   so shapes like `%.*r$` and `ty$` are rejected; the oracle scans only
   patterns containing a required literal (10x faster on the long lines).
   Example results: `Adds # to # Cold Damage` → `\d Cold.+age$` (13, fixes
   the silent simple-mode gap), `Adds # to # Cold damage to Attacks` →
   `Cold.*Attacks$` (14), `% increased Armour` → `d Armour$` (9),
-  `% increased maximum Life` → `to.+Life` (8 globally),
+  `% increased maximum Life` → `^.% inc.+Life` (13 globally; all life tiers
+  are one-digit values in the catalog),
   `Allies … Elemental Resistances` → `Allies.*ces$` (12). The full audit
   covers 867 distinct (scope, pattern) fragments with .NET Regex (not the
   selector's matcher): every real line recalled, zero foreign matches; 2,104
