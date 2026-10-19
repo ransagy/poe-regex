@@ -103,28 +103,27 @@ body { overflow: hidden; }
 .panel-sub { color: var(--dim); font-size: 0.8rem; margin: 0.1rem 0 0.1rem; }
 
 /* Mode row: the first decision. Two stacked options that describe themselves. */
-.mode-bar { display: flex; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.5rem; }
+.mode-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
 .section-label {
     color: var(--dim); font-size: 0.8rem; text-transform: uppercase;
-    letter-spacing: 0.08em; white-space: nowrap; padding-top: 0.3rem;
+    letter-spacing: 0.08em; white-space: nowrap;
 }
-.mode-stack { display: flex; flex-direction: column; gap: 0.25rem; min-width: 22rem; }
+.mode-stack { display: flex; flex-direction: column; gap: 0.15rem; min-width: 22rem; }
 .mode-opt {
     display: flex; align-items: baseline; gap: 0.5rem;
-    padding: 0.2rem 0.6rem; border: 1px solid var(--panel-edge);
-    background: var(--slot); color: var(--dim);
-    font: inherit; font-size: 0.85rem; cursor: pointer; text-align: left;
+    padding: 0.1rem 0; border: none; background: transparent;
+    color: var(--dim); font: inherit; font-size: 0.85rem;
+    cursor: pointer; text-align: left;
 }
-.mode-opt:hover { border-color: var(--panel-edge-hi); }
+.mode-opt:hover .mode-name { color: var(--ink); }
 .mode-dot {
     width: 0.55rem; height: 0.55rem; border-radius: 50%;
     border: 1px solid var(--panel-edge-hi); flex: none; align-self: center;
 }
 .mode-name { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.78rem; color: var(--ink); }
 .mode-blurb { font-size: 0.78rem; color: var(--dim); }
-.mode-opt.active { border-color: var(--panel-edge-hi); background: var(--slot-active); }
 .mode-opt.active .mode-name { color: #ffe9a8; }
-.mode-opt.active .mode-dot { background: #ffe9a8; }
+.mode-opt.active .mode-dot { background: #ffe9a8; border-color: #ffe9a8; }
 
 /* Search-string bar: the flow's last step, under the criteria in the flow
    column. The label row says what it is and where it goes; the query row is
@@ -133,7 +132,7 @@ body { overflow: hidden; }
     display: flex; flex-direction: column; gap: 0.2rem;
     background: #171208; border: 1px solid var(--panel-edge);
     padding: 0.3rem 0.5rem;
-    margin-top: auto;
+    margin: 0 0 0.5rem;
 }
 .rb-head { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; flex-wrap: wrap; row-gap: 0.15rem; }
 .rb-label {
@@ -148,7 +147,7 @@ body { overflow: hidden; }
 /* Top box layout: centered mode strip above editor | doll | compiled queries;
    backpack and advanced below. */
 .inv-top {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     display: flex;
     gap: 0.75rem;
     align-items: stretch;
@@ -158,10 +157,14 @@ body { overflow: hidden; }
    doll stays aspect-locked (max 72vh -- its own capped height). */
 .inv-editor { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; container-type: inline-size; }
 @media (max-width: 1200px) { .inv-editor { flex: 1 1 19rem; } }
-/* Doll column sized only to its own height-derived width (Wave 6 cap), but
-   never at the expense of the editor's 22 rem minimum: 960-wide halfscreens
-   reward a roomy editor while keeping the doll well inside its cap. */
-.inv-doll { flex: 0 1 auto; min-width: 0; width: 100%; max-width: min(100%, 72vh, calc(100% - 21rem)); display: flex; flex-direction: column; justify-content: center; }
+/* Doll column: left of the picker (doll first in the flow). The criteria band
+   is viewport height minus the fixed chrome below it (mode row, rail, result,
+   test items, capped pack), so the doll is sized to fit that band exactly. */
+.inv-doll {
+    flex: 0 0 auto; min-width: 0;
+    width: min(45%, max(0px, calc((100vh - 645px) * 4 / 3)));
+    display: flex; flex-direction: column; justify-content: center;
+}
 
 /* Paper doll: fixed-aspect panel with absolutely positioned slot frames
    (like the game, whose gear area is slightly wider than tall so item
@@ -175,22 +178,9 @@ body { overflow: hidden; }
        top/height * 4/3); keep aspect-ratio even when scaling below. */
     max-width: min(100%, 72vh);
     margin: 0 auto;
-    /* Subtle zoom so the slot frames actually REACH the panel edge; the canonical
-   4:3 leaves a small corner margin. overflow: hidden trims frame edges that
-   drift past ±6%. pointer-events stays on the slots only (no hit-steal over
-   the backpack label/tools strip). */
-    transform: scale(1.09);
-    transform-origin: center center;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
-}
-/* In the stacked (half-screen) layout the 1.09 zoom visually enlarges the doll
-   past its column, spilling into the editor column (left weapon slot over the
-   min-roll input). Drop it there: the tighter MarginFactor 0.70 alone already
-   pushes the slots ~4% closer to the edge while keeping the 4:3 aspect pure. */
-@media (max-width: 1499px) {
-    .doll { transform: none; }
 }
 /* Keep slots interactive through the (pointer-events:none) scaled doll. */
 .doll .gear-slot, .doll .slot-clear { pointer-events: auto; z-index: 1; }
@@ -198,11 +188,20 @@ body { overflow: hidden; }
 /* Chrome that sits under/around the scaled doll's spill-over must paint and
    take clicks above it (right column only matters in the wide layout, but
    stacked positioning keeps them z-order-safe too). */
-.pack-tools, .pack-wrap {
-    position: relative;
-    z-index: 2;
-}
+.pack-tools { position: relative; z-index: 3; }
+.pack-wrap { position: relative; z-index: 2; }
 
+/* The card is a container now: a transparent focus button covers it, and the
+   focused weapon/offhand slot carries its base-class select inside the card. */
+.gear-focus {
+    position: absolute; inset: 0; z-index: 1;
+    background: transparent; border: none; padding: 0; cursor: pointer;
+}
+.gear-class {
+    position: absolute; left: 6%; right: 6%; bottom: 5%; z-index: 2;
+    background: #171208; color: var(--ink); border: 1px solid var(--panel-edge);
+    font: inherit; font-size: 0.66rem; padding: 0.05rem 0.1rem;
+}
 .gear-slot {
     position: absolute;
     background: radial-gradient(circle at 50% 35%, #2e2517, var(--slot) 70%);
@@ -245,11 +244,14 @@ body { overflow: hidden; }
    the page and bench never do. Cell lines are background; items are
    explicitly placed divs. */
 .pack-wrap {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
+    max-height: 19rem;
+    width: min(100%, 44rem);
+    align-self: flex-start;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-start;
     overflow-y: auto;
 }
@@ -298,30 +300,9 @@ body { overflow: hidden; }
 .pack-placed.dim { opacity: 0.55; filter: saturate(0.55); }
 .pack-placed.selected { outline: 2px solid #ffe9a8; outline-offset: -2px; opacity: 1; filter: none; }
 
-/* Wide layout (>=1500px): the flow column (mode + picker + search string) at
-   the left, the advanced doll and the test-items rail at the right. Simple
-   mode hides the doll, so the rail moves up. */
-@media (min-width: 1500px) {
-    .panel.inventory {
-        container-type: size;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr)
-            clamp(28rem,
-                calc((100cqh - 270px) * 6 / 7),
-                min(60rem, 55vw));
-        grid-template-rows: auto auto auto minmax(0, 1fr);
-        column-gap: 0.75rem;
-    }
-    .inv-top { display: contents; } /* editor/doll become grid items */
-    .panel.inventory > .mode-bar { grid-column: 1 / -1; grid-row: 1; }
-    .inv-editor { grid-column: 1; grid-row: 2 / 5; max-width: none; }
-    .inv-doll { grid-column: 2; grid-row: 2; justify-content: flex-start; max-width: 100%; }
-    .panel.inventory > .modrow.pack-tools { grid-column: 2; grid-row: 3; justify-self: stretch; align-self: center; margin: 0.1rem 0; }
-    .panel.inventory > .pack-wrap { grid-column: 2; grid-row: 4; }
-    .panel.inventory.mode-simple > .modrow.pack-tools { grid-row: 2; }
-    .panel.inventory.mode-simple > .pack-wrap { grid-row: 3 / 5; justify-content: flex-start; }
-    .doll { max-width: 100%; }
-}
+/* Wide layout simply follows the same flow: the criteria band (doll | picker)
+   takes the spare height; rail, result, test items and the capped backpack
+   follow in order. */
 
 .queries { flex: 1; min-width: 22rem; }
 #engine-status { color: var(--dim); margin-bottom: 0.4rem; }
@@ -353,12 +334,7 @@ body { overflow: hidden; }
 .help-pop li + li { margin-top: 0.25rem; }
 .help-pop b { color: #ffe9a8; font-weight: normal; }
 
-.field { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
-.field > span { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
-/* Global mode has no base class: a hidden mirror of the field (same global
-   select styles) keeps the editor's rhythm pixel-identical so switching
-   modes never shifts the picker. */
-.field-blank { display: flex; visibility: hidden; }
+/* Select + hints */
 select, input {
     background: #0d0a07;
     color: var(--ink);
@@ -373,6 +349,10 @@ select, input {
    gutters: they never overlap a pick, and the gutters only appear once the
    rail actually overflows (so no layout coupling when everything fits). */
 .chips-row { display: flex; gap: 0.3rem; margin: 0.5rem 0; align-items: stretch; }
+.picks-label {
+    flex: none; align-self: center; color: var(--dim);
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+}
 .modpicker .chips {
     position: relative;
     flex: 1 1 auto; min-width: 0;
@@ -724,14 +704,14 @@ details.advanced {
 }
 .advanced-reserve {
     flex: 0 0 auto;
-    height: 2.6rem;
+    height: 2.2rem;
     margin: 0 1rem 1rem;
 }
 details.advanced > summary {
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    font-size: 0.78rem;
     color: var(--dim);
     padding: 0;
     position: sticky;
@@ -740,10 +720,11 @@ details.advanced > summary {
     z-index: 1;
     margin: 0;
     text-align: center;
-    min-height: 2.2rem;
+    min-height: 1.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.85;
 }
 details.advanced > summary:hover { color: var(--accent); }
 details.advanced > .reset-row {

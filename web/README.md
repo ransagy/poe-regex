@@ -43,7 +43,7 @@ The Pages project has Cloudflare Web Analytics enabled, so Pages injects its
 cookieless beacon into the served HTML. It is not part of the app source; if
 you host your own copy, disable it in the project settings or leave it out.
 The build also ships `license.txt`, `notice.txt` and `provenance.md`, linked
-from the Advanced panel.
+from the More info panel.
 
 ## Load the five real sample items
 
@@ -77,20 +77,20 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-  The page starts with the mode choice: two stacked options (`Simple` /
-  `Advanced`) that state their meaning — "same mods for every item" /
-  "different mods per slot". The flow then reads down the left column: what
-  to find (`ModPicker`; advanced adds the paper doll as the slot selector and
-  starts unfocused with "click a slot on the doll to pick its mods"), then
-  the search-string bar — a "your search string" label, what it covers
-  (`all items`, `helmet · Helmet`, `combined paste · N slots`), a local
-  "copy → paste into the game's item search" hint, the regex line with the
-  k/N meter (red `OVER`) and copy; before the first pick it says "nothing to
-  show yet — pick mods to build the string". The right rail holds the
-  advanced doll, the test-items tools and the backpack. Per-slot queries for
-  Advanced live below.
+  The page is one left-aligned flow: mode (two unboxed options that state
+  their meaning — "same mods for every item" / "different mods per slot"),
+  criteria (simple: the picker alone; advanced: doll | picker, doll first,
+  starting unfocused with "click a slot on the doll to pick its mods"),
+  picks rail, search string, test items, backpack. The search-string bar
+  carries a local "copy → paste into the game's item search" hint, the regex
+  with the k/N meter (red `OVER`) and copy; the scope is silent in simple and
+  names the slots in advanced (`Helmet + Boots`, `4 slots`). Before the first
+  pick it says "nothing to show yet — pick mods to build the string". Per-slot
+  queries for More info live below.
 - `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
-  edit it, slots with picks enroll and fill, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
+  edit it, slots with picks enroll and fill, X clears; the focused
+  weapon/offhand slot carries its base-class select inside the card),
+  `BackpackGrid` (12×5 test area; integer-snapped square
   cells span the full width in the stacked layout and a bounded column under
   the paper doll from 1500px up — when the
   window is too short the pack area scrolls internally, never the page;
@@ -104,11 +104,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   corrupted footer, and an optional per-line annotation slot; the card is
   the tooltip's scroll region so its border stays put), `ModeSwitch` (two
   stacked options — simple = same mods everywhere, advanced = per-slot mods),
-  `HelpTip`
-  (the sparse `(?)` cards — scope toggle and test items — click to open,
-  backdrop or Escape to close), `ClassPicker`,
-  `ModPicker` (searchable mods grouped into stat families: one row per
-  family with a PREFIX/SUFFIX tag and the stat text with its numbers dropped
+  `HelpTip` (the test-items `(?)` card — click to open, backdrop or Escape to
+  close), `PicksRail` (the picks rail above the result: chips, pagers, clear;
+  in advanced it names the focused slot), `ModPicker` (searchable mods
+  grouped into stat families: one row per family with the stat text with its
+  numbers dropped
   (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
   stack their lines) — the row is a plain-text toggle (`▸`/`▾`
   caret) with a dim tier count, a quiet `+` for the plain stat (any tier) and
@@ -148,25 +148,27 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   reject when the backpack is full). Backpack
   tools row: a `Test items` label with its own `(?)` card, then import,
   assemble, and remove (acts on the pinned item).
-- The editor keeps one rhythm: the mode row, the `BASE CLASS` selector and
-  the mod picker are spaced with the same 0.5rem gap (the picks rail renders
-  always, inert when empty); in simple mode a hidden mirror of the field
-  (same select styles, `visibility: hidden`) keeps the geometry
-  pixel-identical, so switching modes never shifts the picker.
-- Picks live in a one-line rail that sits permanently between the text filter
-  and the mod list — present but inert with no picks (pagers at `+0`, clear
-  disabled) — and it never wraps or grows, so a large pick set can't push the
-  picker out of the panel. Directional SVG-chevron pagers sit in reserved
-  gutters and always show the true count — gold-accented and clickable when
-  there is something that way, dashed and grayed when there isn't — and page
-  by chip-aligned windows (the rail scrollbar is hidden; the mouse wheel
-  scrolls it sideways, and at the rail's ends the wheel does nothing — the
-  family list is deliberately not wheel-linked; trackpad and keyboard focus
-  work as usual). `clear` carries the destructive red at rest (gray when
-  disabled) and is pinned beside the rail; adding picks never moves the rail,
-  and removals keep the leading chip pinned (best effort). The compiled-query
-  box keeps its value when over budget: the full string stays, the `k/N`
-  meter shows the red `OVER` state, and copy stays enabled.
+- The flow is one left-aligned column: mode → criteria (advanced splits into
+  doll | picker) → picks rail → search string → test items → backpack. The
+  rail sits directly above the result ("this is what you chose, this is what
+  it makes") and stays present but inert with no picks (pagers at `+0`,
+  clear disabled). There is no separate base-class row: simple is classless,
+  and in advanced the focused weapon/offhand slot carries its class select
+  inside the card (every other slot is 1:1 with its class).
+- Picks live in a one-line rail that never wraps or grows, so a large pick
+  set can't push the picker out of the panel. Directional SVG-chevron pagers
+  sit in reserved gutters and always show the true count — gold-accented and
+  clickable when there is something that way, dashed and grayed when there
+  isn't — and page by chip-aligned windows (the rail scrollbar is hidden; the
+  mouse wheel scrolls it sideways, and at the rail's ends the wheel does
+  nothing — the family list is deliberately not wheel-linked; trackpad and
+  keyboard focus work as usual). `clear` carries the destructive red at rest
+  (gray when disabled) and is pinned beside the rail; adding picks never
+  moves the rail, and removals keep the leading chip pinned (best effort).
+  In advanced the rail names its slot ("helmet picks"); it is empty (and
+  hintless) until a slot is focused. The compiled-query box keeps its value
+  when over budget: the full string stays, the `k/N` meter shows the red
+  `OVER` state, and copy stays enabled.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
   disables the whole mod list and the search (the list dims; Save still

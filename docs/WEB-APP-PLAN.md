@@ -295,39 +295,38 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
-- **Follow-up round 13 — feedback round 1, part 2: mode first, criteria
-  second, result last.** Two modes replace three: **Simple** (same mods for
-  every item — the old global) and **Advanced** (different mods per slot —
-  the old multi); the middle "single" mode is gone, since advanced with one
-  enrolled slot composes the same terms (anchor + fragment group) as the
-  retired single compile. The choice is two stacked self-describing options
-  (dot + name + "same mods for every item" / "different mods per slot"); the
-  `search covers` label and its (?) are gone, and there is no app-flow blurb
-  or step numbering — each region holds its own. The search-string bar moved
-  from the top into the flow column under the picker (label, what it covers,
-  the local paste hint, the regex with the k/N meter, copy; empty state
-  "nothing to show yet — pick mods to build the string"). Advanced starts
-  unfocused with "click a slot on the doll to pick its mods"; **the paper
-  doll renders only in advanced** (simple has no slots). The picker was
-  de-cluttered: sticky `PREFIXES`/`SUFFIXES` section headers replace the
-  per-row PREFIX/SUFFIX tags (two columns wide, stacked narrow), tier counts
-  are dim text instead of badges, `+`/`−` are quiet glyphs that only take a
-  hover surface (`−` dim at rest, red on hover), rows get a hover highlight,
-  and the family tooltip names its content ("show 6 tiers: % increased
-  Movement Speed"). Before typing, the list is a curated shortlist
-  (`ModFamilies.CommonKeys`: life/mana, local damage, defences, Spirit;
-  resistances, attributes, movement/attack speed, crit, accuracy, mana regen)
-  with "common picks — type to search all N families"; scopes without
-  curated hits show only that line. The assemble dialog keeps its per-row
-  tags. Snapshot v3 migrates retired modes (global→simple, single→advanced +
-  that slot focused, multi→advanced); `SelectedSlot`/`MultiFocus` are gone
-  (`FocusedSlot`). The wide grid gives the flow column the left side and the
-  doll + test items the right (simple hides the doll and pulls the rail up);
-  the side column formula was re-tuned (R=270) so the 12×5 pack fits without
-  its own scrollbars at 1600×900 / 1920×1080 / 2560×1440. CDP-verified: mode
-  states, curated vs filtered lists, content tooltips, migration of a real
-  v2 single-mode snapshot (advanced + helmet focus + query), no page/pack
-  scroll at 1600×900 and 900×1200. Full slnx 10+132+71 green.
+- **Follow-up round 13 — feedback round 1, part 2: mode first, mods second,
+  result third.** Two modes replace three: **Simple** (same mods for every
+  item — the old global) and **Advanced** (different mods per slot — the old
+  multi); the middle "single" mode was redundant (advanced with one enrolled
+  slot composes the same terms), and snapshots migrate (`single` keeps its
+  slot as the advanced focus). The mode choice is two unboxed stacked options
+  (dot + name + "same mods for every item" / "different mods per slot") with
+  the label vertically centered; the `search covers` row and its (?) are
+  gone. The page is one left-aligned flow: mode → criteria → picks rail →
+  search string → test items → backpack. Simple is a single column (no base
+  class at all, no doll). Advanced splits the criteria band into **doll |
+  picker** (doll first, picker second; the band absorbs the spare height and
+  the doll is fitted to it — the 1.09 zoom is gone), starts unfocused with
+  "click a slot on the doll to pick its mods", and the rail names the focused
+  slot ("helmet picks") while the result names the enrolled slots
+  (`Helmet + Boots`, `4 slots`). **The base class moved into the doll**: only
+  weapon/offhand have a class choice, so the focused one carries the select
+  inside its slot card (every other slot is 1:1 with its class); the separate
+  `ClassPicker` and the blank spacer are deleted. The picks rail moved out of
+  the picker to sit directly above the result ("this is what you chose, this
+  is what it makes"); it stays present but inert when empty (pagers `+0`,
+  clear disabled) and only shows its "+ to add" hint where a picker exists.
+  The filter's placeholder carries the scope count ("type to search all 45
+  families") instead of a bottom hint line. The backpack is width-capped
+  (44 rem, max 19 rem tall) and left-aligned so its 12 cells stay ~60 px;
+  the test-items (?) popover now paints above the pack (z-order fixed). The
+  bottom debug panel is renamed **More info** and made quieter. Snapshot v3
+  (`FocusedSlot`, retired modes migrated) with a real v2 single-mode blob
+  verified. CDP-verified: both modes, unfocused/focused advanced, in-doll
+  class select (14 weapon classes, switching re-scopes the picker), scope
+  labels, popover over the pack, no page/pack scroll at 1920×1080, 1600×900,
+  900×1200 and 2560×1440. Full slnx 10+132+71 green.
 - **Follow-up round 12 — paste class alternations fold suffixes; the
   in-game class audit.** Combined pastes were blowing the budget on class
   alternations: every group token repeats the scope's classes and

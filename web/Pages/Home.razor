@@ -15,6 +15,7 @@
     <section class="panel inventory mode-@State.Mode" aria-label="Inventory">
         @{
             var barQuery = BarQuery();
+            var scopeText = ScopeText();
         }
         <div class="mode-bar">
             <span class="section-label">search mode</span>
@@ -22,13 +23,18 @@
         </div>
 
         <div class="inv-top">
+            @if (State.Mode == "advanced")
+            {
+                <div class="inv-doll">
+                    <PaperDoll State="State" />
+                </div>
+            }
             <div class="inv-editor" aria-label="Mods to find">
                 @if (State.Mode == "advanced")
                 {
-                    @if (State.FocusedSlot is { } focus)
+                    @if (State.FocusedSlot is not null)
                     {
-                        <ClassPicker State="State" SlotId="@focus" />
-                        <ModPicker State="State" Scope="@focus" Mods="Engine.ModsForClass(State.SlotClassOrDefault(focus))" />
+                        <ModPicker State="State" Scope="@State.FocusedSlot" Mods="@RailMods" />
                     }
                     else
                     {
@@ -37,61 +43,60 @@
                 }
                 else
                 {
-                    <div class="field-blank" aria-hidden="true"><select disabled><option>—</option></select></div>
-                    <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
+                    <ModPicker State="State" Scope="@null" Mods="@RailMods" />
                 }
-
-                <div class="result-bar">
-                    <div class="rb-head">
-                        <span class="rb-label">Your search string</span>
-                        <span class="rb-scope">@ScopeText()</span>
-                        <span class="rb-hint">copy → paste into the game's item search</span>
-                    </div>
-                    <div class="result-strip" id="result-strip" aria-label="Compiled search string">
-                        @if (barQuery.Length > 0)
-                        {
-                            @if (State.Mode == "advanced" && _paste is not null)
-                            {
-                                <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-advanced">
-                                    <code title="@_paste.Query">@_paste.Query</code>
-                                    <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
-                                        @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
-                                    </span>
-                                    <button id="slot-copy-advanced" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                                </div>
-                            }
-                            else
-                            {
-                                @foreach (var t in _barTasks)
-                                {
-                                    <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
-                                        <code title="@t.Result.Query">@t.Result.Query</code>
-                                        <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
-                                            @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
-                                        </span>
-                                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                                    </div>
-                                }
-                            }
-                        }
-                        else
-                        {
-                            <span class="rb-empty">nothing to show yet — pick mods to build the string</span>
-                        }
-                    </div>
-                </div>
             </div>
-            @if (State.Mode == "advanced")
-            {
-                <div class="inv-doll">
-                    <PaperDoll State="State" />
-                </div>
-            }
         </div>
+
+        <PicksRail State="State" Scope="@RailScope" Mods="@RailMods" ShowHint="@RailHint" Label="@RailLabel" />
+
+        <div class="result-bar">
+            <div class="rb-head">
+                <span class="rb-label">Your search string</span>
+                @if (scopeText.Length > 0)
+                {
+                    <span class="rb-scope">@scopeText</span>
+                }
+                <span class="rb-hint">copy → paste into the game's item search</span>
+            </div>
+            <div class="result-strip" id="result-strip" aria-label="Compiled search string">
+                @if (barQuery.Length > 0)
+                {
+                    @if (State.Mode == "advanced" && _paste is not null)
+                    {
+                        <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-advanced">
+                            <code title="@_paste.Query">@_paste.Query</code>
+                            <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
+                                @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
+                            </span>
+                            <button id="slot-copy-advanced" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var t in _barTasks)
+                        {
+                            <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
+                                <code title="@t.Result.Query">@t.Result.Query</code>
+                                <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
+                                    @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
+                                </span>
+                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <span class="rb-empty">nothing to show yet — pick mods to build the string</span>
+                }
+            </div>
+        </div>
+
         <div class="modrow pack-tools">
             <div class="pack-label">
                 Test items
-                <HelpTip Title="what test items are for" Class="help-right">
+                <HelpTip Title="what test items are for">
                     <ul>
                         <li><b>import item</b> — paste an item copied from the game.</li>
                         <li><b>assemble item</b> — build one from catalog mods.</li>
@@ -113,8 +118,8 @@
     <div class="advanced-reserve" aria-hidden="true"></div>
 </div>
 
-<details class="panel advanced" id="advanced-debug">
-    <summary>Advanced</summary>
+<details class="panel advanced" id="more-info">
+    <summary>More info</summary>
     <div id="engine-status">@_engineStatus</div>
     @if (_paste is not null)
     {
@@ -319,19 +324,42 @@
             ? _paste?.Query ?? ""
             : _barTasks.FirstOrDefault()?.Result.Query ?? "";
 
-    /// <summary>What the bar's string covers, in plain words.</summary>
+    /// <summary>Picks rail scope: the focused slot in advanced, the global set in simple.</summary>
+    private string? RailScope => State.Mode == "advanced" ? State.FocusedSlot : null;
+
+    /// <summary>The rail shows its "+ to add" hint only where a picker is available.</summary>
+    private bool RailHint => State.Mode == "simple" || State.FocusedSlot is not null;
+
+    /// <summary>Dim lead-in for the advanced rail, e.g. "helmet picks".</summary>
+    private string? RailLabel => State.Mode == "advanced" && State.FocusedSlot is { } focus
+        ? $"{(GearSlot.ById(focus)?.Label ?? focus).ToLowerInvariant()} picks"
+        : null;
+
+    /// <summary>Mods for the rail/picker scope (empty while advanced is unfocused).</summary>
+    private IReadOnlyList<ModEntry> RailMods =>
+        State.Mode == "simple"
+            ? Engine.PlayableMods()
+            : State.FocusedSlot is { } focus
+                ? Engine.ModsForClass(State.SlotClassOrDefault(focus))
+                : [];
+
+    /// <summary>What the bar's string covers: silent in simple; the slots in advanced.</summary>
     private string ScopeText()
     {
-        if (State.Mode != "advanced") return "all items";
+        if (State.Mode != "advanced") return "";
         var active = State.ActiveSlots();
-        if (active.Count == 0) return "nothing yet";
-        if (active.Count > 1) return $"combined paste · {active.Count} slots";
-        var slot = active[0];
-        var label = GearSlot.ById(slot)?.Label ?? slot;
-        var cls = State.SlotClassOrDefault(slot);
-        return string.Equals(label, cls, StringComparison.OrdinalIgnoreCase)
-            ? label
-            : $"{label} · {cls}";
+        if (active.Count == 0) return "";
+        if (active.Count > 3) return $"{active.Count} slots";
+        if (active.Count == 1)
+        {
+            var slot = active[0];
+            var label = GearSlot.ById(slot)?.Label ?? slot;
+            var cls = State.SlotClassOrDefault(slot);
+            return string.Equals(label, cls, StringComparison.OrdinalIgnoreCase)
+                ? label
+                : $"{label} · {cls}";
+        }
+        return string.Join(" + ", active.Select(s => GearSlot.ById(s)?.Label ?? s));
     }
 
     private async Task ResetWorkbench()

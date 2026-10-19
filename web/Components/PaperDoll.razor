@@ -1,4 +1,6 @@
+@using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
+@inject EngineService Engine
 
 @*
   Paper doll: the ten gear slots arranged like the PoE2 inventory panel
@@ -8,20 +10,37 @@
 
   Advanced mode only (simple mode has no slots): clicking a slot moves the
   editing focus (accent outline); slots with picks are enrolled and filled.
+  Weapon/offhand are the only slots with a base-class choice, so the focused
+  one carries the class select inside its card; every other slot is 1:1.
 *@
 <div class="doll" aria-label="Equipment">
     @foreach (var slot in GearSlot.All)
     {
         var enrolled = State.Enrolled(slot.Id);
         var focused = State.FocusedSlot == slot.Id;
-        <button id="slot-@slot.Id"
-                class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "")"
-                style="@Placement(slot)"
-                aria-pressed="@enrolled"
-                title="@slot.Label"
-                @onclick="() => State.SelectSlot(slot.Id)">
-            <span class="gear-label">@slot.Label</span>
-        </button>
+        var showClass = focused && slot.Id is "weapon" or "offhand";
+        <div class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "")"
+             style="@Placement(slot)">
+            <button id="slot-@slot.Id" type="button" class="gear-focus"
+                    title="@slot.Label" aria-label="@slot.Label" aria-pressed="@enrolled"
+                    @onclick="() => State.SelectSlot(slot.Id)"></button>
+            @if (showClass)
+            {
+                <select class="gear-class" aria-label="@slot.Label base class"
+                        value="@State.SlotClassOrDefault(slot.Id)"
+                        @onchange="e => SetClass(slot.Id, e)"
+                        @onclick:stopPropagation="true">
+                    @foreach (var cls in ClassOptions(slot.Id))
+                    {
+                        <option value="@cls.Id">@cls.Name</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <span class="gear-label">@slot.Label</span>
+            }
+        </div>
     }
     @foreach (var slot in GearSlot.All)
     {
@@ -40,6 +59,22 @@
 @code {
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
+
+    /// <summary>Classes fitting the slot; the current selection is kept even if
+    /// it no longer fits (grandfathered saves) so nobody gets stranded.</summary>
+    private IEnumerable<ItemClassEntry> ClassOptions(string slotId)
+    {
+        var playable = Engine.InGameClasses().ToList();
+        var allowed = SlotClasses.AllowedFor(slotId, playable.Select(c => c.Id)).ToHashSet();
+        var current = State.SlotClassOrDefault(slotId);
+        return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);
+    }
+
+    private void SetClass(string slotId, ChangeEventArgs e)
+    {
+        if (e.Value is string id && id.Length > 0)
+            State.SetSlotClass(slotId, id);
+    }
 
     // Cell-grid layout transcribed from the in-game PoE2 gear panel.
     // One cell (c) = ring/amulet; helmet/gloves/boots are 2x2, body 2x3,
