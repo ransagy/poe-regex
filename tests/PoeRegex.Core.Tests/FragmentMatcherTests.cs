@@ -27,7 +27,8 @@ public class FragmentMatcherTests
             var lines = scope is null
                 ? corpus.RealLinesGlobal()
                 : corpus.RealLinesForClass(scope);
-            foreach (var pattern in lines.Select(x => x.Pattern).Distinct())
+            foreach (var pattern in lines.Select(x => x.Pattern).Distinct()
+                         .Where(p => p.Length == 0 || p[0] != EngineCorpus.SafetyPatternMarker))
             {
                 var fragment = selector.Select(pattern, scope);
                 if (fragment is null) continue;

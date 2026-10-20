@@ -31,7 +31,7 @@ public class MultiPasteTests
         var ring = result.Groups.Single(g => g.Label == "weapon");
         ring.TargetClasses.Should().Equal(["Ring"]);
         ring.Token.Should().NotContain("Ri");
-        ring.Token.Should().Contain("m L");
+        ring.Token.Should().Contain("fe$");
         // Recall + anchor validation are clean on real data.
         result.Diagnostics.Should().BeEmpty();
         // Deterministic.

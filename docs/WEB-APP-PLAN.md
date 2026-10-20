@@ -339,6 +339,41 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   10+134+86 green. In-game `.`/`.*` newline behavior remains to be checked
   manually with a generated wildcard string (the catalog audit cannot prove
   the game's line semantics).
+- **Follow-up round 15 — captured-item safety + generalized shortest-safe
+  fragments, then the scale/chip/row polish.** The oracle-only table from
+  round 14 was provably unsafe against real item copy: `Co.+ck` hit Mist
+  Whisper's `Cold, Attack` caption and `Corpse Knuckle`, `d.+r$` hit
+  `Sanguine Diviner`/`Dusk Sliver`, `h.+le` hit flavor/usage text, and
+  `^.%.+if` hit `9% increased Flask Life Recovery rate`. The fix is not more
+  hand-picked middle ground: the selector now keeps the generalized
+  shortest-safe rule over the full item line corpus. Seven captured real
+  items (`data/catalogs/poe2.safety-items.txt`: uniques/rares, names, base
+  types, affix captions, base properties, flavor, jewel usage) are embedded
+  into the class/global oracle next to the catalog/universal lines; a
+  shippable fragment must carry at least one per-line `^`/`$` anchor and
+  either a `\d` selector or a line-start 4+ letter stat word (word-only
+  candidates use the complete first stat word; a mid-word run does not
+  count; the whole-line fallback is exempt for lines whose first word is
+  shorter than 4, e.g. `Bow Attacks fire an additional Arrow`), may use 0-2
+  wildcard bridges, and must pass both the per-line oracle and a whole-item
+  dot-all check (a fragment that bridges two lines of an item that does not
+  carry the stat is rejected). The generated table now reads
+  `Adds # to # Cold Damage` → `\d Co.+ge$` (10; the 9-character
+  `\d C.+ge$` crosses `Has 1 Charm Slot` to `Physical Thorns damage` on the
+  Wide Belt), attacks → `\d C.+ks$` (9), `#% increased Armour` →
+  `^\d.+r$` (7), `#% increased maximum Life` → `^\d%.+fe$` (9), Allies
+  resistances → `^Al.+\+\d` (9). Both tables were regenerated; the audit now
+  includes 1,029 captured-item line/whole-item checks; full slnx
+  10+134+87 green. UI: persisted display scale (100/115/130%, default 130%
+  desktop, 100% phone-width) as body zoom with a header select; scaled
+  content that no longer fits adds a compact page-scroll mode (1920x1080 at
+  130% still fits; 1600x900 at 130% and phone/narrow screens scroll, with
+  the advanced doll stacked above the picker on phones); `++` stays visible
+  and disabled with "keep typing to narrow" instead of disappearing on
+  broad filters; tier chips show the affix name plus tier description/range
+  and a full tooltip; the test-items row is left-aligned with a real gap
+  from `[?]` and space above the backpack. In-game verification of the new
+  strings remains manual.
 - **Follow-up round 13 — feedback round 1, part 2: mode first, mods second,
   result third.** Two modes replace three: **Simple** (same mods for every
   item — the old global) and **Advanced** (different mods per slot — the old

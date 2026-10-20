@@ -18,6 +18,27 @@ namespace PoeRegex.Core.Compilation;
 /// line of the stat) and safety (it matches no line of another stat). Ties
 /// prefer more anchors, then a stricter wildcard, then more letters.
 /// </summary>
+/// <summary>
+/// Safety constraints for a shippable fragment. The default is the guaranteed
+/// policy: the fragment must be line-anchored and keep either a digit
+/// selector or a line-start 4+ letter stat word, so it cannot be an
+/// arbitrary letter shape that matches item names, headers, or flavor text.
+/// The unconditional whole-line fallback is exempt (some lines start with a
+/// short word, e.g. "Bow Attacks fire an additional Arrow"). Wildcards are
+/// allowed (up to two bridges) because the full line corpus and fixtures
+/// validate the actual candidates.
+/// </summary>
+public sealed record FragmentPolicy(
+    bool RequireGuard = true,
+    bool RequireAnchor = true,
+    int MaxBridges = 2)
+{
+    public static readonly FragmentPolicy Guaranteed = new();
+
+    /// <summary>Diagnostic-only policy: no shape constraints (not shipped).</summary>
+    public static readonly FragmentPolicy Absolute = new(false, false, 2);
+}
+
 public sealed class FragmentSelector
 {
     private const int MinWildcardLength = 3;
@@ -28,15 +49,20 @@ public sealed class FragmentSelector
     private readonly EngineCorpus _corpus;
     private readonly ICompilerStrategy _strategy;
     private readonly bool _usePrecomputed;
+    private readonly FragmentPolicy _policy;
     private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
+    private Func<string, bool>? _extraSafety;
     private readonly Dictionary<string, ScopeData> _scopes = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Scope, string Target, string Hint), List<string>> _foreignCache = new();
 
-    public FragmentSelector(EngineCorpus corpus, ICompilerStrategy strategy, bool usePrecomputed = true)
+    public FragmentSelector(
+        EngineCorpus corpus, ICompilerStrategy strategy, bool usePrecomputed = true,
+        FragmentPolicy? policy = null)
     {
         _corpus = corpus;
         _strategy = strategy;
         _usePrecomputed = usePrecomputed;
+        _policy = policy ?? FragmentPolicy.Guaranteed;
     }
 
     private sealed class ScopeData
@@ -50,7 +76,7 @@ public sealed class FragmentSelector
     /// (<paramref name="itemClass"/> null means the union of every class).
     /// Returns null only when the pattern has no real line in the scope.
     /// </summary>
-    public string? Select(string pattern, string? itemClass)
+    public string? Select(string pattern, string? itemClass, Func<string, bool>? extraSafety = null)
     {
         var key = (itemClass ?? "\0", pattern);
         if (_cache.TryGetValue(key, out var cached)) return cached;
@@ -59,6 +85,9 @@ public sealed class FragmentSelector
             _cache[key] = precomputed;
             return precomputed;
         }
+        // Keep the extra check for the whole nested search (the class scope
+        // recurses into the global scope); the next top-level call resets it.
+        _extraSafety = extraSafety;
         var result = SelectCore(pattern, itemClass);
         _cache[key] = result;
         return result;
@@ -84,7 +113,7 @@ public sealed class FragmentSelector
         string? best = plain;
         if (itemClass is not null)
         {
-            var global = Select(pattern, null);
+            var global = Select(pattern, null, _extraSafety);
             if (global is not null && (best is null || global.Length < best.Length)) best = global;
         }
         if (best is not null && best.Length <= MinWildcardLength) return best;
@@ -92,6 +121,11 @@ public sealed class FragmentSelector
         var bound = best?.Length ?? ShortSearch;
         var wildcard = FindWildcard(pattern, itemClass, targetList, others, bound);
         if (wildcard is not null && (best is null || wildcard.Length < best.Length)) best = wildcard;
+        if (_policy.MaxBridges >= 2)
+        {
+            var two = FindWildcard2(pattern, itemClass, targetList, others, best?.Length ?? ShortSearch);
+            if (two is not null && (best is null || two.Length < best.Length)) best = two;
+        }
         // Every search covered all candidates below ShortSearch.
         if (best is not null && best.Length < ShortSearch) return best;
 
@@ -104,6 +138,12 @@ public sealed class FragmentSelector
         var fullBound = best?.Length ?? MaxSearchLength + 1;
         var fullWildcard = FindWildcard(pattern, itemClass, targetList, others, Math.Min(fullBound, MaxSearchLength + 1));
         if (fullWildcard is not null && (best is null || fullWildcard.Length < best.Length)) best = fullWildcard;
+        if (_policy.MaxBridges >= 2)
+        {
+            var two = FindWildcard2(pattern, itemClass, targetList, others,
+                Math.Min(best?.Length ?? MaxSearchLength + 1, MaxSearchLength + 1));
+            if (two is not null && (best is null || two.Length < best.Length)) best = two;
+        }
 
         if (best is not null) return best;
 
@@ -162,7 +202,7 @@ public sealed class FragmentSelector
         AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true, suffixAnchor: true);
 
         foreach (var candidate in candidates
-                     .Where(c => c.Length < maxLength)
+                     .Where(c => c.Length < maxLength && PassesPolicy(c))
                      .OrderBy(c => c.Length)
                      .ThenBy(c => AnchorCount(c), Comparer<int>.Create((a, b) => b.CompareTo(a)))
                      .ThenBy(c => c, StringComparer.Ordinal))
@@ -277,7 +317,7 @@ public sealed class FragmentSelector
 
         void Add(string candidate)
         {
-            if (candidate.Length >= bound) return;
+            if (candidate.Length >= bound || !PassesPolicy(candidate)) return;
             var bucket = buckets[candidate.Length] ??= new HashSet<string>(StringComparer.Ordinal);
             bucket.Add(candidate);
         }
@@ -341,6 +381,136 @@ public sealed class FragmentSelector
         return null;
     }
 
+    private string? FindWildcard2(string pattern, string? itemClass, List<string> targets, List<string> others, int bound)
+    {
+        bound = Math.Min(bound, MaxSearchLength + 1);
+        if (bound <= MinWildcardLength + 3) return null;
+        var cap = Math.Min(bound, 12);
+        while (true)
+        {
+            var found = FindWildcard2UpTo(pattern, itemClass, targets, others, cap);
+            if (found is not null) return found;
+            if (cap >= bound) return null;
+            cap = Math.Min(bound, cap + 8);
+        }
+    }
+
+    private string? FindWildcard2UpTo(string pattern, string? itemClass, List<string> targets, List<string> others, int bound)
+    {
+        var n = pattern.Length;
+        bound = Math.Min(bound, MaxSearchLength + 1);
+        if (bound <= MinWildcardLength + 3) return null;
+        var buckets = new HashSet<string>?[bound];
+        var renderCache = new List<string>?[n + 1, n + 1];
+        List<string> Piece(int a, int b)
+        {
+            if (renderCache[a, b] is { } cached) return cached;
+            var rendered = Renderings(pattern, a, b);
+            renderCache[a, b] = rendered;
+            return rendered;
+        }
+        void Add(string candidate)
+        {
+            if (candidate.Length >= bound || !PassesPolicy(candidate)) return;
+            var bucket = buckets[candidate.Length] ??= new HashSet<string>(StringComparer.Ordinal);
+            bucket.Add(candidate);
+        }
+
+        for (var i = 0; i < n - 5; i++)
+            for (var k = i + 1; k < n - 4; k++)
+            {
+                var aRenderings = Piece(i, k);
+                for (var l = k + 1; l < n - 3; l++)
+                    for (var m = l + 1; m < n - 2; m++)
+                    {
+                        var bRenderings = Piece(l, m);
+                        for (var r = m + 1; r < n - 1; r++)
+                            for (var j = r + 1; j <= n; j++)
+                            {
+                                if ((k - i) + (m - l) + (j - r) + 2 >= bound) continue;
+                                var cRenderings = Piece(r, j);
+                                var startCount = i == 0 ? 2 : 1;
+                                var endCount = j == n ? 2 : 1;
+                                var w1s = TwoWildcards;
+                                var w2s = TwoWildcards;
+                                var gap1 = l - k;
+                                var gap2 = j - r;
+                                if (gap1 == 1 && (pattern[k] == SuffixIndex.DigitPlaceholder || _strategy.EscapeLiteral(pattern[k].ToString()).Length > 1))
+                                    w1s = ThreeWildcards;
+                                if (gap2 == 1 && (pattern[r] == SuffixIndex.DigitPlaceholder || _strategy.EscapeLiteral(pattern[r].ToString()).Length > 1))
+                                    w2s = ThreeWildcards;
+                                foreach (var aText in aRenderings)
+                                    foreach (var bText in bRenderings)
+                                        foreach (var cText in cRenderings)
+                                            foreach (var w1 in w1s)
+                                                foreach (var w2 in w2s)
+                                                    for (var sv = 0; sv < startCount; sv++)
+                                                        for (var ev = 0; ev < endCount; ev++)
+                                                        {
+                                                            var total = aText.Length + bText.Length + cText.Length
+                                                                + w1.Length + w2.Length + sv + ev;
+                                                            if (total >= bound) continue;
+                                                            Add((sv == 1 ? "^" : "") + aText + w1 + bText + w2 + cText + (ev == 1 ? "$" : ""));
+                                                        }
+                            }
+                    }
+            }
+
+        for (var length = MinWildcardLength + 3; length < bound; length++)
+        {
+            var bucket = buckets[length];
+            if (bucket is null || bucket.Count == 0) continue;
+            foreach (var candidate in bucket
+                         .OrderByDescending(AnchorCount)
+                         .ThenBy(WildcardRank)
+                         .ThenByDescending(LetterCount)
+                         .ThenBy(c => c, StringComparer.Ordinal))
+            {
+                if (Validate(candidate, itemClass, pattern, targets, others)) return candidate;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// True when a candidate satisfies the shipped safety policy: at least one
+    /// line anchor, and a digit selector or a line-start 4+ letter stat word.
+    /// </summary>
+    private static string FirstLetters(string text, int start)
+    {
+        var i = start;
+        while (i < text.Length && char.IsAsciiLetter(text[i])) i++;
+        return text[start..i];
+    }
+
+    private bool PassesPolicy(string candidate)
+    {
+        if (!_policy.RequireGuard && !_policy.RequireAnchor) return true;
+        var anchor = candidate.StartsWith('^') || candidate.EndsWith('$');
+        if (_policy.RequireAnchor && !anchor) return false;
+        if (!_policy.RequireGuard) return true;
+        if (candidate.Contains(@"\d", StringComparison.Ordinal)) return true;
+
+        // Word-only guards are line-start anchored and must begin with a full
+        // 4+ letter stat word (e.g. ^Allies…). A mid-word 4-letter run such as
+        // "acks"/"nces" is not enough: it is exactly how letter-shape
+        // fragments leaked into names and flavor text before the fixtures.
+        if (!candidate.StartsWith('^')) return false;
+        var run = 0;
+        for (var i = 1; i < candidate.Length; i++)
+        {
+            var c = candidate[i];
+            if (char.IsAsciiLetter(c))
+            {
+                run++;
+                if (run >= 4) return true;
+                continue;
+            }
+            return false;
+        }
+        return false;
+    }
+
     /// <summary>Whole line with per-line anchors; guaranteed recall when the scope has the pattern.</summary>
     private string WholeLine(string pattern)
     {
@@ -361,6 +531,18 @@ public sealed class FragmentSelector
 
     private bool Validate(string candidate, string? itemClass, string pattern, List<string> targets, List<string> others)
     {
+        // Word-only guards must use the complete first stat word of the
+        // target line (^Allies…), not a truncated 4-letter prefix (^Alli…).
+        var wholeLine = string.Equals(candidate, WholeLine(pattern), StringComparison.Ordinal);
+        if (!wholeLine && !candidate.Contains(@"\d") && candidate.StartsWith('^'))
+        {
+            var prefix = FirstLetters(candidate, 1);
+            if (prefix.Length < 4) return false;
+            var complete = targets.Any(line =>
+                string.Equals(FirstLetters(line, 0), prefix, StringComparison.OrdinalIgnoreCase));
+            if (!complete) return false;
+        }
+
         var matcher = FragmentMatcher.Parse(candidate);
         // Recall first: candidates that miss one of the stat's own lines are
         // rejected after a handful of matches instead of scanning the scope.
@@ -373,7 +555,7 @@ public sealed class FragmentSelector
         var foreign = hint is null ? others : ForeignLines(itemClass, pattern, hint, others);
         foreach (var line in foreign)
             if (matcher.IsMatch(line)) return false;
-        return true;
+        return _extraSafety is null || _extraSafety(candidate);
     }
 
     /// <summary>

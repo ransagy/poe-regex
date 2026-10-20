@@ -12,6 +12,7 @@
     <EmbeddedResource Include="../../data/catalogs/poe2.catalog.json" LogicalName="PoeRegex.Core.catalogs.poe2.catalog.json" />
     <EmbeddedResource Include="../../data/catalogs/poe1.fragments.json" LogicalName="PoeRegex.Core.catalogs.poe1.fragments.json" Condition="Exists('../../data/catalogs/poe1.fragments.json')" />
     <EmbeddedResource Include="../../data/catalogs/poe2.fragments.json" LogicalName="PoeRegex.Core.catalogs.poe2.fragments.json" Condition="Exists('../../data/catalogs/poe2.fragments.json')" />
+    <EmbeddedResource Include="../../data/catalogs/poe2.safety-items.txt" LogicalName="PoeRegex.Core.catalogs.poe2.safety-items.txt" />
   </ItemGroup>
 
 </Project>

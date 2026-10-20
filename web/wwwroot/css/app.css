@@ -27,6 +27,7 @@ body { overflow: hidden; }
 
 .shell-bar {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     align-items: center;
     padding: 0.6rem 1rem;
@@ -37,9 +38,18 @@ body { overflow: hidden; }
 .shell-title { font-size: 1.2rem; letter-spacing: 0.06em; color: var(--accent); }
 .shell-icon { width: 2.5rem; height: 2.5rem; flex: none; align-self: center; }
 .shell-sub { color: var(--dim); font-size: 0.8rem; opacity: 0.75; }
+/* Display scale sits at the far end, before the source link. */
+.ui-scale {
+    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 0.35rem;
+    color: var(--dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ui-scale select {
+    background: var(--slot); color: var(--ink); border: 1px solid var(--panel-edge);
+    font: inherit; font-size: 0.75rem; padding: 0.05rem 0.25rem;
+}
 /* Source link sits at the far end of the header strip. */
 .shell-repo {
-    margin-left: auto;
+    margin-left: 0.75rem;
     flex: none;
     white-space: nowrap;
     color: var(--dim);
@@ -396,7 +406,7 @@ select, input {
     color: var(--dim); font-size: 0.78rem; align-self: center;
     padding-left: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
+.chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; white-space: nowrap; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
 .chip.clear { border-style: dashed; background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; }
@@ -423,7 +433,7 @@ select, input {
     opacity: 0.72; cursor: not-allowed;
 }
 .modrow #mod-min { flex: 1; min-width: 6rem; }
-.pack-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.4rem; row-gap: 0.25rem; margin: 0.1rem 0; }
+.pack-tools { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 0.6rem; row-gap: 0.25rem; margin: 0.1rem 0 0.55rem; }
 .pack-tools .pack-label { flex: none; }
 .pack-tools .btn { flex: none; white-space: nowrap; }
 @media (min-width: 1500px) and (max-width: 1720px) {
@@ -433,7 +443,7 @@ select, input {
     .pack-tools .btn { padding: 0.2rem 0.45rem; letter-spacing: 0.01em; }
 }
 .pack-label {
-    margin-right: auto; display: inline-flex; align-items: center; gap: 0.35rem;
+    margin-right: 0; display: inline-flex; align-items: center; gap: 0.35rem;
     color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;
 }
 /* The mod picker stretches to the bottom of the editor column; its list is
@@ -903,7 +913,7 @@ details.advanced > .reset-row {
   62%{transform:translate(calc(var(--x) * .88),calc(var(--u) * -.88 + var(--f) * .64)) scale(.75)}
   68%,100%{opacity:0;transform:translate(var(--x),calc(var(--f) - var(--u))) scale(.5)}
 }
-@keyframes fg-turn{0%,38%{transform:rotate(var(--a0))}68%,100%{transform:rotate(var(--a1)}}
+@keyframes fg-turn{0%,38%{transform:rotate(var(--a0))}68%,100%{transform:rotate(var(--a1))}}
 @keyframes fg-dot{0%,37.9%{opacity:.25}38%,70%{opacity:1}80%,100%{opacity:.25}}
 
 @media (prefers-reduced-motion:reduce){
@@ -913,3 +923,55 @@ details.advanced > .reset-row {
   .forge-loader .glow{animation:fg-breathe 2.4s ease-in-out infinite}
 }
 @keyframes fg-breathe{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* Scaled content that no longer fits the viewport: allow the page to scroll
+   and let the bench take its natural height, keeping the picker and backpack
+   usable at 115/130% on shorter screens. The 1920x1080 130% layout still
+   fits, so it stays on the no-page-scroll desktop bench. */
+body.compact { overflow-y: auto; }
+body.compact #app, body.compact .shell { height: auto; min-height: 100%; }
+body.compact .shell-body { flex: 1 1 auto; }
+body.compact .bench { flex: 0 0 auto; height: auto; overflow: visible; }
+body.compact .panel.inventory { flex: 0 0 auto; height: auto; }
+body.compact .inv-top { flex: 0 0 auto; width: 100%; height: auto; min-height: 0; }
+body.compact .inv-editor { flex: 1 1 auto; }
+body.compact .pack-wrap { max-height: none; }
+body.compact details.advanced, body.compact details.advanced:not([open]) {
+    position: static; margin: 0.75rem 0; max-height: none; overflow: visible;
+}
+body.compact .advanced-reserve { display: none; }
+
+/* Narrow/mobile: the page scrolls and the flow stacks. Tablets and small
+   laptops keep the desktop bench; this breakpoint is intentionally phone/
+   narrow-first. */
+@media (max-width: 700px) {
+    html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+    #app { height: auto; min-height: 100%; }
+    .shell { height: auto; min-height: 100%; }
+    .shell-bar { flex-wrap: wrap; gap: 0.5rem; padding: 0.55rem 0.75rem; }
+    .shell-icon { width: 2.1rem; height: 2.1rem; }
+    .shell-sub { display: none; }
+    .ui-scale { margin-left: auto; }
+    .shell-repo { margin-left: 0; }
+    .bench { height: auto; flex: 0 0 auto; min-height: 0; overflow: visible; padding: 0.75rem; gap: 0.75rem; }
+    .panel.inventory { min-width: 0; height: auto; flex: 0 0 auto; padding: 0.75rem; }
+    .mode-bar { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+    .mode-stack { min-width: 0; width: 100%; }
+    .mode-opt { grid-template-columns: 0.55rem 5.5rem minmax(0, 1fr); }
+    .inv-top { flex: 0 0 auto; flex-direction: column; height: auto; min-height: 0; }
+    .inv-doll { width: 100%; max-width: none; flex: 0 0 auto; }
+    .inv-editor { width: 100%; flex: 0 0 auto; }
+    .doll { max-width: 100%; }
+    .result-strip, .slot-query { flex-wrap: wrap; }
+    .slot-query code { white-space: normal; overflow-wrap: anywhere; }
+    .chips-row { flex-wrap: wrap; row-gap: 0.35rem; }
+    .pack-wrap { width: 100%; max-height: none; margin-top: 0; }
+    .pack-tools { margin-bottom: 0.5rem; }
+    details.advanced, details.advanced:not([open]) {
+        position: static; margin: 0.75rem 0; max-height: none; overflow: visible;
+    }
+    .advanced-reserve { display: none; }
+    .dlg, .dlg-builder { width: 100%; max-height: none; }
+    .builder-cols { flex-direction: column; }
+    .builder-right .iprev { max-height: none; }
+}

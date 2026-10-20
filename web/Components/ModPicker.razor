@@ -15,7 +15,7 @@
             @if (_bulkVisible)
             {
                 <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
-                        disabled="@_bulkOverflow" @onclick="SelectAll">++</button>
+                        disabled="@(_bulkOverflow || _bulkTooMany)" @onclick="SelectAll">++</button>
             }
         </div>
     </div>
@@ -146,6 +146,7 @@
     private readonly HashSet<string> _autoExpanded = new(StringComparer.Ordinal);
     private bool _bulkVisible;
     private bool _bulkOverflow;
+    private bool _bulkTooMany;
     private int _bulkNew;
     private int _bulkLength;
     private int _bulkLimit;
@@ -198,6 +199,7 @@
     {
         _bulkVisible = false;
         _bulkOverflow = false;
+        _bulkTooMany = false;
         _bulkNew = 0;
         if (_search.Trim().Length == 0 || _families.Count == 0) return;
         var crit = ScopeCriteria();
@@ -206,8 +208,14 @@
         if (_bulkNew < 2) return; // one match: the row's own + is the action
         // Broad filters can match most of the catalog; compiling a preview for
         // every match on each keystroke is what made the first letter hang.
-        // Keep ++ for a narrowed shortlist only.
-        if (_bulkNew > MaxBulkPreview) return;
+        // Keep ++ visible, but disabled until the filter narrows enough.
+        if (_bulkNew > MaxBulkPreview)
+        {
+            _bulkVisible = true;
+            _bulkTooMany = true;
+            _bulkOverflow = true;
+            return;
+        }
         var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
         _bulkLength = preview.Length;
         _bulkLimit = preview.Limit;
@@ -221,6 +229,7 @@
         var what = already > 0
             ? $"add all {_bulkNew} matching families ({already} already added)"
             : $"add all {_bulkNew} matching families";
+        if (_bulkTooMany) return $"{what} — keep typing to narrow before adding all";
         return _bulkOverflow
             ? $"{what} — would exceed the game's character limit ({_bulkLength}/{_bulkLimit}); narrow the filter"
             : $"{what} ({_bulkLength}/{_bulkLimit} characters)";
@@ -275,7 +284,7 @@
     /// append, so nothing shifts); the pagers reveal what is off-screen.</summary>
     private void SelectAll()
     {
-        if (_bulkOverflow) return;
+        if (_bulkOverflow || _bulkTooMany) return;
         State.AddIncludes(Scope, _families.Select(f => f.Pick()));
         Refresh();
     }

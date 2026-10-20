@@ -24,7 +24,8 @@ excluded from search engines).
   [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **Engine** (`src/PoeRegex.Core`): consumes a catalog through `ICatalogSource`,
   validates fragments against per-game grammar, selects the shortest safe
-  fingerprint (or a value-threshold digit-range pattern), factors common prefixes
+  fingerprint under the anchor + digit/stat-word guard and captured-item
+  corpus (or a value-threshold digit-range pattern), factors common prefixes
   across included mods, and enforces the game's character limit. Output is
   deterministic.
 - **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.

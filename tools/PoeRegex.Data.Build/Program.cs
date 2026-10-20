@@ -91,7 +91,8 @@ public static class Program
         var sw = System.Diagnostics.Stopwatch.StartNew();
         foreach (var pattern in patterns)
         {
-            var fragment = selector.Select(pattern, null);
+            var fragment = selector.Select(pattern, null,
+                candidate => SafetyItemValidator.IsSafe(corpus, pattern, candidate));
             if (fragment is not null) global[pattern] = fragment;
         }
         Console.WriteLine($"  global: {global.Count}/{patterns.Count} in {sw.ElapsedMilliseconds} ms");
@@ -106,7 +107,8 @@ public static class Program
             sw.Restart();
             foreach (var pattern in classPatterns)
             {
-                var fragment = selector.Select(pattern, cls.Id);
+                var fragment = selector.Select(pattern, cls.Id,
+                    candidate => SafetyItemValidator.IsSafe(corpus, pattern, candidate));
                 if (fragment is not null) map[pattern] = fragment;
             }
             byClass[cls.Id] = map;

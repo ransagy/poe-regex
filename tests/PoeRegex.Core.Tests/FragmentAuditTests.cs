@@ -75,6 +75,68 @@ public class FragmentAuditTests
         checkedCount.Should().BeGreaterThan(700);
     }
 
+    /// <summary>
+    /// Real captured items are the ground truth: a fragment for a stat must
+    /// match that item, and a fragment for a stat the item does not carry must
+    /// not match any line or the whole item under worst-case dot-all. This is
+    /// the audit that catches names, headers, base properties, flavor text,
+    /// and jewel usage hints.
+    /// </summary>
+    [Fact]
+    public void EveryPrecomputedFragment_IsSafeOnCapturedItems()
+    {
+        var corpus = Corpus.Value;
+        corpus.SafetyItems.Should().NotBeEmpty("the captured-item corpus must be present");
+        var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
+        var allPatterns = corpus.Mods.SelectMany(m => m.StatLines)
+            .Select(sl => sl.Pattern).Distinct(StringComparer.Ordinal).ToList();
+        var wholeOptions = RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline;
+        var failures = new List<string>();
+        var checkedCount = 0;
+
+        foreach (var item in corpus.SafetyItems)
+        {
+            var cls = corpus.Catalog.ItemClasses.FirstOrDefault(c =>
+                c.Name.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase) ||
+                c.Id.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase));
+            if (cls is null)
+            {
+                failures.Add($"unknown captured-item class '{item.ClassName}'");
+                continue;
+            }
+            var whole = string.Join("\n", item.Lines);
+            var itemPatterns = item.Lines.Select(corpus.PatternForSafetyLine)
+                .Where(allPatterns.Contains).ToHashSet(StringComparer.Ordinal);
+
+            // Positives: every stat the item really carries must be recalled.
+            foreach (var pattern in itemPatterns)
+            {
+                var fragment = selector.Select(pattern, cls.Id);
+                if (fragment is null || !item.Lines.Any(l => Regex.IsMatch(l, fragment, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: fragment '{fragment}' misses '{pattern}'");
+                checkedCount++;
+            }
+
+            // Negatives: no fragment for another stat may match the item.
+            foreach (var pattern in allPatterns)
+            {
+                if (itemPatterns.Contains(pattern)) continue;
+                var global = selector.Select(pattern, null);
+                if (global is not null && Regex.IsMatch(whole, global, wholeOptions))
+                    failures.Add($"{cls.Id}: global '{global}' leaks into '{item.ClassName}' for '{pattern}'");
+                var scoped = selector.Select(pattern, cls.Id);
+                if (scoped is not null && Regex.IsMatch(whole, scoped, wholeOptions))
+                    failures.Add($"{cls.Id}: scoped '{scoped}' leaks into '{item.ClassName}' for '{pattern}'");
+                checkedCount++;
+            }
+        }
+
+        _output.WriteLine($"captured items: {corpus.SafetyItems.Count}, checks: {checkedCount}");
+        foreach (var failure in failures.Take(30)) _output.WriteLine($"FAIL {failure}");
+        failures.Take(30).Should().BeEmpty($"{failures.Count} captured-item safety failures");
+        checkedCount.Should().BeGreaterThan(1_000);
+    }
+
     [Fact]
     public void EveryStatLine_ResolvesToARegexSafeMinimalFragment()
     {

@@ -42,7 +42,7 @@ public class CatalogPropertyTests
                 {
                     // The fingerprint must match at least one line of this pattern and
                     // no line of any other pattern in the class corpus.
-                    corpus.FragmentSafeOnClass(cls, fp, new[] { line.Pattern }).Should().BeTrue(
+                    corpus.FragmentSafeOnClass(cls, fp, new[] { line.Pattern }, includeSafety: false, includeUniversal: false).Should().BeTrue(
                         $"fingerprint '{fp}' of {mod.Id} line '{line.Line}' must be safe on class {cls}");
                     checkedCount++;
                 }
@@ -65,7 +65,7 @@ public class CatalogPropertyTests
             var fp = corpus.ClassFingerprint(cls.Id);
             fp.Should().NotBeNullOrEmpty($"class {cls.Id} ({cls.Name}) needs a base fingerprint");
             var classLinePattern = CatalogLineNormalizer.Normalize($"Item Class: {cls.Name}");
-            corpus.FragmentSafeOnClass(cls.Id, fp!, new[] { classLinePattern }).Should().BeTrue(
+            corpus.FragmentSafeOnClass(cls.Id, fp!, new[] { classLinePattern }, includeSafety: false, includeUniversal: false).Should().BeTrue(
                 $"base fingerprint '{fp}' of class {cls.Id} must match only its own class line");
         }
     }

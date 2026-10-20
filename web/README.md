@@ -124,7 +124,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   % increased Movement Speed`); with a filter typed, a `++` cap on the search
   box's right edge adds every matching family in one batch (disabled, with the
   prospective k/N in its tooltip, when that would exceed the game's
-  250-character limit; one match keeps the row's own `+`); before typing,
+  250-character limit; for more than 8 matches it stays visible but disabled
+  with "keep typing to narrow" instead of disappearing; one match keeps the
+  row's own `+`); before typing,
   only a short curated shortlist shows ("showing common picks — type to
   search all 194 families"); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the `++`
@@ -151,8 +153,17 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   because a height-constrained multicol spills phantom columns sideways
   instead of scrolling down; Save adds exactly the card shown; both modals
   reject when the backpack is full). Backpack
-  tools row: a `Test items` label with its own `(?)` card, then import,
-  assemble, and remove (acts on the pinned item).
+  tools row: a left-aligned `Test items` label with its own `(?)` card, a
+  real gap, then import, assemble, and remove (acts on the pinned item), with
+  breathing room above the backpack.
+- The page uses a persisted display scale (100 / 115 / 130%, default 130%
+  on desktop and 100% on phone-width screens) applied as body zoom. When the
+  scaled content no longer fits the viewport the page scrolls and the bench
+  takes its natural height (1920x1080 at 130% still fits without page scroll;
+  1600x900 at 130% scrolls); phone/narrow screens stack the advanced doll
+  above the picker and let the filter, result, test items, and backpack flow
+  down the page. The scale select sits at the right of the header, before the
+  GitHub link.
 - The flow is one left-aligned column: mode → criteria (advanced splits into
   doll | picker) → picks rail → search string → test items → backpack. The
   rail sits directly above the result ("this is what you chose, this is what
@@ -160,21 +171,33 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   clear disabled). There is no separate base-class row: simple is classless,
   and in advanced weapon/offhand always carry their class select above the
   slot label inside the card (every other slot is 1:1 with its class).
-- Fragments are chosen by `FragmentSelector` (Core) with no word/anchor
-  floor: every contiguous substring, anchored prefix/suffix, one wildcard
-  bridge, and `\d`/`\d+`/`.` placeholder rendering is tried in the scope, and
-  the shortest candidate that recalls all of the stat's real lines and
-  matches no foreign line wins. The 867 per-scope results are precomputed into
-  versioned tables (`data/catalogs/poe*.fragments.json`, regenerated with
-  `dotnet run --project tools/PoeRegex.Data.Build -- fragments --game poe2`);
-  a version match makes the browser lookup instant, and a stale table fails
-  the audit. Examples: `Adds # to # Cold Damage` → `\d C.+ge$` (9),
-  `Co.+ck` (6) for the attacks variant, `d.+r$` (5) for armour,
-  `^.%.+if` (7) for maximum Life. The catalog audit
-  (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
-  scope/pattern fragments with .NET Regex, 2,104 simple/slot compiles, 788
-  family flows, and 210 class-pair pastes; the shortest shapes are safe over
-  the catalog, but the in-game unique-line check remains manual.
+- Fragments are chosen by `FragmentSelector` (Core) with the generalized
+  shortest-safe rule: every contiguous substring, anchored prefix/suffix,
+  0-2 wildcard bridges, and `\d`/`\d+`/`.` placeholder rendering is tried in
+  the scope; the shortest candidate that recalls all of the stat's real lines,
+  matches no foreign catalog/universal line, and carries at least one `^`/`$`
+  anchor plus either a digit selector or a line-start 4+ letter stat word
+  wins (whole-line fallback for lines that start with a shorter word, e.g.
+  `Bow Attacks fire an additional Arrow`, is exempt). The guard is what
+  rejects letter-only shapes like `Co.+ck`, `d.+r$`, `h.+le` and `^.%.+if`:
+  they are too easily satisfied by item names, affix headers, base
+  properties, and flavor text; a mid-word run such as `acks`/`nces` does not
+  count as a stat word. The oracle now also includes the seven
+  captured real items in `data/catalogs/poe2.safety-items.txt` (names, base
+  types, affix captions, base properties, flavor, jewel usage) and a whole-item
+  dot-all check, so cross-line bridges are rejected too. The 867 per-scope
+  results are precomputed into versioned tables (`data/catalogs/poe*.fragments.json`,
+  regenerated with `dotnet run --project tools/PoeRegex.Data.Build -- fragments
+  --game poe2`); a version match makes the browser lookup instant, and a stale
+  table fails the audit. Examples: `Adds # to # Cold Damage` → `\d Co.+ge$`
+  (10; the 9-character `\d C.+ge$` crosses "Has 1 Charm Slot" to "Physical
+  Thorns damage" on the Wide Belt), the attacks variant → `\d C.+ks$` (9),
+  `#% increased Armour` → `^\d.+r$` (7), `#% increased maximum Life` →
+  `^\d%.+fe$` (9), and the Allies resistances line → `^Al.+\+\d` (9). The
+  catalog audit (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all
+  867 scope/pattern fragments with .NET Regex, 1,029 captured-item
+  line/whole-item checks, 2,104 simple/slot compiles, 788 family flows, and
+  210 class-pair pastes; the in-game unique-line check remains manual.
 
 - Picks live in a one-line rail that never wraps or grows, so a large pick
   set can't push the picker out of the panel. Directional SVG-chevron pagers
@@ -186,6 +209,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   keyboard focus work as usual). `clear` carries the destructive red at rest
   (gray when disabled) and is pinned beside the rail; adding picks never
   moves the rail, and removals keep the leading chip pinned (best effort).
+  A tier chip shows the quoted affix name plus the tier's description/range
+  (e.g. `"Frosted" — Adds 1-2 to 3-4 Cold Damage / Adds 2-3 to 4-6 Cold
+  Damage`), with the full removal description in its native tooltip.
   In advanced the rail names its slot ("helmet picks"); it is empty (and
   hintless) until a slot is focused. The compiled-query box keeps its value
   when over budget: the full string stays, the `k/N` meter shows the red

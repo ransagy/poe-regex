@@ -9,9 +9,12 @@ namespace PoeRegex.Core.Compilation;
 /// </summary>
 public sealed class EngineCorpus
 {
+    /// <summary>Prefix marking safety-item-only patterns (names/flavor/base).</summary>
+    public const char SafetyPatternMarker = '\u0003';
     private readonly Catalog _catalog;
     private readonly Dictionary<string, ClassIndex> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
+    private readonly IReadOnlyList<SafetyItem> _safetyItems;
     private readonly FragmentTable? _fragments;
     private UnionIndex? _union;
     private Dictionary<string, List<ModEntry>>? _modsByPattern;
@@ -25,6 +28,8 @@ public sealed class EngineCorpus
         public required int ClassLineIndex { get; init; }
         /// <summary>pattern -> corpus line index.</summary>
         public required Dictionary<string, int> PatternToIndex { get; init; }
+        /// <summary>Patterns present only because of the captured-item safety lines.</summary>
+        public required HashSet<string> SafetyOnlyPatterns { get; init; }
         /// <summary>
         /// All real (un-normalized) copy-text lines on this class, each tagged
         /// with its normalized pattern. Used by the regex-based oracle so value
@@ -176,7 +181,8 @@ public sealed class EngineCorpus
     {
         _catalog = catalog;
         _modsById = catalog.Mods.ToDictionary(m => m.Id);
-        _byClass = BuildClassIndexes(catalog);
+        _safetyItems = SafetyItemCorpus.For(catalog.Game);
+        _byClass = BuildClassIndexes(catalog, _safetyItems);
         _fragments = FragmentTables.For(catalog.Game);
         if (_fragments is not null &&
             !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
@@ -184,6 +190,9 @@ public sealed class EngineCorpus
     }
 
     public Catalog Catalog => _catalog;
+
+    /// <summary>Real item lines (names, bases, headers, flavor) used by the oracle.</summary>
+    public IReadOnlyList<SafetyItem> SafetyItems => _safetyItems;
 
     public ItemClassEntry? FindItemClass(string? id) =>
         id is null ? null : _catalog.ItemClasses.FirstOrDefault(c => c.Id == id);
@@ -306,16 +315,22 @@ public sealed class EngineCorpus
     /// <paramref name="allowedPatterns"/> and in no other line of the class
     /// corpus (false-positive oracle).
     /// </summary>
-    public bool FragmentSafeOnClass(string itemClass, string fragment, IReadOnlyCollection<string> allowedPatterns)
+    public bool FragmentSafeOnClass(
+        string itemClass, string fragment, IReadOnlyCollection<string> allowedPatterns,
+        bool includeSafety = true, bool includeUniversal = true)
     {
         if (!_byClass.TryGetValue(itemClass, out var ci)) return false;
         var matched = ci.Index.LinesMatching(fragment);
+        var any = false;
         foreach (var lineIndex in matched)
         {
             var pattern = ci.Index.ClassCorpus[lineIndex];
+            if (!includeSafety && ((pattern.Length > 0 && pattern[0] == SafetyPatternMarker) || ci.SafetyOnlyPatterns.Contains(pattern))) continue;
+            if (!includeUniversal && UniversalPatterns.Contains(pattern)) continue;
+            any = true;
             if (!allowedPatterns.Contains(pattern)) return false;
         }
-        return matched.Length > 0;
+        return any;
     }
 
     /// <summary>
@@ -410,9 +425,11 @@ public sealed class EngineCorpus
     {
         if (_union is not null) return _union;
 
+        var knownPatterns = KnownPatterns();
         var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
             .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
             .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+            .Concat(SafetyPatterns(_safetyItems, knownPatterns))
             .Distinct().ToList();
         patterns.Sort(StringComparer.Ordinal);
         var patternToIndex = new Dictionary<string, int>();
@@ -423,6 +440,7 @@ public sealed class EngineCorpus
             .Select(sl => (sl.Pattern, sl.Line))
             .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
             .Concat(_catalog.ItemClasses.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
+            .Concat(_safetyItems.SelectMany(s => s.Lines.Select(l => (SafetyPattern(l, knownPatterns), l))))
             .Distinct()
             .ToList();
 
@@ -436,12 +454,35 @@ public sealed class EngineCorpus
         return _union;
     }
 
-    private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog)
+    /// <summary>Normalized pattern used for a real item line by the oracle.</summary>
+    public string PatternForSafetyLine(string line) => SafetyPattern(line, KnownPatterns());
+
+    private HashSet<string> KnownPatterns() => _catalog.Mods.SelectMany(m => m.StatLines)
+        .Select(sl => sl.Pattern)
+        .Concat(UniversalPatterns)
+        .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+        .ToHashSet(StringComparer.Ordinal);
+
+    private static IEnumerable<string> SafetyPatterns(IReadOnlyList<SafetyItem> items, HashSet<string> known)
+        => items.SelectMany(s => s.Lines.Select(l => SafetyPattern(l, known)));
+
+    private static string SafetyPattern(string line, HashSet<string> known)
+    {
+        var normalized = CatalogLineNormalizer.Normalize(line);
+        return known.Contains(normalized) ? normalized : SafetyPatternMarker + normalized;
+    }
+
+    private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog, IReadOnlyList<SafetyItem> safetyItems)
     {
         // Per class: distinct patterns for all mods that can appear on the class,
         // plus the class line, tracking every real line for regex validation.
         var patternsByClass = new Dictionary<string, HashSet<string>>();
         var allRealByClass = new Dictionary<string, List<(string Pattern, string Real)>>();
+        var knownPatterns = catalog.Mods.SelectMany(m => m.StatLines)
+            .Select(sl => sl.Pattern)
+            .Concat(UniversalPatterns)
+            .Concat(catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+            .ToHashSet(StringComparer.Ordinal);
         void Add(string cls, string pattern, string real)
         {
             if (!patternsByClass.TryGetValue(cls, out var set))
@@ -466,6 +507,15 @@ public sealed class EngineCorpus
             foreach (var u in UniversalLines)
                 Add(cls.Id, CatalogLineNormalizer.Normalize(u), u);
         }
+        foreach (var item in safetyItems)
+        {
+            var cls = catalog.ItemClasses.FirstOrDefault(c =>
+                c.Name.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase) ||
+                c.Id.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase));
+            if (cls is null) continue;
+            foreach (var line in item.Lines)
+                Add(cls.Id, SafetyPattern(line, knownPatterns), line);
+        }
 
         var result = new Dictionary<string, ClassIndex>();
         foreach (var cls in catalog.ItemClasses)
@@ -481,6 +531,12 @@ public sealed class EngineCorpus
             var classLineIndex = corpus.IndexOf(classLinePattern);
             var patternToIndex = new Dictionary<string, int>();
             for (var i = 0; i < corpus.Count; i++) patternToIndex[corpus[i]] = i;
+            var catalogPatterns = catalog.Mods.Where(m => m.Classes.Contains(cls.Id))
+                .SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
+                .Concat(UniversalPatterns)
+                .Append(classLinePattern)
+                .ToHashSet(StringComparer.Ordinal);
+            var safetyOnly = patterns.Where(p => !catalogPatterns.Contains(p)).ToHashSet(StringComparer.Ordinal);
 
             var allReal = allRealByClass.GetValueOrDefault(cls.Id) ?? new List<(string, string)>();
             var sortedReal = allReal.OrderBy(x => x.Pattern, StringComparer.Ordinal).ToList();
@@ -490,6 +546,7 @@ public sealed class EngineCorpus
                 FoldIndex = foldIndex,
                 ClassLineIndex = classLineIndex,
                 PatternToIndex = patternToIndex,
+                SafetyOnlyPatterns = safetyOnly,
                 AllRealLines = sortedReal,
             };
         }

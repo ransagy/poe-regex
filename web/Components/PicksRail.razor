@@ -95,15 +95,31 @@
     private string ChipKey(WantedMod pick) =>
         pick.IsNamePick ? $"{pick.ModId}-n{pick.Names!.Count}" : pick.ModId;
 
-    private string ChipLabel(WantedMod pick) =>
-        pick.IsNamePick
-            ? (pick.Names!.Count == 1 ? $"\"{pick.Names[0]}\"" : $"\"{pick.Names[0]}\" +{pick.Names.Count - 1}")
-            : DisplayFor(pick.ModId);
+    private ModTier? TierFor(WantedMod pick) =>
+        _families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == pick.ModId);
 
-    private string ChipTitle(WantedMod pick) =>
-        pick.IsNamePick
-            ? pick.Names!.Count == 1
-                ? $"remove \"{pick.Names[0]}\""
-                : $"remove ({string.Join(", ", pick.Names)})"
-            : "remove (any tier)";
+    private string ChipLabel(WantedMod pick)
+    {
+        if (!pick.IsNamePick) return DisplayFor(pick.ModId);
+        var label = pick.Names!.Count == 1
+            ? $"\"{pick.Names[0]}\""
+            : $"\"{pick.Names[0]}\" +{pick.Names.Count - 1}";
+        var tier = TierFor(pick);
+        if (tier is null || tier.DisplayLines.Count == 0) return label;
+        return $"{label} — {string.Join(" / ", tier.DisplayLines)}";
+    }
+
+    private string ChipTitle(WantedMod pick)
+    {
+        if (!pick.IsNamePick) return $"remove {DisplayFor(pick.ModId)} (any tier)";
+        var tier = TierFor(pick);
+        var label = pick.Names!.Count == 1
+            ? $"remove \"{pick.Names[0]}\""
+            : $"remove \"{pick.Names[0]}\" +{pick.Names.Count - 1}";
+        if (tier is null) return label;
+        var text = $"{label} — {string.Join(" / ", tier.DisplayLines)}";
+        if (pick.Names!.Count > 1)
+            text += "\ntier or better: " + string.Join(", ", pick.Names);
+        return text;
+    }
 }
