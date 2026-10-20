@@ -15,6 +15,8 @@ public sealed class EngineCorpus
     private readonly Dictionary<string, ClassIndex> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
     private readonly IReadOnlyList<SafetyItem> _safetyItems;
+    private readonly IReadOnlyList<VendorLine> _vendorLines;
+    private readonly HashSet<string> _vendorNormalized;
     private readonly FragmentTable? _fragments;
     private UnionIndex? _union;
     private Dictionary<string, List<ModEntry>>? _modsByPattern;
@@ -182,7 +184,10 @@ public sealed class EngineCorpus
         _catalog = catalog;
         _modsById = catalog.Mods.ToDictionary(m => m.Id);
         _safetyItems = SafetyItemCorpus.For(catalog.Game);
-        _byClass = BuildClassIndexes(catalog, _safetyItems);
+        _vendorLines = VendorCorpus.For(catalog.Game)?.Lines ?? [];
+        _vendorNormalized = _vendorLines.Select(l => CatalogLineNormalizer.Normalize(l.Line))
+            .ToHashSet(StringComparer.Ordinal);
+        _byClass = BuildClassIndexes(catalog, _vendorLines);
         _fragments = FragmentTables.For(catalog.Game);
         if (_fragments is not null &&
             !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
@@ -191,8 +196,27 @@ public sealed class EngineCorpus
 
     public Catalog Catalog => _catalog;
 
-    /// <summary>Real item lines (names, bases, headers, flavor) used by the oracle.</summary>
+    /// <summary>Captured regression items (not all are in the modeled oracle).</summary>
     public IReadOnlyList<SafetyItem> SafetyItems => _safetyItems;
+
+    /// <summary>Derived vendor/stash searchable lines used by the oracle.</summary>
+    public IReadOnlyList<VendorLine> VendorLines => _vendorLines;
+
+    /// <summary>
+    /// True when a real line belongs to the modeled vendor corpus for a scope.
+    /// Class-aware: a unique line whose text happens to match a regular mod on
+    /// another class is not modeled for this item's class.
+    /// </summary>
+    public bool IsModeledLine(string line, string? classId = null)
+    {
+        var normalized = CatalogLineNormalizer.Normalize(line);
+        if (classId is null)
+            return _vendorNormalized.Contains(normalized) || KnownPatterns().Contains(normalized);
+        if (!_byClass.TryGetValue(classId, out var ci)) return false;
+        return ci.AllRealLines.Any(x =>
+            string.Equals(CatalogLineNormalizer.Normalize(x.Real), normalized, StringComparison.Ordinal) ||
+            string.Equals(x.Pattern, normalized, StringComparison.Ordinal));
+    }
 
     public ItemClassEntry? FindItemClass(string? id) =>
         id is null ? null : _catalog.ItemClasses.FirstOrDefault(c => c.Id == id);
@@ -429,7 +453,7 @@ public sealed class EngineCorpus
         var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
             .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
             .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
-            .Concat(SafetyPatterns(_safetyItems, knownPatterns))
+            .Concat(_vendorLines.Select(l => VendorPattern(l.Line, knownPatterns)))
             .Distinct().ToList();
         patterns.Sort(StringComparer.Ordinal);
         var patternToIndex = new Dictionary<string, int>();
@@ -440,7 +464,7 @@ public sealed class EngineCorpus
             .Select(sl => (sl.Pattern, sl.Line))
             .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
             .Concat(_catalog.ItemClasses.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
-            .Concat(_safetyItems.SelectMany(s => s.Lines.Select(l => (SafetyPattern(l, knownPatterns), l))))
+            .Concat(_vendorLines.Select(l => (VendorPattern(l.Line, knownPatterns), l.Line)))
             .Distinct()
             .ToList();
 
@@ -455,7 +479,7 @@ public sealed class EngineCorpus
     }
 
     /// <summary>Normalized pattern used for a real item line by the oracle.</summary>
-    public string PatternForSafetyLine(string line) => SafetyPattern(line, KnownPatterns());
+    public string PatternForSafetyLine(string line) => VendorPattern(line, KnownPatterns());
 
     private HashSet<string> KnownPatterns() => _catalog.Mods.SelectMany(m => m.StatLines)
         .Select(sl => sl.Pattern)
@@ -463,16 +487,13 @@ public sealed class EngineCorpus
         .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
         .ToHashSet(StringComparer.Ordinal);
 
-    private static IEnumerable<string> SafetyPatterns(IReadOnlyList<SafetyItem> items, HashSet<string> known)
-        => items.SelectMany(s => s.Lines.Select(l => SafetyPattern(l, known)));
-
-    private static string SafetyPattern(string line, HashSet<string> known)
+    private static string VendorPattern(string line, HashSet<string> known)
     {
         var normalized = CatalogLineNormalizer.Normalize(line);
         return known.Contains(normalized) ? normalized : SafetyPatternMarker + normalized;
     }
 
-    private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog, IReadOnlyList<SafetyItem> safetyItems)
+    private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog, IReadOnlyList<VendorLine> vendorLines)
     {
         // Per class: distinct patterns for all mods that can appear on the class,
         // plus the class line, tracking every real line for regex validation.
@@ -507,14 +528,11 @@ public sealed class EngineCorpus
             foreach (var u in UniversalLines)
                 Add(cls.Id, CatalogLineNormalizer.Normalize(u), u);
         }
-        foreach (var item in safetyItems)
+        foreach (var line in vendorLines)
         {
-            var cls = catalog.ItemClasses.FirstOrDefault(c =>
-                c.Name.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase) ||
-                c.Id.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase));
-            if (cls is null) continue;
-            foreach (var line in item.Lines)
-                Add(cls.Id, SafetyPattern(line, knownPatterns), line);
+            if (line.ClassId is null) continue;
+            if (!catalog.ItemClasses.Any(c => c.Id == line.ClassId)) continue;
+            Add(line.ClassId, VendorPattern(line.Line, knownPatterns), line.Line);
         }
 
         var result = new Dictionary<string, ClassIndex>();

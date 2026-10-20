@@ -124,7 +124,7 @@
 @code {
     private const int MaxShown = 50;
     private const int MaxAutoExpanded = 8;
-    private const int MaxBulkPreview = 8;
+    private const int MaxBulkPreview = 64;
 
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
@@ -214,6 +214,8 @@
             _bulkVisible = true;
             _bulkTooMany = true;
             _bulkOverflow = true;
+            _bulkLength = _bulkNew * 4;
+            _bulkLimit = 250;
             return;
         }
         var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
@@ -229,7 +231,8 @@
         var what = already > 0
             ? $"add all {_bulkNew} matching families ({already} already added)"
             : $"add all {_bulkNew} matching families";
-        if (_bulkTooMany) return $"{what} — keep typing to narrow before adding all";
+        if (_bulkTooMany)
+            return $"{what} — more than {MaxBulkPreview} matches would exceed the query budget; narrow the filter";
         return _bulkOverflow
             ? $"{what} — would exceed the game's character limit ({_bulkLength}/{_bulkLimit}); narrow the filter"
             : $"{what} ({_bulkLength}/{_bulkLimit} characters)";

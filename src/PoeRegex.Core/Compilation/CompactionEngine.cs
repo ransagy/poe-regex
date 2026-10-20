@@ -17,7 +17,7 @@ public sealed class CompactionEngine
     {
         _corpus = corpus;
         _strategy = strategy;
-        _selector = new FragmentSelector(corpus, strategy);
+        _selector = new FragmentSelector(corpus, strategy, policy: FragmentPolicy.Absolute);
     }
 
     /// <summary>

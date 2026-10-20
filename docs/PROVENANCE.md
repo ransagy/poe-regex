@@ -10,7 +10,7 @@ reasoning.
 | What ships | Where | Source | Terms |
 | --- | --- | --- | --- |
 | Engine, CLI, web workbench | `src/`, `tools/`, `web/` | original work for this project | MIT (`LICENSE`) |
-| Derived catalogs | `data/catalogs/*.json` | RePoE exports of GGG game data | tooling MIT; data GGG-owned (below) |
+| Derived catalogs + vendor corpora | `data/catalogs/*.json` | RePoE exports of GGG game data | tooling MIT; data GGG-owned (below) |
 | Icon artwork | `web/wwwroot/favicon.svg`, inline shell/boot SVGs | original artwork for this project | MIT |
 | Sample item texts | `docs/samples/real-items.txt`, `FixtureTexts.cs` | in-game copy output | GGG-owned text, minimal test data |
 | Third-party libraries | see `NOTICE` | upstream packages | all MIT or Apache-2.0 |
@@ -38,8 +38,17 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    They contain item class names, mod ids and affix names, generation type,
    family, required level, class/group membership, rendered stat text, and
    precomputed shortest-fragment fingerprints.
-6. **Consumers** — the CLI, the library, and the web workbench read only the
-   derived catalogs; nothing downloads game data at runtime.
+6. **Vendor/stash safety corpus** — `poe1.vendor-corpus.json` and
+   `poe2.vendor-corpus.json` are also derived from the same raw exports. They
+   add the searchable line text that the selectable catalog omits: regular,
+   corrupted, essence, crafted, and implicit item mods; base item names,
+   properties, requirements, implicits, and granted skills; regular affix
+   captions/tags; and universal usage. Unique-only mods, unique names,
+   captions, flavour, and rare item names are deliberately excluded and are
+   reported as unmodeled in the audit. No game binaries, memory, client logs,
+   or runtime extraction are involved.
+7. **Consumers** — the CLI, the library, and the web workbench read only the
+   derived catalogs and corpora; nothing downloads game data at runtime.
 
 ### `dataVersion`
 
@@ -51,6 +60,8 @@ re-run `fetch` and `build` and commit the regenerated catalogs:
 ```sh
 dotnet run --project tools/PoeRegex.Data.Build -- fetch --game poe1 --out data/raw/poe1
 dotnet run --project tools/PoeRegex.Data.Build -- build --game poe1 --raw data/raw/poe1 --catalog data/catalogs/poe1.catalog.json
+dotnet run --project tools/PoeRegex.Data.Build -- corpus --game poe1 --raw data/raw/poe1 --out data/catalogs/poe1.vendor-corpus.json
+dotnet run --project tools/PoeRegex.Data.Build -- fragments --game poe1
 # repeat with --game poe2
 ```
 

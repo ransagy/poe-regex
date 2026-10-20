@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core;
 
 namespace PoeRegex.Core.Data;
@@ -12,4 +13,5 @@ namespace PoeRegex.Core.Data;
 [JsonSerializable(typeof(ModEntry))]
 [JsonSerializable(typeof(StatLineEntry))]
 [JsonSerializable(typeof(GameRules))]
+[JsonSerializable(typeof(VendorCorpusFile))]
 public sealed partial class CatalogJsonContext : JsonSerializerContext;

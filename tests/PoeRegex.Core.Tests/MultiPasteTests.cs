@@ -31,7 +31,7 @@ public class MultiPasteTests
         var ring = result.Groups.Single(g => g.Label == "weapon");
         ring.TargetClasses.Should().Equal(["Ring"]);
         ring.Token.Should().NotContain("Ri");
-        ring.Token.Should().Contain("fe$");
+        ring.Token.Should().Contain("fe");
         // Recall + anchor validation are clean on real data.
         result.Diagnostics.Should().BeEmpty();
         // Deterministic.
@@ -96,11 +96,11 @@ public class MultiPasteTests
             new PasteSlotCriterion("One Hand Mace", [new ModifierRequirement("wwww")], "weapon"),
             new PasteSlotCriterion("Two Hand Mace", [new ModifierRequirement("wwww")], "offhand"),
         ], []);
-        result.Anchor.Should().Be(": (Be|.*Hand M)");
+        result.Anchor.Should().Be(": (Bel|.*Hand M)");
         var belt = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["Belt"]));
         belt.Token.Should().StartWith(": (.*Hand M)|");
         var maces = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["One Hand Mace", "Two Hand Mace"]));
-        maces.Token.Should().StartWith(": (Be)|");
+        maces.Token.Should().StartWith(": (Bel)|");
         result.Diagnostics.Should().BeEmpty();
     }
 

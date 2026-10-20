@@ -339,6 +339,26 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   10+134+86 green. In-game `.`/`.*` newline behavior remains to be checked
   manually with a generated wildcard string (the catalog audit cannot prove
   the game's line semantics).
+- **Follow-up round 16 — vendor/stash line corpus, absolute shortest, and
+  the 115% / `++` / chip fixes.** The cross-line whole-item check is gone:
+  the in-game `Charm.+Thorns` check on the Wide Belt did not match, so the
+  search is line-scoped for `.`. The oracle is now the derived vendor/stash
+  line corpus (`data/catalogs/poe*.vendor-corpus.json`): regular, corrupted,
+  essence, crafted, implicit, base-name/property/implicit/requirement/grant,
+  regular affix caption/tag, and universal-usage lines. Unique-only mods/
+  names/captions, flavour, and rare names are excluded and reported as
+  **unmodeled**, not silently accepted. The selector runs the absolute
+  policy (no word/start requirement, 0-2 wildcard bridges) over that corpus;
+  the shortest strings are now `Adds # to # Cold Damage` → `\d Co.+ge$` (10),
+  attacks → `ld.+ks` (6), `#% increased Armour` → `^\d.+d Armour$` (14),
+  `#% increased maximum Life` → `^\d.+m Life$` (12), and Allies resistances
+  → `P.+l E` (6); the captured-item audit holds the fragments to modeled
+  lines per line and reports the unmodeled hits. The 115% desktop default
+  replaces 130% (100% phone); the `++` preview cap moves from 8 to 64 with
+  the over-budget message for larger sets; and the tier chip moves the
+  “or better” count into a separate `↑N` badge so it no longer reads like a
+  second stat range. Full slnx 10+134+87 green; in-game verification of the
+  new absolute strings remains manual.
 - **Follow-up round 15 — captured-item safety + generalized shortest-safe
   fragments, then the scale/chip/row polish.** The oracle-only table from
   round 14 was provably unsafe against real item copy: `Co.+ck` hit Mist

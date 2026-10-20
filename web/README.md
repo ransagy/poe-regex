@@ -124,13 +124,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   % increased Movement Speed`); with a filter typed, a `++` cap on the search
   box's right edge adds every matching family in one batch (disabled, with the
   prospective k/N in its tooltip, when that would exceed the game's
-  250-character limit; for more than 8 matches it stays visible but disabled
-  with "keep typing to narrow" instead of disappearing; one match keeps the
+  250-character limit; the preview handles up to 64 matches and larger sets
+  stay visible but disabled with the budget message; one match keeps the
   row's own `+`); before typing,
   only a short curated shortlist shows ("showing common picks — type to
   search all 194 families"); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the `++`
-  preview is capped at 8 matches so a broad first letter never compiles the
+  preview is capped at 64 matches so a broad first letter never compiles the
   whole catalog; the list stretches/scrolls to fill the editor's height;
   typing filters tiers, so `reliable` narrows to the family(ies) carrying
   that affix), `QueryCard`
@@ -156,11 +156,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   tools row: a left-aligned `Test items` label with its own `(?)` card, a
   real gap, then import, assemble, and remove (acts on the pinned item), with
   breathing room above the backpack.
-- The page uses a persisted display scale (100 / 115 / 130%, default 130%
+- The page uses a persisted display scale (100 / 115 / 130%, default 115%
   on desktop and 100% on phone-width screens) applied as body zoom. When the
   scaled content no longer fits the viewport the page scrolls and the bench
-  takes its natural height (1920x1080 at 130% still fits without page scroll;
-  1600x900 at 130% scrolls); phone/narrow screens stack the advanced doll
+  takes its natural height (1920x1080 at 115% still fits without page scroll;
+  1600x900 at 115% scrolls); phone/narrow screens stack the advanced doll
   above the picker and let the filter, result, test items, and backpack flow
   down the page. The scale select sits at the right of the header, before the
   GitHub link.
@@ -171,34 +171,32 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   clear disabled). There is no separate base-class row: simple is classless,
   and in advanced weapon/offhand always carry their class select above the
   slot label inside the card (every other slot is 1:1 with its class).
-- Fragments are chosen by `FragmentSelector` (Core) with the generalized
-  shortest-safe rule: every contiguous substring, anchored prefix/suffix,
-  0-2 wildcard bridges, and `\d`/`\d+`/`.` placeholder rendering is tried in
-  the scope; the shortest candidate that recalls all of the stat's real lines,
-  matches no foreign catalog/universal line, and carries at least one `^`/`$`
-  anchor plus either a digit selector or a line-start 4+ letter stat word
-  wins (whole-line fallback for lines that start with a shorter word, e.g.
-  `Bow Attacks fire an additional Arrow`, is exempt). The guard is what
-  rejects letter-only shapes like `Co.+ck`, `d.+r$`, `h.+le` and `^.%.+if`:
-  they are too easily satisfied by item names, affix headers, base
-  properties, and flavor text; a mid-word run such as `acks`/`nces` does not
-  count as a stat word. The oracle now also includes the seven
-  captured real items in `data/catalogs/poe2.safety-items.txt` (names, base
-  types, affix captions, base properties, flavor, jewel usage) and a whole-item
-  dot-all check, so cross-line bridges are rejected too. The 867 per-scope
-  results are precomputed into versioned tables (`data/catalogs/poe*.fragments.json`,
-  regenerated with `dotnet run --project tools/PoeRegex.Data.Build -- fragments
-  --game poe2`); a version match makes the browser lookup instant, and a stale
-  table fails the audit. Examples: `Adds # to # Cold Damage` → `\d Co.+ge$`
-  (10; the 9-character `\d C.+ge$` crosses "Has 1 Charm Slot" to "Physical
-  Thorns damage" on the Wide Belt), the attacks variant → `\d C.+ks$` (9),
-  `#% increased Armour` → `^\d.+r$` (7), `#% increased maximum Life` →
-  `^\d%.+fe$` (9), and the Allies resistances line → `^Al.+\+\d` (9). The
-  catalog audit (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all
-  867 scope/pattern fragments with .NET Regex, 1,029 captured-item
-  line/whole-item checks, 2,104 simple/slot compiles, 788 family flows, and
-  210 class-pair pastes; the in-game unique-line check remains manual.
-
+- Fragments are chosen by `FragmentSelector` (Core) with the absolute
+  shortest search: every contiguous substring, anchored prefix/suffix, 0-2
+  wildcard bridges, and `\d`/`\d+`/`.` placeholder rendering is tried in the
+  scope, and the shortest candidate that recalls all of the stat's real lines
+  and matches no foreign line wins. There is no word or start-anchor rule.
+  The oracle is line-scoped. The model is the derived **vendor/stash corpus**
+  (`data/catalogs/poe*.vendor-corpus.json`): regular/corrupted/essence/
+  crafted/implicit item mods, base item names/properties/implicits/
+  requirements/grants, regular affix captions/tags, and universal usage.
+  Unique-only mods/names/captions, flavour text, and rare item names are
+  deliberately excluded. They remain **unmodeled**, not silently accepted;
+  the captured-item audit reports matches in that category separately.
+  The 867 per-scope results are precomputed into versioned tables
+  (`data/catalogs/poe*.fragments.json`, regenerated with
+  `dotnet run --project tools/PoeRegex.Data.Build -- corpus --game poe2`
+  followed by `... -- fragments --game poe2`); a version match makes the
+  browser lookup instant, and a stale table fails the audit. Current examples:
+  `Adds # to # Cold Damage` → `\d Co.+ge$` (10), the attacks variant →
+  `ld.+ks` (6), `#% increased Armour` → `^\d.+d Armour$` (14),
+  `#% increased maximum Life` → `^\d.+m Life$` (12), and the Allies
+  resistances line → `P.+l E` (6). The catalog audit
+  (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
+  scope/pattern fragments with .NET Regex, 1,029 captured-item modeled
+  checks, 2,104 simple/slot compiles, 788 family flows, and 210 class-pair
+  pastes; the in-game rare-name/unique check remains manual and is reported
+  as unmodeled.
 - Picks live in a one-line rail that never wraps or grows, so a large pick
   set can't push the picker out of the panel. Directional SVG-chevron pagers
   sit in reserved gutters and always show the true count — gold-accented and
@@ -211,7 +209,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   moves the rail, and removals keep the leading chip pinned (best effort).
   A tier chip shows the quoted affix name plus the tier's description/range
   (e.g. `"Frosted" — Adds 1-2 to 3-4 Cold Damage / Adds 2-3 to 4-6 Cold
-  Damage`), with the full removal description in its native tooltip.
+  Damage`); an “or better” pick puts the higher-tier count in a separate
+  `↑N` badge instead of next to the stat range. The full removal description
+  and the higher-tier names remain in the native tooltip.
   In advanced the rail names its slot ("helmet picks"); it is empty (and
   hintless) until a slot is focused. The compiled-query box keeps its value
   when over budget: the full string stays, the `k/N` meter shows the red

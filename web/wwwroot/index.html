@@ -103,7 +103,7 @@
             var stored = parseFloat(localStorage.getItem(key) || "");
             var scale = Number.isFinite(stored) && stored >= 1 && stored <= 1.5
                 ? stored
-                : (window.innerWidth < 700 ? 1 : 1.3);
+                : (window.innerWidth < 700 ? 1 : 1.15);
             document.body.style.zoom = String(scale);
             if (window.poeRegexScale) window.poeRegexScale.syncLayout();
         })();

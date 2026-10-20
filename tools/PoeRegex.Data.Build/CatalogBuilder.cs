@@ -143,7 +143,7 @@ public static class CatalogBuilder
         };
     }
 
-    private static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string game, string rawDir)
+    internal static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string game, string rawDir)
     {
         var result = new List<RePoESchema.StatTranslationEntry>();
         if (game == "poe1")
@@ -177,7 +177,7 @@ public static class CatalogBuilder
     /// hosted files carry no version field, so the mods file's write time (set
     /// when `fetch` downloaded it) is used.
     /// </summary>
-    private static string ReadVersionFile(string rawDir)
+    internal static string ReadVersionFile(string rawDir)
     {
         var modsPath = Path.Combine(rawDir, "mods.min.json");
         if (File.Exists(modsPath)) return File.GetLastWriteTimeUtc(modsPath).ToString("yyyy-MM-dd");
@@ -204,7 +204,7 @@ public static class CatalogBuilder
     /// mods_by_base.json (authoritative RePoE structure):
     /// class name → tag group → {bases, mods: {generation → group → {mod_id → weight}}}.
     /// </summary>
-    private static Dictionary<string, HashSet<string>> MapModsToClasses(
+    internal static Dictionary<string, HashSet<string>> MapModsToClasses(
         string rawDir,
         Dictionary<string, RePoESchema.ItemClass> itemClasses)
     {

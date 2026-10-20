@@ -18,7 +18,22 @@
         {
             <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
                     title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
-                @ChipLabel(inc)
+                @if (inc.IsNamePick)
+                {
+                    <span class="chip-name">"@inc.Names![0]"</span>
+                    @if (inc.Names.Count > 1)
+                    {
+                        <span class="chip-tiers" title="@($"{inc.Names.Count - 1} higher tiers included")">↑@(inc.Names.Count - 1)</span>
+                    }
+                    @if (ChipRange(inc) is { Length: > 0 } range)
+                    {
+                        <span class="chip-range">@range</span>
+                    }
+                }
+                else
+                {
+                    @ChipLabel(inc)
+                }
             </button>
         }
         @foreach (var exc in crit.Excluded)
@@ -98,15 +113,14 @@
     private ModTier? TierFor(WantedMod pick) =>
         _families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == pick.ModId);
 
-    private string ChipLabel(WantedMod pick)
+    private string ChipLabel(WantedMod pick) => pick.IsNamePick
+        ? $"\"{pick.Names![0]}\""
+        : DisplayFor(pick.ModId);
+
+    private string ChipRange(WantedMod pick)
     {
-        if (!pick.IsNamePick) return DisplayFor(pick.ModId);
-        var label = pick.Names!.Count == 1
-            ? $"\"{pick.Names[0]}\""
-            : $"\"{pick.Names[0]}\" +{pick.Names.Count - 1}";
         var tier = TierFor(pick);
-        if (tier is null || tier.DisplayLines.Count == 0) return label;
-        return $"{label} — {string.Join(" / ", tier.DisplayLines)}";
+        return tier is null ? "" : "— " + string.Join(" / ", tier.DisplayLines);
     }
 
     private string ChipTitle(WantedMod pick)
@@ -115,7 +129,7 @@
         var tier = TierFor(pick);
         var label = pick.Names!.Count == 1
             ? $"remove \"{pick.Names[0]}\""
-            : $"remove \"{pick.Names[0]}\" +{pick.Names.Count - 1}";
+            : $"remove \"{pick.Names[0]}\" ({pick.Names.Count - 1} higher tiers)";
         if (tier is null) return label;
         var text = $"{label} — {string.Join(" / ", tier.DisplayLines)}";
         if (pick.Names!.Count > 1)

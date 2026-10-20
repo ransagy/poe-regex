@@ -76,22 +76,20 @@ public class FragmentAuditTests
     }
 
     /// <summary>
-    /// Real captured items are the ground truth: a fragment for a stat must
-    /// match that item, and a fragment for a stat the item does not carry must
-    /// not match any line or the whole item under worst-case dot-all. This is
-    /// the audit that catches names, headers, base properties, flavor text,
-    /// and jewel usage hints.
+    /// Captured items are the field regression: modeled lines must be safe
+    /// per line, while rare names, unique-only text, and flavour are reported
+    /// as unmodeled rather than silently treated as safe.
     /// </summary>
     [Fact]
-    public void EveryPrecomputedFragment_IsSafeOnCapturedItems()
+    public void EveryPrecomputedFragment_IsSafeOnCapturedModeledLines()
     {
         var corpus = Corpus.Value;
         corpus.SafetyItems.Should().NotBeEmpty("the captured-item corpus must be present");
         var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
         var allPatterns = corpus.Mods.SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern).Distinct(StringComparer.Ordinal).ToList();
-        var wholeOptions = RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline;
         var failures = new List<string>();
+        var unmodeledHits = new List<string>();
         var checkedCount = 0;
 
         foreach (var item in corpus.SafetyItems)
@@ -104,36 +102,44 @@ public class FragmentAuditTests
                 failures.Add($"unknown captured-item class '{item.ClassName}'");
                 continue;
             }
-            var whole = string.Join("\n", item.Lines);
-            var itemPatterns = item.Lines.Select(corpus.PatternForSafetyLine)
+
+            var modeledLines = item.Lines.Where(l => corpus.IsModeledLine(l, cls.Id)).ToList();
+            var unmodeledLines = item.Lines.Where(l => !corpus.IsModeledLine(l, cls.Id)).ToList();
+            var itemPatterns = modeledLines.Select(corpus.PatternForSafetyLine)
                 .Where(allPatterns.Contains).ToHashSet(StringComparer.Ordinal);
 
-            // Positives: every stat the item really carries must be recalled.
+            // Positives: every modeled stat the item really carries must be recalled.
             foreach (var pattern in itemPatterns)
             {
                 var fragment = selector.Select(pattern, cls.Id);
-                if (fragment is null || !item.Lines.Any(l => Regex.IsMatch(l, fragment, RegexOptions.IgnoreCase)))
-                    failures.Add($"{cls.Id}: fragment '{fragment}' misses '{pattern}'");
+                if (fragment is null || !modeledLines.Any(l => Regex.IsMatch(l, fragment, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: fragment '{fragment}' misses modeled '{pattern}'");
                 checkedCount++;
             }
 
-            // Negatives: no fragment for another stat may match the item.
+            // Negatives: fragments for other modeled stats may not match a modeled line.
             foreach (var pattern in allPatterns)
             {
                 if (itemPatterns.Contains(pattern)) continue;
                 var global = selector.Select(pattern, null);
-                if (global is not null && Regex.IsMatch(whole, global, wholeOptions))
-                    failures.Add($"{cls.Id}: global '{global}' leaks into '{item.ClassName}' for '{pattern}'");
+                if (global is not null && modeledLines.Any(l => Regex.IsMatch(l, global, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: global '{global}' leaks into modeled line for '{pattern}'");
                 var scoped = selector.Select(pattern, cls.Id);
-                if (scoped is not null && Regex.IsMatch(whole, scoped, wholeOptions))
-                    failures.Add($"{cls.Id}: scoped '{scoped}' leaks into '{item.ClassName}' for '{pattern}'");
+                if (scoped is not null && modeledLines.Any(l => Regex.IsMatch(l, scoped, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: scoped '{scoped}' leaks into modeled line for '{pattern}'");
+
+                foreach (var line in unmodeledLines)
+                    if (global is not null && Regex.IsMatch(line, global, RegexOptions.IgnoreCase))
+                        unmodeledHits.Add($"{cls.Id}: global '{global}' matches unmodeled '{line}'");
                 checkedCount++;
             }
         }
 
-        _output.WriteLine($"captured items: {corpus.SafetyItems.Count}, checks: {checkedCount}");
+        _output.WriteLine($"captured items: {corpus.SafetyItems.Count}, modeled checks: {checkedCount}");
+        _output.WriteLine($"unmodeled line hits: {unmodeledHits.Count} (reported, not treated as safety failures)");
         foreach (var failure in failures.Take(30)) _output.WriteLine($"FAIL {failure}");
-        failures.Take(30).Should().BeEmpty($"{failures.Count} captured-item safety failures");
+        foreach (var hit in unmodeledHits.Take(10)) _output.WriteLine($"UNMODELED {hit}");
+        failures.Take(30).Should().BeEmpty($"{failures.Count} modeled captured-item safety failures");
         checkedCount.Should().BeGreaterThan(1_000);
     }
 

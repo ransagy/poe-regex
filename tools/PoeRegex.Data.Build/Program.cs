@@ -12,6 +12,8 @@ namespace PoeRegex.Data.Build;
 ///
 /// Usage:
 ///   dotnet run -- build --game poe1 --raw data/raw/poe1 --catalog data/catalogs/poe1.catalog.json
+///   dotnet run -- corpus --game poe1 --raw data/raw/poe1 --out data/catalogs/poe1.vendor-corpus.json
+///   dotnet run -- fragments --game poe1
 ///   dotnet run -- fetch --game poe1 --out data/raw/poe1
 /// </summary>
 public static class Program
@@ -30,6 +32,7 @@ public static class Program
             {
                 "build" => Build(args[1..]),
                 "fragments" => Fragments(args[1..]),
+                "corpus" => Corpus(args[1..]),
                 "fetch" => Fetch(args[1..]),
                 _ => Usage(args[0]),
             };
@@ -43,7 +46,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | fetch");
         return 2;
     }
 
@@ -72,6 +75,24 @@ public static class Program
         return 0;
     }
 
+    private static int Corpus(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var game = GetValue(opts, "--game", "poe1");
+        var rawDir = GetValue(opts, "--raw", $"data/raw/{game}");
+        var outPath = GetValue(opts, "--out", $"data/catalogs/{game}.vendor-corpus.json");
+        Console.WriteLine($"Building vendor/stash search corpus for {game} from {rawDir}");
+        var corpus = VendorCorpusBuilder.Build(game, rawDir);
+        Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            corpus, PoeRegex.Core.Data.CatalogJsonContext.Default.VendorCorpusFile);
+        File.WriteAllText(outPath, json);
+        var classes = corpus.Lines.Select(x => x.ClassId).Where(x => x is not null).Distinct().Count();
+        Console.WriteLine($"  {corpus.Lines.Count} lines, {classes} classes");
+        Console.WriteLine($"  wrote {outPath} ({new FileInfo(outPath).Length / 1024} KiB)");
+        return 0;
+    }
+
     private static int Fragments(string[] args)
     {
         var opts = ParseOptions(args);
@@ -83,7 +104,9 @@ public static class Program
         Console.WriteLine($"Computing minimal fragments for {gameName} from {catalogPath}");
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         var corpus = new EngineCorpus(catalog);
-        var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false);
+        var selector = new FragmentSelector(
+            corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false,
+            policy: FragmentPolicy.Absolute);
 
         var global = new Dictionary<string, string>(StringComparer.Ordinal);
         var patterns = catalog.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern)
@@ -91,8 +114,7 @@ public static class Program
         var sw = System.Diagnostics.Stopwatch.StartNew();
         foreach (var pattern in patterns)
         {
-            var fragment = selector.Select(pattern, null,
-                candidate => SafetyItemValidator.IsSafe(corpus, pattern, candidate));
+            var fragment = selector.Select(pattern, null);
             if (fragment is not null) global[pattern] = fragment;
         }
         Console.WriteLine($"  global: {global.Count}/{patterns.Count} in {sw.ElapsedMilliseconds} ms");
@@ -107,8 +129,7 @@ public static class Program
             sw.Restart();
             foreach (var pattern in classPatterns)
             {
-                var fragment = selector.Select(pattern, cls.Id,
-                    candidate => SafetyItemValidator.IsSafe(corpus, pattern, candidate));
+                var fragment = selector.Select(pattern, cls.Id);
                 if (fragment is not null) map[pattern] = fragment;
             }
             byClass[cls.Id] = map;

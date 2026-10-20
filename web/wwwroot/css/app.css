@@ -407,6 +407,9 @@ select, input {
     padding-left: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .chip { border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.5rem; white-space: nowrap; }
+.chip-name { color: var(--ink); }
+.chip-tiers { color: var(--dim); font-size: 0.65rem; margin-left: 0.25rem; padding-left: 0.3rem; border-left: 1px solid var(--panel-edge); }
+.chip-range { color: var(--ink); margin-left: 0.35rem; }
 .chip.inc { border-color: #4c7a3f; }
 .chip.exc { border-color: #7a3f3f; }
 .chip.clear { border-style: dashed; background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; }
