@@ -364,6 +364,7 @@ select, input {
 .picks-label {
     flex: none; align-self: center; color: var(--dim);
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    margin-right: 0.45rem;
 }
 .modpicker .chips {
     position: relative;

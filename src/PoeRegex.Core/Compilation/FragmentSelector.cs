@@ -12,33 +12,31 @@ namespace PoeRegex.Core.Compilation;
 ///  - two literal pieces bridged by one wildcard, with optional <c>^</c>/<c>$</c>,
 ///  - placeholders rendered as <c>\d</c>, <c>\d+</c> or <c>.</c>.
 ///
-/// Wildcard candidates must retain at least one whole stat word (four or more
-/// letters) so the result still reads as the stat instead of a shape like
-/// <c>%.*r$</c>. Every candidate is checked for recall (it matches every real
-/// line of the stat) and safety (it matches no line of another stat) against
-/// the real copy text of the scope. Wildcard pieces must each contain a
-/// 3+ letter word or 3+ letters, so a stopword like <c>to</c> cannot anchor a
-/// shape. Ties prefer more anchors, then a stricter wildcard, then more
-/// letters.
+/// There is no readability floor: the shortest candidate that is unique and
+/// safe on the real copy text of the scope wins. The oracle, not the shape,
+/// is the guard; every candidate is checked for recall (it matches every real
+/// line of the stat) and safety (it matches no line of another stat). Ties
+/// prefer more anchors, then a stricter wildcard, then more letters.
 /// </summary>
 public sealed class FragmentSelector
 {
-    private const int MinWildcardLength = 6;
+    private const int MinWildcardLength = 3;
     private const int MaxSearchLength = 48;
     private static readonly string[] TwoWildcards = [".+", ".*"];
     private static readonly string[] ThreeWildcards = [".+", ".*", "."];
 
     private readonly EngineCorpus _corpus;
     private readonly ICompilerStrategy _strategy;
+    private readonly bool _usePrecomputed;
     private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
     private readonly Dictionary<string, ScopeData> _scopes = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<(int Start, int End)>> _words = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Scope, string Target, string Hint), List<string>> _foreignCache = new();
 
-    public FragmentSelector(EngineCorpus corpus, ICompilerStrategy strategy)
+    public FragmentSelector(EngineCorpus corpus, ICompilerStrategy strategy, bool usePrecomputed = true)
     {
         _corpus = corpus;
         _strategy = strategy;
+        _usePrecomputed = usePrecomputed;
     }
 
     private sealed class ScopeData
@@ -56,6 +54,11 @@ public sealed class FragmentSelector
     {
         var key = (itemClass ?? "\0", pattern);
         if (_cache.TryGetValue(key, out var cached)) return cached;
+        if (_usePrecomputed && _corpus.TryPrecomputedFragment(pattern, itemClass, out var precomputed))
+        {
+            _cache[key] = precomputed;
+            return precomputed;
+        }
         var result = SelectCore(pattern, itemClass);
         _cache[key] = result;
         return result;
@@ -70,7 +73,10 @@ public sealed class FragmentSelector
             .Select(x => x.Real)
             .ToList();
 
-        var plain = BestPlain(pattern, itemClass, targetList, others);
+        // Most stats have a very short plain anchor; checking that band first
+        // avoids walking every long prefix/suffix for the few that do not.
+        const int ShortSearch = 11;
+        var plain = BestPlain(pattern, itemClass, targetList, others, maxLength: ShortSearch);
         if (plain is not null && plain.Length <= MinWildcardLength) return plain;
 
         // A global-safe fragment is safe on every class and matches every
@@ -83,9 +89,21 @@ public sealed class FragmentSelector
         }
         if (best is not null && best.Length <= MinWildcardLength) return best;
 
-        var bound = best?.Length ?? int.MaxValue;
-        var wildcard = FindWildcard(pattern, itemClass, targetList, others, Math.Min(bound, MaxSearchLength + 1));
+        var bound = best?.Length ?? ShortSearch;
+        var wildcard = FindWildcard(pattern, itemClass, targetList, others, bound);
         if (wildcard is not null && (best is null || wildcard.Length < best.Length)) best = wildcard;
+        // Every search covered all candidates below ShortSearch.
+        if (best is not null && best.Length < ShortSearch) return best;
+
+        // No short answer: repeat the plain search without a length cap, then
+        // let the wildcard search use that new upper bound.
+        var fullPlain = BestPlain(pattern, itemClass, targetList, others);
+        if (fullPlain is not null && (best is null || fullPlain.Length < best.Length)) best = fullPlain;
+        if (best is not null && best.Length <= MinWildcardLength) return best;
+
+        var fullBound = best?.Length ?? MaxSearchLength + 1;
+        var fullWildcard = FindWildcard(pattern, itemClass, targetList, others, Math.Min(fullBound, MaxSearchLength + 1));
+        if (fullWildcard is not null && (best is null || fullWildcard.Length < best.Length)) best = fullWildcard;
 
         if (best is not null) return best;
 
@@ -119,7 +137,7 @@ public sealed class FragmentSelector
     }
 
     /// <summary>Shortest safe contiguous fragment (substring, prefix or suffix).</summary>
-    private string? BestPlain(string pattern, string? itemClass, List<string> targets, List<string> others)
+    private string? BestPlain(string pattern, string? itemClass, List<string> targets, List<string> others, int maxLength = int.MaxValue)
     {
         var candidates = new HashSet<string>(StringComparer.Ordinal);
         var unique = _corpus.ShortestUniqueSubstringForPattern(pattern, itemClass, avoidPlaceholder: false);
@@ -132,19 +150,22 @@ public sealed class FragmentSelector
         if (uniqueNoPlaceholder is not null)
             candidates.Add(_strategy.EscapeLiteral(uniqueNoPlaceholder));
 
-        // Anchored prefixes and suffixes. Shape-only anchors like `ty$` are
-        // rejected: an anchored candidate must keep at least one whole word.
-        for (var end = 4; end <= pattern.Length; end++)
-            AddRenderings(candidates, pattern, 0, end, prefixAnchor: true, requireWord: true);
-        for (var start = 0; start <= pattern.Length - 4; start++)
-            AddRenderings(candidates, pattern, start, pattern.Length, suffixAnchor: true, requireWord: true);
+        // Anchored prefixes and suffixes; no shape floor — the oracle decides.
+        for (var end = 1; end <= pattern.Length; end++)
+            AddRenderings(candidates, pattern, 0, end, prefixAnchor: true);
+        for (var start = 0; start < pattern.Length; start++)
+            AddRenderings(candidates, pattern, start, pattern.Length, suffixAnchor: true);
 
         // The whole line is the long-but-always-safe fallback.
         AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true);
         AddRenderings(candidates, pattern, 0, pattern.Length, suffixAnchor: true);
         AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true, suffixAnchor: true);
 
-        foreach (var candidate in candidates.OrderBy(c => c.Length).ThenBy(c => AnchorCount(c), Comparer<int>.Create((a, b) => b.CompareTo(a))).ThenBy(c => c, StringComparer.Ordinal))
+        foreach (var candidate in candidates
+                     .Where(c => c.Length < maxLength)
+                     .OrderBy(c => c.Length)
+                     .ThenBy(c => AnchorCount(c), Comparer<int>.Create((a, b) => b.CompareTo(a)))
+                     .ThenBy(c => c, StringComparer.Ordinal))
         {
             if (Validate(candidate, itemClass, pattern, targets, others)) return candidate;
         }
@@ -158,42 +179,13 @@ public sealed class FragmentSelector
     /// </summary>
     private void AddRenderings(
         HashSet<string> into, string pattern, int start, int end,
-        bool prefixAnchor = false, bool suffixAnchor = false, bool requireWord = false)
+        bool prefixAnchor = false, bool suffixAnchor = false)
     {
         if (start < 0 || end <= start || end > pattern.Length) return;
-        if (requireWord && !HasWholeWord(pattern, start, end)) return;
         foreach (var rendered in Renderings(pattern, start, end))
         {
             into.Add((prefixAnchor ? "^" : "") + rendered + (suffixAnchor ? "$" : ""));
         }
-    }
-
-    /// <summary>True when the range fully contains at least one word (4+ letters, word-bounded).</summary>
-    private bool HasWholeWord(string pattern, int start, int end) => HasWord(pattern, start, end, minLength: 4);
-
-    private bool HasWord(string pattern, int start, int end, int minLength)
-    {
-        foreach (var (wordStart, wordEnd) in Words(pattern))
-        {
-            if (wordEnd - wordStart >= minLength && wordStart >= start && wordEnd <= end) return true;
-        }
-        return false;
-    }
-
-    private List<(int Start, int End)> Words(string pattern)
-    {
-        if (_words.TryGetValue(pattern, out var cached)) return cached;
-        var words = new List<(int, int)>();
-        var i = 0;
-        while (i < pattern.Length)
-        {
-            if (!char.IsAsciiLetter(pattern[i])) { i++; continue; }
-            var start = i;
-            while (i < pattern.Length && char.IsAsciiLetter(pattern[i])) i++;
-            words.Add((start, i));
-        }
-        _words[pattern] = words;
-        return words;
     }
 
     /// <summary>All placeholder renderings of a range, shortest first.</summary>
@@ -252,11 +244,26 @@ public sealed class FragmentSelector
     /// </summary>
     private string? FindWildcard(string pattern, string? itemClass, List<string> targets, List<string> others, int bound)
     {
+        bound = Math.Min(bound, MaxSearchLength + 1);
+        if (bound <= MinWildcardLength) return null;
+        // Generate/validate in growing caps: most stats find their minimum in
+        // a handful of characters, and the no-floor candidate space is large.
+        var cap = Math.Min(bound, 10);
+        while (true)
+        {
+            var found = FindWildcardUpTo(pattern, itemClass, targets, others, cap);
+            if (found is not null) return found;
+            if (cap >= bound) return null;
+            cap = Math.Min(bound, cap + 6);
+        }
+    }
+
+    private string? FindWildcardUpTo(string pattern, string? itemClass, List<string> targets, List<string> others, int bound)
+    {
         var n = pattern.Length;
         bound = Math.Min(bound, MaxSearchLength + 1);
         if (bound <= MinWildcardLength) return null;
 
-        var words = Words(pattern);
         var buckets = new HashSet<string>?[bound];
         var renderCache = new List<string>?[n + 1, n + 1];
 
@@ -266,25 +273,6 @@ public sealed class FragmentSelector
             var rendered = Renderings(pattern, a, b);
             renderCache[a, b] = rendered;
             return rendered;
-        }
-
-        bool HasWord(int a, int b)
-        {
-            foreach (var (start, end) in words)
-                if (end - start >= 4 && start >= a && end <= b) return true;
-            return false;
-        }
-
-        bool HasAnchor(int a, int b)
-        {
-            // A 2-letter stopword ("to", "an") is too shape-like to anchor a
-            // wildcard; require a 3+ letter word or 3+ letters in the piece.
-            foreach (var (start, end) in words)
-                if (end - start >= 3 && start >= a && end <= b) return true;
-            var letters = 0;
-            for (var p = a; p < b; p++)
-                if (char.IsAsciiLetter(pattern[p])) letters++;
-            return letters >= 3;
         }
 
         void Add(string candidate)
@@ -297,8 +285,6 @@ public sealed class FragmentSelector
         for (var i = 0; i < n - 1; i++)
             for (var k = i + 1; k < n; k++)
             {
-                if (!HasAnchor(i, k)) continue;
-                var aHasWord = HasWord(i, k);
                 var aRenderings = Piece(i, k);
                 var startVariants = i == 0 ? 2 : 1;
                 for (var l = k + 1; l < n; l++)
@@ -313,8 +299,6 @@ public sealed class FragmentSelector
                     }
                     for (var j = l + 1; j <= n; j++)
                     {
-                        if (!HasAnchor(l, j)) continue;
-                        if (!aHasWord && !HasWord(l, j)) continue;
                         var minPieceLength = (k - i) + (j - l);
                         // Wildcard is at least one char; anchors are optional.
                         if (minPieceLength + 1 >= bound) continue;

@@ -126,7 +126,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   prospective k/N in its tooltip, when that would exceed the game's
   250-character limit; one match keeps the row's own `+`); before typing,
   only a short curated shortlist shows ("showing common picks — type to
-  search all 194 families"); the list stretches/scrolls to fill the editor's height;
+  search all 194 families"); a one-letter filter keeps matching families
+  collapsed, two-plus letters auto-expand at most 8 families, and the `++`
+  preview is capped at 8 matches so a broad first letter never compiles the
+  whole catalog; the list stretches/scrolls to fill the editor's height;
   typing filters tiers, so `reliable` narrows to the family(ies) carrying
   that affix), `QueryCard`
   (meter with the OVER state, copy, explain), `ImportPanel`
@@ -157,18 +160,22 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   clear disabled). There is no separate base-class row: simple is classless,
   and in advanced weapon/offhand always carry their class select above the
   slot label inside the card (every other slot is 1:1 with its class).
-- Fragments are chosen by `FragmentSelector` (Core) rather than a fixed
-  fingerprint: every contiguous substring, anchored prefix/suffix, one
-  wildcard bridge, and `\d`/`\d+`/`.` placeholder rendering is tried in the
-  target scope, and the shortest candidate that recalls all of the stat's
-  real lines and matches no foreign line wins. Wildcard candidates must keep a
-  whole stat word (4+ letters) and each anchor must be a 3+ letter word or 3+
-  letters, which rejects shape-only strings such as `%.*r$`. The search uses
-  one wildcard bridge; a two-bridge check on the longest lines found only a
-  one-character win with less word-complete anchors, so it is not enabled. The catalog
-  audit (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
+- Fragments are chosen by `FragmentSelector` (Core) with no word/anchor
+  floor: every contiguous substring, anchored prefix/suffix, one wildcard
+  bridge, and `\d`/`\d+`/`.` placeholder rendering is tried in the scope, and
+  the shortest candidate that recalls all of the stat's real lines and
+  matches no foreign line wins. The 867 per-scope results are precomputed into
+  versioned tables (`data/catalogs/poe*.fragments.json`, regenerated with
+  `dotnet run --project tools/PoeRegex.Data.Build -- fragments --game poe2`);
+  a version match makes the browser lookup instant, and a stale table fails
+  the audit. Examples: `Adds # to # Cold Damage` → `\d C.+ge$` (9),
+  `Co.+ck` (6) for the attacks variant, `d.+r$` (5) for armour,
+  `^.%.+if` (7) for maximum Life. The catalog audit
+  (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
   scope/pattern fragments with .NET Regex, 2,104 simple/slot compiles, 788
-  family flows, and 210 class-pair pastes.
+  family flows, and 210 class-pair pastes; the shortest shapes are safe over
+  the catalog, but the in-game unique-line check remains manual.
+
 - Picks live in a one-line rail that never wraps or grows, so a large pick
   set can't push the picker out of the panel. Directional SVG-chevron pagers
   sit in reserved gutters and always show the true count — gold-accented and

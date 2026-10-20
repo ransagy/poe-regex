@@ -35,6 +35,46 @@ public class FragmentAuditTests
         .Select(c => c.Id)
         .ToList();
 
+    /// <summary>
+    /// The checked-in tables must match the catalog version and cover every
+    /// global and class-scoped pattern. When this fails, regenerate with:
+    ///   dotnet run --project tools/PoeRegex.Data.Build -- fragments --game poe2
+    /// (and the same for poe1).
+    /// </summary>
+    [Theory]
+    [InlineData(GameTarget.PoE1)]
+    [InlineData(GameTarget.PoE2)]
+    public void PrecomputedFragmentTable_CoversEveryScope(GameTarget game)
+    {
+        var corpus = RealCatalog.Corpus(game);
+        corpus.HasPrecomputedFragments.Should().BeTrue(
+            $"{game} needs an embedded fragment table; run the fragments tool");
+        corpus.PrecomputedDataVersion.Should().Be(corpus.Catalog.DataVersion,
+            "the fragment table is stale; regenerate it with the fragments tool");
+
+        var scopes = new List<string?> { null };
+        scopes.AddRange(corpus.Catalog.ItemClasses
+            .Where(c => corpus.Mods.Any(m => m.Classes.Contains(c.Id)))
+            .Select(c => c.Id));
+        var checkedCount = 0;
+        foreach (var scope in scopes)
+        {
+            var patterns = scope is null
+                ? corpus.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct()
+                : corpus.Mods.Where(m => m.Classes.Contains(scope))
+                    .SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct();
+            foreach (var pattern in patterns)
+            {
+                corpus.TryPrecomputedFragment(pattern, scope, out var fragment).Should().BeTrue(
+                    $"{game}/{scope ?? "global"} is missing a precomputed fragment for '{pattern}'");
+                fragment.Should().NotBeNullOrEmpty();
+                checkedCount++;
+            }
+        }
+        _output.WriteLine($"{game}: {checkedCount} precomputed fragments across {scopes.Count} scopes");
+        checkedCount.Should().BeGreaterThan(700);
+    }
+
     [Fact]
     public void EveryStatLine_ResolvesToARegexSafeMinimalFragment()
     {

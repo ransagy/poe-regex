@@ -12,6 +12,7 @@ public sealed class EngineCorpus
     private readonly Catalog _catalog;
     private readonly Dictionary<string, ClassIndex> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
+    private readonly FragmentTable? _fragments;
     private UnionIndex? _union;
     private Dictionary<string, List<ModEntry>>? _modsByPattern;
 
@@ -176,6 +177,10 @@ public sealed class EngineCorpus
         _catalog = catalog;
         _modsById = catalog.Mods.ToDictionary(m => m.Id);
         _byClass = BuildClassIndexes(catalog);
+        _fragments = FragmentTables.For(catalog.Game);
+        if (_fragments is not null &&
+            !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
+            _fragments = null;
     }
 
     public Catalog Catalog => _catalog;
@@ -184,6 +189,27 @@ public sealed class EngineCorpus
         id is null ? null : _catalog.ItemClasses.FirstOrDefault(c => c.Id == id);
 
     public ModEntry? FindMod(string? id) => id is null ? null : _modsById.GetValueOrDefault(id);
+
+    /// <summary>True when a version-matched precomputed fragment table is loaded.</summary>
+    public bool HasPrecomputedFragments => _fragments is not null;
+
+    /// <summary>Data version of the loaded fragment table (for audit/diagnostics).</summary>
+    public string? PrecomputedDataVersion => _fragments?.DataVersion;
+
+    /// <summary>
+    /// Looks up a precomputed minimal fragment for a scope/pattern. Returns
+    /// false when the table is absent, stale, or does not contain the entry;
+    /// the selector then computes as usual.
+    /// </summary>
+    public bool TryPrecomputedFragment(string pattern, string? itemClass, out string? fragment)
+    {
+        if (_fragments is null)
+        {
+            fragment = null;
+            return false;
+        }
+        return _fragments.TryGet(itemClass, pattern, out fragment);
+    }
 
     public IReadOnlyList<ModEntry> Mods => _catalog.Mods;
 

@@ -45,7 +45,7 @@
                             {
                                 var plainPick = fam.Pick();
                                 var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
-                                var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
+                                var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 <li class="fam-block">
                                     <div class="suggest-row fam-row">
                                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
@@ -123,6 +123,8 @@
 
 @code {
     private const int MaxShown = 50;
+    private const int MaxAutoExpanded = 8;
+    private const int MaxBulkPreview = 8;
 
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
@@ -141,6 +143,7 @@
     private IReadOnlyList<ModFamily> _prefixes = [];
     private IReadOnlyList<ModFamily> _suffixes = [];
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _autoExpanded = new(StringComparer.Ordinal);
     private bool _bulkVisible;
     private bool _bulkOverflow;
     private int _bulkNew;
@@ -151,13 +154,17 @@
     /// <summary>Item class the scope compiles with (null in global mode).</summary>
     private string? ScopeClassId => Scope is null ? null : State.CriteriaFor(Scope).ClassId;
 
-    protected override void OnParametersSet() => Refresh();
+    protected override void OnParametersSet()
+    {
+        // Group once per scope change; typing only filters this snapshot.
+        _allFamilies = ModFamilies.Group(Mods);
+        Refresh();
+    }
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
 
     private void Refresh()
     {
-        _allFamilies = ModFamilies.Group(Mods);
         _placeholder = $"showing common picks — type to search all {_allFamilies.Count} families";
         var filter = _search.Trim();
         _families = filter.Length == 0
@@ -173,6 +180,12 @@
         var shown = _families.Take(MaxShown).ToList();
         _prefixes = shown.Where(f => f.IsPrefix).ToList();
         _suffixes = shown.Where(f => !f.IsPrefix).ToList();
+        // A single letter is too broad to expand every match (hundreds of
+        // tier rows in the interpreter); keep it collapsed and auto-expand a
+        // capped set once the filter is narrower.
+        _autoExpanded.Clear();
+        if (filter.Length >= 2)
+            foreach (var fam in shown.Take(MaxAutoExpanded)) _autoExpanded.Add(fam.Key);
         UpdateBulk();
     }
 
@@ -191,6 +204,10 @@
         var picks = _families.Select(f => f.Pick()).ToList();
         _bulkNew = picks.Count(p => !crit.Included.Any(m => m.SamePick(p)));
         if (_bulkNew < 2) return; // one match: the row's own + is the action
+        // Broad filters can match most of the catalog; compiling a preview for
+        // every match on each keystroke is what made the first letter hang.
+        // Keep ++ for a narrowed shortlist only.
+        if (_bulkNew > MaxBulkPreview) return;
         var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
         _bulkLength = preview.Length;
         _bulkLimit = preview.Limit;

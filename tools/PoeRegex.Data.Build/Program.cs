@@ -1,3 +1,6 @@
+using PoeRegex.Core;
+using PoeRegex.Core.Compilation;
+using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
 using PoeRegex.Data.Build.RePoE;
 using PoeRegex.Data.Build.Rendering;
@@ -26,6 +29,7 @@ public static class Program
             return args[0].ToLowerInvariant() switch
             {
                 "build" => Build(args[1..]),
+                "fragments" => Fragments(args[1..]),
                 "fetch" => Fetch(args[1..]),
                 _ => Usage(args[0]),
             };
@@ -39,7 +43,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | fetch");
         return 2;
     }
 
@@ -65,6 +69,61 @@ public static class Program
             });
         File.WriteAllText(catalogPath, json);
         Console.WriteLine($"  wrote {catalogPath} ({new FileInfo(catalogPath).Length / 1024} KiB)");
+        return 0;
+    }
+
+    private static int Fragments(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe1");
+        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
+        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var outPath = GetValue(opts, "--out", $"data/catalogs/{gameName}.fragments.json");
+
+        Console.WriteLine($"Computing minimal fragments for {gameName} from {catalogPath}");
+        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var corpus = new EngineCorpus(catalog);
+        var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false);
+
+        var global = new Dictionary<string, string>(StringComparer.Ordinal);
+        var patterns = catalog.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern)
+            .Distinct(StringComparer.Ordinal).ToList();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var pattern in patterns)
+        {
+            var fragment = selector.Select(pattern, null);
+            if (fragment is not null) global[pattern] = fragment;
+        }
+        Console.WriteLine($"  global: {global.Count}/{patterns.Count} in {sw.ElapsedMilliseconds} ms");
+
+        var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var cls in catalog.ItemClasses.Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id))))
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var classPatterns = catalog.Mods.Where(m => m.Classes.Contains(cls.Id))
+                .SelectMany(m => m.StatLines).Select(l => l.Pattern)
+                .Distinct(StringComparer.Ordinal).ToList();
+            sw.Restart();
+            foreach (var pattern in classPatterns)
+            {
+                var fragment = selector.Select(pattern, cls.Id);
+                if (fragment is not null) map[pattern] = fragment;
+            }
+            byClass[cls.Id] = map;
+            Console.WriteLine($"  {cls.Id}: {map.Count}/{classPatterns.Count} in {sw.ElapsedMilliseconds} ms");
+        }
+
+        var table = new FragmentTable
+        {
+            Game = catalog.Game,
+            DataVersion = catalog.DataVersion,
+            Global = global,
+            ByClass = byClass,
+        };
+        Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+        File.WriteAllText(outPath, System.Text.Json.JsonSerializer.Serialize(
+            table, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"  wrote {outPath} ({new FileInfo(outPath).Length / 1024} KiB)");
         return 0;
     }
 
