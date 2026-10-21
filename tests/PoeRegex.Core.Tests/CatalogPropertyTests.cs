@@ -87,6 +87,7 @@ public class CatalogPropertyTests
         var quoted = new System.Text.RegularExpressions.Regex("\"([^\"]*)\"");
 
         var checkedCount = 0;
+        var unresolvedCount = 0;
         foreach (var mod in corpus.Mods)
         {
             foreach (var cls in mod.Classes)
@@ -96,8 +97,17 @@ public class CatalogPropertyTests
                     ItemClass = cls,
                     IncludedModifiers = [new ModifierRequirement(mod.Id)],
                 });
-                result.Diagnostics.Should().NotContain(d => d.Code == "unresolved-modifier",
-                    $"mod {mod.Id} on {cls} must resolve");
+                if (result.Diagnostics.Any(d => d.Code == "unresolved-modifier"))
+                {
+                    // A class scope may deliberately leave a mixed-shape stat
+                    // unresolved. It must carry a documented reason for this
+                    // class; a silent gap is a data bug.
+                    mod.StatLines.Should().Contain(
+                        sl => !string.IsNullOrWhiteSpace(corpus.PrecomputedUnresolvedReason(sl.Pattern, cls)),
+                        $"mod {mod.Id} on {cls} is unresolved without a documented reason");
+                    unresolvedCount++;
+                    continue;
+                }
                 result.Query.Should().NotContain(
                     placeholder,
                     $"query for {mod.Id} on {cls} must not contain the digit placeholder (got '{result.Query}')");
@@ -105,12 +115,13 @@ public class CatalogPropertyTests
                 fragment.Success.Should().BeTrue($"query for {mod.Id} on {cls} must carry a quoted fragment");
                 var text = fragment.Groups[1].Value;
                 mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(
-                        sl.Line, text, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        AdvancedStatLine.For(sl), text, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     .Should().BeTrue($"fragment '{text}' of {mod.Id} must match one of its copy-text lines");
                 checkedCount++;
             }
         }
         checkedCount.Should().BeGreaterThan(1000, "expected a meaningful number of queries to validate");
+        unresolvedCount.Should().BeLessThan(500, "deliberate unresolved scopes need review");
     }
 
     /// <summary>
@@ -127,23 +138,34 @@ public class CatalogPropertyTests
         var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
 
         var checkedCount = 0;
+        var unresolvedCount = 0;
         foreach (var mod in corpus.Mods)
         {
             var result = compiler.Compile(QuerySpecification.For(game) with
             {
                 IncludedModifiers = [new ModifierRequirement(mod.Id)],
             });
-            result.Diagnostics.Should().NotContain(d => d.Code == "unresolved-modifier",
-                $"global mod {mod.Id} must resolve");
+            if (result.Diagnostics.Any(d => d.Code == "unresolved-modifier"))
+            {
+                // A global pattern may be deliberately unresolved when no
+                // line-local guard exists (Movement Speed). It must carry a
+                // documented reason in the table, never disappear silently.
+                mod.StatLines.Should().Contain(
+                    sl => !string.IsNullOrWhiteSpace(corpus.PrecomputedUnresolvedReason(sl.Pattern, null)),
+                    $"global mod {mod.Id} is unresolved without a documented reason");
+                unresolvedCount++;
+                continue;
+            }
 
             result.Query.Should().NotContain(placeholder, $"global query for {mod.Id} must not contain the digit placeholder (got '{result.Query}')");
 
             var fragment = result.Query.Trim().Trim('"');
             fragment.Should().NotBeNullOrEmpty($"global query for {mod.Id} must resolve to a fragment");
-            var matches = mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(sl.Line, fragment));
+            var matches = mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(AdvancedStatLine.For(sl), fragment));
             matches.Should().BeTrue($"global fragment '{fragment}' of {mod.Id} must match one of its copy-text lines");
             checkedCount++;
         }
+        unresolvedCount.Should().BeLessThan(400, "deliberate unresolved globals need review");
         checkedCount.Should().BeGreaterThan(1000, "expected every mod to resolve globally");
     }
 

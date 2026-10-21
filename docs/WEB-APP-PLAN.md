@@ -295,6 +295,43 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   real page reload (chip + query restored). `web/README.md` (run/test/layout/
   limitations), main README link. Full slnx 6+37+60 green. Final screenshot
   self-reviewed (fixed the `clear (r)` label + unstyled reset button).
+- **Follow-up round 17 — guaranteed line-local tables, derived vendor corpus, and advanced ranges.**
+  The round-16 absolute strings were disproven in-game: `^\d+% i`
+  matched an advanced Crossbow's Light Radius line, and the dot-bridged
+  fragments had no line-local proof. The shipped table now uses
+  `FragmentSelector.Guaranteed`: plain, exact advanced-display, and whole-line
+  candidates only; unproven catalog wildcard bridges are diagnostic-only
+  (`--absolute`). An anchored prefix must end on a complete stat word with at
+  least four letters; any digit selector needs a three-or-more-letter literal
+  guard, and leading spaces/bare-dot shapes are rejected. Captured real items
+  are fed back into the selector as foreign text (excluding only the same
+  catalog pattern), so unique-only and flavour lines cannot be hit by a
+  shorter vendor fragment.
+  The oracle is the derived vendor/stash corpus from raw RePoE exports
+  (`VendorCorpusBuilder` → `data/catalogs/poe*.vendor-corpus.json`): regular,
+  corrupted, essence, crafted, implicit, base name/property/implicit/
+  requirement/grant, affix caption/tag, and universal lines. Unique-only
+  mods/names/captions, flavour text, and rare names are excluded and counted
+  as unmodeled. Advanced item text is the target: ranged lines display
+  `roll(min-max)` (`AdvancedStatLine`), fixed lines display the plain value;
+  threshold queries build from the range shape so they match the actual roll.
+  PoE2 ships 866 fragments (146/147 global, 30/30 class scopes, 59 KiB); the
+  one global unresolved is Movement Speed, where fixed/ranged tiers share no
+  line-local guard and the suffix also matches minion movement. PoE1 ships
+  2,937 fragments (630/656 global, 25 class scopes, 250 KiB); its remaining
+  mixed compact/range and minion-collision entries carry concrete reasons in
+  the table. Every shipped fragment is ≤250 characters.
+  UI: stat/tier rows show the advanced `roll(min-max)` form; the tier chip
+  keeps name/range plus a separate `↑N`; desktop defaults to 115%, phones
+  (<700px) to 100%, and 130% stays selectable; narrow screens scroll
+  vertically, the `++` preview cap is 64 with an explicit over-budget reason,
+  and the test-items/backpack row stays left-aligned with gaps. Verification:
+  full Core 93 + Web 134 + Data.Build 10 green; the 866-fragment section audit, 788
+  family-flow checks, 210 class-pair checks, captured-item line/section
+  regressions, and 250-character ceiling all pass. Pages publishes the
+  PoE2-only UI with `-p:PoeRegexEmbedPoE1=false` (the Core wasm is 15.9 MiB,
+  below the 25 MiB file limit); the CLI and tests keep both games embedded.
+  Final in-game item-level verification remains with the maintainer.
 - **Follow-up round 14 — feedback round 2: absolute shortest fragments,
   family variants, the safety audit, and a fast first interaction.** The
   resolver is now an oracle-only minimiser (`FragmentSelector`): all literal
@@ -359,6 +396,9 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   “or better” count into a separate `↑N` badge so it no longer reads like a
   second stat range. Full slnx 10+134+87 green; in-game verification of the
   new absolute strings remains manual.
+  **Superseded by round 17:** those absolute `.`-bridged strings (including
+  `^\d+% i`) were disproven in-game; the shipped table is the line-local
+  guaranteed one described above.
 - **Follow-up round 15 — captured-item safety + generalized shortest-safe
   fragments, then the scale/chip/row polish.** The oracle-only table from
   round 14 was provably unsafe against real item copy: `Co.+ck` hit Mist

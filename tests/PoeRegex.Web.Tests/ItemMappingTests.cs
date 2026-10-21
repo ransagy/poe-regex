@@ -1,4 +1,5 @@
 using PoeRegex.Core;
+using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
@@ -133,9 +134,10 @@ public class ItemMappingTests
         var result = Engine.Compile(
             [new ModifierRequirement("IncreasedLife6", 80)], [],
             itemClass: "Ring");
-        ItemMatcher.Match(result.Query, ["+84 to maximum Life", "Item Class: Rings"])
+        var life = AdvancedStatLine.For(Engine.FindMod("IncreasedLife6")!.StatLines[0]);
+        ItemMatcher.Match(result.Query, [life, "Item Class: Rings"])
             .Match.Should().BeTrue();
-        ItemMatcher.Match(result.Query, ["+10 to maximum Life", "Item Class: Rings"])
+        ItemMatcher.Match(result.Query, ["+10(1-10) to maximum Life", "Item Class: Rings"])
             .Match.Should().BeFalse("floor 80 excludes a 10 roll");
     }
 

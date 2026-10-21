@@ -9,11 +9,11 @@ namespace PoeRegex.Web.Core;
 public static class ModSearch
 {
     /// <summary>
-    /// Friendly display text for a stat line: the per-number range rendering,
-    /// falling back to the representative line when ranges are absent.
+    /// Friendly display text for a stat line: the advanced-description form
+    /// (rolled value followed by the tier's min-max), falling back to the
+    /// representative line when ranges are absent.
     /// </summary>
-    public static string DisplayLine(StatLineEntry sl) =>
-        string.IsNullOrEmpty(sl.RangeLine) ? sl.Line : sl.RangeLine;
+    public static string DisplayLine(StatLineEntry sl) => AdvancedStatLine.For(sl);
 
     /// <summary>Case-insensitive substring filter over name, id, and every stat line.</summary>
     public static IReadOnlyList<ModEntry> FilterMods(IEnumerable<ModEntry> mods, string? text)
@@ -24,7 +24,8 @@ public static class ModSearch
             (m.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
             m.Id.Contains(t, StringComparison.OrdinalIgnoreCase) ||
             m.StatLines.Any(s => s.Line.Contains(t, StringComparison.OrdinalIgnoreCase) ||
-                                 s.RangeLine.Contains(t, StringComparison.OrdinalIgnoreCase))).ToList();
+                                 s.RangeLine.Contains(t, StringComparison.OrdinalIgnoreCase) ||
+                                 AdvancedStatLine.For(s).Contains(t, StringComparison.OrdinalIgnoreCase))).ToList();
     }
 
     /// <summary>Mods not already chosen (by id).</summary>

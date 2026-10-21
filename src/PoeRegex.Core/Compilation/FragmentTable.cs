@@ -17,12 +17,28 @@ public sealed class FragmentTable
     public Dictionary<string, string> Global { get; init; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, string>> ByClass { get; init; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Patterns with no safe verbatim line-local fragment in the global scope,
+    /// with the reason. The class tables may still resolve them; the UI must
+    /// not silently emit a broad fragment for these.
+    /// </summary>
+    public Dictionary<string, string> GlobalUnresolved { get; init; } = new(StringComparer.Ordinal);
+
+    public Dictionary<string, Dictionary<string, string>> ByClassUnresolved { get; init; } =
+        new(StringComparer.Ordinal);
+
     public bool TryGet(string? scope, string pattern, out string? fragment)
     {
         if (scope is null) return Global.TryGetValue(pattern, out fragment);
         if (ByClass.TryGetValue(scope, out var map)) return map.TryGetValue(pattern, out fragment);
         fragment = null;
         return false;
+    }
+
+    public string? UnresolvedReason(string? scope, string pattern)
+    {
+        if (scope is null) return GlobalUnresolved.GetValueOrDefault(pattern);
+        return ByClassUnresolved.TryGetValue(scope, out var map) ? map.GetValueOrDefault(pattern) : null;
     }
 }
 

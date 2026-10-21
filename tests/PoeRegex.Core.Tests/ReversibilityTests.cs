@@ -215,7 +215,7 @@ public class ReversibilityTests
             {
                 var term = m.Groups[1].Value;
                 var termMatchesExcluded = excluded.StatLines.Any(sl =>
-                    Regex.IsMatch(sl.Line, term, RegexOptions.IgnoreCase));
+                    Regex.IsMatch(AdvancedStatLine.For(sl), term, RegexOptions.IgnoreCase));
                 if (termMatchesExcluded)
                 {
                     ids.Should().NotContain(excluded.Id, $"exclusion '{term}' in '{result.Query}' must drop {excluded.Id}");

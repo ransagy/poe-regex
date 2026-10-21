@@ -7,13 +7,20 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- The Web app is PoE2-only. Keeping the much larger PoE1 corpora out
+         of that build avoids shipping a >25 MiB wasm asset to Pages; the
+         CLI and the test/data tooling still embed both games by default. -->
+    <PoeRegexEmbedPoE1 Condition="'$(PoeRegexEmbedPoE1)' == ''">true</PoeRegexEmbedPoE1>
+  </PropertyGroup>
+
   <ItemGroup>
-    <EmbeddedResource Include="../../data/catalogs/poe1.catalog.json" LogicalName="PoeRegex.Core.catalogs.poe1.catalog.json" />
+    <EmbeddedResource Include="../../data/catalogs/poe1.catalog.json" LogicalName="PoeRegex.Core.catalogs.poe1.catalog.json" Condition="'$(PoeRegexEmbedPoE1)' == 'true'" />
     <EmbeddedResource Include="../../data/catalogs/poe2.catalog.json" LogicalName="PoeRegex.Core.catalogs.poe2.catalog.json" />
-    <EmbeddedResource Include="../../data/catalogs/poe1.fragments.json" LogicalName="PoeRegex.Core.catalogs.poe1.fragments.json" Condition="Exists('../../data/catalogs/poe1.fragments.json')" />
+    <EmbeddedResource Include="../../data/catalogs/poe1.fragments.json" LogicalName="PoeRegex.Core.catalogs.poe1.fragments.json" Condition="'$(PoeRegexEmbedPoE1)' == 'true' And Exists('../../data/catalogs/poe1.fragments.json')" />
     <EmbeddedResource Include="../../data/catalogs/poe2.fragments.json" LogicalName="PoeRegex.Core.catalogs.poe2.fragments.json" Condition="Exists('../../data/catalogs/poe2.fragments.json')" />
     <EmbeddedResource Include="../../data/catalogs/poe2.safety-items.txt" LogicalName="PoeRegex.Core.catalogs.poe2.safety-items.txt" />
-    <EmbeddedResource Include="../../data/catalogs/poe1.vendor-corpus.json" LogicalName="PoeRegex.Core.catalogs.poe1.vendor-corpus.json" Condition="Exists('../../data/catalogs/poe1.vendor-corpus.json')" />
+    <EmbeddedResource Include="../../data/catalogs/poe1.vendor-corpus.json" LogicalName="PoeRegex.Core.catalogs.poe1.vendor-corpus.json" Condition="'$(PoeRegexEmbedPoE1)' == 'true' And Exists('../../data/catalogs/poe1.vendor-corpus.json')" />
     <EmbeddedResource Include="../../data/catalogs/poe2.vendor-corpus.json" LogicalName="PoeRegex.Core.catalogs.poe2.vendor-corpus.json" Condition="Exists('../../data/catalogs/poe2.vendor-corpus.json')" />
   </ItemGroup>
 

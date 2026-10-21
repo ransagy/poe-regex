@@ -4,13 +4,17 @@ namespace PoeRegex.Core.Compilation;
 
 /// <summary>
 /// Finds the shortest fragment that selects one stat text and nothing else in
-/// a scope, using regex selectors when they genuinely shorten the string.
+/// a scope.
 ///
 /// Candidate space (per normalized line pattern):
 ///  - every contiguous substring (the shortest unique one comes from the
 ///    suffix index; prefixes/suffixes are tried with the per-line anchors),
-///  - two literal pieces bridged by one wildcard, with optional <c>^</c>/<c>$</c>,
-///  - placeholders rendered as <c>\d</c>, <c>\d+</c> or <c>.</c>.
+///  - the exact advanced display shapes, including the <c>roll(min-max)</c>
+///    parenthesis, so a ranged stat never needs a wildcard bridge,
+///  - the whole line as the unconditional fallback.
+/// Wildcard bridges remain available to the diagnostic <see cref="FragmentPolicy.Absolute"/>
+/// policy; they are not explored for the shipped table because a bridge that
+/// passes the corpus is still a guess about the game's newline semantics.
 ///
 /// There is no readability floor: the shortest candidate that is unique and
 /// safe on the real copy text of the scope wins. The oracle, not the shape,
@@ -20,13 +24,13 @@ namespace PoeRegex.Core.Compilation;
 /// </summary>
 /// <summary>
 /// Safety constraints for a shippable fragment. The default is the guaranteed
-/// policy: the fragment must be line-anchored and keep either a digit
-/// selector or a line-start 4+ letter stat word, so it cannot be an
-/// arbitrary letter shape that matches item names, headers, or flavor text.
-/// The unconditional whole-line fallback is exempt (some lines start with a
-/// short word, e.g. "Bow Attacks fire an additional Arrow"). Wildcards are
-/// allowed (up to two bridges) because the full line corpus and fixtures
-/// validate the actual candidates.
+/// policy: a fragment must be line-local and keep either a digit selector
+/// with a 3+ letter literal guard, or a complete line-start stat word of at
+/// least 4 letters. Anchored prefixes may not end in the middle of a stat word
+/// (<c>^\d+% incr</c>), and two-letter tails such as <c>\d Ph</c> are
+/// rejected. Captured real items are included as foreign text. The
+/// unconditional whole-line fallback is exempt for lines whose first word is
+/// shorter than 4 (e.g. "Bow Attacks fire an additional Arrow").
 /// </summary>
 public sealed record FragmentPolicy(
     bool RequireGuard = true,
@@ -35,7 +39,7 @@ public sealed record FragmentPolicy(
 {
     public static readonly FragmentPolicy Guaranteed = new();
 
-    /// <summary>Diagnostic-only policy: no shape constraints (not shipped).</summary>
+    /// <summary>Diagnostic-only policy: wildcard bridges and no shape guards (not shipped).</summary>
     public static readonly FragmentPolicy Absolute = new(false, false, 2);
 }
 
@@ -53,6 +57,7 @@ public sealed class FragmentSelector
     private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
     private Func<string, bool>? _extraSafety;
     private readonly Dictionary<string, ScopeData> _scopes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<(string Pattern, string Raw)>> _safety = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Scope, string Target, string Hint), List<string>> _foreignCache = new();
 
     public FragmentSelector(
@@ -101,11 +106,28 @@ public sealed class FragmentSelector
             .Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
             .Select(x => x.Real)
             .ToList();
+        // Captured items are field regressions, not just tests: unique-only
+        // text, names, captions, and flavor lines are unmodeled, so the table
+        // generator must avoid them too. Lines mapping to the target pattern
+        // are the same stat and are intentionally excluded.
+        var safetyCount = 0;
+        foreach (var (safetyPattern, raw) in SafetyFor(itemClass))
+            if (!string.Equals(safetyPattern, pattern, StringComparison.Ordinal))
+            {
+                others.Add(raw);
+                safetyCount++;
+            }
+        // The advanced item text can differ from the catalog's max-roll
+        // pattern: a ranged stat displays "roll(min-max)". Seed candidates
+        // from those exact display shapes so the selector can use the range
+        // punctuation as a line-local guard instead of bridging it with `.`
+        // (which the game also lets cross line breaks).
+        var displayPatterns = DisplayPatterns(targetList);
 
         // Most stats have a very short plain anchor; checking that band first
         // avoids walking every long prefix/suffix for the few that do not.
         const int ShortSearch = 11;
-        var plain = BestPlain(pattern, itemClass, targetList, others, maxLength: ShortSearch);
+        var plain = BestPlain(pattern, itemClass, targetList, others, ShortSearch, displayPatterns);
         if (plain is not null && plain.Length <= MinWildcardLength) return plain;
 
         // A global-safe fragment is safe on every class and matches every
@@ -118,7 +140,54 @@ public sealed class FragmentSelector
         }
         if (best is not null && best.Length <= MinWildcardLength) return best;
 
-        var bound = best?.Length ?? ShortSearch;
+        // Try the exact display shapes before the catalog wildcard search:
+        // for a ranged stat a range-aware literal is both shorter and safer
+        // than a wildcard that has to bridge the parentheses.
+        string? displayPlain = null;
+        if (best is null || best.Length > MinWildcardLength)
+        {
+            displayPlain = BestPlain(
+                pattern, itemClass, targetList, others, MaxSearchLength + 1, displayPatterns);
+            if (displayPlain is not null && (best is null || displayPlain.Length < best.Length)) best = displayPlain;
+        }
+        if (best is not null && best.Length <= MinWildcardLength) return best;
+
+        // A line-local display candidate is the reliable answer for a ranged
+        // stat. Searching the catalog wildcard space up to its length is both
+        // expensive and mostly produces `.`-bridges that the section oracle
+        // rejects. Keep the display candidate; a shorter safe wildcard is not
+        // worth an unbounded search that cannot prove cross-line safety.
+        if (displayPlain is not null) return displayPlain;
+
+        // Mixed range/plain shapes (or a shape with no range punctuation in
+        // its plain prefixes/suffixes): find a line-local literal before
+        // entering the wildcard search. This is the safe fallback for the few
+        // stats whose tiers do not all share one display shape.
+        var mixedPlain = BestPlain(
+            pattern, itemClass, targetList, others, int.MaxValue, displayPatterns);
+        if (mixedPlain is not null && (best is null || mixedPlain.Length < best.Length)) best = mixedPlain;
+        if (best is not null) return best;
+
+        // The shipped guaranteed policy does not enter the catalog wildcard
+        // space. A `.` bridge that has not already been proven line-local by
+        // the section oracle is either redundant or unsafe, and enumerating it
+        // is unbounded on long stat lines. Try the exact display whole lines,
+        // then report the stat as unresolved rather than emit a guess.
+        if (_policy.RequireGuard)
+        {
+            var onlyWhole = WholeLine(pattern);
+            if (onlyWhole is not null && Validate(onlyWhole, itemClass, pattern, targetList, others))
+                return onlyWhole;
+            foreach (var display in displayPatterns)
+            {
+                var onlyDisplayWhole = WholeLine(display);
+                if (onlyDisplayWhole is not null && Validate(onlyDisplayWhole, itemClass, pattern, targetList, others))
+                    return onlyDisplayWhole;
+            }
+            return null;
+        }
+
+        var bound = Math.Min(best?.Length ?? ShortSearch, 16);
         var wildcard = FindWildcard(pattern, itemClass, targetList, others, bound);
         if (wildcard is not null && (best is null || wildcard.Length < best.Length)) best = wildcard;
         if (_policy.MaxBridges >= 2)
@@ -131,7 +200,7 @@ public sealed class FragmentSelector
 
         // No short answer: repeat the plain search without a length cap, then
         // let the wildcard search use that new upper bound.
-        var fullPlain = BestPlain(pattern, itemClass, targetList, others);
+        var fullPlain = BestPlain(pattern, itemClass, targetList, others, int.MaxValue, displayPatterns);
         if (fullPlain is not null && (best is null || fullPlain.Length < best.Length)) best = fullPlain;
         if (best is not null && best.Length <= MinWildcardLength) return best;
 
@@ -151,6 +220,12 @@ public sealed class FragmentSelector
         // real line; it is the unconditional fallback (never expected in data).
         var whole = WholeLine(pattern);
         if (whole is not null && Validate(whole, itemClass, pattern, targetList, others)) return whole;
+        foreach (var display in displayPatterns)
+        {
+            var displayWhole = WholeLine(display);
+            if (displayWhole is not null && Validate(displayWhole, itemClass, pattern, targetList, others))
+                return displayWhole;
+        }
         return null;
     }
 
@@ -177,29 +252,32 @@ public sealed class FragmentSelector
     }
 
     /// <summary>Shortest safe contiguous fragment (substring, prefix or suffix).</summary>
-    private string? BestPlain(string pattern, string? itemClass, List<string> targets, List<string> others, int maxLength = int.MaxValue)
+    private string? BestPlain(
+        string pattern, string? itemClass, List<string> targets, List<string> others,
+        int maxLength = int.MaxValue, IReadOnlyList<string>? displaySeeds = null)
     {
         var candidates = new HashSet<string>(StringComparer.Ordinal);
         var unique = _corpus.ShortestUniqueSubstringForPattern(pattern, itemClass, avoidPlaceholder: false);
         if (unique is not null)
         {
             var at = pattern.IndexOf(unique, StringComparison.Ordinal);
-            if (at >= 0) AddRenderings(candidates, pattern, at, at + unique.Length);
+            if (at >= 0 && IsWordBoundary(pattern, at))
+                AddRenderings(candidates, pattern, at, at + unique.Length);
         }
         var uniqueNoPlaceholder = _corpus.ShortestUniqueSubstringForPattern(pattern, itemClass, avoidPlaceholder: true);
         if (uniqueNoPlaceholder is not null)
-            candidates.Add(_strategy.EscapeLiteral(uniqueNoPlaceholder));
+        {
+            var at = pattern.IndexOf(uniqueNoPlaceholder, StringComparison.Ordinal);
+            if (at >= 0 && IsWordBoundary(pattern, at))
+                candidates.Add(_strategy.EscapeLiteral(uniqueNoPlaceholder));
+        }
 
         // Anchored prefixes and suffixes; no shape floor — the oracle decides.
-        for (var end = 1; end <= pattern.Length; end++)
-            AddRenderings(candidates, pattern, 0, end, prefixAnchor: true);
-        for (var start = 0; start < pattern.Length; start++)
-            AddRenderings(candidates, pattern, start, pattern.Length, suffixAnchor: true);
-
-        // The whole line is the long-but-always-safe fallback.
-        AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true);
-        AddRenderings(candidates, pattern, 0, pattern.Length, suffixAnchor: true);
-        AddRenderings(candidates, pattern, 0, pattern.Length, prefixAnchor: true, suffixAnchor: true);
+        AddSeedCandidates(candidates, pattern);
+        if (displaySeeds is not null)
+            foreach (var seed in displaySeeds)
+                if (!string.Equals(seed, pattern, StringComparison.Ordinal))
+                    AddSeedCandidates(candidates, seed);
 
         foreach (var candidate in candidates
                      .Where(c => c.Length < maxLength && PassesPolicy(c))
@@ -210,6 +288,140 @@ public sealed class FragmentSelector
             if (Validate(candidate, itemClass, pattern, targets, others)) return candidate;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Adds anchored prefixes/suffixes and the whole line for one seed shape,
+    /// plus standalone literal runs. Display seeds contain the range
+    /// punctuation, so this is what lets a candidate use `\(`/`\)`/`-` as a
+    /// line-local guard.
+    /// </summary>
+    private void AddSeedCandidates(HashSet<string> into, string seed)
+    {
+        for (var end = 1; end <= seed.Length; end++)
+            AddRenderings(into, seed, 0, end, prefixAnchor: true);
+        for (var start = 0; start < seed.Length; start++)
+        {
+            // An unanchored suffix must start at a word boundary; otherwise
+            // the shortest "safe" candidate is a mid-word run such as
+            // "nt Speed$" or "ent Speed$".
+            if (!IsWordBoundary(seed, start)) continue;
+            AddRenderings(into, seed, start, seed.Length, suffixAnchor: true);
+        }
+
+        AddRenderings(into, seed, 0, seed.Length, prefixAnchor: true);
+        AddRenderings(into, seed, 0, seed.Length, suffixAnchor: true);
+        AddRenderings(into, seed, 0, seed.Length, prefixAnchor: true, suffixAnchor: true);
+
+        var literalStart = 0;
+        for (var i = 0; i <= seed.Length; i++)
+        {
+            if (i < seed.Length && seed[i] != SuffixIndex.DigitPlaceholder) continue;
+            if (i > literalStart)
+            {
+                var literal = _strategy.EscapeLiteral(seed[literalStart..i]);
+                if (literal.Length >= 3) into.Add(literal);
+            }
+            literalStart = i + 1;
+        }
+    }
+
+    /// <summary>
+    /// Distinct value-agnostic shapes of the actual display lines. A ranged
+    /// stat adds "roll(min-max)" (plus a decimal variant when needed); a fixed
+    /// stat adds its plain line.
+    /// </summary>
+    private static bool ContainsWildcardDot(string fragment)
+    {
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            if (fragment[i] != '.') continue;
+            if (i == 0 || fragment[i - 1] != '\\') return true;
+        }
+        return false;
+    }
+
+    private static bool AnchoredTailIsCompleteWord(string candidate, IReadOnlyList<string> targets)
+    {
+        var runStart = -1;
+        var runEnd = -1;
+        var currentStart = -1;
+        for (var i = 0; i < candidate.Length; i++)
+        {
+            if (candidate[i] == '\\' && i + 1 < candidate.Length)
+            {
+                currentStart = -1;
+                i++;
+                continue;
+            }
+            if (char.IsAsciiLetter(candidate[i]))
+            {
+                if (currentStart < 0) currentStart = i;
+                runStart = currentStart;
+                runEnd = i + 1;
+            }
+            else
+            {
+                currentStart = -1;
+            }
+        }
+        if (runEnd < 0) return false;
+        if (runEnd < candidate.Length) return true; // bounded by a regex token
+        if (candidate.EndsWith('$')) return true;
+        var word = candidate[runStart..runEnd];
+        foreach (var target in targets)
+        {
+            var at = target.IndexOf(word, StringComparison.OrdinalIgnoreCase);
+            if (at < 0) return false;
+            var after = at + word.Length;
+            if (after < target.Length && char.IsAsciiLetter(target[after])) return false;
+        }
+        return true;
+    }
+
+    private static int LongestLiteralLetterRun(string fragment)
+    {
+        var best = 0;
+        var run = 0;
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            if (fragment[i] == '\\' && i + 1 < fragment.Length)
+            {
+                best = Math.Max(best, run);
+                run = 0;
+                i++;
+                continue;
+            }
+            if (char.IsAsciiLetter(fragment[i]))
+            {
+                run++;
+                best = Math.Max(best, run);
+            }
+            else
+            {
+                run = 0;
+            }
+        }
+        return best;
+    }
+
+    private static bool IsWordBoundary(string seed, int index)
+    {
+        if (index <= 0) return true;
+        if (!char.IsAsciiLetter(seed[index])) return true;
+        return !char.IsAsciiLetter(seed[index - 1]);
+    }
+
+    private static List<string> DisplayPatterns(IReadOnlyList<string> targets)
+    {
+        var result = new List<string>();
+        foreach (var target in targets)
+        {
+            var display = CatalogLineNormalizer.Normalize(target);
+            if (!result.Contains(display, StringComparer.Ordinal)) result.Add(display);
+            if (result.Count >= 8) break;
+        }
+        return result;
     }
 
     /// <summary>
@@ -489,7 +701,41 @@ public sealed class FragmentSelector
         var anchor = candidate.StartsWith('^') || candidate.EndsWith('$');
         if (_policy.RequireAnchor && !anchor) return false;
         if (!_policy.RequireGuard) return true;
+        // A leading space is necessarily the middle of a word (" Speed$").
+        if (candidate.StartsWith(' ')) return false;
+        // Anchored prefixes still need a real stat word. A one-letter tail
+        // such as "^\\d+% i" is a mid-word fragment that leaks into unrelated
+        // percent lines; it is not made safe merely by the anchor.
+        if (candidate.StartsWith('^') && LongestLiteralLetterRun(candidate) < 4) return false;
+        // Any wildcard fragment needs a real literal guard. Two-letter tails
+        // such as "\\d Ph" are not distinctive enough to ship, even when they
+        // are currently unique in one scope.
+        if (candidate.Contains(@"\d", StringComparison.Ordinal) &&
+            LongestLiteralLetterRun(candidate) < 3) return false;
         if (candidate.Contains(@"\d", StringComparison.Ordinal)) return true;
+
+        // A bare `.` at the start of an unanchored suffix is a one-character
+        // wildcard that can match a letter in unmodeled text (". to Strength$").
+        // Prefer the digit selector (`\d`, `\d+`) for the same shape.
+        if (ContainsWildcardDot(candidate) && !candidate.StartsWith('^')) return false;
+
+        // A line-anchored phrase may start with a short complete word
+        // ("all", "and"), so a pure 4-letter-run rule is too strict. A
+        // lowercase first word must be at least 3 letters and start at a
+        // word boundary; title-case stat words are accepted. Reject the
+        // observed mid-word starts ("f Damage…", "d Armour…", "nt Speed$").
+        if (candidate.EndsWith('$') && candidate.Contains(' '))
+        {
+            var space = candidate.IndexOf(' ');
+            var firstWord = candidate[..space];
+            // A one/two-letter lowercase start is a mid-word suffix ("nt
+            // Speed$", "f Damage…$"). Complete short function words are not
+            // worth the ambiguity; a longer suffix or an anchored candidate
+            // can express the same stat safely.
+            if (firstWord.Length > 0 &&
+                (!firstWord.All(char.IsAsciiLetterLower) || firstWord.Length >= 3))
+                return true;
+        }
 
         // Word-only guards are line-start anchored and must begin with a full
         // 4+ letter stat word (e.g. ^Allies…). A mid-word 4-letter run such as
@@ -531,6 +777,12 @@ public sealed class FragmentSelector
 
     private bool Validate(string candidate, string? itemClass, string pattern, List<string> targets, List<string> others)
     {
+        // An anchored prefix that ends in the middle of a stat word
+        // ("^\\d+% incr") is a high-collision fragment even though it is
+        // shorter than the full word. Require the trailing literal to end at
+        // a word boundary in every target line; suffixes are unaffected.
+        if (candidate.StartsWith('^') && !AnchoredTailIsCompleteWord(candidate, targets)) return false;
+
         // Word-only guards must use the complete first stat word of the
         // target line (^Allies…), not a truncated 4-letter prefix (^Alli…).
         var wholeLine = string.Equals(candidate, WholeLine(pattern), StringComparison.Ordinal);
@@ -555,7 +807,35 @@ public sealed class FragmentSelector
         var foreign = hint is null ? others : ForeignLines(itemClass, pattern, hint, others);
         foreach (var line in foreign)
             if (matcher.IsMatch(line)) return false;
+
+        // ForeignLines narrows via the corpus pattern index and therefore
+        // does not contain captured safety lines. Check those separately so a
+        // short prefix cannot leak into a unique-only or flavor line.
+        if (hint is not null)
+        {
+            foreach (var (safetyPattern, raw) in SafetyFor(itemClass))
+            {
+                if (string.Equals(safetyPattern, pattern, StringComparison.Ordinal)) continue;
+                if (!raw.Contains(hint, StringComparison.OrdinalIgnoreCase)) continue;
+                if (matcher.IsMatch(raw)) return false;
+            }
+        }
+
+        // The per-line check above proves a candidate is line-local for the
+        // modeled text. The game can still match across a line break inside
+        // one item section (a prefix caption and an unrelated stat line, for
+        // example), so reject any wildcard candidate that does so.
+        if (!_corpus.CrossLineSafe(itemClass, candidate)) return false;
         return _extraSafety is null || _extraSafety(candidate);
+    }
+
+    private List<(string Pattern, string Raw)> SafetyFor(string? itemClass)
+    {
+        var key = itemClass ?? "\0";
+        if (_safety.TryGetValue(key, out var cached)) return cached;
+        var result = _corpus.SafetyLines(itemClass).ToList();
+        _safety[key] = result;
+        return result;
     }
 
     /// <summary>
@@ -585,7 +865,7 @@ public sealed class FragmentSelector
     /// Longest literal run in a fragment (3+ characters, at least two
     /// alphanumeric). Used as a safe pre-filter for the false-positive scan.
     /// </summary>
-    private static string? LiteralHint(string fragment)
+    internal static string? LiteralHint(string fragment)
     {
         var best = "";
         var current = new System.Text.StringBuilder();

@@ -39,6 +39,10 @@ public sealed class EngineService
 
     public string DataVersion => _corpus.Catalog.DataVersion;
 
+    /// <summary>Documented global unresolved reason for a catalog pattern.</summary>
+    public string? GlobalUnresolvedReason(string pattern) =>
+        _corpus.PrecomputedUnresolvedReason(pattern, null);
+
     public IReadOnlyList<ItemClassEntry> Classes => _corpus.Catalog.ItemClasses;
 
     /// <summary>Classes referenced by at least one mod (hides flasks, currency, gems...).</summary>

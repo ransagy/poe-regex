@@ -35,6 +35,28 @@ public class FragmentAuditTests
         .Select(c => c.Id)
         .ToList();
 
+    private const RegexOptions SectionRegexOptions =
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Multiline | RegexOptions.Singleline;
+
+    private static bool HasWildcardDot(string fragment)
+    {
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            if (fragment[i] != '.') continue;
+            if (i == 0 || fragment[i - 1] != '\\') return true;
+        }
+        return false;
+    }
+
+    private static bool HasCrossLineMatch(string text, string fragment)
+    {
+        var regex = new Regex(fragment, SectionRegexOptions, TimeSpan.FromSeconds(2));
+        return regex.Matches(text).Any(m => m.Value.Contains('\n'));
+    }
+
+    private static string ReverseLines(string text) =>
+        string.Join("\n", text.Split('\n').Reverse());
+
     /// <summary>
     /// The checked-in tables must match the catalog version and cover every
     /// global and class-scoped pattern. When this fails, regenerate with:
@@ -57,6 +79,7 @@ public class FragmentAuditTests
             .Where(c => corpus.Mods.Any(m => m.Classes.Contains(c.Id)))
             .Select(c => c.Id));
         var checkedCount = 0;
+        var unresolved = new List<string>();
         foreach (var scope in scopes)
         {
             var patterns = scope is null
@@ -65,14 +88,26 @@ public class FragmentAuditTests
                     .SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct();
             foreach (var pattern in patterns)
             {
-                corpus.TryPrecomputedFragment(pattern, scope, out var fragment).Should().BeTrue(
-                    $"{game}/{scope ?? "global"} is missing a precomputed fragment for '{pattern}'");
-                fragment.Should().NotBeNullOrEmpty();
-                checkedCount++;
+                if (corpus.TryPrecomputedFragment(pattern, scope, out var fragment))
+                {
+                    fragment.Should().NotBeNullOrEmpty();
+                    checkedCount++;
+                    continue;
+                }
+
+                // A deliberately unresolved scope must carry a concrete
+                // reason; silently missing entries are not allowed.
+                var reason = corpus.PrecomputedUnresolvedReason(pattern, scope);
+                reason.Should().NotBeNullOrWhiteSpace(
+                    $"{game}/{scope ?? "global"} has neither a fragment nor an unresolved reason for '{pattern}'");
+                unresolved.Add($"{scope ?? "global"}: {pattern.Replace('\u0001', '#')} — {reason}");
             }
         }
-        _output.WriteLine($"{game}: {checkedCount} precomputed fragments across {scopes.Count} scopes");
+        _output.WriteLine($"{game}: {checkedCount} precomputed fragments, " +
+                          $"{unresolved.Count} documented unresolved, across {scopes.Count} scopes");
+        foreach (var row in unresolved) _output.WriteLine($"  unresolved {row}");
         checkedCount.Should().BeGreaterThan(700);
+        unresolved.Count.Should().BeLessThan(60, "unresolved patterns need a deliberate, documented review");
     }
 
     /// <summary>
@@ -103,32 +138,56 @@ public class FragmentAuditTests
                 continue;
             }
 
-            var modeledLines = item.Lines.Where(l => corpus.IsModeledLine(l, cls.Id)).ToList();
-            var unmodeledLines = item.Lines.Where(l => !corpus.IsModeledLine(l, cls.Id)).ToList();
-            var itemPatterns = modeledLines.Select(corpus.PatternForSafetyLine)
+            // Keep the raw (range-bearing) copy text alongside the stripped
+            // canonical line. The catalog pattern comes from the canonical
+            // line; the positive/negative regex checks use the raw text the
+            // game actually searches.
+            var pairs = item.Lines.Select((canonical, i) => (
+                Canonical: canonical,
+                Raw: i < item.RawLines.Count ? item.RawLines[i] : canonical)).ToList();
+            var mappedPairs = pairs
+                .Select(p => (p.Canonical, p.Raw, Pattern: corpus.PatternForSafetyLine(p.Canonical)))
+                .ToList();
+            var modeledPairs = mappedPairs
+                .Where(p => corpus.IsModeledLine(p.Canonical, cls.Id))
+                .ToList();
+            // A captured unique-only line can carry the same stat as a regular
+            // affix. It is reported as unmodeled but must not be treated as a
+            // foreign stat for that same catalog pattern.
+            var itemStatPatterns = mappedPairs.Select(p => p.Pattern)
                 .Where(allPatterns.Contains).ToHashSet(StringComparer.Ordinal);
+            var modeledItemPatterns = modeledPairs.Select(p => p.Pattern)
+                .Where(allPatterns.Contains).ToHashSet(StringComparer.Ordinal);
+            var unmodeledPairs = pairs
+                .Where(p => !corpus.IsModeledLine(p.Canonical, cls.Id))
+                .Select(p => p.Raw)
+                .ToList();
+            var allRaw = pairs.Select(p => p.Raw).ToList();
 
             // Positives: every modeled stat the item really carries must be recalled.
-            foreach (var pattern in itemPatterns)
+            foreach (var pattern in modeledItemPatterns)
             {
                 var fragment = selector.Select(pattern, cls.Id);
-                if (fragment is null || !modeledLines.Any(l => Regex.IsMatch(l, fragment, RegexOptions.IgnoreCase)))
+                var raws = modeledPairs.Where(p => p.Pattern == pattern).Select(p => p.Raw).ToList();
+                if (fragment is null || !raws.Any(l => Regex.IsMatch(l, fragment, RegexOptions.IgnoreCase)))
                     failures.Add($"{cls.Id}: fragment '{fragment}' misses modeled '{pattern}'");
                 checkedCount++;
             }
 
-            // Negatives: fragments for other modeled stats may not match a modeled line.
+            // Negatives: fragments for other modeled stats may not match any
+            // raw line of this item (including unique/flavor text, which is
+            // reported as unmodeled rather than treated as safe).
             foreach (var pattern in allPatterns)
             {
-                if (itemPatterns.Contains(pattern)) continue;
+                if (itemStatPatterns.Contains(pattern)) continue;
                 var global = selector.Select(pattern, null);
-                if (global is not null && modeledLines.Any(l => Regex.IsMatch(l, global, RegexOptions.IgnoreCase)))
-                    failures.Add($"{cls.Id}: global '{global}' leaks into modeled line for '{pattern}'");
+                if (global is not null && allRaw.Any(l => Regex.IsMatch(l, global, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: global '{global}' leaks into raw line for '{pattern}'");
                 var scoped = selector.Select(pattern, cls.Id);
-                if (scoped is not null && modeledLines.Any(l => Regex.IsMatch(l, scoped, RegexOptions.IgnoreCase)))
-                    failures.Add($"{cls.Id}: scoped '{scoped}' leaks into modeled line for '{pattern}'");
+                if (scoped is not null && allRaw.Any(l => Regex.IsMatch(l, scoped, RegexOptions.IgnoreCase)))
+                    failures.Add($"{cls.Id}: scoped '{scoped}' leaks into raw line for '{pattern}'");
 
-                foreach (var line in unmodeledLines)
+                foreach (var line in unmodeledPairs)
                     if (global is not null && Regex.IsMatch(line, global, RegexOptions.IgnoreCase))
                         unmodeledHits.Add($"{cls.Id}: global '{global}' matches unmodeled '{line}'");
                 checkedCount++;
@@ -143,6 +202,71 @@ public class FragmentAuditTests
         checkedCount.Should().BeGreaterThan(1_000);
     }
 
+    /// <summary>
+    /// Item-level cross-line regression on the raw captured sections. A `.`
+    /// fragment that bridges two lines of one real item is the exact failure
+    /// mode the field reports exposed; this check uses the game's raw text
+    /// (ranges intact) and both line orders.
+    /// </summary>
+    [Fact]
+    public void CapturedItemSections_RejectEveryCrossLineFragment()
+    {
+        var corpus = Corpus.Value;
+        corpus.SafetyItems.Should().NotBeEmpty();
+        var failures = new List<string>();
+        var checkedCount = 0;
+
+        foreach (var item in corpus.SafetyItems)
+        {
+            var cls = corpus.Catalog.ItemClasses.FirstOrDefault(c =>
+                c.Name.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase) ||
+                c.Id.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase));
+            if (cls is null)
+            {
+                failures.Add($"unknown captured-item class '{item.ClassName}'");
+                continue;
+            }
+
+            var fragments = corpus.PrecomputedGlobal.Values
+                .Concat(corpus.PrecomputedForClass(cls.Id).Values)
+                .Where(HasWildcardDot)
+                .Distinct(StringComparer.Ordinal);
+            foreach (var fragment in fragments)
+            {
+                foreach (var section in item.Sections)
+                {
+                    var text = string.Join("\n", section);
+                    if (!text.Contains('\n')) continue;
+                    if (HasCrossLineMatch(text, fragment) || HasCrossLineMatch(ReverseLines(text), fragment))
+                        failures.Add($"{cls.Id}: '{fragment}' cross-line in captured section " +
+                                     $"[{string.Join(" / ", section.Take(2))}]");
+                    checkedCount++;
+                }
+            }
+        }
+
+        _output.WriteLine($"captured section cross-line checks: {checkedCount}");
+        foreach (var failure in failures.Take(30)) _output.WriteLine($"FAIL {failure}");
+        failures.Take(30).Should().BeEmpty($"{failures.Count} captured-item cross-line failures");
+        checkedCount.Should().BeGreaterThan(50);
+    }
+
+    /// <summary>
+    /// The exact broad strings observed in-game. They must be rejected by the
+    /// section oracle, not merely absent from the current table.
+    /// </summary>
+    [Theory]
+    [InlineData("P.+l E")]
+    [InlineData("Adds .+Cold Damage$")]
+    [InlineData(@"\d Co.+ge$")]
+    [InlineData(@"^\d.+d Armour$")]
+    [InlineData(@"^\d.+m Life$")]
+    public void KnownBroadWildcards_AreNotCrossLineSafe(string fragment)
+    {
+        Corpus.Value.CrossLineSafe(null, fragment).Should().BeFalse(
+            $"'{fragment}' was observed matching across item lines in-game");
+    }
+
     [Fact]
     public void EveryStatLine_ResolvesToARegexSafeMinimalFragment()
     {
@@ -152,6 +276,7 @@ public class FragmentAuditTests
         scopes.AddRange(ClassesWithMods());
 
         var failures = new List<string>();
+        var unresolved = new List<string>();
         var lengths = new List<(int Length, string Scope, string Pattern, string Fragment)>();
         var checkedCount = 0;
 
@@ -173,7 +298,11 @@ public class FragmentAuditTests
                 var fragment = selector.Select(pattern, scope);
                 if (fragment is null)
                 {
-                    failures.Add($"{scope ?? "global"}: no fragment for '{pattern}'");
+                    var reason = corpus.PrecomputedUnresolvedReason(pattern, scope);
+                    if (reason is null)
+                        failures.Add($"{scope ?? "global"}: no fragment for '{pattern}'");
+                    else
+                        unresolved.Add($"{scope ?? "global"}: {pattern.Replace('\u0001', '#')} — {reason}");
                     continue;
                 }
                 var regex = new Regex(fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -181,21 +310,37 @@ public class FragmentAuditTests
                     failures.Add($"{scope ?? "global"}: '{fragment}' misses its own line for '{pattern}'");
                 if (others.Any(o => regex.IsMatch(o)))
                     failures.Add($"{scope ?? "global"}: '{fragment}' over-matches a foreign line for '{pattern}'");
+
+                // Independent section-level check: `.` may cross line breaks
+                // within one search section. A fragment used globally must be
+                // safe on every class; a class fragment only on its class.
+                if (HasWildcardDot(fragment))
+                {
+                    foreach (var cls in scope is null ? ClassesWithMods() : [scope])
+                    foreach (var (kind, text) in corpus.SearchSectionsForClass(cls))
+                    {
+                        if (HasCrossLineMatch(text, fragment) || HasCrossLineMatch(ReverseLines(text), fragment))
+                            failures.Add(
+                                $"{scope ?? "global"}: '{fragment}' cross-line match in {cls}/{kind} for '{pattern}'");
+                    }
+                }
                 lengths.Add((fragment.Length, scope ?? "global", pattern, fragment));
                 checkedCount++;
             }
         }
 
-        _output.WriteLine($"scopes={scopes.Count} fragments={checkedCount}");
+        _output.WriteLine($"scopes={scopes.Count} fragments={checkedCount} unresolved={unresolved.Count}");
         foreach (var row in lengths.OrderByDescending(x => x.Length).Take(15))
             _output.WriteLine($"  longest {row.Length,2}: {row.Fragment}  <- [{row.Scope}] {row.Pattern.Replace('\u0001', '#')}");
-        _output.WriteLine($"  wildcard={lengths.Count(x => x.Fragment.Contains(".*") || x.Fragment.Contains(".+"))} " +
+        foreach (var row in unresolved) _output.WriteLine($"  unresolved {row}");
+        _output.WriteLine($"  wildcard={lengths.Count(x => HasWildcardDot(x.Fragment))} " +
                           $"anchored={lengths.Count(x => x.Fragment.StartsWith('^') || x.Fragment.EndsWith('$'))} " +
-                          $"plain={lengths.Count(x => !x.Fragment.Contains(".*") && !x.Fragment.Contains(".+") && !x.Fragment.StartsWith('^') && !x.Fragment.EndsWith('$'))}");
+                          $"plain={lengths.Count(x => !HasWildcardDot(x.Fragment) && !x.Fragment.StartsWith('^') && !x.Fragment.EndsWith('$'))}");
 
         failures.Should().BeEmpty();
         checkedCount.Should().BeGreaterThan(700, "the audit must cover the global patterns and every class scope");
-        lengths.Max(x => x.Length).Should().BeLessThanOrEqualTo(48, "fragments stay well inside the game limit");
+        unresolved.Count.Should().BeLessThan(10, "unresolved patterns need a deliberate, documented review");
+        lengths.Max(x => x.Length).Should().BeLessThanOrEqualTo(250, "fragments stay inside the game limit");
     }
 
     [Fact]
@@ -205,6 +350,7 @@ public class FragmentAuditTests
         var compiler = Compiler.Value;
         var failures = new List<string>();
         var checkedCount = 0;
+        var knownGlobalUnresolved = 0;
 
         foreach (var mod in corpus.Mods)
         {
@@ -212,8 +358,13 @@ public class FragmentAuditTests
             {
                 IncludedModifiers = [new ModifierRequirement(mod.Id)],
             });
+            var documentedUnresolved = mod.StatLines.Any(sl =>
+                corpus.PrecomputedUnresolvedReason(sl.Pattern, null) is not null);
             if (global.Diagnostics.Any(d => d.Code == "unresolved-modifier"))
-                failures.Add($"global: {mod.Id} ({mod.StatLines.FirstOrDefault()?.Line})");
+            {
+                if (documentedUnresolved) knownGlobalUnresolved++;
+                else failures.Add($"global: {mod.Id} ({mod.StatLines.FirstOrDefault()?.Line})");
+            }
             checkedCount++;
 
             foreach (var cls in mod.Classes)
@@ -229,7 +380,8 @@ public class FragmentAuditTests
             }
         }
 
-        _output.WriteLine($"compiled {checkedCount} simple+slot queries");
+        _output.WriteLine($"compiled {checkedCount} simple+slot queries; " +
+                          $"{knownGlobalUnresolved} documented global unresolved");
         failures.Take(20).Should().BeEmpty($"{failures.Count} unresolved mods");
         checkedCount.Should().BeGreaterThan(2_000);
     }

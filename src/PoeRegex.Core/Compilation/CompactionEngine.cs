@@ -17,7 +17,7 @@ public sealed class CompactionEngine
     {
         _corpus = corpus;
         _strategy = strategy;
-        _selector = new FragmentSelector(corpus, strategy, policy: FragmentPolicy.Absolute);
+        _selector = new FragmentSelector(corpus, strategy, policy: FragmentPolicy.Guaranteed);
     }
 
     /// <summary>
@@ -68,13 +68,36 @@ public sealed class CompactionEngine
     private string? BuildThresholdFragment(StatLineEntry line, double minValue, string? itemClass, string fallbackFp)
     {
         var pattern = line.Pattern;
-        var idx = pattern.IndexOf(SuffixIndex.DigitPlaceholder);
-        if (idx < 0) return fallbackFp;
+        if (pattern.IndexOf(SuffixIndex.DigitPlaceholder) < 0) return fallbackFp;
 
         var digitRange = DigitRangeRegex.Build((int)Math.Ceiling(minValue));
         if (digitRange is null) return fallbackFp;
 
-        // Escape literal characters; the value token becomes the digit-range alternation.
+        var shapes = _corpus.DisplayPatternsFor(pattern, itemClass)
+            .Where(x => x.Contains('(', StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        // Prefer a range-aware shape when one exists: the compact catalog
+        // pattern would silently fail on every advanced ranged item.
+        string? best = null;
+        foreach (var shape in shapes)
+        {
+            var fragment = BuildThresholdFromPattern(shape, digitRange);
+            if (fragment is null) continue;
+            if (!IsFragmentSafe(itemClass, fragment, pattern)) continue;
+            if (best is null || fragment.Length < best.Length) best = fragment;
+        }
+        if (best is not null) return best;
+
+        var plain = BuildThresholdFromPattern(pattern, digitRange);
+        if (plain is not null && IsFragmentSafe(itemClass, plain, pattern)) return plain;
+        return fallbackFp;
+    }
+
+    private static string? BuildThresholdFromPattern(string pattern, string digitRange)
+    {
+        var idx = pattern.IndexOf(SuffixIndex.DigitPlaceholder);
+        if (idx < 0) return null;
         var sb = new System.Text.StringBuilder();
         for (var i = 0; i < pattern.Length; i++)
         {
@@ -82,30 +105,20 @@ public sealed class CompactionEngine
             {
                 sb.Append("(").Append(digitRange).Append(')');
             }
+            else if (pattern[i] == SuffixIndex.DigitPlaceholder)
+            {
+                // Other rolls and tier-span endpoints can be multi-digit.
+                sb.Append(@"\d+");
+            }
             else
             {
                 var c = pattern[i];
-                if (c == SuffixIndex.DigitPlaceholder)
-                {
-                    sb.Append("(\\d)");
-                }
-                else
-                {
-                    if (System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
-                        sb.Append('\\');
-                    sb.Append(c);
-                }
+                if (System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
+                    sb.Append('\\');
+                sb.Append(c);
             }
         }
-        var fragment = sb.ToString();
-
-        // Re-validate against real copy text: must match at least one line of this
-        // pattern and no line of any other pattern in the class corpus.
-        if (IsFragmentSafe(itemClass, fragment, pattern))
-        {
-            return fragment;
-        }
-        return fallbackFp;
+        return sb.ToString();
     }
 
     /// <summary>

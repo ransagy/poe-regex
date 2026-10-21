@@ -22,7 +22,7 @@ public class FragmentFlowAuditTests
         $"Item Class: {Engine.Classes.First(c => c.Id == classId).Name}";
 
     private static IReadOnlyList<string> StatLines(ModEntry mod) =>
-        mod.StatLines.Select(l => l.Line).ToList();
+        mod.StatLines.Select(AdvancedStatLine.For).ToList();
 
     [Fact]
     public void EveryFamilyAnchor_WorksInSimpleAndAdvanced()
@@ -39,15 +39,25 @@ public class FragmentFlowAuditTests
             var lines = StatLines(anchor);
             var pick = family.Pick();
             var simple = Engine.Compile(pick.Requirements(), []);
-            if (simple.Diagnostics.Count > 0)
-                failures.Add($"simple {family.Key}: {string.Join("; ", simple.Diagnostics.Select(d => d.Code))}");
-            if (!ItemMatcher.Match(simple.Query, lines).Match)
-                failures.Add($"simple {family.Key}: query does not match '{string.Join(" / ", lines)}'");
-            // A family pick matches every tier of the family, not just the anchor.
-            foreach (var member in family.Members.Where(m => m.StatLines.Count > 0))
+            var documentedUnresolved = simple.Diagnostics.Any(d => d.Code == "unresolved-modifier") &&
+                family.Members.SelectMany(m => m.StatLines)
+                    .All(sl => Engine.GlobalUnresolvedReason(sl.Pattern) is not null);
+            if (documentedUnresolved)
             {
-                if (!ItemMatcher.Match(simple.Query, StatLines(member)).Match)
-                    failures.Add($"simple {family.Key}: misses tier {member.Id}");
+                _output.WriteLine($"simple {family.Key}: documented global unresolved; class scopes still audited");
+            }
+            else
+            {
+                if (simple.Diagnostics.Count > 0)
+                    failures.Add($"simple {family.Key}: {string.Join("; ", simple.Diagnostics.Select(d => d.Code))}");
+                if (!ItemMatcher.Match(simple.Query, lines).Match)
+                    failures.Add($"simple {family.Key}: query does not match '{string.Join(" / ", lines)}'");
+                // A family pick matches every tier of the family, not just the anchor.
+                foreach (var member in family.Members.Where(m => m.StatLines.Count > 0))
+                {
+                    if (!ItemMatcher.Match(simple.Query, StatLines(member)).Match)
+                        failures.Add($"simple {family.Key}: misses tier {member.Id}");
+                }
             }
             checkedCount++;
         }

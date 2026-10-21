@@ -33,6 +33,7 @@ public static class Program
                 "build" => Build(args[1..]),
                 "fragments" => Fragments(args[1..]),
                 "corpus" => Corpus(args[1..]),
+                "probe" => Probe(args[1..]),
                 "fetch" => Fetch(args[1..]),
                 _ => Usage(args[0]),
             };
@@ -46,7 +47,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | probe | fetch");
         return 2;
     }
 
@@ -106,23 +107,33 @@ public static class Program
         var corpus = new EngineCorpus(catalog);
         var selector = new FragmentSelector(
             corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false,
-            policy: FragmentPolicy.Absolute);
+            policy: opts.ContainsKey("--absolute") ? FragmentPolicy.Absolute : FragmentPolicy.Guaranteed);
 
         var global = new Dictionary<string, string>(StringComparer.Ordinal);
+        var globalUnresolved = new Dictionary<string, string>(StringComparer.Ordinal);
         var patterns = catalog.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern)
             .Distinct(StringComparer.Ordinal).ToList();
         var sw = System.Diagnostics.Stopwatch.StartNew();
         foreach (var pattern in patterns)
         {
             var fragment = selector.Select(pattern, null);
+            if (fragment is null)
+            {
+                Console.Error.WriteLine($"  unresolved global: {pattern.Replace('\u0001', '#')}");
+                globalUnresolved[pattern] = UnresolvedReason(pattern);
+            }
             if (fragment is not null) global[pattern] = fragment;
         }
         Console.WriteLine($"  global: {global.Count}/{patterns.Count} in {sw.ElapsedMilliseconds} ms");
 
         var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-        foreach (var cls in catalog.ItemClasses.Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id))))
+        var byClassUnresolved = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var globalOnly = opts.ContainsKey("--global-only");
+        foreach (var cls in catalog.ItemClasses.Where(c =>
+                     !globalOnly && catalog.Mods.Any(m => m.Classes.Contains(c.Id))))
         {
             var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var unresolved = new Dictionary<string, string>(StringComparer.Ordinal);
             var classPatterns = catalog.Mods.Where(m => m.Classes.Contains(cls.Id))
                 .SelectMany(m => m.StatLines).Select(l => l.Pattern)
                 .Distinct(StringComparer.Ordinal).ToList();
@@ -131,8 +142,10 @@ public static class Program
             {
                 var fragment = selector.Select(pattern, cls.Id);
                 if (fragment is not null) map[pattern] = fragment;
+                else unresolved[pattern] = UnresolvedReason(pattern);
             }
             byClass[cls.Id] = map;
+            if (unresolved.Count > 0) byClassUnresolved[cls.Id] = unresolved;
             Console.WriteLine($"  {cls.Id}: {map.Count}/{classPatterns.Count} in {sw.ElapsedMilliseconds} ms");
         }
 
@@ -142,11 +155,55 @@ public static class Program
             DataVersion = catalog.DataVersion,
             Global = global,
             ByClass = byClass,
+            GlobalUnresolved = globalUnresolved,
+            ByClassUnresolved = byClassUnresolved,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, System.Text.Json.JsonSerializer.Serialize(
             table, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine($"  wrote {outPath} ({new FileInfo(outPath).Length / 1024} KiB)");
+        return 0;
+    }
+
+    private static int Probe(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe2");
+        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
+        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var pattern = GetValue(opts, "--pattern", "").Replace('#', '\u0001');
+        var scope = opts.TryGetValue("--scope", out var s) ? s : null;
+        if (string.IsNullOrEmpty(pattern))
+        {
+            Console.Error.WriteLine("probe requires --pattern (use # for a digit placeholder)");
+            return 2;
+        }
+        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var corpus = new EngineCorpus(catalog);
+        var selector = new FragmentSelector(
+            corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false,
+            policy: opts.ContainsKey("--guaranteed") ? FragmentPolicy.Guaranteed : FragmentPolicy.Absolute);
+        if (opts.TryGetValue("--fragment", out var probeFragment))
+        {
+            var all = scope is null ? corpus.RealLinesGlobal() : corpus.RealLinesForClass(scope);
+            var targets = all.Where(x => x.Pattern == pattern).Select(x => x.Real).Distinct().ToList();
+            var others = all.Where(x => x.Pattern != pattern).Select(x => x.Real).Distinct().ToList();
+            others.AddRange(corpus.SafetyLines(scope)
+                .Where(x => x.Pattern != pattern).Select(x => x.Raw));
+            others = others.Distinct().ToList();
+            var regex = new System.Text.RegularExpressions.Regex(
+                probeFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var misses = targets.Where(t => !regex.IsMatch(t)).ToList();
+            var hits = others.Where(t => regex.IsMatch(t)).ToList();
+            Console.WriteLine($"targets={targets.Count} others={others.Count} misses={misses.Count} foreign={hits.Count} cross={!corpus.CrossLineSafe(scope, probeFragment)}");
+            foreach (var m in misses.Take(5)) Console.WriteLine($"  MISS {m}");
+            foreach (var h in hits.Take(5)) Console.WriteLine($"  HIT  {h}");
+            if (opts.ContainsKey("--verify-only")) return 0;
+        }
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var fragment = selector.Select(pattern, scope);
+        var encoded = fragment is null ? "" : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(fragment));
+        Console.WriteLine($"{scope ?? "global"} | {pattern.Replace('\u0001', '#')} => {fragment} (len={fragment?.Length}, b64={encoded}) ({sw.ElapsedMilliseconds} ms)");
         return 0;
     }
 
@@ -207,15 +264,87 @@ public static class Program
         return 0;
     }
 
+    private static string UnresolvedReason(string pattern)
+    {
+        var display = pattern.Replace('\u0001', '#');
+        if (display.Contains("Movement Speed", StringComparison.OrdinalIgnoreCase))
+            return "Fixed and ranged tiers share no line-local guard: fixed tiers need ^digit+%..., " +
+                   "ranged tiers need the range parenthesis, and the common suffix also matches " +
+                   "Minions have ...% increased Movement Speed. Use an item-class scope or test an " +
+                   "explicit alternation in-game before adding one.";
+        if (display.Contains("Life per second", StringComparison.OrdinalIgnoreCase))
+            return "Life-regeneration tiers mix integer, decimal-percent, and 'Regeneration per second' " +
+                   "forms; no single line-local guard covers every form without matching a different " +
+                   "regeneration stat. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Energy Shield per second", StringComparison.OrdinalIgnoreCase))
+            return "Energy-shield regeneration mixes integer and decimal forms; the shared suffix also " +
+                   "matches other regeneration stats. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Attack Speed", StringComparison.OrdinalIgnoreCase) ||
+            display.Contains("Cast Speed", StringComparison.OrdinalIgnoreCase))
+            return "The speed suffix also matches minion and base speed lines; compact and range tiers " +
+                   "need different guards. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Critical Strike Chance", StringComparison.OrdinalIgnoreCase))
+            return "The critical-chance suffix is shared with spell/attack critical lines and base " +
+                   "properties; no line-local guard covers every form. Use an item-class scope or an " +
+                   "explicit alternation.";
+        if (display.Contains("Area of Effect", StringComparison.OrdinalIgnoreCase))
+            return "The area-of-effect suffix is shared with skill and base area lines; no line-local " +
+                   "guard covers every form. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Elemental Damage", StringComparison.OrdinalIgnoreCase))
+            return "The elemental-damage suffix is shared with weapon and minion elemental lines; no " +
+                   "line-local guard covers every form. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Gain ", StringComparison.OrdinalIgnoreCase) &&
+            display.Contains("as Extra", StringComparison.OrdinalIgnoreCase))
+            return "The gain-as-extra conversion suffix is shared with other element conversions; no " +
+                   "line-local guard covers every form. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("maximum Life", StringComparison.OrdinalIgnoreCase))
+            return "The common suffix 'maximum Life' also matches added-Life and 'Minions have ... " +
+                   "maximum Life' lines; no line-local guard covers compact and range tiers. Use an " +
+                   "item-class scope or an explicit alternation.";
+        if (display.Contains("Accuracy Rating", StringComparison.OrdinalIgnoreCase))
+            return "Compact and range tiers share 'to Accuracy Rating', which also matches added-Accuracy " +
+                   "lines; no single line-local guard covers both display forms. Use an item-class scope " +
+                   "or an explicit alternation.";
+        if (display.Contains("Elemental Resistances", StringComparison.OrdinalIgnoreCase))
+            return "The resistance suffix is shared with minion/allies and other resistance lines; " +
+                   "compact and range tiers need different guards. Use an item-class scope or an explicit " +
+                   "alternation.";
+        if (display.Contains("Chance to Block", StringComparison.OrdinalIgnoreCase))
+            return "The block suffix is shared by attack and spell block lines; compact and range tiers " +
+                   "need different guards. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Damage Penetrates", StringComparison.OrdinalIgnoreCase))
+            return "The penetration prefix is shared with elemental-resistance lines; compact and range " +
+                   "tiers need different guards. Use an item-class scope or an explicit alternation.";
+        if (display.Contains("Effect of Curses", StringComparison.OrdinalIgnoreCase))
+            return "The curse-effect suffix also matches the increased/reduced counterpart; no line-local " +
+                   "guard separates the two. Use an item-class scope or an explicit alternation.";
+        if (display.StartsWith("Adds ", StringComparison.OrdinalIgnoreCase) &&
+            display.Contains("Damage", StringComparison.OrdinalIgnoreCase))
+            return "Compact and range tiers share the added-damage suffix, which also matches other " +
+                   "added-damage stats; no line-local guard covers both display forms. Use an item-class " +
+                   "scope or an explicit alternation.";
+        if (display.Contains("Physical Damage Reduction", StringComparison.OrdinalIgnoreCase))
+            return "The shared physical-damage-reduction suffix also matches other mitigation lines; " +
+                   "compact and range tiers need different guards. Use an item-class scope or an explicit " +
+                   "alternation.";
+        return "No line-local candidate recalls every display form without matching a foreign modeled " +
+               "line. Use an item-class scope or an explicit alternation.";
+    }
+
     private static Dictionary<string, string> ParseOptions(string[] args)
     {
         var dict = new Dictionary<string, string>();
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].StartsWith("--") && i + 1 < args.Length)
+            if (!args[i].StartsWith("--")) continue;
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
             {
                 dict[args[i]] = args[i + 1];
                 i++;
+            }
+            else
+            {
+                dict[args[i]] = "1";
             }
         }
         return dict;

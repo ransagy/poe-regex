@@ -94,7 +94,7 @@ public class FamilyPickTests
     public void PlainPick_CompilesStatFragment_NamePick_CompilesAffixLiteral()
     {
         var snowy = Engine.FindMod("ColdDamagePrefixOnWeapon4")!;
-        var statLine = snowy.StatLines[0].Line;
+        var statLine = AdvancedStatLine.For(snowy.StatLines[0]);
         const string header = "{ Prefix Modifier \"Snowy\" (Tier: 4) — Elemental, Cold, Ailment }";
 
         var plain = Engine.Compile(new WantedMod(snowy.Id).Requirements(), []);
@@ -154,7 +154,8 @@ public class FamilyPickTests
         var mod = Engine.FindMod("ColdDamagePrefixOnWeapon4")!;
         var parsed = new ParsedItem("Foci", "Magic", "Built Focus", [], null, null, null, null, false, []);
         var item = new TestItem { Name = parsed.Name!, ClassId = "Focus", Parsed = parsed, Built = true };
-        item.Mapped.Add(new MappedLine(mod.StatLines[0].Line, mod.StatLines[0].Line, [], [mod.Id], mod.Id));
+        var statLine = AdvancedStatLine.For(mod.StatLines[0]);
+        item.Mapped.Add(new MappedLine(statLine, statLine, [], [mod.Id], mod.Id));
 
         item.Reheal(Engine).Should().BeTrue();
         item.MatchLines().Should().Contain("{ Prefix Modifier \"Snowy\" }");
@@ -170,7 +171,10 @@ public class FamilyPickTests
         var item = new TestItem { Name = parsed.Name!, ClassId = "Ring", Parsed = parsed, Built = true };
         foreach (var mod in new[] { life, strength })
             foreach (var sl in mod.StatLines)
-                item.Mapped.Add(new MappedLine(sl.Line, sl.Line, [], [mod.Id], mod.Id));
+            {
+                var statLine = AdvancedStatLine.For(sl);
+                item.Mapped.Add(new MappedLine(statLine, statLine, [], [mod.Id], mod.Id));
+            }
 
         item.Reheal(Engine).Should().BeTrue("the first heal adds headers");
         var healed = item.Mapped.Select(m => m.Text).ToList();

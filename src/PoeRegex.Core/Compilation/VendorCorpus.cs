@@ -7,11 +7,16 @@ namespace PoeRegex.Core.Compilation;
 /// <summary>
 /// A line from the vendor/stash searchable-text corpus. ClassId is null for
 /// lines that only participate in the global scope (currency names, etc.).
+/// <see cref="Pattern"/> is the value-agnostic catalog pattern a displayed
+/// variant belongs to (e.g. the actual roll/range form and the min/max form
+/// of one stat share the catalog's pattern). Null means the line is foreign
+/// text such as a name, caption, base property, or usage hint.
 /// </summary>
 public sealed record VendorLine(
     [property: JsonPropertyName("class")] string? ClassId,
     [property: JsonPropertyName("line")] string Line,
-    [property: JsonPropertyName("kind")] string? Kind = null);
+    [property: JsonPropertyName("kind")] string? Kind = null,
+    [property: JsonPropertyName("pattern")] string? Pattern = null);
 
 public sealed class VendorCorpusFile
 {

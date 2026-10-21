@@ -54,12 +54,12 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void DisplayLine_PrefersRange_FallsBackToLine()
+    public void DisplayLine_PrefersAdvancedRange_FallsBackToLine()
     {
         var mod = Engine.FindMod("IncreasedLife6")!;
         var sl = mod.StatLines[0];
         sl.RangeLine.Should().NotBeEmpty();
-        ModSearch.DisplayLine(sl).Should().Be(sl.RangeLine);
+        ModSearch.DisplayLine(sl).Should().Be(AdvancedStatLine.For(sl));
         var legacy = new StatLineEntry
         {
             Line = sl.Line,
@@ -123,7 +123,7 @@ public class WebDataServiceTests
         second.Query.Should().Be(first.Query);
         // Byte parity with `poe-regex generate --game poe2 --class Ring
         // --min IncreasedLife6:80 --exclude reflect`.
-        first.Query.Should().Be("\"\\+(\\d{3,}|[9-9]\\d|8[0-9]) to maximum Life\" !\"reflect\" \": Ri\"");
+        first.Query.Should().Be("\"\\+(\\d{3,}|[9-9]\\d|8[0-9])\\(\\d+-\\d+\\) to maximum Life\" !\"reflect\" \": Ri\"");
         first.Limit.Should().Be(250);
         first.Diagnostics.Should().BeEmpty();
     }
