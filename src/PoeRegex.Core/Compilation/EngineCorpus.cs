@@ -12,13 +12,13 @@ public sealed class EngineCorpus
     /// <summary>Prefix marking safety-item-only patterns (names/flavor/base).</summary>
     public const char SafetyPatternMarker = '\u0003';
     private readonly Catalog _catalog;
-    private readonly Dictionary<string, ClassIndex> _byClass;
+    private readonly Lazy<Dictionary<string, ClassIndex>> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
-    private readonly IReadOnlyList<SafetyItem> _safetyItems;
-    private readonly IReadOnlyList<VendorLine> _vendorLines;
-    private readonly HashSet<string> _vendorNormalized;
-    private readonly HashSet<string> _vendorPatterns;
-    private readonly Dictionary<string, IReadOnlyList<SearchSection>> _sectionsByClass;
+    private readonly Lazy<IReadOnlyList<SafetyItem>> _safetyItems;
+    private readonly Lazy<IReadOnlyList<VendorLine>> _vendorLines;
+    private readonly Lazy<HashSet<string>> _vendorNormalized;
+    private readonly Lazy<HashSet<string>> _vendorPatterns;
+    private readonly Lazy<Dictionary<string, IReadOnlyList<SearchSection>>> _sectionsByClass;
     private readonly Dictionary<(string Scope, string Fragment), bool> _crossLineCache = new();
     private readonly FragmentTable? _fragments;
     private HashSet<string>? _knownPatterns;
@@ -195,15 +195,20 @@ public sealed class EngineCorpus
     {
         _catalog = catalog;
         _modsById = catalog.Mods.ToDictionary(m => m.Id);
-        _safetyItems = SafetyItemCorpus.For(catalog.Game);
-        _vendorLines = VendorCorpus.For(catalog.Game)?.Lines ?? [];
-        _vendorNormalized = _vendorLines.Select(l => CatalogLineNormalizer.Normalize(l.Line))
-            .ToHashSet(StringComparer.Ordinal);
-        _vendorPatterns = _vendorLines
+        // Startup must not parse the large vendor corpus or build the
+        // per-class suffix indexes. The normal browser compile path uses the
+        // precomputed table; the oracle is materialized only when a fallback,
+        // import, or audit actually asks for it.
+        _safetyItems = new(() => SafetyItemCorpus.For(catalog.Game));
+        _vendorLines = new(() => VendorCorpus.For(catalog.Game)?.Lines ?? []);
+        _vendorNormalized = new(() => _vendorLines.Value
+            .Select(l => CatalogLineNormalizer.Normalize(l.Line))
+            .ToHashSet(StringComparer.Ordinal));
+        _vendorPatterns = new(() => _vendorLines.Value
             .Select(l => l.Pattern ?? CatalogLineNormalizer.Normalize(l.Line))
-            .ToHashSet(StringComparer.Ordinal);
-        _byClass = BuildClassIndexes(catalog, _vendorLines);
-        _sectionsByClass = BuildSearchSections(catalog, _vendorLines);
+            .ToHashSet(StringComparer.Ordinal));
+        _byClass = new(() => BuildClassIndexes(catalog, _vendorLines.Value));
+        _sectionsByClass = new(() => BuildSearchSections(catalog, _vendorLines.Value));
         _fragments = FragmentTables.For(catalog.Game);
         if (_fragments is not null &&
             !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
@@ -213,7 +218,7 @@ public sealed class EngineCorpus
     public Catalog Catalog => _catalog;
 
     /// <summary>Captured regression items (not all are in the modeled oracle).</summary>
-    public IReadOnlyList<SafetyItem> SafetyItems => _safetyItems;
+    public IReadOnlyList<SafetyItem> SafetyItems => _safetyItems.Value;
 
     /// <summary>
     /// Captured raw lines with the catalog pattern they map to. The selector
@@ -223,7 +228,7 @@ public sealed class EngineCorpus
     /// </summary>
     public IEnumerable<(string Pattern, string Raw)> SafetyLines(string? classId)
     {
-        foreach (var item in _safetyItems)
+        foreach (var item in _safetyItems.Value)
         {
             if (classId is not null)
             {
@@ -242,7 +247,7 @@ public sealed class EngineCorpus
     }
 
     /// <summary>Derived vendor/stash searchable lines used by the oracle.</summary>
-    public IReadOnlyList<VendorLine> VendorLines => _vendorLines;
+    public IReadOnlyList<VendorLine> VendorLines => _vendorLines.Value;
 
     /// <summary>
     /// True when a real line belongs to the modeled vendor corpus for a scope.
@@ -253,10 +258,10 @@ public sealed class EngineCorpus
     {
         var normalized = CatalogLineNormalizer.Normalize(line);
         if (classId is null)
-            return _vendorNormalized.Contains(normalized) ||
-                   _vendorPatterns.Contains(normalized) ||
+            return _vendorNormalized.Value.Contains(normalized) ||
+                   _vendorPatterns.Value.Contains(normalized) ||
                    KnownPatterns().Contains(normalized);
-        if (!_byClass.TryGetValue(classId, out var ci)) return false;
+        if (!_byClass.Value.TryGetValue(classId, out var ci)) return false;
         return ci.AllRealLines.Any(x =>
             string.Equals(CatalogLineNormalizer.Normalize(x.Real), normalized, StringComparison.Ordinal) ||
             string.Equals(x.Pattern, normalized, StringComparison.Ordinal));
@@ -316,7 +321,7 @@ public sealed class EngineCorpus
     /// including universal non-mod lines (used by the regex oracle).
     /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesForClass(string itemClass) =>
-        _byClass.TryGetValue(itemClass, out var ci) ? ci.AllRealLines : [];
+        _byClass.Value.TryGetValue(itemClass, out var ci) ? ci.AllRealLines : [];
 
     /// <summary>
     /// Normalized display shapes for a pattern in a scope. Ranged stats add
@@ -340,7 +345,7 @@ public sealed class EngineCorpus
     /// cross a line break; the observed implicit→explicit boundary does not.
     /// </summary>
     public IReadOnlyList<(string Kind, string Text)> SearchSectionsForClass(string itemClass) =>
-        _sectionsByClass.TryGetValue(itemClass, out var sections)
+        _sectionsByClass.Value.TryGetValue(itemClass, out var sections)
             ? sections.Select(s => (s.Kind, s.Text)).ToList()
             : [];
 
@@ -403,11 +408,11 @@ public sealed class EngineCorpus
         }
 
         IEnumerable<string> classes = itemClass is null
-            ? _sectionsByClass.Keys
+            ? _sectionsByClass.Value.Keys
             : new[] { itemClass };
         foreach (var cls in classes)
         {
-            if (!_sectionsByClass.TryGetValue(cls, out var sections)) continue;
+            if (!_sectionsByClass.Value.TryGetValue(cls, out var sections)) continue;
             foreach (var section in sections)
             {
                 // A match must contain the literal hint; skip sections that
@@ -445,7 +450,7 @@ public sealed class EngineCorpus
     /// non-mod lines (used by explain/matching; the oracle still sees all).
     /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> MatchableLinesForClass(string itemClass) =>
-        _byClass.TryGetValue(itemClass, out var ci)
+        _byClass.Value.TryGetValue(itemClass, out var ci)
             ? ci.AllRealLines.Where(x => !UniversalPatterns.Contains(x.Pattern)).ToList()
             : [];
 
@@ -495,7 +500,7 @@ public sealed class EngineCorpus
                 }
             }
         }
-        if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
+        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
         if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
         var index = caseInsensitive ? ci.FoldIndex : ci.Index;
         return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
@@ -512,7 +517,7 @@ public sealed class EngineCorpus
     {
         var entry = _catalog.ItemClasses.FirstOrDefault(c => c.Id == itemClass);
         if (!caseInsensitive && entry is not null && !string.IsNullOrEmpty(entry.BaseFingerprint)) return entry.BaseFingerprint;
-        if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
+        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
         var index = caseInsensitive ? ci.FoldIndex : ci.Index;
         return index.ShortestUniqueSubstring(ci.ClassLineIndex);
     }
@@ -526,7 +531,7 @@ public sealed class EngineCorpus
         string itemClass, string fragment, IReadOnlyCollection<string> allowedPatterns,
         bool includeSafety = true, bool includeUniversal = true)
     {
-        if (!_byClass.TryGetValue(itemClass, out var ci)) return false;
+        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return false;
         var matched = ci.Index.LinesMatching(fragment);
         var any = false;
         foreach (var lineIndex in matched)
@@ -548,7 +553,7 @@ public sealed class EngineCorpus
     /// </summary>
     public bool RegexSafeOnClass(string itemClass, string regexFragment, IReadOnlyCollection<string> allowedPatterns)
     {
-        if (!_byClass.TryGetValue(itemClass, out var ci)) return false;
+        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return false;
         var matchedAny = false;
         foreach (var (pattern, real) in ci.AllRealLines)
         {
@@ -581,7 +586,7 @@ public sealed class EngineCorpus
     {
         if (itemClass is not null)
         {
-            if (!_byClass.TryGetValue(itemClass, out var ci)) return null;
+            if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
             if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
             var index = caseInsensitive ? ci.FoldIndex : ci.Index;
             return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
@@ -621,7 +626,7 @@ public sealed class EngineCorpus
         if (literal.Length == 0) return [];
         if (itemClass is not null)
         {
-            if (!_byClass.TryGetValue(itemClass, out var ci)) return [];
+            if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return [];
             return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Index.ClassCorpus[i]).ToList();
         }
         var union = EnsureUnionIndex();
@@ -635,13 +640,13 @@ public sealed class EngineCorpus
         var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
             .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
             .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
-            .Concat(_vendorLines.Select(l => l.Pattern ?? SafetyPattern(l.Line)))
+            .Concat(_vendorLines.Value.Select(l => l.Pattern ?? SafetyPattern(l.Line)))
             .Distinct().ToList();
         patterns.Sort(StringComparer.Ordinal);
         var patternToIndex = new Dictionary<string, int>();
         for (var i = 0; i < patterns.Count; i++) patternToIndex[patterns[i]] = i;
 
-        var vendorPatterns = _vendorLines
+        var vendorPatterns = _vendorLines.Value
             .Where(l => !string.IsNullOrWhiteSpace(l.Pattern))
             .Select(l => l.Pattern!)
             .ToHashSet(StringComparer.Ordinal);
@@ -651,7 +656,7 @@ public sealed class EngineCorpus
             .Select(sl => (sl.Pattern, sl.Line))
             .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
             .Concat(_catalog.ItemClasses.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
-            .Concat(_vendorLines.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
+            .Concat(_vendorLines.Value.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
             .Distinct()
             .ToList();
 

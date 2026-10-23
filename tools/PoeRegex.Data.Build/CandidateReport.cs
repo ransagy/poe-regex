@@ -15,7 +15,7 @@ namespace PoeRegex.Data.Build;
 /// </summary>
 public static class CandidateReport
 {
-    private static readonly string[] CommonFamilies =
+    internal static readonly string[] CommonFamilies =
     [
         "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
         "LocalFireDamage", "LocalColdDamage", "LocalLightningDamage",
@@ -196,7 +196,7 @@ public static class CandidateReport
             .ToList();
 
         var current = CurrentFragment(table, family, scope, targetPatterns, catalog);
-        var options = Generate(corpus, targetLines, foreign, scope, maxLength);
+        var options = Generate(corpus, targetLines, foreign, scope, maxLength, current);
         return new ScopeResult(targetLines.Count, foreign.Count, current, options);
     }
 
@@ -268,7 +268,7 @@ public static class CandidateReport
             .FirstOrDefault();
     }
 
-    private static HashSet<string> TargetPatterns(Catalog catalog, string family, string? scope)
+    internal static HashSet<string> TargetPatterns(Catalog catalog, string family, string? scope)
     {
         var patterns = new HashSet<string>(StringComparer.Ordinal);
         foreach (var mod in catalog.Mods)
@@ -288,12 +288,11 @@ public static class CandidateReport
 
     private static List<Option> Generate(
         EngineCorpus corpus, IReadOnlyList<string> targets, IReadOnlyList<SourceLine> foreign,
-        string? scope, int maxLength)
+        string? scope, int maxLength, string? current)
     {
-        var shortest = targets[0];
-        var allStart = targets.All(t => t.StartsWith(shortest[0]));
-        var allEnd = targets.All(t => t.EndsWith(shortest[^1]));
         var candidates = new Dictionary<string, (bool Wildcard, string Hint, bool Plausible)>(StringComparer.Ordinal);
+        var allStart = false;
+        var allEnd = false;
 
         void AddCandidate(string fragment, bool wildcard, string hint, bool plausible)
         {
@@ -317,64 +316,89 @@ public static class CandidateReport
             if (allStart && allEnd) AddCandidate("^" + fragment + "$", wildcard, hint, plausible);
         }
 
-        // Literal substrings. This includes arbitrary partial words, not just full words.
-        for (var start = 0; start < shortest.Length; start++)
-        {
-            if (shortest[start] == ' ') continue;
-            for (var len = 1; len <= shortest.Length - start && len <= maxLength; len++)
-            {
-                var raw = shortest.Substring(start, len);
-                if (raw.EndsWith(' ')) continue;
-                if (!IsLiteral(raw)) continue;
-                var startsWord = start == 0 || !char.IsAsciiLetter(shortest[start - 1]);
-                var endsWord = start + len == shortest.Length || !char.IsAsciiLetter(shortest[start + len]);
-                var letters = raw.Count(char.IsAsciiLetter);
-                if (letters < 3) continue;
-                if (!startsWord && !endsWord) continue;
-                AddWithAnchors(raw, false, raw, true);
-            }
-        }
+        // The current table fragment is a useful fallback and guarantees that
+        // the experiment cannot report "none" where a shipped strict form
+        // already exists.
+        if (!string.IsNullOrWhiteSpace(current))
+            AddCandidate(current, current.Contains('.'), "", true);
 
-        var chunks = WordChunks(shortest);
-        var starts = chunks.Where(c => c.StartsWord).ToList();
-        var ends = chunks.Where(c => c.EndsWord).ToList();
-        var all = chunks.ToList();
+        // Use one representative line for every distinct display shape. This
+        // matters for ranged stats: their compact and (roll(min-max)) forms
+        // normalize differently and both must seed candidates.
+        var seeds = new List<string>();
+        var seenShapes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var line in targets.OrderBy(x => x.Length).ThenBy(x => x, StringComparer.Ordinal))
+        {
+            var shape = CatalogLineNormalizer.Normalize(line);
+            if (seenShapes.Add(shape)) seeds.Add(line);
+        }
+        if (seeds.Count == 0) seeds.Add(targets[0]);
+
         var wildcards = new List<string> { ".", ".*", ".+" };
         for (var k = 2; k <= 5; k++) wildcards.Add(new string('.', k));
 
-        // One middle wildcard: two literal pieces.
-        foreach (var a in starts)
+        foreach (var shortest in seeds)
         {
-            foreach (var b in ends)
+            allStart = targets.All(t => t.Length > 0 && t.StartsWith(shortest[0]));
+            allEnd = targets.All(t => t.Length > 0 && t.EndsWith(shortest[^1]));
+
+            // Literal substrings. This includes arbitrary partial words, not just full words.
+            for (var start = 0; start < shortest.Length; start++)
             {
-                foreach (var w in wildcards)
+                if (shortest[start] == ' ') continue;
+                for (var len = 1; len <= shortest.Length - start && len <= maxLength; len++)
                 {
-                    var frag = a.Text + w + b.Text;
-                    if (frag.Length > maxLength) continue;
-                    AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), a.StartsWord && b.EndsWord);
+                    var raw = shortest.Substring(start, len);
+                    if (raw.EndsWith(' ')) continue;
+                    if (!IsLiteral(raw)) continue;
+                    var startsWord = start == 0 || !char.IsAsciiLetter(shortest[start - 1]);
+                    var endsWord = start + len == shortest.Length || !char.IsAsciiLetter(shortest[start + len]);
+                    var letters = raw.Count(char.IsAsciiLetter);
+                    if (letters < 3) continue;
+                    if (!startsWord && !endsWord) continue;
+                    AddWithAnchors(raw, false, raw, true);
                 }
             }
-        }
 
-        // Two middle wildcards: prefix, middle word, suffix. Keep the middle
-        // piece to word-sized literals so the experiment stays bounded.
-        var mids = all.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
-                                  c.Text.Length <= 10).ToList();
-        var firsts = starts.Where(c => c.Text.Length <= 8).Take(24).ToList();
-        var lasts = ends.Where(c => c.Text.Length <= 8).Take(24).ToList();
-        foreach (var a in firsts)
-        {
-            foreach (var m in mids)
+            var chunks = WordChunks(shortest);
+            var starts = chunks.Where(c => c.StartsWord).ToList();
+            var ends = chunks.Where(c => c.EndsWord).ToList();
+            var all = chunks.ToList();
+
+            // One middle wildcard: two literal pieces.
+            foreach (var a in starts)
             {
-                foreach (var b in lasts)
+                foreach (var b in ends)
                 {
-                    foreach (var w1 in new[] { ".*", ".+" })
+                    foreach (var w in wildcards)
                     {
-                        foreach (var w2 in new[] { ".*", ".+" })
+                        var frag = a.Text + w + b.Text;
+                        if (frag.Length > maxLength) continue;
+                        AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), a.StartsWord && b.EndsWord);
+                    }
+                }
+            }
+
+            // Two middle wildcards: prefix, middle word, suffix. Keep the middle
+            // piece to word-sized literals so the experiment stays bounded.
+            var mids = all.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
+                                      c.Text.Length <= 10).ToList();
+            var firsts = starts.Where(c => c.Text.Length <= 8).Take(24).ToList();
+            var lasts = ends.Where(c => c.Text.Length <= 8).Take(24).ToList();
+            foreach (var a in firsts)
+            {
+                foreach (var m in mids)
+                {
+                    foreach (var b in lasts)
+                    {
+                        foreach (var w1 in new[] { ".*", ".+" })
                         {
-                            var frag = a.Text + w1 + m.Text + w2 + b.Text;
-                            if (frag.Length > maxLength) continue;
-                            AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), a.StartsWord && b.EndsWord);
+                            foreach (var w2 in new[] { ".*", ".+" })
+                            {
+                                var frag = a.Text + w1 + m.Text + w2 + b.Text;
+                                if (frag.Length > maxLength) continue;
+                                AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), a.StartsWord && b.EndsWord);
+                            }
                         }
                     }
                 }

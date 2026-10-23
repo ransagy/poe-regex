@@ -24,13 +24,17 @@ public sealed class FragmentMatcher
     private readonly bool _anchoredStart;
     private readonly bool _anchoredEnd;
     private readonly int _wildcardIndex;
+    private readonly System.Text.RegularExpressions.Regex? _fallback;
 
-    private FragmentMatcher(Token[] tokens, bool anchoredStart, bool anchoredEnd, int wildcardIndex)
+    private FragmentMatcher(
+        Token[] tokens, bool anchoredStart, bool anchoredEnd, int wildcardIndex,
+        System.Text.RegularExpressions.Regex? fallback)
     {
         _tokens = tokens;
         _anchoredStart = anchoredStart;
         _anchoredEnd = anchoredEnd;
         _wildcardIndex = wildcardIndex;
+        _fallback = fallback;
     }
 
     public static FragmentMatcher Parse(string fragment)
@@ -45,6 +49,7 @@ public sealed class FragmentMatcher
             i = 1;
         }
         var wildcard = -1;
+        var wildcardCount = 0;
         while (i < fragment.Length)
         {
             var c = fragment[i];
@@ -81,6 +86,7 @@ public sealed class FragmentMatcher
                 {
                     tokens.Add(new Token(TokenKind.Star, '\0'));
                     if (wildcard < 0) wildcard = tokens.Count - 1;
+                    wildcardCount++;
                     i += 2;
                     continue;
                 }
@@ -88,6 +94,7 @@ public sealed class FragmentMatcher
                 {
                     tokens.Add(new Token(TokenKind.Plus, '\0'));
                     if (wildcard < 0) wildcard = tokens.Count - 1;
+                    wildcardCount++;
                     i += 2;
                     continue;
                 }
@@ -98,11 +105,28 @@ public sealed class FragmentMatcher
             tokens.Add(new Token(TokenKind.Literal, c));
             i++;
         }
-        return new FragmentMatcher(tokens.ToArray(), start, end, wildcard);
+        System.Text.RegularExpressions.Regex? fallback = null;
+        if (wildcardCount > 1)
+        {
+            try
+            {
+                fallback = new System.Text.RegularExpressions.Regex(
+                    fragment,
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(1));
+            }
+            catch (ArgumentException)
+            {
+                // Keep the token matcher; an invalid fragment never matches.
+            }
+        }
+        return new FragmentMatcher(tokens.ToArray(), start, end, wildcard, fallback);
     }
 
     public bool IsMatch(string line)
     {
+        if (_fallback is not null) return _fallback.IsMatch(line);
         if (_wildcardIndex < 0)
             return MatchSimple(line);
         return MatchWithWildcard(line);
