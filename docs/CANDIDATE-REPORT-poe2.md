@@ -18,33 +18,33 @@ Grammar:
 
 | family | class | strict candidate | len | line-only candidate | current |
 |---|---|---|---:|---|---|
-| IncreasedLife | Belt | `ife$` | 4 | `ife$` | `maximum Life$` |
+| IncreasedLife | Belt | `ife$` | 4 | `ife$` | `ife$` |
 | IncreasedMana | Ring | `to.*M.+ana` | 10 | `to.*a$` | `\) to maximum Mana$` |
-| LocalPhysicalDamagePercent | Bow | `D....sical` | 10 | `inc.*e$` | `increased Physical Damage$` |
-| LocalFireDamage | Bow | `Fire D` | 6 | `Fi.*e$` | `Fire Damage$` |
-| LocalColdDamage | Bow | `Col..d` | 6 | `Ad.*ld` | `Cold Damage$` |
+| LocalPhysicalDamagePercent | Bow | `D....sical` | 10 | `inc.*e$` | `D....sical` |
+| LocalFireDamage | Bow | `Fire D` | 6 | `Fi.*e$` | `Fire D` |
+| LocalColdDamage | Bow | `Col..d` | 6 | `Ad.*ld` | `Col..d` |
 | LocalLightningDamage | Bow | `Adds.*ing` | 9 | `Li.*ge$` | `Lightning Damage$` |
-| LocalEnergyShield | Body Armour | `m Energy` | 8 | `max.*y` | `maximum Energy Shield$` |
-| LocalPhysicalDamageReductionRating | Body Armour | `to Ar` | 5 | `to Ar` | `\) to Armour$` |
-| LocalEvasionRating | Body Armour | `to Ev` | 5 | `to Ev` | `\) to Evasion Rating$` |
-| BaseSpirit | Amulet | `rit$` | 4 | `rit$` | `\) to Spirit$` |
-| FireResistance | Amulet | `to F` | 4 | `to F` | `Fire Resistance$` |
-| ColdResistance | Amulet | `to Co` | 5 | `to Co` | `% to Cold Resistance$` |
-| LightningResistance | Amulet | `to Li` | 5 | `to Li` | `Lightning Resistance$` |
-| ChaosResistance | Amulet | `to Ch` | 5 | `to Ch` | `Chaos Resistance$` |
-| Strength | Amulet | `gth` | 3 | `gth` | `\) to Strength$` |
-| Dexterity | Amulet | `Dext` | 4 | `Dext` | `\) to Dexterity$` |
-| Intelligence | Amulet | `Inte` | 4 | `Inte` | `\) to Intelligence$` |
-| MovementVelocity | Boots | `Mov` | 3 | `Mov` | `Movement Speed$` |
-| LocalIncreasedAttackSpeed | Bow | `eed$` | 4 | `eed$` | `Attack Speed$` |
-| LocalBaseCriticalStrikeChance | Bow | `H.nce$` | 6 | `C.*ce$` | `Hit Chance$` |
-| LocalAccuracyRating | Bow | `acy` | 3 | `acy` | `Accuracy Rating$` |
-| ManaRegeneration | Ring | `Mana R` | 6 | `Mana R` | `Mana Regeneration Rate$` |
+| LocalEnergyShield | Body Armour | `m Energy` | 8 | `max.*y` | `m Energy` |
+| LocalPhysicalDamageReductionRating | Body Armour | `to Ar` | 5 | `to Ar` | `to Ar` |
+| LocalEvasionRating | Body Armour | `to Ev` | 5 | `to Ev` | `to Ev` |
+| BaseSpirit | Amulet | `rit$` | 4 | `rit$` | `rit$` |
+| FireResistance | Amulet | `to F` | 4 | `to F` | `to F` |
+| ColdResistance | Amulet | `to Co` | 5 | `to Co` | `to Co` |
+| LightningResistance | Amulet | `to Li` | 5 | `to Li` | `to Li` |
+| ChaosResistance | Amulet | `to Ch` | 5 | `to Ch` | `to Ch` |
+| Strength | Amulet | `gth` | 3 | `gth` | `gth` |
+| Dexterity | Amulet | `Dext` | 4 | `Dext` | `Dext` |
+| Intelligence | Amulet | `Inte` | 4 | `Inte` | `Inte` |
+| MovementVelocity | Boots | `Mov` | 3 | `Mov` | `Mov` |
+| LocalIncreasedAttackSpeed | Bow | `eed$` | 4 | `eed$` | `eed$` |
+| LocalBaseCriticalStrikeChance | Bow | `H.nce$` | 6 | `C.*ce$` | `H.nce$` |
+| LocalAccuracyRating | Bow | `acy` | 3 | `acy` | `acy` |
+| ManaRegeneration | Ring | `Mana R` | 6 | `Mana R` | `Mana R` |
 
 Strict class-scope average: **5.4** characters across 22 families (max 10).
 ## IncreasedLife — Belt
 
-Targets: 22; foreign lines: 2319; current: `maximum Life$`
+Targets: 22; foreign lines: 2319; current: `ife$`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -81,7 +81,7 @@ Targets: 22; foreign lines: 2319; current: `maximum Life$`
 
 ## IncreasedLife — global
 
-Targets: 47; foreign lines: 40981; current: `\) to maximum Life$`
+Targets: 47; foreign lines: 40981; current: `o maximum Life`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -155,7 +155,7 @@ Targets: 28; foreign lines: 3404; current: `\) to maximum Mana$`
 
 ## IncreasedMana — global
 
-Targets: 102; foreign lines: 40926; current: `\) to maximum Mana$`
+Targets: 102; foreign lines: 40926; current: `to maximum M`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -192,7 +192,7 @@ Targets: 102; foreign lines: 40926; current: `\) to maximum Mana$`
 
 ## LocalPhysicalDamagePercent — Bow
 
-Targets: 34; foreign lines: 2548; current: `increased Physical Damage$`
+Targets: 34; foreign lines: 2548; current: `D....sical`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -229,7 +229,7 @@ Targets: 34; foreign lines: 2548; current: `increased Physical Damage$`
 
 ## LocalPhysicalDamagePercent — global
 
-Targets: 36; foreign lines: 40992; current: `increased Physical Damage$`
+Targets: 36; foreign lines: 40992; current: `increased Ph`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -266,7 +266,7 @@ Targets: 36; foreign lines: 40992; current: `increased Physical Damage$`
 
 ## LocalFireDamage — Bow
 
-Targets: 22; foreign lines: 2560; current: `Fire Damage$`
+Targets: 22; foreign lines: 2560; current: `Fire D`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -340,7 +340,7 @@ Targets: 44; foreign lines: 40984; current: `\) Fire Damage$`
 
 ## LocalColdDamage — Bow
 
-Targets: 22; foreign lines: 2560; current: `Cold Damage$`
+Targets: 22; foreign lines: 2560; current: `Col..d`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -488,7 +488,7 @@ Targets: 44; foreign lines: 40984; current: `\) Lightning Damage$`
 
 ## LocalEnergyShield — Body Armour
 
-Targets: 62; foreign lines: 8011; current: `maximum Energy Shield$`
+Targets: 62; foreign lines: 8011; current: `m Energy`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -562,7 +562,7 @@ Targets: 84; foreign lines: 40944; current: `\) to maximum Energy Shield$`
 
 ## LocalPhysicalDamageReductionRating — Body Armour
 
-Targets: 62; foreign lines: 8011; current: `\) to Armour$`
+Targets: 62; foreign lines: 8011; current: `to Ar`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -599,7 +599,7 @@ Targets: 62; foreign lines: 8011; current: `\) to Armour$`
 
 ## LocalPhysicalDamageReductionRating — global
 
-Targets: 84; foreign lines: 40944; current: `\) to Armour$`
+Targets: 84; foreign lines: 40944; current: `to Ar`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -636,7 +636,7 @@ Targets: 84; foreign lines: 40944; current: `\) to Armour$`
 
 ## LocalEvasionRating — Body Armour
 
-Targets: 62; foreign lines: 8011; current: `\) to Evasion Rating$`
+Targets: 62; foreign lines: 8011; current: `to Ev`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -673,7 +673,7 @@ Targets: 62; foreign lines: 8011; current: `\) to Evasion Rating$`
 
 ## LocalEvasionRating — global
 
-Targets: 80; foreign lines: 40948; current: `\) to Evasion Rating$`
+Targets: 80; foreign lines: 40948; current: `o Evasion Rating$`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -712,7 +712,7 @@ tenth of their maximum Life as Fire Damage` |
 
 ## BaseSpirit — Amulet
 
-Targets: 12; foreign lines: 3645; current: `\) to Spirit$`
+Targets: 12; foreign lines: 3645; current: `rit$`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -749,7 +749,7 @@ Targets: 12; foreign lines: 3645; current: `\) to Spirit$`
 
 ## BaseSpirit — global
 
-Targets: 22; foreign lines: 41006; current: `\) to Spirit$`
+Targets: 22; foreign lines: 41006; current: `to Spi`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -786,7 +786,7 @@ Targets: 22; foreign lines: 41006; current: `\) to Spirit$`
 
 ## FireResistance — Amulet
 
-Targets: 16; foreign lines: 3641; current: `Fire Resistance$`
+Targets: 16; foreign lines: 3641; current: `to F`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -823,7 +823,7 @@ Targets: 16; foreign lines: 3641; current: `Fire Resistance$`
 
 ## FireResistance — global
 
-Targets: 20; foreign lines: 41008; current: `% to Fire Resistance$`
+Targets: 20; foreign lines: 41008; current: `to Fire R`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -860,7 +860,7 @@ Targets: 20; foreign lines: 41008; current: `% to Fire Resistance$`
 
 ## ColdResistance — Amulet
 
-Targets: 16; foreign lines: 3641; current: `% to Cold Resistance$`
+Targets: 16; foreign lines: 3641; current: `to Co`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -897,7 +897,7 @@ Targets: 16; foreign lines: 3641; current: `% to Cold Resistance$`
 
 ## ColdResistance — global
 
-Targets: 21; foreign lines: 41007; current: `% to Cold Resistance$`
+Targets: 21; foreign lines: 41007; current: `to Cold R`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -934,7 +934,7 @@ Targets: 21; foreign lines: 41007; current: `% to Cold Resistance$`
 
 ## LightningResistance — Amulet
 
-Targets: 16; foreign lines: 3641; current: `Lightning Resistance$`
+Targets: 16; foreign lines: 3641; current: `to Li`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -971,7 +971,7 @@ Targets: 16; foreign lines: 3641; current: `Lightning Resistance$`
 
 ## LightningResistance — global
 
-Targets: 21; foreign lines: 41007; current: `% to Lightning Resistance$`
+Targets: 21; foreign lines: 41007; current: `to Lightning R`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1008,7 +1008,7 @@ Targets: 21; foreign lines: 41007; current: `% to Lightning Resistance$`
 
 ## ChaosResistance — Amulet
 
-Targets: 12; foreign lines: 3645; current: `Chaos Resistance$`
+Targets: 12; foreign lines: 3645; current: `to Ch`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1082,7 +1082,7 @@ Targets: 32; foreign lines: 40996; current: `% to Chaos Resistance$`
 
 ## Strength — Amulet
 
-Targets: 18; foreign lines: 3639; current: `\) to Strength$`
+Targets: 18; foreign lines: 3639; current: `gth`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1119,7 +1119,7 @@ Targets: 18; foreign lines: 3639; current: `\) to Strength$`
 
 ## Strength — global
 
-Targets: 22; foreign lines: 41006; current: `\) to Strength$`
+Targets: 22; foreign lines: 41006; current: `to Str`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1156,7 +1156,7 @@ Targets: 22; foreign lines: 41006; current: `\) to Strength$`
 
 ## Dexterity — Amulet
 
-Targets: 18; foreign lines: 3639; current: `\) to Dexterity$`
+Targets: 18; foreign lines: 3639; current: `Dext`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1193,7 +1193,7 @@ Targets: 18; foreign lines: 3639; current: `\) to Dexterity$`
 
 ## Dexterity — global
 
-Targets: 20; foreign lines: 41008; current: `\) to Dexterity$`
+Targets: 20; foreign lines: 41008; current: `to De`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1230,7 +1230,7 @@ Targets: 20; foreign lines: 41008; current: `\) to Dexterity$`
 
 ## Intelligence — Amulet
 
-Targets: 18; foreign lines: 3639; current: `\) to Intelligence$`
+Targets: 18; foreign lines: 3639; current: `Inte`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1267,7 +1267,7 @@ Targets: 18; foreign lines: 3639; current: `\) to Intelligence$`
 
 ## Intelligence — global
 
-Targets: 20; foreign lines: 41008; current: `\) to Intelligence$`
+Targets: 20; foreign lines: 41008; current: `to Int`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1304,7 +1304,7 @@ Targets: 20; foreign lines: 41008; current: `\) to Intelligence$`
 
 ## MovementVelocity — Boots
 
-Targets: 9; foreign lines: 5584; current: `Movement Speed$`
+Targets: 9; foreign lines: 5584; current: `Mov`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1366,7 +1366,7 @@ None.
 
 ## LocalIncreasedAttackSpeed — Bow
 
-Targets: 12; foreign lines: 2570; current: `Attack Speed$`
+Targets: 12; foreign lines: 2570; current: `eed$`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1428,7 +1428,7 @@ None.
 
 ## LocalBaseCriticalStrikeChance — Bow
 
-Targets: 10; foreign lines: 2572; current: `Hit Chance$`
+Targets: 10; foreign lines: 2572; current: `H.nce$`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1465,7 +1465,7 @@ Targets: 10; foreign lines: 2572; current: `Hit Chance$`
 
 ## LocalBaseCriticalStrikeChance — global
 
-Targets: 12; foreign lines: 41016; current: `% to Critical Hit Chance$`
+Targets: 12; foreign lines: 41016; current: `to Critical H`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1502,7 +1502,7 @@ Targets: 12; foreign lines: 41016; current: `% to Critical Hit Chance$`
 
 ## LocalAccuracyRating — Bow
 
-Targets: 42; foreign lines: 2540; current: `Accuracy Rating$`
+Targets: 42; foreign lines: 2540; current: `acy`
 
 ### Strict (zero foreign, no cross-line)
 
@@ -1564,7 +1564,7 @@ None.
 
 ## ManaRegeneration — Ring
 
-Targets: 20; foreign lines: 3412; current: `Mana Regeneration Rate$`
+Targets: 20; foreign lines: 3412; current: `Mana R`
 
 ### Strict (zero foreign, no cross-line)
 

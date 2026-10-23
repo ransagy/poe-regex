@@ -159,6 +159,16 @@ public static class Program
             GlobalUnresolved = globalUnresolved,
             ByClassUnresolved = byClassUnresolved,
         };
+        if (opts.ContainsKey("--representative-class"))
+        {
+            CandidateReport.ApplyRepresentativeClassCandidates(corpus, catalog, table);
+            Console.WriteLine("  applied representative-class strict candidates");
+        }
+        if (opts.ContainsKey("--representative-global"))
+        {
+            CandidateReport.ApplyRepresentativeGlobalCandidates(corpus, catalog, table);
+            Console.WriteLine("  applied representative-global strict candidates");
+        }
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, System.Text.Json.JsonSerializer.Serialize(
             table, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));

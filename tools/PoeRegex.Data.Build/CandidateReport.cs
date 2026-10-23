@@ -200,6 +200,124 @@ public static class CandidateReport
         return new ScopeResult(targetLines.Count, foreign.Count, current, options);
     }
 
+    /// <summary>
+    /// Use the strict candidate found for a common family's global scope as a
+    /// seed for each of that family's global patterns. Each application is
+    /// revalidated against the full global line set.
+    /// </summary>
+    public static void ApplyRepresentativeGlobalCandidates(
+        EngineCorpus corpus, Catalog catalog, FragmentTable table, int maxLength = 24)
+    {
+        foreach (var family in CommonFamilies)
+        {
+            var result = Analyze(corpus, catalog, table, family, null, maxLength);
+            if (result is null) continue;
+            var candidate = result.Value.Options
+                .Where(o => o.Plausible && o.ForeignLines == 0 && !o.HasCross)
+                .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
+                .Select(o => o.Fragment).FirstOrDefault();
+            if (candidate is null) continue;
+            var patterns = TargetPatterns(catalog, family, null);
+            var all = ScopeLines(corpus, null);
+            foreach (var pattern in patterns)
+            {
+                var targets = all.Where(x => x.Pattern == pattern).Select(x => x.Real)
+                    .Distinct(StringComparer.Ordinal).ToList();
+                if (targets.Count == 0) continue;
+                var foreign = all.Where(x => x.Pattern != pattern).Select(x => (x.Pattern, x.Real)).ToList();
+                if (!CandidateMatches(corpus, null, candidate, targets, foreign)) continue;
+                var current = table.Global.GetValueOrDefault(pattern);
+                if (current is null || candidate.Length < current.Length)
+                    table.Global[pattern] = candidate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Use the strict candidate found for a representative class as a seed for
+    /// every class in the same common family. Each application is revalidated
+    /// against that class's target and foreign lines; unsafe applications are
+    /// left at the current table value.
+    /// </summary>
+    public static void ApplyRepresentativeClassCandidates(
+        EngineCorpus corpus, Catalog catalog, FragmentTable table, int maxLength = 24)
+    {
+        foreach (var family in CommonFamilies)
+        {
+            var rep = RepresentativeClasses.GetValueOrDefault(family, FirstClassFor(catalog, family));
+            if (rep.Length == 0) continue;
+            var result = Analyze(corpus, catalog, table, family, rep, maxLength);
+            if (result is null) continue;
+            var candidate = result.Value.Options
+                .Where(o => o.Plausible && o.ForeignLines == 0 && !o.HasCross)
+                .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
+                .Select(o => o.Fragment).FirstOrDefault();
+            if (candidate is null) continue;
+
+            foreach (var cls in catalog.ItemClasses)
+            {
+                var patterns = TargetPatterns(catalog, family, cls.Id);
+                if (patterns.Count == 0) continue;
+                var all = ScopeLines(corpus, cls.Id);
+                if (!table.ByClass.TryGetValue(cls.Id, out var map))
+                {
+                    map = new Dictionary<string, string>(StringComparer.Ordinal);
+                    table.ByClass[cls.Id] = map;
+                }
+                foreach (var pattern in patterns)
+                {
+                    var targets = all.Where(x => x.Pattern == pattern).Select(x => x.Real)
+                        .Distinct(StringComparer.Ordinal).ToList();
+                    if (targets.Count == 0) continue;
+                    if (!CandidateMatches(corpus, cls.Id, candidate, targets,
+                            all.Where(x => x.Pattern != pattern).Select(x => (x.Pattern, x.Real)).ToList()))
+                        continue;
+                    var current = map.GetValueOrDefault(pattern);
+                    if (current is null || candidate.Length < current.Length)
+                        map[pattern] = candidate;
+                }
+            }
+        }
+    }
+
+    private static bool CandidateMatches(
+        EngineCorpus corpus, string? scope, string candidate,
+        IReadOnlyList<string> targets, IReadOnlyList<(string Pattern, string Real)> foreign)
+    {
+        Regex regex;
+        try
+        {
+            regex = new Regex(candidate,
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(100));
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        if (!targets.All(regex.IsMatch)) return false;
+        foreach (var (_, real) in foreign)
+            if (regex.IsMatch(real)) return false;
+        if (candidate.Contains('.'))
+        {
+            if (!corpus.CrossLineSafe(scope, candidate)) return false;
+            if (CrossCaptured(corpus, scope, candidate)) return false;
+        }
+        return true;
+    }
+
+    private static List<SourceLine> ScopeLines(EngineCorpus corpus, string? scope)
+    {
+        var all = new List<SourceLine>();
+        if (scope is null)
+            all.AddRange(corpus.RealLinesGlobal().Select(x => new SourceLine(x.Pattern, x.Real)));
+        else
+            all.AddRange(corpus.RealLinesForClass(scope).Select(x => new SourceLine(x.Pattern, x.Real)));
+        foreach (var (pattern, raw) in corpus.SafetyLines(scope))
+            all.Add(new SourceLine(pattern, raw));
+        return all;
+    }
+
     private static void WriteScope(StringBuilder sb, string family, string? scope, ScopeResult result, bool isGlobal)
     {
         sb.AppendLine($"## {family}{(isGlobal ? " — global" : " — " + scope)}");
