@@ -80,7 +80,7 @@ For consuming `PoeRegex.Core` as a library in your own project, see
 - Select the shortest unique fingerprint per selected mod from the catalog; `MinValue` → digit-range pattern from the mod's value span, re-validated for uniqueness.
 - Common-prefix factorization via trie (`m(ana|ax)` style) to reduce length.
 - Vowel-stripping heuristic gated by the uniqueness oracle, **off by default** (correctness first).
-- **False-positive oracle:** every emitted fragment is asserted to match no other line in the class corpus (suffix index built at load). Property tests enforce this over all catalogs.
+- **False-positive oracle:** every emitted fragment is asserted to match no other line in the scope. The scope is the line-scoped vendor/stash corpus (regular/corrupted/essence/crafted/implicit mods, base item text, affix captions, and universal lines); unique-only text, flavour, and rare names are excluded and reported as unmodeled. Property tests enforce the modeled checks over both catalogs.
 - Output is fully deterministic (stable for tests and reproducible builds).
 
 ## 7. CLI (`src/PoeRegex.Cli`)

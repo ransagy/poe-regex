@@ -45,7 +45,7 @@ public sealed class Explainer
                 kinds[i] = "excluded";
                 continue;
             }
-            if (matches.Count == 0 && MatchedClasses(phrase).Count > 0)
+            if (matches.All(m => m.ModIds.Count == 0) && MatchedClasses(phrase).Count > 0)
             {
                 kinds[i] = "class";
             }

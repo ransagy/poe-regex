@@ -38,7 +38,7 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void FilterMods_SearchesNameIdAndLine_CaseInsensitively()
+    public void FilterMods_SearchesNameAndLine_CaseInsensitively()
     {
         var ring = Engine.ModsForClass("Ring");
         var byName = ModSearch.FilterMods(ring, "brute");
@@ -48,6 +48,8 @@ public class WebDataServiceTests
 
         var byLine = ModSearch.FilterMods(ring, "maximum Life");
         byLine.Should().Contain(m => m.Id == "IncreasedLife6");
+        ModSearch.FilterMods(ring, "IncreasedLife6").Should().BeEmpty(
+            "internal mod IDs are not user-facing search text");
 
         ModSearch.FilterMods(ring, "   ").Should().HaveCount(ring.Count);
         ModSearch.FilterMods(ring, "zzz-no-such-mod").Should().BeEmpty();
@@ -123,7 +125,7 @@ public class WebDataServiceTests
         second.Query.Should().Be(first.Query);
         // Byte parity with `poe-regex generate --game poe2 --class Ring
         // --min IncreasedLife6:80 --exclude reflect`.
-        first.Query.Should().Be("\"\\+(\\d{3,}|[9-9]\\d|8[0-9]) to maximum Life\" !\"reflect\" \": Ri\"");
+        first.Query.Should().Be("\"\\+(\\d{3,}|[9-9]\\d|8[0-9])\\(\\d+-\\d+\\) to maximum Life\" !\"reflect\" \": Ri\"");
         first.Limit.Should().Be(250);
         first.Diagnostics.Should().BeEmpty();
     }

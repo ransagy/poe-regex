@@ -191,7 +191,10 @@
             var header = ItemTextParser.CatalogModHeader(mod);
             item.Mapped.Add(new MappedLine(header, header, [], [], id, IsHeader: true));
             foreach (var s in mod.StatLines)
-                item.Mapped.Add(new MappedLine(s.Line, s.Line, [], [id], id));
+            {
+                var line = AdvancedStatLine.For(s);
+                item.Mapped.Add(new MappedLine(line, line, [], [id], id));
+            }
         }
         return item;
     }

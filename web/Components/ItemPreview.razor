@@ -1,3 +1,4 @@
+@using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 
@@ -188,7 +189,7 @@
         if (ml?.SelectedModId is not null)
         {
             var stat = Engine.FindMod(ml.SelectedModId)?.StatLines
-                .FirstOrDefault(s => s.Line == ml.Text);
+                .FirstOrDefault(s => s.Line == ml.Text || AdvancedStatLine.For(s) == ml.Text);
             if (stat is not null) return ModSearch.DisplayLine(stat);
         }
         return raw;

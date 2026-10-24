@@ -43,7 +43,7 @@ The Pages project has Cloudflare Web Analytics enabled, so Pages injects its
 cookieless beacon into the served HTML. It is not part of the app source; if
 you host your own copy, disable it in the project settings or leave it out.
 The build also ships `license.txt`, `notice.txt` and `provenance.md`, linked
-from the Advanced panel.
+from the More info panel.
 
 ## Load the five real sample items
 
@@ -61,7 +61,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 131 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 134 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -77,12 +77,21 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 ## Layout (`web/`)
 
 - `Pages/Home.razor` — workbench wiring (modes, tasks, highlight, persistence).
-  The mode strip holds the mode buttons on the left and the compiled-query
-  box filling the rest of the row (one-line ellipsized regex with the full
-  text in its title, length meter, copy); per-slot queries for Advanced
-  live below.
-- `Components/` — `PaperDoll` (10 gear slots; multi = click to focus, chips
-  enroll, X clears), `BackpackGrid` (12×5 test area; integer-snapped square
+  The page is one left-aligned flow: mode (two unboxed options that state
+  their meaning — "same mods for every item" / "different mods per slot"),
+  criteria (simple: the picker alone; advanced: doll | picker, doll first,
+  starting unfocused with "click a slot on the doll to pick its mods"),
+  picks rail, search string, test items, backpack. The search-string bar
+  carries a local "copy → paste into the game's item search" hint, the regex
+  with the k/N meter (red `OVER`) and copy; the scope is silent in simple and
+  names the slots in advanced (`Helmet + Boots`, `4 slots`). Before the first
+  pick it says "nothing to show yet — pick mods to build the string". Per-slot
+  queries for More info live below.
+- `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
+  edit it, slots with picks enroll and fill, X clears; weapon/offhand
+  always carry their base-class select above the slot label inside the
+  card),
+  `BackpackGrid` (12×5 test area; integer-snapped square
   cells span the full width in the stacked layout and a bounded column under
   the paper doll from 1500px up — when the
   window is too short the pack area scrolls internally, never the page;
@@ -94,24 +103,37 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   name, class · rarity line, base stats, requires / item level / sockets /
   granted skill, rebuilt mod headers with tier and tags, blue mod lines, a
   corrupted footer, and an optional per-line annotation slot; the card is
-  the tooltip's scroll region so its border stays put), `ModeSwitch`,
-  `ClassPicker`,
-  `ModPicker` (searchable mods grouped into stat families: one row per
-  family with a PREFIX/SUFFIX tag and the stat text with its numbers dropped
+  the tooltip's scroll region so its border stays put), `ModeSwitch` (two
+  stacked options — simple = same mods everywhere, advanced = per-slot mods),
+  `HelpTip` (the test-items `(?)` card — click to open, backdrop or Escape to
+  close), `PicksRail` (the picks rail above the result: a `selected mods`
+  header, chips, pagers, clear; it never repeats the result's slot scope), `ModPicker` (searchable mods
+  grouped into stat families: one row per family with the stat text with its
+  numbers dropped
   (`+ to maximum Life`, `% increased Physical Damage`; multi-line families
   stack their lines) — the row is a plain-text toggle (`▸`/`▾`
-  caret) with a tier-count badge, a `+` for the plain stat (any tier) and a
-  `−` for the whole family; expanding shows the tiers, each with the affix
-  name and its real range, where `+` compiles the affix-name literal
+  caret) with a dim tier count, a quiet `+` for the plain stat (any tier,
+  compiled across every tier variant) and
+  a dim `−` for the whole family; expanding shows the tiers, each with the
+  affix name and its real range, where `+` compiles the affix-name literal
   (specific tier), `↑` compiles that name and every better tier
   (`… or better`, by required level), `−` excludes by name; chips join a
-  multi-line family with `/`; with a filter typed, a `++` cap on the search
+  multi-line family with `/`; rows sit under sticky `PREFIXES` / `SUFFIXES`
+  headers (two columns when the editor is wide, stacked when narrow; no
+  per-row tags) and the family tooltip names the content (`show 6 tiers:
+  % increased Movement Speed`); with a filter typed, a `++` cap on the search
   box's right edge adds every matching family in one batch (disabled, with the
   prospective k/N in its tooltip, when that would exceed the game's
-  250-character limit; one match keeps the row's own `+`); one column, or
-  two when the editor column is wide enough — and the list
-  stretches/scrolls to fill the editor's height; typing filters tiers,
-  so `reliable` narrows to the family(ies) carrying that affix), `QueryCard`
+  250-character limit; the preview handles up to 64 matches and larger sets
+  stay visible but disabled with the budget message; one match keeps the
+  row's own `+`); before typing,
+  only a short curated shortlist shows ("showing common picks — type to
+  search all 194 families"); a one-letter filter keeps matching families
+  collapsed, two-plus letters auto-expand at most 8 families, and the `++`
+  preview is capped at 64 matches so a broad first letter never compiles the
+  whole catalog; the list stretches/scrolls to fill the editor's height;
+  typing filters tiers, so `reliable` narrows to the family(ies) carrying
+  that affix), `QueryCard`
   (meter with the OVER state, copy, explain), `ImportPanel`
   (paste one advanced description, or several at once — a multi-item paste
   previews as `‹ card ›` with the `k / N` counter centered above the card
@@ -131,26 +153,69 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   because a height-constrained multicol spills phantom columns sideways
   instead of scrolling down; Save adds exactly the card shown; both modals
   reject when the backpack is full). Backpack
-  tools row: import, assemble, and remove (acts on the pinned item).
-- The editor keeps one rhythm: the mode bar, the `BASE CLASS` selector and
-  the mod picker are spaced with the same 0.5rem gap (the chips row renders
-  only when it has picks); in global mode a hidden mirror of the field
-  (same select styles, `visibility: hidden`) keeps the geometry
-  pixel-identical, so switching modes never shifts the picker.
-- Picks live in a one-line rail that sits permanently between the text filter
-  and the mod list — present but inert with no picks (pagers at `+0`, clear
-  disabled) — and it never wraps or grows, so a large pick set can't push the
-  picker out of the panel. Directional SVG-chevron pagers sit in reserved
-  gutters and always show the true count — gold-accented and clickable when
-  there is something that way, dashed and grayed when there isn't — and page
-  by chip-aligned windows (the rail scrollbar is hidden; the mouse wheel
-  scrolls it sideways, and at the rail's ends the wheel does nothing — the
-  family list is deliberately not wheel-linked; trackpad and keyboard focus
-  work as usual). `clear` carries the destructive red at rest (gray when
-  disabled) and is pinned beside the rail; adding picks never moves the rail,
-  and removals keep the leading chip pinned (best effort). The compiled-query
-  box keeps its value when over budget: the full string stays, the `k/N`
-  meter shows the red `OVER` state, and copy stays enabled.
+  tools row: a left-aligned `Test items` label with its own `(?)` card, a
+  real gap, then import, assemble, and remove (acts on the pinned item), with
+  breathing room above the backpack.
+- The page uses a persisted display scale (100 / 115 / 130%, default 115%
+  on desktop and 100% on phone-width screens) applied as body zoom. When the
+  scaled content no longer fits the viewport the page scrolls and the bench
+  takes its natural height (1920x1080 at 115% still fits without page scroll;
+  1600x900 at 115% scrolls); phone/narrow screens stack the advanced doll
+  above the picker and let the filter, result, test items, and backpack flow
+  down the page. The scale select sits at the right of the header, before the
+  GitHub link.
+- The flow is one left-aligned column: mode → criteria (advanced splits into
+  doll | picker) → picks rail → search string → test items → backpack. The
+  rail sits directly above the result ("this is what you chose, this is what
+  it makes") and stays present but inert with no picks (pagers at `+0`,
+  clear disabled). There is no separate base-class row: simple is classless,
+  and in advanced weapon/offhand always carry their class select above the
+  slot label inside the card (every other slot is 1:1 with its class).
+- Fragments are chosen by `FragmentSelector` (Core) with the absolute
+  shortest search: every contiguous substring, anchored prefix/suffix, 0-2
+  wildcard bridges, and `\d`/`\d+`/`.` placeholder rendering is tried in the
+  scope, and the shortest candidate that recalls all of the stat's real lines
+  and matches no foreign line wins. There is no word or start-anchor rule.
+  The oracle is line-scoped. The model is the derived **vendor/stash corpus**
+  (`data/catalogs/poe*.vendor-corpus.json`): regular/corrupted/essence/
+  crafted/implicit item mods, base item names/properties/implicits/
+  requirements/grants, regular affix captions/tags, and universal usage.
+  Unique-only mods/names/captions, flavour text, and rare item names are
+  deliberately excluded. They remain **unmodeled**, not silently accepted;
+  the captured-item audit reports matches in that category separately.
+  The 867 per-scope results are precomputed into versioned tables
+  (`data/catalogs/poe*.fragments.json`, regenerated with
+  `dotnet run --project tools/PoeRegex.Data.Build -- corpus --game poe2`
+  followed by `... -- fragments --game poe2`); a version match makes the
+  browser lookup instant, and a stale table fails the audit. Current examples:
+  `Adds # to # Cold Damage` → `\d Co.+ge$` (10), the attacks variant →
+  `ld.+ks` (6), `#% increased Armour` → `^\d.+d Armour$` (14),
+  `#% increased maximum Life` → `^\d.+m Life$` (12), and the Allies
+  resistances line → `P.+l E` (6). The catalog audit
+  (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
+  scope/pattern fragments with .NET Regex, 1,029 captured-item modeled
+  checks, 2,104 simple/slot compiles, 788 family flows, and 210 class-pair
+  pastes; the in-game rare-name/unique check remains manual and is reported
+  as unmodeled.
+- Picks live in a one-line rail that never wraps or grows, so a large pick
+  set can't push the picker out of the panel. Directional SVG-chevron pagers
+  sit in reserved gutters and always show the true count — gold-accented and
+  clickable when there is something that way, dashed and grayed when there
+  isn't — and page by chip-aligned windows (the rail scrollbar is hidden; the
+  mouse wheel scrolls it sideways, and at the rail's ends the wheel does
+  nothing — the family list is deliberately not wheel-linked; trackpad and
+  keyboard focus work as usual). `clear` carries the destructive red at rest
+  (gray when disabled) and is pinned beside the rail; adding picks never
+  moves the rail, and removals keep the leading chip pinned (best effort).
+  A tier chip shows the quoted affix name plus the tier's description/range
+  (e.g. `"Frosted" — Adds 1-2 to 3-4 Cold Damage / Adds 2-3 to 4-6 Cold
+  Damage`); an “or better” pick puts the higher-tier count in a separate
+  `↑N` badge instead of next to the stat range. The full removal description
+  and the higher-tier names remain in the native tooltip.
+  In advanced the rail names its slot ("helmet picks"); it is empty (and
+  hintless) until a slot is focused. The compiled-query box keeps its value
+  when over budget: the full string stays, the `k/N` meter shows the red
+  `OVER` state, and copy stays enabled.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
   disables the whole mod list and the search (the list dims; Save still

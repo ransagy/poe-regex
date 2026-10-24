@@ -1,4 +1,5 @@
 using PoeRegex.Core.Compilation;
+using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
@@ -24,7 +25,7 @@ public class CombineServiceTests
         paste.Groups.Should().HaveCount(1, "only the modded ring gets an explicit group");
         paste.Groups[0].TargetClasses.Should().Equal(["Ring"]);
 
-        var lifeLine = Engine.FindMod("IncreasedLife6")!.StatLines[0].Line;
+        var lifeLine = AdvancedStatLine.For(Engine.FindMod("IncreasedLife6")!.StatLines[0]);
         ItemMatcher.Match(paste.Query, [lifeLine, "Item Class: Rings"])
             .Match.Should().BeTrue("ring with life satisfies anchor + ring group");
         ItemMatcher.Match(paste.Query, ["Item Class: Rings"])
@@ -68,7 +69,7 @@ public class CombineServiceTests
             return new TestItem { Name = name, ClassId = classId, Parsed = parsed };
         }
 
-        var moveLine = Engine.FindMod(moveId)!.StatLines[0].Line;
+        var moveLine = AdvancedStatLine.For(Engine.FindMod(moveId)!.StatLines[0]);
         var builtBoot = Item("Boots", "Boots", "Built Boots");
         builtBoot.Mapped.Add(new MappedLine(moveLine, moveLine, [], [moveId], moveId));
         ItemMatcher.Match(paste.Query, builtBoot.MatchLines()).Match
@@ -89,7 +90,7 @@ public class CombineServiceTests
         imported.Mapped.Add(new MappedLine(moveLine, moveLine, [], [moveId], moveId));
         imported.MatchLines().Count(l => l == moveLine).Should().Be(1, "parsed and mapped copies dedupe");
 
-        var projLine = Engine.FindMod(projId)!.StatLines[0].Line;
+        var projLine = AdvancedStatLine.For(Engine.FindMod(projId)!.StatLines[0]);
         var builtXbow = Item("Crossbows", "Crossbow", "Built Crossbow");
         builtXbow.Mapped.Add(new MappedLine(projLine, projLine, [], [projId], projId));
         ItemMatcher.Match(paste.Query, builtXbow.MatchLines()).Match

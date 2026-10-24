@@ -1,0 +1,139 @@
+@using PoeRegex.Core.Data
+@using PoeRegex.Web.Core
+@inject IJSRuntime JS
+
+@* The picks rail lives next to the result ("this is what you chose, this is
+   what it makes"). It stays present even when empty: pagers at +0, clear
+   disabled; the "use +" hint only where a picker is actually available. *@
+<div class="chips-row" id="@RailRowId">
+    @if (Label is not null)
+    {
+        <span class="picks-label">@Label</span>
+    }
+    <button type="button" class="chips-more start" data-dir="-1" aria-label="show earlier picks" disabled>
+        <svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M6.5 1.5L2 6l4.5 4.5" /></svg><span class="n">+0</span>
+    </button>
+    <div class="chips" aria-label="Wanted mods">
+        @foreach (var inc in crit.Included)
+        {
+            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
+                    title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+                @if (inc.IsNamePick)
+                {
+                    <span class="chip-name">"@inc.Names![0]"</span>
+                    @if (inc.Names.Count > 1)
+                    {
+                        <span class="chip-tiers" title="@($"{inc.Names.Count - 1} higher tiers included")">↑@(inc.Names.Count - 1)</span>
+                    }
+                    @if (ChipRange(inc) is { Length: > 0 } range)
+                    {
+                        <span class="chip-range">@range</span>
+                    }
+                }
+                else
+                {
+                    @ChipLabel(inc)
+                }
+            </button>
+        }
+        @foreach (var exc in crit.Excluded)
+        {
+            <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+                    @onclick="() => State.RemoveExclude(Scope, exc)">
+                !@DisplayFor(exc)
+            </button>
+        }
+        @if (ShowHint && crit.Included.Count + crit.Excluded.Count == 0)
+        {
+            <span class="chips-empty">use + to add a pick</span>
+        }
+    </div>
+    <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
+        <span class="n">+0</span><svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1.5 1.5L6 6l-4.5 4.5" /></svg>
+    </button>
+    <button class="chip clear" id="chips-clear-@Scope"
+            disabled="@(crit.Included.Count + crit.Excluded.Count == 0)"
+            @onclick="() => State.ClearChips(Scope)">clear</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    /// <summary>Scope the picks belong to: a slot id, or null for simple mode.</summary>
+    [Parameter]
+    public string? Scope { get; set; }
+
+    /// <summary>Typeahead source for the scope (needed to name excluded terms).</summary>
+    [Parameter, EditorRequired]
+    public required IReadOnlyList<ModEntry> Mods { get; set; }
+
+    /// <summary>Show the "use +" hint when empty (only where a picker exists).</summary>
+    [Parameter]
+    public bool ShowHint { get; set; }
+
+    /// <summary>Rail header, e.g. "selected mods".</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    private string RailRowId => $"chips-row-{Scope ?? "global"}";
+
+    private SlotCriteria crit => State.CriteriaFor(Scope);
+
+    private IReadOnlyList<ModFamily> _families = [];
+
+    protected override void OnParametersSet() => _families = ModFamilies.Group(Mods);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
+        }
+        catch
+        {
+            // No JS yet (static render) — the next interactive render syncs.
+        }
+    }
+
+    /// <summary>Plain picks show the family's unioned stat text (what they
+    /// match, any tier); name picks show the quoted affix name(s).</summary>
+    private string DisplayFor(string modId)
+    {
+        var mod = Mods.FirstOrDefault(m => m.Id == modId);
+        if (mod is null) return modId;
+        var fam = _families.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(mod));
+        return fam?.DisplayText
+               ?? (mod.StatLines.Count > 0 ? ModSearch.DisplayLine(mod.StatLines[0]) : mod.Id);
+    }
+
+    private string ChipKey(WantedMod pick) =>
+        pick.IsNamePick ? $"{pick.ModId}-n{pick.Names!.Count}" : pick.ModId;
+
+    private ModTier? TierFor(WantedMod pick) =>
+        _families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == pick.ModId);
+
+    private string ChipLabel(WantedMod pick) => pick.IsNamePick
+        ? $"\"{pick.Names![0]}\""
+        : DisplayFor(pick.ModId);
+
+    private string ChipRange(WantedMod pick)
+    {
+        var tier = TierFor(pick);
+        return tier is null ? "" : "— " + string.Join(" / ", tier.DisplayLines);
+    }
+
+    private string ChipTitle(WantedMod pick)
+    {
+        if (!pick.IsNamePick) return $"remove {DisplayFor(pick.ModId)} (any tier)";
+        var tier = TierFor(pick);
+        var label = pick.Names!.Count == 1
+            ? $"remove \"{pick.Names[0]}\""
+            : $"remove \"{pick.Names[0]}\" ({pick.Names.Count - 1} higher tiers)";
+        if (tier is null) return label;
+        var text = $"{label} — {string.Join(" / ", tier.DisplayLines)}";
+        if (pick.Names!.Count > 1)
+            text += "\ntier or better: " + string.Join(", ", pick.Names);
+        return text;
+    }
+}

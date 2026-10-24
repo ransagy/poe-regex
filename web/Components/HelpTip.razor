@@ -1,0 +1,47 @@
+@using Microsoft.AspNetCore.Components.Web
+
+@* A small (?) that opens a readable card — click to open, click outside or
+   press Escape to close. Used sparingly: one per region that needs more than
+   a label can say. *@
+<span class="help @Class">
+    <button type="button" class="help-btn" title="@Title" aria-expanded="@_open"
+            aria-label="@Title" @onclick="Toggle">?</button>
+    @if (_open)
+    {
+        <div class="help-backdrop" @onclick="Close"></div>
+        <div class="help-pop" @ref="_pop" tabindex="-1" @onkeydown="OnKeyDown">
+            @ChildContent
+        </div>
+    }
+</span>
+
+@code {
+    [Parameter] public string Title { get; set; } = "what is this?";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _open;
+    private bool _focusPending;
+    private ElementReference _pop;
+
+    private void Toggle()
+    {
+        _open = !_open;
+        if (_open) _focusPending = true;
+    }
+
+    private void Close() => _open = false;
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _open = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending) return;
+        _focusPending = false;
+        try { await _pop.FocusAsync(); }
+        catch { /* element already gone */ }
+    }
+}

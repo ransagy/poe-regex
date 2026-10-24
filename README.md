@@ -5,8 +5,8 @@
 
 An engine that turns Path of Exile 1 & 2 modifier requirements into short,
 in-game-safe regex queries. PoE 2 search boxes cap regex queries at 250
-characters; this tool targets that budget by precomputing the shortest unique
-fragment for every mod line and assembling deterministic, AND-ed quoted blocks.
+characters; this tool targets that budget by precomputing the absolute shortest
+line-safe fragment for every mod line over the vendor/stash corpus and assembling deterministic, AND-ed quoted blocks.
 
 The repository contains the engine, its data pipeline, the CLI, and the web
 reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly
@@ -23,8 +23,9 @@ excluded from search engines).
   dev-only and gitignored; only derived catalogs ship. See
   [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **Engine** (`src/PoeRegex.Core`): consumes a catalog through `ICatalogSource`,
-  validates fragments against per-game grammar, selects the shortest safe
-  fingerprint (or a value-threshold digit-range pattern), factors common prefixes
+  validates fragments against per-game grammar, selects the absolute shortest
+  fragment over the derived vendor/stash line corpus (or a value-threshold
+  digit-range pattern), factors common prefixes
   across included mods, and enforces the game's character limit. Output is
   deterministic.
 - **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.

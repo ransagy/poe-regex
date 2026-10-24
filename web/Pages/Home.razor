@@ -12,62 +12,102 @@
 <PageTitle>Renly's Recipes</PageTitle>
 
 <div class="bench">
-    <section class="panel inventory" aria-label="Inventory">
+    <section class="panel inventory mode-@State.Mode" aria-label="Inventory">
+        @{
+            var barQuery = BarQuery();
+            var scopeText = ScopeText();
+        }
         <div class="mode-bar">
+            <span class="section-label">search mode</span>
             <ModeSwitch State="State" />
-            <div class="result-strip" id="result-strip" aria-label="Compiled queries">
-                @if (State.Mode == "multi" && _paste is not null)
-                {
-                    <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-multi">
-                        <code title="@_paste.Query">@_paste.Query</code>
-                        <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
-                            @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
-                        </span>
-                        <button id="slot-copy-multi" @onclick="() => CopyBar(_paste.Query)">copy</button>
-                    </div>
-                }
-                @foreach (var t in _barTasks)
-                {
-                    <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
-                        <code title="@t.Result.Query">@t.Result.Query</code>
-                        <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
-                            @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
-                        </span>
-                        <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                    </div>
-                }
-            </div>
         </div>
+
         <div class="inv-top">
-            <div class="inv-editor" aria-label="Editor">
-                @if (State.Mode == "single" && State.SelectedSlot is { } slot)
+            @if (State.Mode == "advanced")
+            {
+                <div class="inv-doll">
+                    <PaperDoll State="State" />
+                </div>
+            }
+            <div class="inv-editor" aria-label="Mods to find">
+                @if (State.Mode == "advanced")
                 {
-                    <ClassPicker State="State" SlotId="@slot" />
-                    <ModPicker State="State" Scope="@slot" Mods="Engine.ModsForClass(State.SlotClassOrDefault(slot))" />
-                }
-                else if (State.Mode == "multi")
-                {
-                    @if (State.MultiFocus is { } focus)
+                    @if (State.FocusedSlot is not null)
                     {
-                        <ClassPicker State="State" SlotId="@focus" />
-                        <ModPicker State="State" Scope="@focus" Mods="Engine.ModsForClass(State.SlotClassOrDefault(focus))" />
+                        <ModPicker State="State" Scope="@State.FocusedSlot" Mods="@RailMods" />
                     }
                     else
                     {
-                        <div class="hint">click a slot on the paper doll to edit it — slots with mods join the multi group</div>
+                        <div class="hint">click a slot on the doll to pick its mods</div>
                     }
                 }
                 else
                 {
-                    <div class="field-blank" aria-hidden="true"><select disabled><option>—</option></select></div>
-                    <ModPicker State="State" Scope="@null" Mods="Engine.PlayableMods()" />
+                    <ModPicker State="State" Scope="@null" Mods="@RailMods" />
                 }
             </div>
-            <div class="inv-doll">
-                <PaperDoll State="State" />
+        </div>
+
+        <PicksRail State="State" Scope="@RailScope" Mods="@RailMods" ShowHint="@RailHint" Label="selected mods" />
+
+        <div class="result-bar">
+            <div class="rb-head">
+                <span class="rb-label">Your search string</span>
+                @if (scopeText.Length > 0)
+                {
+                    <span class="rb-scope">@scopeText</span>
+                }
+                @if (UnresolvedDiagnostics() is { Count: > 0 } unresolved)
+                {
+                    <span class="rb-unresolved" id="rb-unresolved" title="@UnresolvedTitle(unresolved)">@unresolved.Count unresolved</span>
+                }
+                <span class="rb-hint">copy → paste into the game's item search</span>
+            </div>
+            <div class="result-strip" id="result-strip" aria-label="Compiled search string">
+                @if (barQuery.Length > 0)
+                {
+                    @if (State.Mode == "advanced" && _paste is not null)
+                    {
+                        <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-advanced">
+                            <code title="@_paste.Query">@_paste.Query</code>
+                            <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
+                                @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
+                            </span>
+                            <button id="slot-copy-advanced" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var t in _barTasks)
+                        {
+                            <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
+                                <code title="@t.Result.Query">@t.Result.Query</code>
+                                <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
+                                    @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
+                                </span>
+                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <span class="rb-empty">nothing to show yet — pick mods to build the string</span>
+                }
             </div>
         </div>
+
         <div class="modrow pack-tools">
+            <div class="pack-label">
+                Test items
+                <HelpTip Title="what test items are for">
+                    <ul>
+                        <li><b>import item</b> — paste an item copied from the game.</li>
+                        <li><b>assemble item</b> — build one from catalog mods.</li>
+                        <li>A search string lights up the matching items in the backpack.</li>
+                    </ul>
+                </HelpTip>
+            </div>
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
             <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
@@ -82,8 +122,8 @@
     <div class="advanced-reserve" aria-hidden="true"></div>
 </div>
 
-<details class="panel advanced" id="advanced-debug">
-    <summary>Advanced</summary>
+<details class="panel advanced" id="more-info">
+    <summary>More info</summary>
     <div id="engine-status">@_engineStatus</div>
     @if (_paste is not null)
     {
@@ -213,11 +253,11 @@
     {
         var tasks = new List<TaskView>();
         _paste = null;
-        if (State.Mode == "global")
+        if (State.Mode == "simple")
         {
-            tasks.Add(CompileTask("global", "global", null, State.Global));
+            tasks.Add(CompileTask("simple", "all items", null, State.Global));
         }
-        else if (State.Mode == "multi")
+        else
         {
             var active = State.ActiveSlots();
             foreach (var s in active)
@@ -241,32 +281,18 @@
                     allowOverflow: true);
             }
         }
-        else
-        {
-            foreach (var s in State.ActiveSlots())
-            {
-                var crit = State.CriteriaFor(s);
-                tasks.Add(CompileTask(s, $"{s} ({crit.ClassId})", crit.ClassId, crit));
-            }
-        }
         _tasks = tasks;
-        _barTasks = State.Mode == "single" && State.SelectedSlot is not null
-            ? tasks.Where(t => t.CardId == State.SelectedSlot).ToList()
-            : State.Mode == "multi" ? [] : tasks;
-        _labelledQueries = State.Mode == "multi" && _paste is not null
+        _barTasks = State.Mode == "advanced" ? [] : tasks;
+        _labelledQueries = State.Mode == "advanced" && _paste is not null
             ? [("combined paste", _paste.Query)]
             : tasks.Select(t => (t.Title, (string?)t.Result.Query)).ToList();
         var queries = _labelledQueries
             .Where(q => !string.IsNullOrWhiteSpace(q.Query)).Select(q => q.Query!).ToList();
         // Highlight/dim only once the active scope actually has mods picked:
-        // an anchor-only single-slot query (no chips) stays neutral.
-        var chipsPicked = State.Mode switch
-        {
-            "global" => State.Global.Included.Count > 0 || State.Global.Excluded.Count > 0,
-            "single" => State.SelectedSlot is { } s
-                && (State.CriteriaFor(s).Included.Count > 0 || State.CriteriaFor(s).Excluded.Count > 0),
-            _ => State.ActiveSlots().Count > 0,
-        };
+        // an anchor-only query (no chips) stays neutral.
+        var chipsPicked = State.Mode == "simple"
+            ? State.Global.Included.Count > 0 || State.Global.Excluded.Count > 0
+            : State.ActiveSlots().Count > 0;
         _highlight = chipsPicked
             ? State.TestItems
                 .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
@@ -291,10 +317,65 @@
         return new TaskView(cardId, title, itemClass, result);
     }
 
+    /// <summary>
+    /// Distinct skipped picks across the visible compiles (and the combined
+    /// paste). The result bar carries a quiet count when this is non-zero; the
+    /// title is the engine's factual diagnostic text.
+    /// </summary>
+    private List<CompilerDiagnostic> UnresolvedDiagnostics() =>
+        _tasks.SelectMany(t => t.Result.Diagnostics)
+            .Concat(_paste?.Diagnostics ?? [])
+            .Where(d => d.Code == "unresolved-modifier")
+            .GroupBy(d => d.Message, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
+
+    private static string UnresolvedTitle(IReadOnlyList<CompilerDiagnostic> diagnostics) =>
+        string.Join("\n", diagnostics.Select(d => d.Message));
+
     private static string MeterTitle(int length, int limit) =>
         length > limit
             ? $"{length}/{limit} characters — {length - limit} over the game's search box limit"
             : $"{length} of {limit} characters";
+
+    /// <summary>The single string shown in the search-string bar for the current scope.</summary>
+    private string BarQuery() =>
+        State.Mode == "advanced"
+            ? _paste?.Query ?? ""
+            : _barTasks.FirstOrDefault()?.Result.Query ?? "";
+
+    /// <summary>Picks rail scope: the focused slot in advanced, the global set in simple.</summary>
+    private string? RailScope => State.Mode == "advanced" ? State.FocusedSlot : null;
+
+    /// <summary>The rail shows its "+ to add" hint only where a picker is available.</summary>
+    private bool RailHint => State.Mode == "simple" || State.FocusedSlot is not null;
+
+    /// <summary>Mods for the rail/picker scope (empty while advanced is unfocused).</summary>
+    private IReadOnlyList<ModEntry> RailMods =>
+        State.Mode == "simple"
+            ? Engine.PlayableMods()
+            : State.FocusedSlot is { } focus
+                ? Engine.ModsForClass(State.SlotClassOrDefault(focus))
+                : [];
+
+    /// <summary>What the bar's string covers: silent in simple; the slots in advanced.</summary>
+    private string ScopeText()
+    {
+        if (State.Mode != "advanced") return "";
+        var active = State.ActiveSlots();
+        if (active.Count == 0) return "";
+        if (active.Count > 3) return $"{active.Count} slots";
+        if (active.Count == 1)
+        {
+            var slot = active[0];
+            var label = GearSlot.ById(slot)?.Label ?? slot;
+            var cls = State.SlotClassOrDefault(slot);
+            return string.Equals(label, cls, StringComparison.OrdinalIgnoreCase)
+                ? label
+                : $"{label} · {cls}";
+        }
+        return string.Join(" + ", active.Select(s => GearSlot.ById(s)?.Label ?? s));
+    }
 
     private async Task ResetWorkbench()
     {

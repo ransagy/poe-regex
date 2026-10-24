@@ -8,12 +8,16 @@
     return row ? row.querySelector(".chips") : null;
   }
 
+  function chipsOf(rail) {
+    return Array.from(rail.children).filter((el) => el.classList.contains("chip"));
+  }
+
   // Remember the chip pinned at the left edge (and its offset) so a removal
   // somewhere before the viewport can be compensated on the next sync.
   function remember(row, rail) {
     const r = rail.getBoundingClientRect();
     let anchor = null;
-    for (const el of rail.children) {
+    for (const el of chipsOf(rail)) {
       if (el.getBoundingClientRect().left >= r.left - 1) {
         anchor = el;
         break;
@@ -61,7 +65,7 @@
     let after = 0;
     let clipStart = false;
     let clipEnd = false;
-    for (const el of rail.children) {
+    for (const el of chipsOf(rail)) {
       const b = el.getBoundingClientRect();
       if (b.right <= r.left + 1) before++;
       else if (b.left >= r.right - 1) after++;
@@ -76,7 +80,7 @@
   }
 
   function page(rail, dir) {
-    const items = Array.from(rail.children);
+    const items = chipsOf(rail);
     if (items.length === 0) return;
     const max = rail.scrollWidth - rail.clientWidth;
     if (dir > 0) {

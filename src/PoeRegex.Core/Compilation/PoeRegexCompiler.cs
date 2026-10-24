@@ -12,11 +12,11 @@ public sealed class PoeRegexCompiler
     private readonly ICompilerStrategy _strategy;
     private readonly CompactionEngine _compaction;
 
-    public PoeRegexCompiler(EngineCorpus corpus, ICompilerStrategy strategy)
+    public PoeRegexCompiler(EngineCorpus corpus, ICompilerStrategy strategy, bool allowFallback = true)
     {
         _corpus = corpus;
         _strategy = strategy;
-        _compaction = new CompactionEngine(corpus, strategy);
+        _compaction = new CompactionEngine(corpus, strategy, allowFallback);
     }
 
     public static ICompilerStrategy StrategyFor(GameTarget target) =>

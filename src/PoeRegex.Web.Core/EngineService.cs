@@ -25,7 +25,7 @@ public sealed class EngineService
         var catalog = new EmbeddedCatalogSource().Load(GameTarget.PoE2);
         _corpus = new EngineCorpus(catalog);
         _strategy = PoeRegexCompiler.StrategyFor(GameTarget.PoE2);
-        _compiler = new PoeRegexCompiler(_corpus, _strategy);
+        _compiler = new PoeRegexCompiler(_corpus, _strategy, allowFallback: false);
         _explainer = new Explainer(_corpus);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
@@ -38,6 +38,10 @@ public sealed class EngineService
     }
 
     public string DataVersion => _corpus.Catalog.DataVersion;
+
+    /// <summary>Documented global unresolved reason for a catalog pattern.</summary>
+    public string? GlobalUnresolvedReason(string pattern) =>
+        _corpus.PrecomputedUnresolvedReason(pattern, null);
 
     public IReadOnlyList<ItemClassEntry> Classes => _corpus.Catalog.ItemClasses;
 
@@ -257,7 +261,7 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false) =>
-        new PasteComposer(_corpus, _strategy).Compose(
+        new PasteComposer(_corpus, _strategy, allowFallback: false, validateRecall: false).Compose(
             slots.Select(s => new PasteSlotCriterion(
                 s.ClassId,
                 s.Includes.SelectMany(m => m.Requirements()).ToList(),
