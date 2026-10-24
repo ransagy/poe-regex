@@ -879,7 +879,7 @@ public sealed class FragmentSelector
     /// Longest literal run in a fragment (3+ characters, at least two
     /// alphanumeric). Used as a safe pre-filter for the false-positive scan.
     /// </summary>
-    internal static string? LiteralHint(string fragment)
+    public static string? LiteralHint(string fragment)
     {
         var best = "";
         var current = new System.Text.StringBuilder();

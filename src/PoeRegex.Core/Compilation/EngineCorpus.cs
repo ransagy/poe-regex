@@ -24,8 +24,8 @@ public sealed class EngineCorpus
     private readonly FragmentTable? _fragments;
     private HashSet<string>? _knownPatterns;
     private readonly object _knownLock = new();
-    private UnionIndex? _union;
-    private Dictionary<string, List<ModEntry>>? _modsByPattern;
+    private readonly Lazy<UnionIndex> _union;
+    private readonly Lazy<Dictionary<string, List<ModEntry>>> _modsByPattern;
 
     private sealed class ClassIndex
     {
@@ -172,7 +172,7 @@ public sealed class EngineCorpus
     public bool ClassTermQuiet(string innerTerm)
     {
         var test = ": " + innerTerm;
-        foreach (var (_, real) in EnsureUnionIndex().RealLines)
+        foreach (var (_, real) in _union.Value.RealLines)
         {
             if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
             if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
@@ -215,6 +215,8 @@ public sealed class EngineCorpus
             .ToHashSet(StringComparer.Ordinal));
         _byClass = new(() => BuildClassIndexes(catalog, _vendorLines.Value));
         _sectionsByClass = new(() => BuildSearchSections(catalog, _vendorLines.Value));
+        _union = new(BuildUnionIndex, LazyThreadSafetyMode.ExecutionAndPublication);
+        _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _fragments = FragmentTables.For(catalog.Game);
         if (_fragments is not null &&
             !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
@@ -370,6 +372,9 @@ public sealed class EngineCorpus
         if (!HasUnescapedDot(fragment)) return true;
         var key = (itemClass ?? "\0", fragment);
         if (_crossLineCache.TryGetValue(key, out var cached)) return cached;
+        if ((Interlocked.Increment(ref _crossLineAdds) & 0x3FF) == 0 &&
+            _crossLineCache.Count > CrossLineCacheLimit)
+            _crossLineCache.Clear();
 
         // A wildcard with no 3+ character literal guard is too broad to prove
         // cross-line safe; this rejects e.g. `Co.+ge$` before scanning the
@@ -395,58 +400,140 @@ public sealed class EngineCorpus
         return false;
     }
 
+    private const int CrossVariantCacheLimit = 50;
+    private const int CrossSectionCacheLimit = 5_000;
+    private const int CrossLineCacheLimit = 50_000;
+    private static readonly ConcurrentDictionary<string, System.Text.RegularExpressions.Regex[]> CrossVariantCache = new();
+    private static int _crossVariantAdds;
+    private int _crossLineAdds;
+    private readonly ConcurrentDictionary<string, SearchSection[]> _crossSectionCache = new(StringComparer.Ordinal);
+
     private bool CrossLineSafeCore(string? itemClass, string fragment, string hint)
     {
-        System.Text.RegularExpressions.Regex regex;
-        try
-        {
-            regex = new System.Text.RegularExpressions.Regex(
-                fragment,
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase |
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant |
-                System.Text.RegularExpressions.RegexOptions.Multiline |
-                System.Text.RegularExpressions.RegexOptions.Singleline,
-                TimeSpan.FromMilliseconds(250));
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
+        // Instead of enumerating every match and testing whether any of them
+        // consumed a newline, build variants of the fragment that can only
+        // match when a wildcard spans a newline. IsMatch then stops at the
+        // first hit. This is exact for the fragment grammar (literal pieces
+        // separated by `.`, `.*`, `.+`, or fixed dot runs).
+        if ((Interlocked.Increment(ref _crossVariantAdds) & 0xFF) == 0 &&
+            CrossVariantCache.Count > CrossVariantCacheLimit)
+            CrossVariantCache.Clear();
+        var variants = CrossVariantCache.GetOrAdd(fragment, BuildCrossVariants);
+        if (variants.Length == 0) return true;
 
+        // Hint lookup is cached per scope: many candidates share a three-letter
+        // guard, and scanning every section text per candidate is the dominant
+        // cost otherwise. The cached list is exactly the sections that can
+        // contain a cross-line match for that hint.
+        var cacheKey = (itemClass ?? "\0") + "\0" + hint.ToLowerInvariant();
+        if (_crossSectionCache.Count > CrossSectionCacheLimit) _crossSectionCache.Clear();
+        var candidateSections = _crossSectionCache.GetOrAdd(
+            cacheKey, _ => FindCrossSections(itemClass, hint));
+        foreach (var section in candidateSections)
+        {
+            if (HasCrossLineMatch(variants, section.Text) ||
+                HasCrossLineMatch(variants, section.ReverseText))
+                return false;
+        }
+        return true;
+    }
+
+    private SearchSection[] FindCrossSections(string? itemClass, string hint)
+    {
         IEnumerable<string> classes = itemClass is null
             ? _sectionsByClass.Value.Keys
             : new[] { itemClass };
+        var result = new List<SearchSection>();
         foreach (var cls in classes)
         {
             if (!_sectionsByClass.Value.TryGetValue(cls, out var sections)) continue;
             foreach (var section in sections)
             {
-                // A match must contain the literal hint; skip sections that
-                // cannot contain it. This turns most wildcard checks from a
-                // full-section scan into a substring lookup.
                 if (section.Text.IndexOf(hint, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 if (section.Text.IndexOf('\n') < 0) continue;
-                if (HasCrossLineMatch(regex, section.Text) ||
-                    HasCrossLineMatch(regex, section.ReverseText))
-                    return false;
+                result.Add(section);
             }
         }
-        return true;
+        return result.ToArray();
     }
 
-    private static bool HasCrossLineMatch(System.Text.RegularExpressions.Regex regex, string text)
+    private static System.Text.RegularExpressions.Regex[] BuildCrossVariants(string fragment)
     {
-        try
+        var variants = new List<string>();
+        for (var i = 0; i < fragment.Length;)
         {
-            foreach (System.Text.RegularExpressions.Match match in regex.Matches(text))
+            var c = fragment[i];
+            if (c == '\\' && i + 1 < fragment.Length)
             {
-                if (match.Value.IndexOf('\n') >= 0) return true;
+                i += 2;
+                continue;
+            }
+            if (c != '.')
+            {
+                i++;
+                continue;
+            }
+            if (i + 1 < fragment.Length && (fragment[i + 1] == '*' || fragment[i + 1] == '+'))
+            {
+                variants.Add(fragment[..i] + ".*\n.*" + fragment[(i + 2)..]);
+                i += 2;
+                continue;
+            }
+
+            var start = i;
+            while (i < fragment.Length && fragment[i] == '.') i++;
+            for (var dot = start; dot < i; dot++)
+                variants.Add(fragment[..dot] + "\n" + fragment[(dot + 1)..]);
+        }
+
+        var result = new List<System.Text.RegularExpressions.Regex>();
+        foreach (var variant in variants.Distinct(StringComparer.Ordinal))
+        {
+            try
+            {
+                var options =
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant |
+                    System.Text.RegularExpressions.RegexOptions.Multiline |
+                    System.Text.RegularExpressions.RegexOptions.Singleline;
+                try
+                {
+                    result.Add(new System.Text.RegularExpressions.Regex(
+                        variant,
+                        options | System.Text.RegularExpressions.RegexOptions.NonBacktracking,
+                        TimeSpan.FromMilliseconds(250)));
+                }
+                catch (ArgumentException)
+                {
+                    // Fall back to the backtracking engine for constructs the
+                    // non-backtracking engine does not support.
+                    result.Add(new System.Text.RegularExpressions.Regex(
+                        variant, options, TimeSpan.FromMilliseconds(250)));
+                }
+            }
+            catch (ArgumentException)
+            {
+                // An invalid variant is not evidence of safety; the caller
+                // already rejects unparseable originals.
             }
         }
-        catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+        return result.ToArray();
+    }
+
+    private static bool HasCrossLineMatch(
+        System.Text.RegularExpressions.Regex[] variants, string text)
+    {
+        foreach (var regex in variants)
         {
-            // A runaway candidate is not proven safe.
-            return true;
+            try
+            {
+                if (regex.IsMatch(text)) return true;
+            }
+            catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+            {
+                // A runaway candidate is not proven safe.
+                return true;
+            }
         }
         return false;
     }
@@ -462,7 +549,7 @@ public sealed class EngineCorpus
 
     /// <summary>Real copy-text lines across every class (global scope), with their patterns.</summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
-        EnsureUnionIndex().RealLines;
+        _union.Value.RealLines;
 
     /// <summary>
     /// All distinct mods that have a stat line with the given (normalized) pattern.
@@ -470,15 +557,14 @@ public sealed class EngineCorpus
     /// </summary>
     public IReadOnlyList<ModEntry> ModsWithPattern(string pattern)
     {
-        if (_modsByPattern is null)
-        {
-            _modsByPattern = _catalog.Mods
-                .SelectMany(m => m.StatLines.Select(sl => (Mod: m, Pattern: sl.Pattern)))
-                .GroupBy(x => x.Pattern, StringComparer.Ordinal)
-                .ToDictionary(g => g.Key, g => g.Select(x => x.Mod).Distinct().ToList(), StringComparer.Ordinal);
-        }
-        return _modsByPattern.TryGetValue(pattern, out var mods) ? mods : [];
+        return _modsByPattern.Value.TryGetValue(pattern, out var mods) ? mods : [];
     }
+
+    private Dictionary<string, List<ModEntry>> BuildModsByPattern() =>
+        _catalog.Mods
+            .SelectMany(m => m.StatLines.Select(sl => (Mod: m, Pattern: sl.Pattern)))
+            .GroupBy(x => x.Pattern, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Mod).Distinct().ToList(), StringComparer.Ordinal);
 
     /// <summary>
     /// Shortest fingerprint for a mod line on a given item class. Uses the
@@ -597,7 +683,7 @@ public sealed class EngineCorpus
             var index = caseInsensitive ? ci.FoldIndex : ci.Index;
             return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
         }
-        var union = EnsureUnionIndex();
+        var union = _union.Value;
         if (!union.PatternToIndex.TryGetValue(linePattern, out var unionIdx)) return null;
         var unionIndex = caseInsensitive ? union.FoldIndex : union.Index;
         return unionIndex.ShortestUniqueSubstring(unionIdx, avoidPlaceholder);
@@ -610,7 +696,7 @@ public sealed class EngineCorpus
     /// </summary>
     public bool GlobalRegexSafe(string regexFragment, IReadOnlyCollection<string> allowedPatterns)
     {
-        var union = EnsureUnionIndex();
+        var union = _union.Value;
         var matchedAny = false;
         foreach (var (pattern, real) in union.RealLines)
         {
@@ -635,14 +721,12 @@ public sealed class EngineCorpus
             if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return [];
             return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Index.ClassCorpus[i]).ToList();
         }
-        var union = EnsureUnionIndex();
+        var union = _union.Value;
         return union.FoldIndex.LinesMatching(literal).Select(i => union.Index.ClassCorpus[i]).ToList();
     }
 
-    private UnionIndex EnsureUnionIndex()
+    private UnionIndex BuildUnionIndex()
     {
-        if (_union is not null) return _union;
-
         var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
             .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
             .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
@@ -666,14 +750,13 @@ public sealed class EngineCorpus
             .Distinct()
             .ToList();
 
-        _union = new UnionIndex
+        return new UnionIndex
         {
             Index = SuffixIndex.Build(patterns),
             FoldIndex = SuffixIndex.Build(patterns, caseInsensitive: true),
             PatternToIndex = patternToIndex,
             RealLines = realLines,
         };
-        return _union;
     }
 
     private static string SectionKindForGeneration(string generation) => generation switch

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -463,11 +465,17 @@ public static class CandidateReport
         option.CrossCaptured = CrossCaptured(corpus, scope, option.Fragment);
     }
 
-    internal static List<Option> Generate(
-        EngineCorpus corpus, IReadOnlyList<string> targets, IReadOnlyList<SourceLine> foreign,
-        string? scope, int maxLength, string? current, bool fast = false)
+    internal sealed record Candidate(string Fragment, bool Wildcard, string Hint, bool Plausible);
+
+    /// <summary>
+    /// Candidate shapes shared by the exhaustive report and the indexed
+    /// matrix evaluator. Keeping enumeration in one place guarantees that the
+    /// fast path cannot silently search a different grammar.
+    /// </summary>
+    internal static List<Candidate> EnumerateCandidates(
+        IReadOnlyList<string> targets, int maxLength, string? current)
     {
-        var candidates = new Dictionary<string, (bool Wildcard, string Hint, bool Plausible)>(StringComparer.Ordinal);
+        var candidates = new Dictionary<string, Candidate>(StringComparer.Ordinal);
         var allStart = false;
         var allEnd = false;
 
@@ -479,10 +487,10 @@ public static class CandidateReport
             if (candidates.TryGetValue(fragment, out var existing))
             {
                 if (!existing.Plausible && plausible)
-                    candidates[fragment] = (existing.Wildcard, existing.Hint, true);
+                    candidates[fragment] = existing with { Plausible = true };
                 return;
             }
-            candidates[fragment] = (wildcard, hint, plausible);
+            candidates[fragment] = new Candidate(fragment, wildcard, hint, plausible);
         }
 
         void AddWithAnchors(string fragment, bool wildcard, string hint, bool plausible)
@@ -493,11 +501,11 @@ public static class CandidateReport
             if (allStart && allEnd) AddCandidate("^" + fragment + "$", wildcard, hint, plausible);
         }
 
-        // The current table fragment is a useful fallback and guarantees that
-        // the experiment cannot report "none" where a shipped strict form
-        // already exists.
-        if (!string.IsNullOrWhiteSpace(current))
-            AddCandidate(current, current.Contains('.'), "", true);
+        // The current table fragment is always evaluated, even when it is
+        // longer than the experiment bound. Otherwise a valid shipped strict
+        // form can appear as "none" in the matrix.
+        if (!string.IsNullOrWhiteSpace(current) && current.Count(char.IsAsciiLetter) >= 3)
+            candidates[current] = new Candidate(current, current.Contains('.'), "", true);
 
         // Use one representative line for every distinct display shape. This
         // matters for ranged stats: their compact and (roll(min-max)) forms
@@ -510,6 +518,25 @@ public static class CandidateReport
             if (seenShapes.Add(shape)) seeds.Add(line);
         }
         if (seeds.Count == 0) seeds.Add(targets[0]);
+
+        // Necessary-condition filter for generated shapes: every literal
+        // piece must occur in every target line, in order. This does not
+        // remove any real candidate; it only avoids materializing combinations
+        // that cannot match all tiers.
+        bool AllTargetsContain(params string[] pieces)
+        {
+            foreach (var target in targets)
+            {
+                var position = 0;
+                foreach (var piece in pieces)
+                {
+                    var index = target.IndexOf(piece, position, StringComparison.OrdinalIgnoreCase);
+                    if (index < 0) return false;
+                    position = index + piece.Length;
+                }
+            }
+            return true;
+        }
 
         var wildcards = new List<string> { ".", ".*", ".+" };
         for (var k = 2; k <= 5; k++) wildcards.Add(new string('.', k));
@@ -533,14 +560,10 @@ public static class CandidateReport
                     var letters = raw.Count(char.IsAsciiLetter);
                     if (letters < 3) continue;
                     if (!startsWord && !endsWord) continue;
+                    if (!AllTargetsContain(raw)) continue;
                     AddWithAnchors(raw, false, raw, true);
                 }
             }
-
-            // Matrix artifacts use a bounded literal pass for non-common
-            // families; wildcard variants remain available in the full report
-            // and in the shipped table.
-            if (fast) continue;
 
             var chunks = WordChunks(shortest);
             var starts = chunks.Where(c => c.StartsWord).ToList();
@@ -556,6 +579,7 @@ public static class CandidateReport
                     {
                         var frag = a.Text + w + b.Text;
                         if (frag.Length > maxLength) continue;
+                        if (!AllTargetsContain(a.Text, b.Text)) continue;
                         AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), a.StartsWord && b.EndsWord);
                     }
                 }
@@ -579,6 +603,7 @@ public static class CandidateReport
                             {
                                 var frag = a.Text + w1 + m.Text + w2 + b.Text;
                                 if (frag.Length > maxLength) continue;
+                                if (!AllTargetsContain(a.Text, m.Text, b.Text)) continue;
                                 AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), a.StartsWord && b.EndsWord);
                             }
                         }
@@ -587,10 +612,24 @@ public static class CandidateReport
             }
         }
 
+        return candidates.Values
+            .OrderBy(x => x.Fragment.Length)
+            .ThenBy(x => x.Fragment, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    internal static List<Option> Generate(
+        EngineCorpus corpus, IReadOnlyList<string> targets, IReadOnlyList<SourceLine> foreign,
+        string? scope, int maxLength, string? current)
+    {
+        var candidates = EnumerateCandidates(targets, maxLength, current);
         var options = new List<Option>();
-        foreach (var (fragment, (wildcard, hint, plausible)) in candidates)
+        foreach (var candidate in candidates)
         {
-            if (!plausible) continue;
+            if (!candidate.Plausible) continue;
+            var fragment = candidate.Fragment;
+            var wildcard = candidate.Wildcard;
+            var hint = candidate.Hint;
             Regex regex;
             try
             {
@@ -633,7 +672,7 @@ public static class CandidateReport
                 ForeignMinionLines = foreignMinion,
                 ForeignOtherLines = foreignMatches.Count - foreignMinion,
                 ForeignExamples = examples,
-                Plausible = plausible,
+                Plausible = candidate.Plausible,
             });
         }
 
@@ -655,9 +694,27 @@ public static class CandidateReport
         return options;
     }
 
+    private const int CrossCapturedCacheLimit = 5_000;
+    private static readonly ConcurrentDictionary<(string Scope, string Fragment), bool> CrossCapturedCache = new();
+    private static int _crossCapturedAdds;
+    private static readonly ConditionalWeakTable<SafetyItem, string[]> SectionTextCache = new();
+
     internal static bool CrossCaptured(EngineCorpus corpus, string? scope, string fragment)
     {
+        var key = (scope ?? "\0", fragment);
+        if (CrossCapturedCache.TryGetValue(key, out var cached)) return cached;
+        if ((Interlocked.Increment(ref _crossCapturedAdds) & 0xFF) == 0 &&
+            CrossCapturedCache.Count > CrossCapturedCacheLimit)
+            CrossCapturedCache.Clear();
+        var result = CrossCapturedCore(corpus, scope, fragment);
+        CrossCapturedCache[key] = result;
+        return result;
+    }
+
+    private static bool CrossCapturedCore(EngineCorpus corpus, string? scope, string fragment)
+    {
         var className = scope is null ? null : corpus.FindItemClass(scope)?.Name;
+        var hint = FragmentSelector.LiteralHint(fragment);
         Regex regex;
         try
         {
@@ -673,9 +730,16 @@ public static class CandidateReport
         {
             if (className is not null &&
                 !string.Equals(item.ClassName, className, StringComparison.OrdinalIgnoreCase)) continue;
-            foreach (var section in item.Sections)
+            var texts = SectionTextCache.GetValue(item, static i =>
+                i.Sections.Select(s => string.Join("\n", s)).ToArray());
+            foreach (var text in texts)
             {
-                var text = string.Join("\n", section);
+                // A single-line section cannot contain a cross-line match.
+                if (text.IndexOf('\n') < 0) continue;
+                // Any match must contain the longest literal run. This turns
+                // most of these checks into a substring lookup.
+                if (hint is not null &&
+                    text.IndexOf(hint, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 try
                 {
                     foreach (Match match in regex.Matches(text))
