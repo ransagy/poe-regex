@@ -121,6 +121,10 @@ public sealed class EngineCorpus
     /// </summary>
     public string ClassNamePrefix(string itemClass)
     {
+        if (_fragments?.ClassAnchors is not null &&
+            _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
+            precomputedAnchor.Length > 0)
+            return precomputedAnchor;
         var entry = FindItemClass(itemClass);
         var name = entry?.Name ?? itemClass;
         var allNames = _catalog.ItemClasses.Select(c => c.Name).ToList();

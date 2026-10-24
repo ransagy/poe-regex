@@ -261,7 +261,7 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false) =>
-        new PasteComposer(_corpus, _strategy).Compose(
+        new PasteComposer(_corpus, _strategy, allowFallback: false, validateRecall: false).Compose(
             slots.Select(s => new PasteSlotCriterion(
                 s.ClassId,
                 s.Includes.SelectMany(m => m.Requirements()).ToList(),

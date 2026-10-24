@@ -932,6 +932,38 @@
       "\u0001% increased Elemental Damage with Attacks": "with Attacks$"
     }
   },
+  "ClassAnchors": {
+    "Amulet": "Am",
+    "Ring": "Ri",
+    "Claw": "Cl",
+    "Dagger": "Dag",
+    "Wand": "Wan",
+    "One Hand Sword": "One Hand S",
+    "One Hand Axe": "One Hand A",
+    "One Hand Mace": "One Hand M",
+    "Bow": "Bow",
+    "Staff": "Stav",
+    "Two Hand Sword": "Two Hand S",
+    "Two Hand Axe": "Two Hand A",
+    "Two Hand Mace": "Two Hand M",
+    "Quiver": "Qui",
+    "Belt": "Bel",
+    "Gloves": "Gl",
+    "Boots": "Boo",
+    "Body Armour": "Bod",
+    "Helmet": "Hel",
+    "Shield": "Shields",
+    "Sceptre": "Sce",
+    "FishingRod": "Fis",
+    "Warstaff": "Qua",
+    "Spear": "Spea",
+    "Crossbow": "Cro",
+    "Focus": "Fo",
+    "Flail": "Fl",
+    "Buckler": "Bu",
+    "TrapTool": "Trap",
+    "Talisman": "Tal"
+  },
   "GlobalUnresolved": {},
   "ByClassUnresolved": {}
 }

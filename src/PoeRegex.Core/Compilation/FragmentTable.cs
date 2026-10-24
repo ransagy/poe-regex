@@ -18,6 +18,12 @@ public sealed class FragmentTable
     public Dictionary<string, Dictionary<string, string>> ByClass { get; init; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Precomputed class-anchor prefixes. Paste/compiler class anchors must not
+    /// rebuild the vendor-derived class corpus on the browser's first use.
+    /// </summary>
+    public Dictionary<string, string> ClassAnchors { get; init; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Patterns with no safe verbatim line-local fragment in the global scope,
     /// with the reason. The class tables may still resolve them; the UI must
     /// not silently emit a broad fragment for these.

@@ -150,6 +150,9 @@ public static class Program
             Console.WriteLine($"  {cls.Id}: {map.Count}/{classPatterns.Count} in {sw.ElapsedMilliseconds} ms");
         }
 
+        var classAnchors = catalog.ItemClasses
+            .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
+            .ToDictionary(c => c.Id, c => corpus.ClassNamePrefix(c.Id), StringComparer.Ordinal);
         var table = new FragmentTable
         {
             Game = catalog.Game,
@@ -158,6 +161,7 @@ public static class Program
             ByClass = byClass,
             GlobalUnresolved = globalUnresolved,
             ByClassUnresolved = byClassUnresolved,
+            ClassAnchors = classAnchors,
         };
         if (string.Equals(gameName, "poe2", StringComparison.OrdinalIgnoreCase))
             CandidateReport.ApplyKnownGlobalCandidates(table);
