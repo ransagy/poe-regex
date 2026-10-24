@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
@@ -40,12 +41,12 @@ public class CandidateEvaluatorTests
             var optimized = CandidateEvaluator.EvaluateTop(
                 scopeCorpus, pattern, current, maxLength);
 
-            Project(optimized.Line).Should().Be(
-                Project(reference.Where(o => o.ForeignLines == 0).Take(3)),
-                $"{family}/{scope ?? "global"} line profile");
-            Project(optimized.Relaxed).Should().Be(
-                Project(reference.Where(o => o.ForeignOtherLines == 0).Take(3)),
-                $"{family}/{scope ?? "global"} relaxed profile");
+            Project(Top(reference, o => o.ForeignLines == 0)).Should().Be(
+                Project(optimized.Strict),
+                $"{family}/{scope ?? "global"} strict profile");
+            Project(Top(reference, o => o.ForeignOtherLines == 0)).Should().Be(
+                Project(optimized.Minion),
+                $"{family}/{scope ?? "global"} minion profile");
 
             var floor = reference.FirstOrDefault();
             if (floor is null)
@@ -62,45 +63,114 @@ public class CandidateEvaluatorTests
         }
     }
 
-    [Theory]
-    [InlineData("MovementVelocity", "Boots", 8)]
-    [InlineData("IncreasedLife", "Belt", 8)]
-    [InlineData("FireResistance", "Ring", 8)]
-    public void IndexedTop_StrictAndMinionMatchExhaustiveCross(
-        string family, string scope, int maxLength)
+    [Fact]
+    public void NewGrammar_ReachesKnownMaximumLifeCandidate()
     {
         var (catalog, corpus, table) = Load();
-        var scopeCorpus = ScopeCorpus.Build(corpus, scope);
-        var all = CandidateReport.ScopeLines(corpus, scope);
+        var scopeCorpus = ScopeCorpus.Build(corpus, null);
+        const string pattern = "+\u0001 to maximum Life";
+        var current = Current(table, null, pattern);
+        var targets = scopeCorpus.Targets(pattern);
+        var foreign = CandidateReport.ScopeLines(corpus, null)
+            .Where(x => x.Pattern != pattern)
+            .ToList();
 
-        foreach (var pattern in CandidateReport.TargetPatterns(catalog, family, scope)
-                     .OrderBy(x => x, StringComparer.Ordinal))
+        var options = CandidateReport.Generate(
+                corpus, targets, foreign, null, 24, current)
+            .Where(o => o.Plausible)
+            .ToList();
+
+        var known = options.SingleOrDefault(o =>
+            string.Equals(o.Fragment, @"\+\d.+m life", StringComparison.OrdinalIgnoreCase));
+        known.Should().NotBeNull("the digit-guarded known form must be generated");
+        known!.ForeignLines.Should().Be(0, "it must be line-local-clean on the modeled corpus");
+
+        var optimized = CandidateEvaluator.EvaluateTop(scopeCorpus, pattern, current, 24);
+        optimized.Strict.Should().NotBeEmpty();
+        optimized.Strict[0].Length.Should().BeLessThanOrEqualTo(12,
+            "the new grammar must reach at least the known 12-character form");
+    }
+
+    [Fact]
+    public void QuotedTerms_MatchTheThreeAmuletFixtures()
+    {
+        var agony = new[]
         {
-            var targets = scopeCorpus.Targets(pattern);
-            if (targets.Count == 0) continue;
+            "+30(20-30) to maximum Energy Shield",
+            "42(39-44)% increased Evasion Rating",
+            "+65(60-69) to maximum Life",
+            "22(22-24)% of Damage taken Recouped as Life",
+            "+32(31-33) to Dexterity",
+            "+25(24-27)% to Chaos Resistance",
+        };
+        var torment = new[]
+        {
+            "21(20-30)% increased Mana Regeneration Rate",
+            "8(7-8)% increased maximum Life",
+            "22(21-26)% increased Evasion Rating",
+            "+16(15-24) to maximum Mana",
+            "+12(9-12) to Strength",
+            "59(50-59)% increased Mana Regeneration Rate",
+            "+15(15-16)% to all Elemental Resistances",
+        };
+        var gale = new[]
+        {
+            "+12(10-15) to Strength",
+            "26(21-26)% increased maximum Energy Shield",
+            "+30(26-30)% to Fire Resistance",
+            "24(22-24)% of Damage taken Recouped as Life",
+            "+35(31-35)% to Cold Resistance",
+        };
 
-            var current = Current(table, scope, pattern);
-            var foreign = all.Where(x => x.Pattern != pattern).ToList();
-            var reference = CandidateReport.Generate(
-                    corpus, targets, foreign, scope, maxLength, current)
-                .Where(o => o.Plausible)
-                .Where(o => o.ForeignLines == 0 || o.ForeignOtherLines == 0)
-                .OrderBy(o => o.Length)
-                .ThenBy(o => o.Fragment, StringComparer.Ordinal)
-                .ToList();
-            foreach (var option in reference)
-                CandidateReport.EvaluateCross(corpus, scope, option);
+        const string known = @"\+\d.+m life";
+        Quoted(known, agony).Should().BeTrue();
+        Quoted(known, torment).Should().BeFalse();
+        Quoted(known, gale).Should().BeFalse();
 
-            var optimized = CandidateEvaluator.EvaluateTop(
-                scopeCorpus, pattern, current, maxLength);
+        // The 9-character form the new grammar actually prefers.
+        const string shorter = @"\+\d.*ife";
+        Quoted(shorter, agony).Should().BeTrue();
+        Quoted(shorter, torment).Should().BeFalse();
+        Quoted(shorter, gale).Should().BeFalse();
 
-            Project(optimized.Strict).Should().Be(
-                Project(reference.Where(o => o.ForeignLines == 0 && !o.HasCross).Take(3)),
-                $"{family}/{scope} strict profile");
-            Project(optimized.Minion).Should().Be(
-                Project(reference.Where(o => o.ForeignOtherLines == 0 && !o.HasCross).Take(3)),
-                $"{family}/{scope} minion profile");
-        }
+        // Unquoted, the space splits the pattern into two ANDed terms. Torment
+        // Collar supplies "m" via "maximum Life" and "life" via the same line
+        // family, but the +digit term has to come from another line.
+        Unquoted(known, agony).Should().BeTrue();
+        Unquoted(known, torment).Should().BeTrue();
+        Unquoted(known, gale).Should().BeFalse(
+            "Gale has no +digit line containing an m; it is not a term-split match for this pattern");
+
+        // No space, so unquoted behaves like the quoted single term.
+        Unquoted(shorter, agony).Should().BeTrue();
+        Unquoted(shorter, torment).Should().BeFalse();
+        Unquoted(shorter, gale).Should().BeFalse();
+
+        // Direct token-splitting control: both bad amulets have "maximum" and
+        // "Strength" on different lines.
+        Quoted("maximum Strength", torment).Should().BeFalse();
+        Quoted("maximum Strength", gale).Should().BeFalse();
+        Unquoted("maximum Strength", torment).Should().BeTrue();
+        Unquoted("maximum Strength", gale).Should().BeTrue();
+    }
+
+    [Fact]
+    public void NewGrammar_TopStrictCandidateIsSafeOnAmulets()
+    {
+        var (catalog, corpus, table) = Load();
+        var scopeCorpus = ScopeCorpus.Build(corpus, null);
+        const string pattern = "+\u0001 to maximum Life";
+        var current = Current(table, null, pattern);
+        var optimized = CandidateEvaluator.EvaluateTop(scopeCorpus, pattern, current, 24);
+
+        var best = optimized.Strict[0].Fragment;
+        var agony = new[] { "+65(60-69) to maximum Life" };
+        var torment = new[] { "8(7-8)% increased maximum Life", "+12(9-12) to Strength" };
+        var gale = new[] { "+12(10-15) to Strength", "24(22-24)% of Damage taken Recouped as Life" };
+
+        Quoted(best, agony).Should().BeTrue($"{best} must match the real flat-life item");
+        Quoted(best, torment).Should().BeFalse($"{best} must not match Str + % max life");
+        Quoted(best, gale).Should().BeFalse($"{best} must not match Str + Recouped as Life");
     }
 
     [Fact]
@@ -127,11 +197,46 @@ public class CandidateEvaluatorTests
         {
             Project(parallel[pattern].Strict).Should().Be(
                 Project(sequential[pattern].Strict), pattern);
-            Project(parallel[pattern].Line).Should().Be(
-                Project(sequential[pattern].Line), pattern);
-            Project(parallel[pattern].Relaxed).Should().Be(
-                Project(sequential[pattern].Relaxed), pattern);
+            Project(parallel[pattern].Minion).Should().Be(
+                Project(sequential[pattern].Minion), pattern);
         }
+    }
+
+    private static List<CandidateReport.Option> Top(
+        IEnumerable<CandidateReport.Option> options,
+        Func<CandidateReport.Option, bool> predicate,
+        int count = 3)
+    {
+        var result = new List<CandidateReport.Option>();
+        foreach (var option in options.Where(predicate)
+                     .OrderBy(o => o.Length)
+                     .ThenBy(o => o.Fragment, StringComparer.Ordinal))
+        {
+            if (result.Any(existing => Dominates(existing, option))) continue;
+            result.RemoveAll(existing => Dominates(option, existing));
+            result.Add(option);
+        }
+        return result.Take(count).ToList();
+    }
+
+    private static bool Dominates(
+        CandidateReport.Option a, CandidateReport.Option b) =>
+        a.Length <= b.Length &&
+        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
+        a.ForeignMinionLines <= b.ForeignMinionLines &&
+        a.ForeignOtherLines <= b.ForeignOtherLines &&
+        a.ForeignPatterns <= b.ForeignPatterns;
+
+    private static bool Quoted(string fragment, IEnumerable<string> lines) =>
+        lines.Any(line => Regex.IsMatch(
+            line, fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
+
+    private static bool Unquoted(string fragment, IEnumerable<string> lines)
+    {
+        var terms = fragment.Split(
+            [' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return terms.All(term => lines.Any(line => Regex.IsMatch(
+            line, term, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)));
     }
 
     private static string Project(IEnumerable<CandidateReport.Option> options) =>
@@ -143,6 +248,8 @@ public class CandidateEvaluatorTests
             o.ForeignLines,
             o.ForeignMinionLines,
             o.ForeignOtherLines,
+            o.TermSplits,
+            o.MatchSetHash,
         }).ToList());
 
     private static string Current(FragmentTable? table, string? scope, string pattern)

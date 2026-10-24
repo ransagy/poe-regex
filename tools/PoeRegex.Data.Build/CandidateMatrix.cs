@@ -20,15 +20,13 @@ public static class CandidateMatrix
 {
     private sealed record MatrixOption(
         string Fragment, int Length, int ForeignMinion, int ForeignOther,
-        bool CrossSynthetic, bool CrossCaptured, bool Wildcard, bool Anchored);
+        bool TermSplits, bool Wildcard, bool Anchored, int GuardLetters);
 
     private sealed record MatrixScope(
         string Kind, IReadOnlyList<string> Classes, string Current,
         int Targets, int TargetMax,
         IReadOnlyList<MatrixOption> Strict,
         IReadOnlyList<MatrixOption> Minion,
-        IReadOnlyList<MatrixOption> Line,
-        IReadOnlyList<MatrixOption> Relaxed,
         MatrixOption? Floor,
         IReadOnlyList<MatrixOption> Floors);
 
@@ -50,7 +48,10 @@ public static class CandidateMatrix
         var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
         var outPath = GetValue(opts, "--out", $"docs/CANDIDATE-MATRIX-{gameName}.html");
         var only = GetValue(opts, "--family", "");
-        var maxLength = int.TryParse(GetValue(opts, "--max-length", "24"), out var ml) ? ml : 24;
+        // The matrix is a shortening review: 14 captures every candidate
+        // that can beat the common shipped fragments. Pass --max-length 24
+        // for the exhaustive grammar when needed.
+        var maxLength = int.TryParse(GetValue(opts, "--max-length", "14"), out var ml) ? ml : 14;
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         var corpus = new EngineCorpus(catalog);
@@ -216,7 +217,7 @@ public static class CandidateMatrix
         }).Replace("</script", "<\\/script", StringComparison.OrdinalIgnoreCase);
 
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-        File.WriteAllText(outPath, Html(json, families.Count, familyKeys.Length));
+        File.WriteAllText(outPath, Html(json, families.Count, familyKeys.Length, maxLength));
         Console.WriteLine($"wrote {outPath} ({new FileInfo(outPath).Length / 1024} KiB, {families.Count} families)");
         return 0;
     }
@@ -230,8 +231,9 @@ public static class CandidateMatrix
     {
         MatrixOption ToOption(CandidateReport.Option o) => new(
             o.Fragment, o.Length, o.ForeignMinionLines, o.ForeignOtherLines,
-            o.CrossSynthetic, o.CrossCaptured, o.HasWildcard,
-            o.Fragment.StartsWith('^') || o.Fragment.EndsWith('$'));
+            o.TermSplits, o.HasWildcard,
+            o.Fragment.StartsWith('^') || o.Fragment.EndsWith('$'),
+            o.GuardLetters);
 
         var floor = top.Floor is null ? null : ToOption(top.Floor);
         return new MatrixScope(
@@ -242,8 +244,6 @@ public static class CandidateMatrix
             targets,
             top.Strict.Select(ToOption).ToList(),
             top.Minion.Select(ToOption).ToList(),
-            top.Line.Select(ToOption).ToList(),
-            top.Relaxed.Select(ToOption).ToList(),
             floor,
             floor is null ? [] : [floor]);
     }
@@ -280,9 +280,7 @@ public static class CandidateMatrix
         string.Join("|",
             scope.Current,
             Options(scope.Strict),
-            Options(scope.Minion),
-            Options(scope.Line),
-            Options(scope.Relaxed));
+            Options(scope.Minion));
 
     private static string Options(IReadOnlyList<MatrixOption> options) =>
         string.Join(",", options.Select(Option));
@@ -291,9 +289,9 @@ public static class CandidateMatrix
         option is null
             ? "-"
             : $"{option.Fragment}:{option.Length}:{option.ForeignMinion}:{option.ForeignOther}:" +
-              $"{option.CrossSynthetic}:{option.CrossCaptured}:{option.Wildcard}:{option.Anchored}";
+              $"{option.TermSplits}:{option.Wildcard}:{option.Anchored}:{option.GuardLetters}";
 
-    private static string Html(string json, int familyCount, int requestedCount)
+    private static string Html(string json, int familyCount, int requestedCount, int maxLength)
     {
         const string css = """
             :root { --bg:#101418; --panel:#171d24; --line:#2d3742; --text:#d8dee8; --muted:#8995a5; --gold:#d9a441; --good:#6fcf97; --warn:#f2c94c; --bad:#eb5757; --accent:#8fb8ff; }
@@ -344,19 +342,16 @@ public static class CandidateMatrix
             """;
         var sb = new StringBuilder();
         sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Candidate matrix</title><style>").Append(css).Append("</style></head><body>");
-        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. This is a data-build artifact; it does not change the runtime table.</div>");
+        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. Candidate search bound: ").Append(maxLength).Append(" characters; the current shipped fragment is always shown. This is a data-build artifact; it does not change the runtime table.</div>");
         sb.Append("<div class=\"defs\">");
-        sb.Append("<div class=\"def\"><b>Strict</b>Zero foreign lines; no cross-line wildcard match.</div>");
-        sb.Append("<div class=\"def\"><b>Minion-only</b>Minion / allies / presence lines allowed; no cross-line.</div>");
-        sb.Append("<div class=\"def\"><b>Line-only</b>Zero foreign lines; cross-line wildcard allowed.</div>");
-        sb.Append("<div class=\"def\"><b>Relaxed</b>Minion/allies lines and cross-line allowed.</div>");
+        sb.Append("<div class=\"def\"><b>Strict</b>Zero same-line foreign lines. The compiler emits this candidate as a quoted, line-local term.</div>");
+        sb.Append("<div class=\"def\"><b>Minion-only</b>Same-line foreign lines are only minion / allies / presence variants.</div>");
         sb.Append("</div>");
         sb.Append("<details class=\"legend\"><summary>Legend — what the numbers and labels mean</summary><div class=\"defs\">");
         sb.Append("<div class=\"def\"><b>len</b>Candidate length in characters, including anchors and wildcard dots.</div>");
         sb.Append("<div class=\"def\"><b>min</b>Foreign modeled lines that are minion, allies, or presence lines.</div>");
         sb.Append("<div class=\"def\"><b>other</b>All other foreign modeled lines matching the candidate.</div>");
-        sb.Append("<div class=\"def\"><b>cross-syn</b>The wildcard matches across a line break in a synthetic search section.</div>");
-        sb.Append("<div class=\"def\"><b>cross-cap</b>The wildcard matches across a line break in a captured item section.</div>");
+        sb.Append("<div class=\"def\"><b>splits</b>The fragment contains whitespace. Quoted, it is one line-local term; unquoted, the game would split it into separate ANDed terms.</div>");
         sb.Append("<div class=\"def\"><b>current</b>The fragment currently shipped for this pattern and scope.</div>");
         sb.Append("<div class=\"def\"><b>none</b>No candidate passes that profile after the whole grammar is evaluated. It does not mean the mod is unresolved.</div>");
         sb.Append("<div class=\"def\"><b>floor</b>The shortest raw candidate regardless of collisions. Diagnostic only — never a shipping proposal.</div>");
@@ -377,8 +372,8 @@ public static class CandidateMatrix
                   const bits = [`<code>${esc(o.fragment)}</code>`, `<span class="badge len">${o.length}</span>`];
                   if (o.foreignMinion) bits.push(`<span class="badge">min ${o.foreignMinion}</span>`);
                   if (o.foreignOther) bits.push(`<span class="badge foreign">other ${o.foreignOther}</span>`);
-                  if (o.crossSynthetic) bits.push('<span class="badge cross">cross-syn</span>');
-                  if (o.crossCaptured) bits.push('<span class="badge cross">cross-cap</span>');
+                  if (o.termSplits) bits.push('<span class="badge cross">splits if unquoted</span>');
+                  if (o.guardLetters) bits.push(`<span class="badge">guard ${o.guardLetters}</span>`);
                   if (o.anchored) bits.push('<span class="badge">anchored</span>');
                   return bits.join(' ');
                 }
@@ -414,8 +409,8 @@ public static class CandidateMatrix
                     return `<div class="floor">floor varies by class: ${text} <span class="diag">diagnostic only</span></div>`;
                   }
                   if (!s.floor) return '<div class="floor">floor: <span class="empty">no target-matching candidate</span></div>';
-                  const safe = s.strict[0] || s.minion[0] || s.line[0] || s.relaxed[0];
-                  const label = s.strict.length ? 'Strict' : s.minion.length ? 'Minion-only' : s.line.length ? 'Line-only' : s.relaxed.length ? 'Relaxed' : '';
+                  const safe = s.strict[0] || s.minion[0];
+                  const label = s.strict.length ? 'Strict' : s.minion.length ? 'Minion-only' : '';
                   const delta = safe ? `+${safe.length - s.floor.length}` : '';
                   const best = safe
                     ? ` · best safe <code>${esc(safe.fragment)}</code> ${safe.length} via ${label} (${delta})`
@@ -436,7 +431,7 @@ public static class CandidateMatrix
                         scopes.map(s => `<div class="scope"><h5>${esc(scopeTitle(s))} <span class="targets">· ${s.targets === s.targetMax ? s.targets : s.targets + '–' + s.targetMax} target lines${s.kind === 'global' ? '' : ' · ' + s.classes.length + (s.classes.length === 1 ? ' class' : ' classes')}</span></h5>` +
                           `<div class="current">current: ${s.current ? `<code>${esc(s.current)}</code>` : '<span class="empty">unresolved</span>'}</div>` +
                           floorLine(s) +
-                          `<div class="profiles">${profile('Strict', s.strict)}${profile('Minion-only', s.minion)}${profile('Line-only', s.line)}${profile('Relaxed', s.relaxed)}</div></div>`).join('') +
+                          `<div class="profiles">${profile('Strict', s.strict)}${profile('Minion-only', s.minion)}</div></div>`).join('') +
                         `</div>`;
                     }).join('');
                     if (!patterns) return '';

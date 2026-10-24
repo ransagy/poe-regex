@@ -115,6 +115,12 @@ public static class CandidateReport
         public bool CrossSynthetic { get; set; }
         public bool CrossCaptured { get; set; }
         public bool HasCross => CrossSynthetic || CrossCaptured;
+        /// <summary>True when an unquoted use would split this fragment into terms.</summary>
+        public bool TermSplits => Fragment.Any(char.IsWhiteSpace);
+        /// <summary>Stable hash of the matched line set, used to collapse dominated variants.</summary>
+        public int MatchSetHash { get; init; }
+        /// <summary>Longest literal letter run, used to prefer stronger guards at equal length.</summary>
+        public int GuardLetters => LongestLiteralLetterRun(Fragment);
     }
 
     public static int Run(string[] args)
@@ -137,7 +143,7 @@ public static class CandidateReport
 
         var sb = new StringBuilder();
         var details = new StringBuilder();
-        var summary = new List<(string Family, string ClassId, string? Strict, int StrictLength, string? LineOnly, string? Current)>();
+        var summary = new List<(string Family, string ClassId, string? Strict, int StrictLength, string? Minion, string? Current)>();
         sb.AppendLine($"# Candidate grammar report — {gameName}");
         sb.AppendLine();
         sb.AppendLine("Generated from the real catalog + vendor corpus + captured safety items.");
@@ -178,16 +184,12 @@ public static class CandidateReport
                 continue;
             }
             WriteScope(details, family, classId, result.Value, isGlobal: false);
-            var strictBest = result.Value.Options
-                .Where(o => o.Plausible && o.ForeignLines == 0 && !o.HasCross)
-                .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
+            var strictBest = Best(result.Value.Options, o => o.Plausible && o.ForeignLines == 0, 1)
                 .FirstOrDefault();
-            var lineOnlyBest = result.Value.Options
-                .Where(o => o.Plausible && o.ForeignLines == 0)
-                .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
+            var minionBest = Best(result.Value.Options, o => o.Plausible && o.ForeignOtherLines == 0, 1)
                 .FirstOrDefault();
             summary.Add((family, classId, strictBest?.Fragment, strictBest?.Length ?? 0,
-                lineOnlyBest?.Fragment, result.Value.Current));
+                minionBest?.Fragment, result.Value.Current));
             if (includeGlobal)
             {
                 var global = Analyze(corpus, catalog, table, family, null, maxLength);
@@ -197,10 +199,10 @@ public static class CandidateReport
 
         sb.AppendLine("## Common-family strict summary");
         sb.AppendLine();
-        sb.AppendLine("| family | class | strict candidate | len | line-only candidate | current |");
+        sb.AppendLine("| family | class | strict candidate | len | minion-only candidate | current |");
         sb.AppendLine("|---|---|---|---:|---|---|");
         foreach (var row in summary)
-            sb.AppendLine($"| {row.Family} | {row.ClassId} | {Fmt(row.Strict ?? "(none)")} | {row.StrictLength} | {Fmt(row.LineOnly ?? "(none)")} | {Fmt(row.Current ?? "(unresolved)")} |");
+            sb.AppendLine($"| {row.Family} | {row.ClassId} | {Fmt(row.Strict ?? "(none)")} | {row.StrictLength} | {Fmt(row.Minion ?? "(none)")} | {Fmt(row.Current ?? "(unresolved)")} |");
         sb.AppendLine();
         var strictLengths = summary.Where(x => x.StrictLength > 0).Select(x => x.StrictLength).ToList();
         if (strictLengths.Count > 0)
@@ -382,23 +384,39 @@ public static class CandidateReport
             return;
         }
 
-        var strict = options
-            .Where(o => o.Plausible && o.ForeignLines == 0 && !o.HasCross)
-            .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
-            .Take(5).ToList();
-        var lineOnly = options
-            .Where(o => o.Plausible && o.ForeignLines == 0)
-            .OrderBy(o => o.Length).ThenBy(o => o.Fragment, StringComparer.Ordinal)
-            .Take(5).ToList();
+        var strict = Best(options, o => o.Plausible && o.ForeignLines == 0, 5);
+        var minion = Best(options, o => o.Plausible && o.ForeignOtherLines == 0, 5);
         var shortest = options
             .Where(o => o.Plausible)
             .OrderBy(o => o.Length).ThenBy(o => o.ForeignLines).ThenBy(o => o.Fragment, StringComparer.Ordinal)
             .Take(8).ToList();
 
-        WriteOptions(sb, "Strict (zero foreign, no cross-line)", strict);
-        WriteOptions(sb, "Line-only (zero foreign; cross-line possible)", lineOnly);
+        WriteOptions(sb, "Strict (zero same-line foreign)", strict);
+        WriteOptions(sb, "Minion-only (same-line minion/allies allowed)", minion);
         WriteOptions(sb, "Shortest observed (collisions included)", shortest);
     }
+
+    private static List<Option> Best(
+        IReadOnlyList<Option> options, Func<Option, bool> predicate, int count)
+    {
+        var result = new List<Option>();
+        foreach (var option in options.Where(predicate)
+                     .OrderBy(o => o.Length)
+                     .ThenBy(o => o.Fragment, StringComparer.Ordinal))
+        {
+            if (result.Any(existing => Dominates(existing, option))) continue;
+            result.RemoveAll(existing => Dominates(option, existing));
+            result.Add(option);
+        }
+        return result.Take(count).ToList();
+    }
+
+    private static bool Dominates(Option a, Option b) =>
+        a.Length <= b.Length &&
+        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
+        a.ForeignMinionLines <= b.ForeignMinionLines &&
+        a.ForeignOtherLines <= b.ForeignOtherLines &&
+        a.ForeignPatterns <= b.ForeignPatterns;
 
     private static void WriteOptions(StringBuilder sb, string title, IReadOnlyList<Option> options)
     {
@@ -410,10 +428,10 @@ public static class CandidateReport
             sb.AppendLine();
             return;
         }
-        sb.AppendLine("| len | fragment | foreign patterns | foreign lines | cross synthetic | cross captured | examples |");
-        sb.AppendLine("|---:|---|---:|---:|---|---|---|");
+        sb.AppendLine("| len | fragment | foreign patterns | foreign lines | term splits? | examples |");
+        sb.AppendLine("|---:|---|---:|---:|---|---|");
         foreach (var o in options)
-            sb.AppendLine($"| {o.Length} | {Fmt(o.Fragment)} | {o.ForeignPatterns} | {o.ForeignLines} | {(o.CrossSynthetic ? "yes" : "no")} | {(o.CrossCaptured ? "yes" : "no")} | {Fmt(string.Join(" · ", o.ForeignExamples))} |");
+            sb.AppendLine($"| {o.Length} | {Fmt(o.Fragment)} | {o.ForeignPatterns} | {o.ForeignLines} | {(o.TermSplits ? "yes" : "no")} | {Fmt(string.Join(" · ", o.ForeignExamples))} |");
         sb.AppendLine();
     }
 
@@ -457,6 +475,23 @@ public static class CandidateReport
         line.Contains("Minions", StringComparison.OrdinalIgnoreCase) ||
         line.Contains("Allies", StringComparison.OrdinalIgnoreCase) ||
         line.Contains("in your Presence", StringComparison.OrdinalIgnoreCase);
+
+    internal static int StableHash(IEnumerable<string> values)
+    {
+        unchecked
+        {
+            var hash = 2166136261u;
+            foreach (var value in values)
+            {
+                foreach (var ch in value)
+                {
+                    hash ^= ch;
+                    hash *= 16777619u;
+                }
+            }
+            return (int)hash;
+        }
+    }
 
     internal static void EvaluateCross(EngineCorpus corpus, string? scope, Option option)
     {
@@ -538,6 +573,33 @@ public static class CandidateReport
             return true;
         }
 
+        bool AllTargetsMatchPieces(params string[] pieces)
+        {
+            foreach (var target in targets)
+            {
+                foreach (var piece in pieces)
+                {
+                    if (piece.Length == 0) return false;
+                    if (IsLiteral(piece))
+                    {
+                        if (target.IndexOf(piece, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                        continue;
+                    }
+                    try
+                    {
+                        if (!Regex.IsMatch(target, piece,
+                                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                            return false;
+                    }
+                    catch (ArgumentException)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         var wildcards = new List<string> { ".", ".*", ".+" };
         for (var k = 2; k <= 5; k++) wildcards.Add(new string('.', k));
 
@@ -565,10 +627,13 @@ public static class CandidateReport
                 }
             }
 
-            var chunks = WordChunks(shortest);
-            var starts = chunks.Where(c => c.StartsWord).ToList();
-            var ends = chunks.Where(c => c.EndsWord).ToList();
-            var all = chunks.ToList();
+            var baseChunks = WordChunks(shortest);
+            var chunkSet = new HashSet<Chunk>(baseChunks);
+            foreach (var tail in TailPhrases(shortest)) chunkSet.Add(tail);
+            foreach (var digit in DigitPrefixes(shortest)) chunkSet.Add(digit);
+            var starts = chunkSet.Where(c => c.StartsWord).ToList();
+            var ends = chunkSet.Where(c => c.EndsWord).ToList();
+            var all = chunkSet.ToList();
 
             // One middle wildcard: two literal pieces.
             foreach (var a in starts)
@@ -579,18 +644,20 @@ public static class CandidateReport
                     {
                         var frag = a.Text + w + b.Text;
                         if (frag.Length > maxLength) continue;
-                        if (!AllTargetsContain(a.Text, b.Text)) continue;
+                        if (!AllTargetsMatchPieces(a.Text, b.Text)) continue;
                         AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), a.StartsWord && b.EndsWord);
                     }
                 }
             }
 
-            // Two middle wildcards: prefix, middle word, suffix. Keep the middle
-            // piece to word-sized literals so the experiment stays bounded.
-            var mids = all.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
-                                      c.Text.Length <= 10).ToList();
-            var firsts = starts.Where(c => c.Text.Length <= 8).Take(24).ToList();
-            var lasts = ends.Where(c => c.Text.Length <= 8).Take(24).ToList();
+            // Two middle wildcards: prefix, middle word, suffix. Keep the
+            // middle piece to word-sized literals and use only the base
+            // word-aligned chunks here; digit prefixes and mid-word tails are
+            // reserved for the one-wildcard search where they matter.
+            var mids = baseChunks.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
+                                             c.Text.Length <= 10).ToList();
+            var firsts = baseChunks.Where(c => c.StartsWord && c.Text.Length <= 8).Take(24).ToList();
+            var lasts = baseChunks.Where(c => c.EndsWord && c.Text.Length <= 8).Take(24).ToList();
             foreach (var a in firsts)
             {
                 foreach (var m in mids)
@@ -603,7 +670,7 @@ public static class CandidateReport
                             {
                                 var frag = a.Text + w1 + m.Text + w2 + b.Text;
                                 if (frag.Length > maxLength) continue;
-                                if (!AllTargetsContain(a.Text, m.Text, b.Text)) continue;
+                                if (!AllTargetsMatchPieces(a.Text, m.Text, b.Text)) continue;
                                 AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), a.StartsWord && b.EndsWord);
                             }
                         }
@@ -629,7 +696,11 @@ public static class CandidateReport
             if (!candidate.Plausible) continue;
             var fragment = candidate.Fragment;
             var wildcard = candidate.Wildcard;
-            var hint = candidate.Hint;
+            // The candidate hint may be a regex token (e.g. "\+\d"), which
+            // cannot be used as a literal prefilter. Extract the longest
+            // literal run instead so digit-shaped candidates are still
+            // checked against every possible foreign line.
+            var hint = FragmentSelector.LiteralHint(candidate.Fragment) ?? "";
             Regex regex;
             try
             {
@@ -672,6 +743,7 @@ public static class CandidateReport
                 ForeignMinionLines = foreignMinion,
                 ForeignOtherLines = foreignMatches.Count - foreignMinion,
                 ForeignExamples = examples,
+                MatchSetHash = StableHash(foreignMatches.Select(x => x.Pattern + "\0" + x.Real)),
                 Plausible = candidate.Plausible,
             });
         }
@@ -754,6 +826,56 @@ public static class CandidateReport
         return false;
     }
 
+    /// <summary>
+    /// Mid-word tails of the final phrase(s). These are what let a candidate
+    /// use "m life" for "maximum Life" instead of the full word boundary.
+    /// </summary>
+    private static List<Chunk> TailPhrases(string text)
+    {
+        var result = new List<Chunk>();
+        var words = Regex.Matches(text, @"[A-Za-z]+(?:'[A-Za-z]+)?")
+            .Select(m => (Start: m.Index, End: m.Index + m.Length))
+            .ToList();
+        if (words.Count == 0) return result;
+
+        var firstWord = Math.Max(0, words.Count - 3);
+        var end = words[^1].End;
+        for (var w = firstWord; w < words.Count; w++)
+        {
+            var startLimit = words[w].Start;
+            for (var start = startLimit; start < end; start++)
+            {
+                if (text[start] == ' ') continue;
+                var value = text[start..end];
+                if (value.Length == 0 || value.Length > 12) continue;
+                if (!IsLiteral(value)) continue;
+                result.Add(new Chunk(value, start == startLimit, true));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Digit/plus anchors for the seed line. These are regex tokens, not
+    /// literals, and are validated against every target by the caller.
+    /// </summary>
+    private static List<Chunk> DigitPrefixes(string seed)
+    {
+        var result = new List<Chunk>();
+        var trimmed = seed.TrimStart();
+        if (trimmed.Length >= 2 && trimmed[0] == '+' && char.IsAsciiDigit(trimmed[1]))
+        {
+            result.Add(new Chunk(@"\+\d", true, false));
+            result.Add(new Chunk(@"\+\d+", true, false));
+        }
+        if (trimmed.Length >= 1 && char.IsAsciiDigit(trimmed[0]))
+        {
+            result.Add(new Chunk(@"\d", true, false));
+            result.Add(new Chunk(@"\d+", true, false));
+        }
+        return result;
+    }
+
     private static List<Chunk> WordChunks(string text)
     {
         var result = new List<Chunk>();
@@ -786,6 +908,31 @@ public static class CandidateReport
             }
         }
         return result;
+    }
+
+    internal static int LongestLiteralLetterRun(string fragment)
+    {
+        var best = 0;
+        var run = 0;
+        for (var i = 0; i < fragment.Length; i++)
+        {
+            if (fragment[i] == '\\' && i + 1 < fragment.Length)
+            {
+                i++;
+                run = 0;
+                continue;
+            }
+            if (char.IsAsciiLetter(fragment[i]))
+            {
+                run++;
+                if (run > best) best = run;
+            }
+            else
+            {
+                run = 0;
+            }
+        }
+        return best;
     }
 
     private static string LongestHint(params string[] parts) =>

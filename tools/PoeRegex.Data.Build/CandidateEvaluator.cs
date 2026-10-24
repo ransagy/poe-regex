@@ -208,7 +208,16 @@ internal sealed class ScopeCorpus
             var c = fragment[i];
             if (c == '\\' && i + 1 < fragment.Length)
             {
-                current.Append(fragment[i + 1]);
+                var escaped = fragment[i + 1];
+                if (escaped is 'd' or 'D' or 'w' or 'W' or 's' or 'S')
+                {
+                    // A character-class token, not a literal letter. Split the
+                    // run and let the regex verification decide the match.
+                    Flush();
+                    i++;
+                    continue;
+                }
+                current.Append(escaped);
                 i++;
                 continue;
             }
@@ -341,9 +350,7 @@ internal sealed class TrigramIndex
 internal sealed record TopOptions(
     CandidateReport.Option? Floor,
     IReadOnlyList<CandidateReport.Option> Strict,
-    IReadOnlyList<CandidateReport.Option> Minion,
-    IReadOnlyList<CandidateReport.Option> Line,
-    IReadOnlyList<CandidateReport.Option> Relaxed);
+    IReadOnlyList<CandidateReport.Option> Minion);
 
 internal static class CandidateEvaluator
 {
@@ -362,10 +369,9 @@ internal static class CandidateEvaluator
 
         var strict = new List<CandidateReport.Option>();
         var minion = new List<CandidateReport.Option>();
-        var line = new List<CandidateReport.Option>();
-        var relaxed = new List<CandidateReport.Option>();
         CandidateReport.Option? floor = null;
         var evaluated = new HashSet<string>(StringComparer.Ordinal);
+        var outcomes = new HashSet<string>(StringComparer.Ordinal);
 
         void Consider(CandidateReport.Candidate candidate)
         {
@@ -377,37 +383,35 @@ internal static class CandidateEvaluator
 
             if (floor is null || Compare(option, floor) < 0) floor = option;
 
-            var canReachProfiles = option.ForeignLines == 0 || option.ForeignOtherLines == 0;
-            if (option.HasWildcard && canReachProfiles)
-                CandidateReport.EvaluateCross(scope.Corpus, scope.Scope, option);
+            // A longer candidate with exactly the same outcome is pure fluff.
+            // Candidates are visited by ascending length, so the first one is
+            // the shortest for that outcome.
+            var anchored = option.Fragment.StartsWith('^') || option.Fragment.EndsWith('$');
+            var outcome = string.Join('|',
+                option.ForeignMinionLines,
+                option.ForeignOtherLines,
+                option.ForeignPatterns,
+                option.TermSplits,
+                option.HasWildcard,
+                anchored,
+                option.MatchSetHash);
+            if (!outcomes.Add(outcome)) return;
 
-            if (option.ForeignLines == 0)
-            {
-                AddTop(line, option, top);
-                if (!option.HasCross) AddTop(strict, option, top);
-            }
-            if (option.ForeignOtherLines == 0)
-            {
-                AddTop(relaxed, option, top);
-                if (!option.HasCross) AddTop(minion, option, top);
-            }
+            // Quoted terms are line-local: the same-line foreign count is the
+            // shipping safety criterion. There is no cross-line dot phase.
+            if (option.ForeignLines == 0) AddTop(strict, option, top);
+            if (option.ForeignOtherLines == 0) AddTop(minion, option, top);
         }
-
-        // The shipped fragment is evaluated first so a long but valid current
-        // entry can never disappear behind the length cap.
-        var currentCandidate = candidates.FirstOrDefault(x =>
-            string.Equals(x.Fragment, current, StringComparison.Ordinal));
-        if (currentCandidate is not null) Consider(currentCandidate);
 
         foreach (var candidate in candidates)
         {
-            if (AllFull(strict, minion, line, relaxed, top) &&
-                candidate.Fragment.Length > MaxThird(strict, minion, line, relaxed))
+            if (AllFull(strict, minion, top) &&
+                candidate.Fragment.Length > MaxThird(strict, minion))
                 break;
             Consider(candidate);
         }
 
-        return new TopOptions(floor, strict, minion, line, relaxed);
+        return new TopOptions(floor, strict, minion);
     }
 
     private static CandidateReport.Option? BuildOption(
@@ -445,6 +449,7 @@ internal static class CandidateEvaluator
         var realSet = new HashSet<string>(StringComparer.Ordinal);
         var patternSet = new HashSet<string>(StringComparer.Ordinal);
         var examples = new List<string>(2);
+        var foreignKeys = new List<string>();
         var foreignLines = 0;
         var foreignMinion = 0;
 
@@ -455,6 +460,7 @@ internal static class CandidateEvaluator
             foreignLines++;
             if (CandidateReport.IsMinionAlliesLine(source.Real)) foreignMinion++;
             patternSet.Add(source.Pattern);
+            foreignKeys.Add(source.Pattern + "\0" + source.Real);
             if (realSet.Add(source.Real) && examples.Count < 2) examples.Add(source.Real);
         }
 
@@ -468,6 +474,7 @@ internal static class CandidateEvaluator
             ForeignMinionLines = foreignMinion,
             ForeignOtherLines = foreignLines - foreignMinion,
             ForeignExamples = examples,
+            MatchSetHash = CandidateReport.StableHash(foreignKeys),
             Plausible = true,
         };
     }
@@ -475,6 +482,12 @@ internal static class CandidateEvaluator
     private static void AddTop(
         List<CandidateReport.Option> list, CandidateReport.Option option, int top)
     {
+        // Drop strictly dominated variants: a shorter candidate with no more
+        // foreign collisions is always preferable. This is what removes the
+        // "k Speed$ / ck Speed$ / ack Speed$" fluff.
+        if (list.Any(existing => Dominates(existing, option))) return;
+        list.RemoveAll(existing => Dominates(option, existing));
+
         if (list.Count == top && Compare(option, list[^1]) >= 0) return;
         var index = list.FindIndex(x => Compare(option, x) < 0);
         if (index < 0) list.Add(option);
@@ -482,23 +495,24 @@ internal static class CandidateEvaluator
         if (list.Count > top) list.RemoveAt(top);
     }
 
+    private static bool Dominates(
+        CandidateReport.Option a, CandidateReport.Option b) =>
+        a.Length <= b.Length &&
+        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
+        a.ForeignMinionLines <= b.ForeignMinionLines &&
+        a.ForeignOtherLines <= b.ForeignOtherLines &&
+        a.ForeignPatterns <= b.ForeignPatterns;
+
     private static bool AllFull(
         List<CandidateReport.Option> strict,
         List<CandidateReport.Option> minion,
-        List<CandidateReport.Option> line,
-        List<CandidateReport.Option> relaxed,
         int top) =>
-        strict.Count >= top && minion.Count >= top &&
-        line.Count >= top && relaxed.Count >= top;
+        strict.Count >= top && minion.Count >= top;
 
     private static int MaxThird(
         List<CandidateReport.Option> strict,
-        List<CandidateReport.Option> minion,
-        List<CandidateReport.Option> line,
-        List<CandidateReport.Option> relaxed) =>
-        Math.Max(
-            Math.Max(strict[^1].Length, minion[^1].Length),
-            Math.Max(line[^1].Length, relaxed[^1].Length));
+        List<CandidateReport.Option> minion) =>
+        Math.Max(strict[^1].Length, minion[^1].Length);
 
     private static int Compare(CandidateReport.Option a, CandidateReport.Option b)
     {
