@@ -43,7 +43,7 @@
     "Allies in your Presence deal \u0001 to \u0001 added Attack Cold Damage": "Attack Cold Damage$",
     "Allies in your Presence deal \u0001 to \u0001 added Attack Lightning Damage": "Attack Lightning Damage$",
     "\u0001% increased Physical Damage": "increased Ph",
-    "\u002B\u0001 to Accuracy Rating": "^\\\u002B\\d\u002B\\(\\d\u002B-\\d\u002B\\) to Accuracy",
+    "\u002B\u0001 to Accuracy Rating": "to ac",
     "Allies in your Presence deal \u0001% increased Damage": "^Allies in your Presence deal \\d\u002B\\(\\d\u002B-\\d\u002B\\)%",
     "\u0001% increased Spell Damage": "Spell Damage$",
     "\u0001% increased Fire Damage": "increased Fire Damage$",
@@ -73,7 +73,7 @@
     "Gain \u0001 Mana per enemy killed": "Mana per enemy killed$",
     "Gain \u0001 Life per Enemy Hit with Attacks": "per Enemy Hit with Attacks$",
     "Grants \u0001 Life per Enemy Hit": "Enemy Hit$",
-    "\u0001% increased Attack Speed": "^\\d\u002B\\(\\d\u002B-\\d\u002B\\)% increased Attack Speed$",
+    "\u0001% increased Attack Speed": "Attack Speed$",
     "Allies in your Presence have \u0001% increased Attack Speed": "have \\d\u002B\\(\\d\u002B-\\d\u002B\\)% increased Attack Speed$",
     "\u0001% increased Cast Speed": "^\\d\u002B\\(\\d\u002B-\\d\u002B\\)% increased Cast Speed$",
     "Allies in your Presence have \u0001% increased Cast Speed": "have \\d\u002B\\(\\d\u002B-\\d\u002B\\)% increased Cast Speed$",
@@ -147,7 +147,8 @@
     "Eternal Iron Hook": "^Eternal",
     "\u0001% increased Fishing Range": "Fishing Range$",
     "\u0001% increased Quantity of Fish Caught": "Quantity of Fish Caught$",
-    "\u0001% increased Rarity of Fish Caught": "Rarity of Fish Caught$"
+    "\u0001% increased Rarity of Fish Caught": "Rarity of Fish Caught$",
+    "\u0001% increased Movement Speed": "Movement Speed$"
   },
   "ByClass": {
     "Amulet": {
@@ -931,8 +932,6 @@
       "\u0001% increased Elemental Damage with Attacks": "with Attacks$"
     }
   },
-  "GlobalUnresolved": {
-    "\u0001% increased Movement Speed": "Fixed and ranged tiers share no line-local guard: fixed tiers need ^digit\u002B%..., ranged tiers need the range parenthesis, and the common suffix also matches Minions have ...% increased Movement Speed. Use an item-class scope or test an explicit alternation in-game before adding one."
-  },
+  "GlobalUnresolved": {},
   "ByClassUnresolved": {}
 }

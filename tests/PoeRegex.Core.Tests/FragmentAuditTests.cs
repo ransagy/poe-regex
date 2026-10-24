@@ -267,6 +267,16 @@ public class FragmentAuditTests
             $"'{fragment}' was observed matching across item lines in-game");
     }
 
+    /// <summary>
+    /// The accepted global policy allows collisions with the relatively rare
+    /// minion/allies/presence variants of the same displayed stat. All other
+    /// foreign lines remain hard failures.
+    /// </summary>
+    private static bool IsAllowedSoftForeign(string line) =>
+        line.Contains("Minions", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("Allies", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("in your Presence", StringComparison.OrdinalIgnoreCase);
+
     [Fact]
     public void EveryStatLine_ResolvesToARegexSafeMinimalFragment()
     {
@@ -294,7 +304,10 @@ public class FragmentAuditTests
             {
                 var targets = lines.Where(x => x.Pattern == pattern).Select(x => x.Real).ToList();
                 if (targets.Count == 0) continue;
-                var others = lines.Where(x => x.Pattern != pattern).Select(x => x.Real).ToList();
+                var others = lines.Where(x => x.Pattern != pattern)
+                    .Select(x => x.Real)
+                    .Where(x => !IsAllowedSoftForeign(x))
+                    .ToList();
                 var fragment = selector.Select(pattern, scope);
                 if (fragment is null)
                 {

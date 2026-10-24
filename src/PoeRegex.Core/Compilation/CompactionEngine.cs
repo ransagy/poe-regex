@@ -13,11 +13,12 @@ public sealed class CompactionEngine
     private readonly ICompilerStrategy _strategy;
     private readonly FragmentSelector _selector;
 
-    public CompactionEngine(EngineCorpus corpus, ICompilerStrategy strategy)
+    public CompactionEngine(EngineCorpus corpus, ICompilerStrategy strategy, bool allowFallback = true)
     {
         _corpus = corpus;
         _strategy = strategy;
-        _selector = new FragmentSelector(corpus, strategy, policy: FragmentPolicy.Guaranteed);
+        _selector = new FragmentSelector(
+            corpus, strategy, policy: FragmentPolicy.Guaranteed, allowFallback: allowFallback);
     }
 
     /// <summary>

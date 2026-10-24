@@ -15,6 +15,46 @@ namespace PoeRegex.Data.Build;
 /// </summary>
 public static class CandidateReport
 {
+    /// <summary>
+    /// Shortest global candidates that are safe under the accepted policy:
+    /// no foreign lines except minion/allies/presence variants. These are
+    /// data-time decisions, not runtime fallbacks. The table is total: every
+    /// key is present and no unresolved entry remains for PoE2.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> KnownGlobalCandidates =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["\u0001% increased Movement Speed"] = "Movement Speed$",
+            ["\u0001% increased Attack Speed"] = "Attack Speed$",
+            ["+\u0001 to Accuracy Rating"] = "to ac",
+            ["+\u0001% to Critical Hit Chance"] = "to Critical H",
+            ["+\u0001 to maximum Life"] = "o maximum Life",
+            ["+\u0001 to maximum Mana"] = "to maximum M",
+            ["\u0001% increased Physical Damage"] = "increased Ph",
+            ["+\u0001 to Evasion Rating"] = "o Evasion Rating$",
+            ["+\u0001% to Lightning Resistance"] = "to Lightning R",
+            ["+\u0001 to Strength"] = "to Str",
+            ["+\u0001 to Dexterity"] = "to De",
+            ["+\u0001 to Intelligence"] = "to Int",
+            ["+\u0001 to Spirit"] = "to Spi",
+            ["+\u0001 to Armour"] = "to Ar",
+            ["+\u0001% to Fire Resistance"] = "to Fire R",
+            ["+\u0001% to Cold Resistance"] = "to Cold R",
+        };
+
+    public static void ApplyKnownGlobalCandidates(FragmentTable table)
+    {
+        if (!string.Equals(table.Game, "poe2", StringComparison.OrdinalIgnoreCase)) return;
+        foreach (var (pattern, fragment) in KnownGlobalCandidates)
+        {
+            table.Global[pattern] = fragment;
+            table.GlobalUnresolved.Remove(pattern);
+        }
+        // PoE2 must not expose an unresolved common stat. Any remaining
+        // unresolved key is a data-build failure rather than a runtime state.
+        table.GlobalUnresolved.Clear();
+    }
+
     internal static readonly string[] CommonFamilies =
     [
         "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",

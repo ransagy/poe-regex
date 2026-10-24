@@ -38,7 +38,7 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void FilterMods_SearchesNameIdAndLine_CaseInsensitively()
+    public void FilterMods_SearchesNameAndLine_CaseInsensitively()
     {
         var ring = Engine.ModsForClass("Ring");
         var byName = ModSearch.FilterMods(ring, "brute");
@@ -48,6 +48,8 @@ public class WebDataServiceTests
 
         var byLine = ModSearch.FilterMods(ring, "maximum Life");
         byLine.Should().Contain(m => m.Id == "IncreasedLife6");
+        ModSearch.FilterMods(ring, "IncreasedLife6").Should().BeEmpty(
+            "internal mod IDs are not user-facing search text");
 
         ModSearch.FilterMods(ring, "   ").Should().HaveCount(ring.Count);
         ModSearch.FilterMods(ring, "zzz-no-such-mod").Should().BeEmpty();

@@ -161,7 +161,9 @@ public class CatalogPropertyTests
 
             var fragment = result.Query.Trim().Trim('"');
             fragment.Should().NotBeNullOrEmpty($"global query for {mod.Id} must resolve to a fragment");
-            var matches = mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(AdvancedStatLine.For(sl), fragment));
+            var matches = mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(
+                AdvancedStatLine.For(sl), fragment,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase));
             matches.Should().BeTrue($"global fragment '{fragment}' of {mod.Id} must match one of its copy-text lines");
             checkedCount++;
         }

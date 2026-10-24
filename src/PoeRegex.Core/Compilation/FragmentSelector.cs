@@ -53,6 +53,7 @@ public sealed class FragmentSelector
     private readonly EngineCorpus _corpus;
     private readonly ICompilerStrategy _strategy;
     private readonly bool _usePrecomputed;
+    private readonly bool _allowFallback;
     private readonly FragmentPolicy _policy;
     private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
     private Func<string, bool>? _extraSafety;
@@ -62,11 +63,12 @@ public sealed class FragmentSelector
 
     public FragmentSelector(
         EngineCorpus corpus, ICompilerStrategy strategy, bool usePrecomputed = true,
-        FragmentPolicy? policy = null)
+        FragmentPolicy? policy = null, bool allowFallback = true)
     {
         _corpus = corpus;
         _strategy = strategy;
         _usePrecomputed = usePrecomputed;
+        _allowFallback = allowFallback;
         _policy = policy ?? FragmentPolicy.Guaranteed;
     }
 
@@ -89,6 +91,18 @@ public sealed class FragmentSelector
         {
             _cache[key] = precomputed;
             return precomputed;
+        }
+        if (_usePrecomputed)
+        {
+            // A documented unresolved entry is a data decision, not a request
+            // to rebuild the oracle in the browser. Missing entries in a
+            // runtime-only compiler are equally final: the precomputed table
+            // is the runtime source of truth.
+            if (_corpus.PrecomputedUnresolvedReason(pattern, itemClass) is not null || !_allowFallback)
+            {
+                _cache[key] = null;
+                return null;
+            }
         }
         // Keep the extra check for the whole nested search (the class scope
         // recurses into the global scope); the next top-level call resets it.

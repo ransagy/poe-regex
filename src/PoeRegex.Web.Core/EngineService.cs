@@ -25,7 +25,7 @@ public sealed class EngineService
         var catalog = new EmbeddedCatalogSource().Load(GameTarget.PoE2);
         _corpus = new EngineCorpus(catalog);
         _strategy = PoeRegexCompiler.StrategyFor(GameTarget.PoE2);
-        _compiler = new PoeRegexCompiler(_corpus, _strategy);
+        _compiler = new PoeRegexCompiler(_corpus, _strategy, allowFallback: false);
         _explainer = new Explainer(_corpus);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {

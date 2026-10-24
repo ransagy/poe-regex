@@ -159,6 +159,8 @@ public static class Program
             GlobalUnresolved = globalUnresolved,
             ByClassUnresolved = byClassUnresolved,
         };
+        if (string.Equals(gameName, "poe2", StringComparison.OrdinalIgnoreCase))
+            CandidateReport.ApplyKnownGlobalCandidates(table);
         if (opts.ContainsKey("--representative-class"))
         {
             CandidateReport.ApplyRepresentativeClassCandidates(corpus, catalog, table);
