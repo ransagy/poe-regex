@@ -55,6 +55,11 @@ public static class CandidateReport
         table.GlobalUnresolved.Clear();
     }
 
+    internal static IEnumerable<string> AllFamilies(Catalog catalog) =>
+        catalog.Mods.Select(m => m.Family.Length > 0 ? m.Family : m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal);
+
     internal static readonly string[] CommonFamilies =
     [
         "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
@@ -66,7 +71,7 @@ public static class CandidateReport
         "LocalAccuracyRating", "ManaRegeneration",
     ];
 
-    private static readonly Dictionary<string, string> RepresentativeClasses = new(StringComparer.Ordinal)
+    internal static readonly Dictionary<string, string> RepresentativeClasses = new(StringComparer.Ordinal)
     {
         ["IncreasedLife"] = "Belt",
         ["IncreasedMana"] = "Ring",
@@ -92,15 +97,17 @@ public static class CandidateReport
         ["ManaRegeneration"] = "Ring",
     };
 
-    private sealed record SourceLine(string Pattern, string Real);
-    private sealed record Chunk(string Text, bool StartsWord, bool EndsWord);
-    private sealed class Option
+    internal sealed record SourceLine(string Pattern, string Real);
+    internal sealed record Chunk(string Text, bool StartsWord, bool EndsWord);
+    internal sealed class Option
     {
         public required string Fragment { get; init; }
         public required int Length { get; init; }
         public required bool HasWildcard { get; init; }
         public required int ForeignPatterns { get; init; }
         public required int ForeignLines { get; init; }
+        public required int ForeignMinionLines { get; init; }
+        public required int ForeignOtherLines { get; init; }
         public required IReadOnlyList<string> ForeignExamples { get; init; }
         public required bool Plausible { get; init; }
         public bool CrossSynthetic { get; set; }
@@ -346,7 +353,7 @@ public static class CandidateReport
         return true;
     }
 
-    private static List<SourceLine> ScopeLines(EngineCorpus corpus, string? scope)
+    internal static List<SourceLine> ScopeLines(EngineCorpus corpus, string? scope)
     {
         var all = new List<SourceLine>();
         if (scope is null)
@@ -411,7 +418,7 @@ public static class CandidateReport
     private static string Fmt(string value) =>
         value.Length == 0 ? "" : "`" + value.Replace("|", "\\|") + "`";
 
-    private static string? CurrentFragment(
+    internal static string? CurrentFragment(
         FragmentTable? table, string family, string? scope,
         IReadOnlySet<string> targetPatterns, Catalog catalog)
     {
@@ -439,14 +446,26 @@ public static class CandidateReport
         return patterns;
     }
 
-    private static string FirstClassFor(Catalog catalog, string family) =>
+    internal static string FirstClassFor(Catalog catalog, string family) =>
         catalog.ItemClasses
             .FirstOrDefault(c => catalog.Mods.Any(m =>
                 (m.Family.Length > 0 ? m.Family : m.Id) == family && m.Classes.Contains(c.Id)))?.Id ?? "";
 
-    private static List<Option> Generate(
+    internal static bool IsMinionAlliesLine(string line) =>
+        line.Contains("Minions", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("Allies", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("in your Presence", StringComparison.OrdinalIgnoreCase);
+
+    internal static void EvaluateCross(EngineCorpus corpus, string? scope, Option option)
+    {
+        if (!option.HasWildcard) return;
+        option.CrossSynthetic = !corpus.CrossLineSafe(scope, option.Fragment);
+        option.CrossCaptured = CrossCaptured(corpus, scope, option.Fragment);
+    }
+
+    internal static List<Option> Generate(
         EngineCorpus corpus, IReadOnlyList<string> targets, IReadOnlyList<SourceLine> foreign,
-        string? scope, int maxLength, string? current)
+        string? scope, int maxLength, string? current, bool fast = false)
     {
         var candidates = new Dictionary<string, (bool Wildcard, string Hint, bool Plausible)>(StringComparer.Ordinal);
         var allStart = false;
@@ -517,6 +536,11 @@ public static class CandidateReport
                     AddWithAnchors(raw, false, raw, true);
                 }
             }
+
+            // Matrix artifacts use a bounded literal pass for non-common
+            // families; wildcard variants remain available in the full report
+            // and in the shipped table.
+            if (fast) continue;
 
             var chunks = WordChunks(shortest);
             var starts = chunks.Where(c => c.StartsWord).ToList();
@@ -597,6 +621,7 @@ public static class CandidateReport
             }
 
             var foreignPatterns = foreignMatches.Select(x => x.Pattern).Distinct(StringComparer.Ordinal).Count();
+            var foreignMinion = foreignMatches.Count(x => IsMinionAlliesLine(x.Real));
             var examples = foreignMatches.Select(x => x.Real).Distinct(StringComparer.Ordinal).Take(2).ToList();
             options.Add(new Option
             {
@@ -605,6 +630,8 @@ public static class CandidateReport
                 HasWildcard = wildcard,
                 ForeignPatterns = foreignPatterns,
                 ForeignLines = foreignMatches.Select(x => x.Real).Distinct(StringComparer.Ordinal).Count(),
+                ForeignMinionLines = foreignMinion,
+                ForeignOtherLines = foreignMatches.Count - foreignMinion,
                 ForeignExamples = examples,
                 Plausible = plausible,
             });
@@ -628,7 +655,7 @@ public static class CandidateReport
         return options;
     }
 
-    private static bool CrossCaptured(EngineCorpus corpus, string? scope, string fragment)
+    internal static bool CrossCaptured(EngineCorpus corpus, string? scope, string fragment)
     {
         var className = scope is null ? null : corpus.FindItemClass(scope)?.Name;
         Regex regex;

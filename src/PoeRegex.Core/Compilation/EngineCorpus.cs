@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
 
@@ -19,9 +20,10 @@ public sealed class EngineCorpus
     private readonly Lazy<HashSet<string>> _vendorNormalized;
     private readonly Lazy<HashSet<string>> _vendorPatterns;
     private readonly Lazy<Dictionary<string, IReadOnlyList<SearchSection>>> _sectionsByClass;
-    private readonly Dictionary<(string Scope, string Fragment), bool> _crossLineCache = new();
+    private readonly ConcurrentDictionary<(string Scope, string Fragment), bool> _crossLineCache = new();
     private readonly FragmentTable? _fragments;
     private HashSet<string>? _knownPatterns;
+    private readonly object _knownLock = new();
     private UnionIndex? _union;
     private Dictionary<string, List<ModEntry>>? _modsByPattern;
 
@@ -762,12 +764,16 @@ public sealed class EngineCorpus
     /// <summary>Normalized pattern used for a real item line by the oracle.</summary>
     public string PatternForSafetyLine(string line) => VendorPattern(line, KnownPatterns());
 
-    private HashSet<string> KnownPatterns() => _knownPatterns ??=
-        _catalog.Mods.SelectMany(m => m.StatLines)
-            .Select(sl => sl.Pattern)
-            .Concat(UniversalPatterns)
-            .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
-            .ToHashSet(StringComparer.Ordinal);
+    private HashSet<string> KnownPatterns()
+    {
+        lock (_knownLock)
+            return _knownPatterns ??=
+                _catalog.Mods.SelectMany(m => m.StatLines)
+                    .Select(sl => sl.Pattern)
+                    .Concat(UniversalPatterns)
+                    .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+                    .ToHashSet(StringComparer.Ordinal);
+    }
 
     private static string VendorPattern(string line, HashSet<string> known)
     {

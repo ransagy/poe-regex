@@ -35,6 +35,7 @@ public static class Program
                 "corpus" => Corpus(args[1..]),
                 "probe" => Probe(args[1..]),
                 "candidate-report" => CandidateReport.Run(args[1..]),
+                "candidate-matrix" => CandidateMatrix.Run(args[1..]),
                 "fetch" => Fetch(args[1..]),
                 _ => Usage(args[0]),
             };
@@ -48,7 +49,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | probe | candidate-report | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | probe | candidate-report | candidate-matrix | fetch");
         return 2;
     }
 
