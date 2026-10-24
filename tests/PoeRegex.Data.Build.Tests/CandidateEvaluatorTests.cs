@@ -207,25 +207,38 @@ public class CandidateEvaluatorTests
         Func<CandidateReport.Option, bool> predicate,
         int count = 3)
     {
-        var result = new List<CandidateReport.Option>();
+        var groups = new Dictionary<string, CandidateReport.Option>(StringComparer.Ordinal);
         foreach (var option in options.Where(predicate)
+                     .Where(o => !o.Fragment.Contains(@"\d", StringComparison.Ordinal) ||
+                                 o.GuardLetters >= 3)
                      .OrderBy(o => o.Length)
                      .ThenBy(o => o.Fragment, StringComparer.Ordinal))
         {
-            if (result.Any(existing => Dominates(existing, option))) continue;
-            result.RemoveAll(existing => Dominates(option, existing));
-            result.Add(option);
+            var key = option.Fragment.StartsWith('^') || option.Fragment.EndsWith('$')
+                ? "anchored"
+                : "free";
+            if (!groups.TryGetValue(key, out var existing) || Better(option, existing))
+                groups[key] = option;
         }
-        return result.Take(count).ToList();
+        return groups.Values
+            .OrderBy(o => o.Length)
+            .ThenBy(o => o.Fragment, StringComparer.Ordinal)
+            .Take(count)
+            .ToList();
     }
 
-    private static bool Dominates(
-        CandidateReport.Option a, CandidateReport.Option b) =>
-        a.Length <= b.Length &&
-        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
-        a.ForeignMinionLines <= b.ForeignMinionLines &&
-        a.ForeignOtherLines <= b.ForeignOtherLines &&
-        a.ForeignPatterns <= b.ForeignPatterns;
+    private static bool Better(
+        CandidateReport.Option a, CandidateReport.Option b)
+    {
+        if (a.Length != b.Length) return a.Length < b.Length;
+        if (a.ForeignOtherLines != b.ForeignOtherLines)
+            return a.ForeignOtherLines < b.ForeignOtherLines;
+        if (a.ForeignMinionLines != b.ForeignMinionLines)
+            return a.ForeignMinionLines < b.ForeignMinionLines;
+        if (a.TermSplits != b.TermSplits) return !a.TermSplits;
+        if (a.GuardLetters != b.GuardLetters) return a.GuardLetters > b.GuardLetters;
+        return StringComparer.Ordinal.Compare(a.Fragment, b.Fragment) < 0;
+    }
 
     private static bool Quoted(string fragment, IEnumerable<string> lines) =>
         lines.Any(line => Regex.IsMatch(

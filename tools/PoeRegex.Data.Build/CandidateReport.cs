@@ -399,24 +399,33 @@ public static class CandidateReport
     private static List<Option> Best(
         IReadOnlyList<Option> options, Func<Option, bool> predicate, int count)
     {
-        var result = new List<Option>();
+        var groups = new Dictionary<bool, Option>();
         foreach (var option in options.Where(predicate)
-                     .OrderBy(o => o.Length)
-                     .ThenBy(o => o.Fragment, StringComparer.Ordinal))
+                     .Where(o => !o.Fragment.Contains(@"\d", StringComparison.Ordinal) ||
+                                 o.GuardLetters >= 3))
         {
-            if (result.Any(existing => Dominates(existing, option))) continue;
-            result.RemoveAll(existing => Dominates(option, existing));
-            result.Add(option);
+            var anchored = option.Fragment.StartsWith('^') || option.Fragment.EndsWith('$');
+            if (!groups.TryGetValue(anchored, out var existing) || Better(option, existing))
+                groups[anchored] = option;
         }
-        return result.Take(count).ToList();
+        return groups.Values
+            .OrderBy(o => o.Length)
+            .ThenBy(o => o.Fragment, StringComparer.Ordinal)
+            .Take(count)
+            .ToList();
     }
 
-    private static bool Dominates(Option a, Option b) =>
-        a.Length <= b.Length &&
-        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
-        a.ForeignMinionLines <= b.ForeignMinionLines &&
-        a.ForeignOtherLines <= b.ForeignOtherLines &&
-        a.ForeignPatterns <= b.ForeignPatterns;
+    private static bool Better(Option a, Option b)
+    {
+        if (a.Length != b.Length) return a.Length < b.Length;
+        if (a.ForeignOtherLines != b.ForeignOtherLines)
+            return a.ForeignOtherLines < b.ForeignOtherLines;
+        if (a.ForeignMinionLines != b.ForeignMinionLines)
+            return a.ForeignMinionLines < b.ForeignMinionLines;
+        if (a.TermSplits != b.TermSplits) return !a.TermSplits;
+        if (a.GuardLetters != b.GuardLetters) return a.GuardLetters > b.GuardLetters;
+        return StringComparer.Ordinal.Compare(a.Fragment, b.Fragment) < 0;
+    }
 
     private static void WriteOptions(StringBuilder sb, string title, IReadOnlyList<Option> options)
     {

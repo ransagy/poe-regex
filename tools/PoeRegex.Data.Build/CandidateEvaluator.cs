@@ -69,7 +69,7 @@ internal sealed class ScopeCorpus
     /// </summary>
     public int[] MatchLines(CandidateReport.Candidate candidate, Regex? compiled = null)
     {
-        if (!candidate.Wildcard)
+        if (!NeedsRegex(candidate.Fragment))
         {
             var (body, starts, ends) = SplitAnchors(candidate.Fragment);
             if (body.Length == 0) return [];
@@ -191,6 +191,10 @@ internal sealed class ScopeCorpus
     /// tokens. Used to choose the rarest index posting and to reject a line
     /// cheaply before running the regex.
     /// </summary>
+    internal static bool NeedsRegex(string fragment) =>
+        fragment.Any(c => c is '\\' or '.' or '*' or '+' or '?' or '(' or ')' or
+            '[' or ']' or '{' or '}' or '^' or '$' or '|');
+
     internal static List<string> LiteralPieces(string fragment)
     {
         var pieces = new List<string>();
@@ -371,7 +375,6 @@ internal static class CandidateEvaluator
         var minion = new List<CandidateReport.Option>();
         CandidateReport.Option? floor = null;
         var evaluated = new HashSet<string>(StringComparer.Ordinal);
-        var outcomes = new HashSet<string>(StringComparer.Ordinal);
 
         void Consider(CandidateReport.Candidate candidate)
         {
@@ -383,35 +386,83 @@ internal static class CandidateEvaluator
 
             if (floor is null || Compare(option, floor) < 0) floor = option;
 
-            // A longer candidate with exactly the same outcome is pure fluff.
-            // Candidates are visited by ascending length, so the first one is
-            // the shortest for that outcome.
-            var anchored = option.Fragment.StartsWith('^') || option.Fragment.EndsWith('$');
-            var outcome = string.Join('|',
-                option.ForeignMinionLines,
-                option.ForeignOtherLines,
-                option.ForeignPatterns,
-                option.TermSplits,
-                option.HasWildcard,
-                anchored,
-                option.MatchSetHash);
-            if (!outcomes.Add(outcome)) return;
-
             // Quoted terms are line-local: the same-line foreign count is the
             // shipping safety criterion. There is no cross-line dot phase.
-            if (option.ForeignLines == 0) AddTop(strict, option, top);
-            if (option.ForeignOtherLines == 0) AddTop(minion, option, top);
+            // Keep one representative per policy variant (anchored, quoted-only,
+            // digit guard, wildcard) so the review can compare rulesets.
+            if (option.ForeignLines == 0) AddVariant(strict, option);
+            if (option.ForeignOtherLines == 0) AddVariant(minion, option);
         }
 
         foreach (var candidate in candidates)
         {
-            if (AllFull(strict, minion, top) &&
-                candidate.Fragment.Length > MaxThird(strict, minion))
+            if (strict.Count >= top && minion.Count >= top &&
+                candidate.Fragment.Length > Math.Max(
+                    ThirdLength(strict, top), ThirdLength(minion, top)))
                 break;
             Consider(candidate);
         }
 
-        return new TopOptions(floor, strict, minion);
+        return new TopOptions(
+            floor,
+            Selected(strict, top),
+            Selected(minion, top));
+    }
+
+    /// <summary>Evaluate one known/reference fragment without adding it to a profile.</summary>
+    internal static CandidateReport.Option? EvaluateFragment(
+        ScopeCorpus scope, string pattern, string fragment)
+    {
+        if (string.IsNullOrWhiteSpace(fragment)) return null;
+        var targets = scope.Targets(pattern);
+        if (targets.Count == 0) return null;
+        var candidate = new CandidateReport.Candidate(
+            fragment, fragment.Contains('.'), "", true);
+        return BuildOption(scope, pattern, targets, candidate);
+    }
+
+    private static List<CandidateReport.Option> Selected(
+        List<CandidateReport.Option> list, int top) =>
+        list.OrderBy(x => x.Length)
+            .ThenBy(x => x.Fragment, StringComparer.Ordinal)
+            .Take(top)
+            .ToList();
+
+    // Only the anchor policy is a genuine ruleset fork. Quoted-only and
+    // wildcard variants are not separate policies; the shorter/stronger one
+    // within a group wins, and the known reference is displayed separately.
+    private static string VariantKey(CandidateReport.Option option) =>
+        (option.Fragment.StartsWith('^') || option.Fragment.EndsWith('$')).ToString();
+
+    private static void AddVariant(
+        List<CandidateReport.Option> list, CandidateReport.Option option)
+    {
+        if (option.Fragment.Contains(@"\d", StringComparison.Ordinal) &&
+            option.GuardLetters < 3)
+            return;
+        var key = VariantKey(option);
+        var index = list.FindIndex(x => VariantKey(x) == key);
+        if (index < 0)
+        {
+            list.Add(option);
+            return;
+        }
+        if (Better(option, list[index])) list[index] = option;
+    }
+
+    private static bool Better(
+        CandidateReport.Option a, CandidateReport.Option b)
+    {
+        if (a.Length != b.Length) return a.Length < b.Length;
+        if (a.ForeignOtherLines != b.ForeignOtherLines)
+            return a.ForeignOtherLines < b.ForeignOtherLines;
+        if (a.ForeignMinionLines != b.ForeignMinionLines)
+            return a.ForeignMinionLines < b.ForeignMinionLines;
+        // Quoted-only is a restriction, not a benefit: prefer the no-space
+        // form at equal length before comparing guard strength.
+        if (a.TermSplits != b.TermSplits) return !a.TermSplits;
+        if (a.GuardLetters != b.GuardLetters) return a.GuardLetters > b.GuardLetters;
+        return StringComparer.Ordinal.Compare(a.Fragment, b.Fragment) < 0;
     }
 
     private static CandidateReport.Option? BuildOption(
@@ -423,7 +474,7 @@ internal static class CandidateEvaluator
         if (targets.Count == 0) return null;
 
         Regex? regex = null;
-        if (candidate.Wildcard)
+        if (ScopeCorpus.NeedsRegex(candidate.Fragment))
         {
             regex = scope.RegexFor(candidate.Fragment);
             if (regex is null) return null;
@@ -468,7 +519,7 @@ internal static class CandidateEvaluator
         {
             Fragment = candidate.Fragment,
             Length = candidate.Fragment.Length,
-            HasWildcard = candidate.Wildcard,
+            HasWildcard = candidate.Fragment.Contains('.'),
             ForeignPatterns = patternSet.Count,
             ForeignLines = realSet.Count,
             ForeignMinionLines = foreignMinion,
@@ -479,40 +530,12 @@ internal static class CandidateEvaluator
         };
     }
 
-    private static void AddTop(
-        List<CandidateReport.Option> list, CandidateReport.Option option, int top)
-    {
-        // Drop strictly dominated variants: a shorter candidate with no more
-        // foreign collisions is always preferable. This is what removes the
-        // "k Speed$ / ck Speed$ / ack Speed$" fluff.
-        if (list.Any(existing => Dominates(existing, option))) return;
-        list.RemoveAll(existing => Dominates(option, existing));
-
-        if (list.Count == top && Compare(option, list[^1]) >= 0) return;
-        var index = list.FindIndex(x => Compare(option, x) < 0);
-        if (index < 0) list.Add(option);
-        else list.Insert(index, option);
-        if (list.Count > top) list.RemoveAt(top);
-    }
-
-    private static bool Dominates(
-        CandidateReport.Option a, CandidateReport.Option b) =>
-        a.Length <= b.Length &&
-        (a.Length < b.Length || a.GuardLetters >= b.GuardLetters) &&
-        a.ForeignMinionLines <= b.ForeignMinionLines &&
-        a.ForeignOtherLines <= b.ForeignOtherLines &&
-        a.ForeignPatterns <= b.ForeignPatterns;
-
-    private static bool AllFull(
-        List<CandidateReport.Option> strict,
-        List<CandidateReport.Option> minion,
-        int top) =>
-        strict.Count >= top && minion.Count >= top;
-
-    private static int MaxThird(
-        List<CandidateReport.Option> strict,
-        List<CandidateReport.Option> minion) =>
-        Math.Max(strict[^1].Length, minion[^1].Length);
+    private static int ThirdLength(
+        List<CandidateReport.Option> list, int top) =>
+        list.OrderBy(x => x.Length)
+            .ThenBy(x => x.Fragment, StringComparer.Ordinal)
+            .ElementAt(Math.Min(top - 1, list.Count - 1))
+            .Length;
 
     private static int Compare(CandidateReport.Option a, CandidateReport.Option b)
     {

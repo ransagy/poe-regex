@@ -18,12 +18,25 @@ namespace PoeRegex.Data.Build;
 /// </summary>
 public static class CandidateMatrix
 {
+    /// <summary>
+    /// In-game verified reference forms. These are shown even when a shorter
+    /// dominated variant exists, so the review can compare the known answer
+    /// with what the generator currently prefers.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string[]> KnownReferences =
+        new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["+\u0001 to maximum Life"] = [@"\+\d.+m life"],
+        };
+
     private sealed record MatrixOption(
         string Fragment, int Length, int ForeignMinion, int ForeignOther,
         bool TermSplits, bool Wildcard, bool Anchored, int GuardLetters);
 
     private sealed record MatrixScope(
         string Kind, IReadOnlyList<string> Classes, string Current,
+        MatrixOption? CurrentOption,
+        IReadOnlyList<MatrixOption> Known,
         int Targets, int TargetMax,
         IReadOnlyList<MatrixOption> Strict,
         IReadOnlyList<MatrixOption> Minion,
@@ -128,10 +141,23 @@ public static class CandidateMatrix
                 if (targets.Count == 0) continue;
                 var top = CandidateEvaluator.EvaluateTop(
                     scopeCorpus, pattern, current, maxLength);
+                var currentOption = CandidateEvaluator.EvaluateFragment(
+                    scopeCorpus, pattern, current);
+                var known = scope is null &&
+                            KnownReferences.TryGetValue(pattern, out var knownForms)
+                    ? knownForms
+                        .Select(form => CandidateEvaluator.EvaluateFragment(
+                            scopeCorpus, pattern, form))
+                        .Where(option => option is not null)
+                        .Select(option => option!)
+                        .ToList()
+                    : [];
                 results.Add(new WorkItem(scope, key, pattern, ToScope(
                     scope is null ? "global" : "class",
                     scope is null ? [] : [scope],
                     current,
+                    currentOption,
+                    known,
                     targets.Count,
                     top)));
             }
@@ -226,6 +252,8 @@ public static class CandidateMatrix
         string kind,
         IReadOnlyList<string> classes,
         string current,
+        CandidateReport.Option? currentOption,
+        IReadOnlyList<CandidateReport.Option> known,
         int targets,
         TopOptions top)
     {
@@ -240,6 +268,8 @@ public static class CandidateMatrix
             kind,
             classes,
             current,
+            currentOption is null ? null : ToOption(currentOption),
+            known.Select(ToOption).ToList(),
             targets,
             targets,
             top.Strict.Select(ToOption).ToList(),
@@ -260,6 +290,9 @@ public static class CandidateMatrix
             Classes = classes,
             Floor = floors.Count == 1 ? floors[0] : null,
             Floors = floors,
+            Known = scope.Known
+                .DistinctBy(Option, StringComparer.Ordinal)
+                .ToList(),
         };
     }
 
@@ -279,6 +312,8 @@ public static class CandidateMatrix
     private static string Signature(MatrixScope scope) =>
         string.Join("|",
             scope.Current,
+            Option(scope.CurrentOption),
+            Options(scope.Known),
             Options(scope.Strict),
             Options(scope.Minion));
 
@@ -323,6 +358,8 @@ public static class CandidateMatrix
             .scope h5 .targets { color:var(--muted); text-transform:none; letter-spacing:0; font-weight:400; }
             .current { margin-bottom:8px; color:var(--muted); }
             .current code { color:var(--good); background:#0d1216; padding:2px 5px; border-radius:3px; }
+            .known { margin-bottom:8px; color:var(--muted); }
+            .known code { color:var(--accent); background:#0d1216; padding:2px 5px; border-radius:3px; }
             .floor { margin-bottom:8px; color:var(--muted); }
             .floor code { color:var(--warn); background:#0d1216; padding:2px 5px; border-radius:3px; }
             .floor .diag { color:var(--warn); font-style:italic; }
@@ -352,7 +389,8 @@ public static class CandidateMatrix
         sb.Append("<div class=\"def\"><b>min</b>Foreign modeled lines that are minion, allies, or presence lines.</div>");
         sb.Append("<div class=\"def\"><b>other</b>All other foreign modeled lines matching the candidate.</div>");
         sb.Append("<div class=\"def\"><b>splits</b>The fragment contains whitespace. Quoted, it is one line-local term; unquoted, the game would split it into separate ANDed terms.</div>");
-        sb.Append("<div class=\"def\"><b>current</b>The fragment currently shipped for this pattern and scope.</div>");
+        sb.Append("<div class=\"def\"><b>current</b>The fragment currently shipped for this pattern and scope, with its evaluated same-line counts.</div>");
+        sb.Append("<div class=\"def\"><b>known</b>An in-game verified reference form. It is shown even when a shorter dominated variant exists.</div>");
         sb.Append("<div class=\"def\"><b>none</b>No candidate passes that profile after the whole grammar is evaluated. It does not mean the mod is unresolved.</div>");
         sb.Append("<div class=\"def\"><b>floor</b>The shortest raw candidate regardless of collisions. Diagnostic only — never a shipping proposal.</div>");
         sb.Append("<div class=\"def\"><b>per-class</b>Every applicable class produces the same result; the classes are listed. No class is singled out.</div>");
@@ -417,6 +455,10 @@ public static class CandidateMatrix
                     : ' · <span class="empty">no safe candidate</span>';
                   return `<div class="floor">floor: ${opt(s.floor)}${best} <span class="diag">diagnostic only</span></div>`;
                 }
+                function knownLine(s) {
+                  if (!s.known || !s.known.length) return '';
+                  return `<div class="known">known reference: ${s.known.map(o => opt(o) + ' <span class="badge">verified in-game</span>').join(' · ')}</div>`;
+                }
                 function render() {
                   const needle = q.value.trim().toLowerCase();
                   const scope = scopeSel.value;
@@ -429,7 +471,8 @@ public static class CandidateMatrix
                       if (!scopes.length) return '';
                       return `<div class="pattern"><h4>${esc(p.display)} <span style="color:var(--muted)">(${esc(p.pattern)})</span></h4>` +
                         scopes.map(s => `<div class="scope"><h5>${esc(scopeTitle(s))} <span class="targets">· ${s.targets === s.targetMax ? s.targets : s.targets + '–' + s.targetMax} target lines${s.kind === 'global' ? '' : ' · ' + s.classes.length + (s.classes.length === 1 ? ' class' : ' classes')}</span></h5>` +
-                          `<div class="current">current: ${s.current ? `<code>${esc(s.current)}</code>` : '<span class="empty">unresolved</span>'}</div>` +
+                          `<div class="current">current: ${s.currentOption ? opt(s.currentOption) : (s.current ? `<code>${esc(s.current)}</code>` : '<span class="empty">unresolved</span>')}</div>` +
+                          knownLine(s) +
                           floorLine(s) +
                           `<div class="profiles">${profile('Strict', s.strict)}${profile('Minion-only', s.minion)}</div></div>`).join('') +
                         `</div>`;
