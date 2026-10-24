@@ -9,11 +9,13 @@ namespace PoeRegex.Web.Core;
 public static class ModSearch
 {
     /// <summary>
-    /// Friendly display text for a stat line: the advanced-description form
-    /// (rolled value followed by the tier's min-max), falling back to the
-    /// representative line when ranges are absent.
+    /// Friendly display text for a tier/chip: the tier's min-max range,
+    /// falling back to the representative line when ranges are absent. The
+    /// actual advanced roll is intentionally not shown in picker text; it is
+    /// only used for item/search fixtures.
     /// </summary>
-    public static string DisplayLine(StatLineEntry sl) => AdvancedStatLine.For(sl);
+    public static string DisplayLine(StatLineEntry sl) =>
+        string.IsNullOrEmpty(sl.RangeLine) ? sl.Line : sl.RangeLine;
 
     /// <summary>
     /// Case-insensitive substring filter over the user-facing affix name and

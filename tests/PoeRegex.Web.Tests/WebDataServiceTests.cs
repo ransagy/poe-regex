@@ -56,12 +56,12 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void DisplayLine_PrefersAdvancedRange_FallsBackToLine()
+    public void DisplayLine_PrefersRange_FallsBackToLine()
     {
         var mod = Engine.FindMod("IncreasedLife6")!;
         var sl = mod.StatLines[0];
         sl.RangeLine.Should().NotBeEmpty();
-        ModSearch.DisplayLine(sl).Should().Be(AdvancedStatLine.For(sl));
+        ModSearch.DisplayLine(sl).Should().Be(sl.RangeLine);
         var legacy = new StatLineEntry
         {
             Line = sl.Line,
