@@ -41,6 +41,12 @@ public sealed record FragmentPolicy(
 
     /// <summary>Diagnostic-only policy: wildcard bridges and no shape guards (not shipped).</summary>
     public static readonly FragmentPolicy Absolute = new(false, false, 2);
+
+    /// <summary>
+    /// Shortest quoted-term search: no anchor or shape guard. Quoted terms are
+    /// line-local, so the old cross-line guards are not safety requirements.
+    /// </summary>
+    public static readonly FragmentPolicy Shortest = new(false, false, 2);
 }
 
 public sealed class FragmentSelector
@@ -55,6 +61,8 @@ public sealed class FragmentSelector
     private readonly bool _usePrecomputed;
     private readonly bool _allowFallback;
     private readonly FragmentPolicy _policy;
+    private readonly Dictionary<string, string?> _minionCache = new(StringComparer.Ordinal);
+    private bool _allowMinion;
     private readonly Dictionary<(string Scope, string Pattern), string?> _cache = new();
     private Func<string, bool>? _extraSafety;
     private readonly Dictionary<string, ScopeData> _scopes = new(StringComparer.Ordinal);
@@ -112,12 +120,56 @@ public sealed class FragmentSelector
         return result;
     }
 
+    /// <summary>
+    /// Shortest acceptable quoted term: the shorter of the Strict and
+    /// Minion-only candidates, with Strict preferred on a tie.
+    /// </summary>
+    public string? SelectWithMinionFallback(
+        string pattern, string? itemClass, Func<string, bool>? extraSafety = null)
+    {
+        // The precomputed table is already the selected answer.
+        if (_usePrecomputed) return Select(pattern, itemClass, extraSafety);
+
+        // The minion-allowed search is a superset of the strict search, so its
+        // first hit is the shortest acceptable form. Only fall back to the
+        // strict search if the minion search finds nothing.
+        var minion = SelectMinion(pattern, itemClass, extraSafety);
+        if (minion is not null) return minion;
+        return Select(pattern, itemClass, extraSafety);
+    }
+
+    private string? SelectMinion(
+        string pattern, string? itemClass, Func<string, bool>? extraSafety)
+    {
+        var key = (itemClass ?? "\0") + "\0" + pattern;
+        if (_minionCache.TryGetValue(key, out var cached)) return cached;
+
+        _extraSafety = extraSafety;
+        _allowMinion = true;
+        try
+        {
+            var result = SelectCore(pattern, itemClass);
+            _minionCache[key] = result;
+            return result;
+        }
+        finally
+        {
+            _allowMinion = false;
+        }
+    }
+
+    internal static bool IsMinionAlliesLine(string line) =>
+        line.Contains("Minions", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("Allies", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("in your Presence", StringComparison.OrdinalIgnoreCase);
+
     private string? SelectCore(string pattern, string? itemClass)
     {
         var scope = GetScope(itemClass);
         if (!scope.ByPattern.TryGetValue(pattern, out var targetList) || targetList.Count == 0) return null;
         var others = scope.All
             .Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
+            .Where(x => !_allowMinion || !IsMinionAlliesLine(x.Real))
             .Select(x => x.Real)
             .ToList();
         // Captured items are field regressions, not just tests: unique-only
@@ -128,6 +180,7 @@ public sealed class FragmentSelector
         foreach (var (safetyPattern, raw) in SafetyFor(itemClass))
             if (!string.Equals(safetyPattern, pattern, StringComparison.Ordinal))
             {
+                if (_allowMinion && IsMinionAlliesLine(raw)) continue;
                 others.Add(raw);
                 safetyCount++;
             }
@@ -149,7 +202,7 @@ public sealed class FragmentSelector
         string? best = plain;
         if (itemClass is not null)
         {
-            var global = Select(pattern, null, _extraSafety);
+            var global = SelectCore(pattern, null);
             if (global is not null && (best is null || global.Length < best.Length)) best = global;
         }
         if (best is not null && best.Length <= MinWildcardLength) return best;
@@ -166,12 +219,8 @@ public sealed class FragmentSelector
         }
         if (best is not null && best.Length <= MinWildcardLength) return best;
 
-        // A line-local display candidate is the reliable answer for a ranged
-        // stat. Searching the catalog wildcard space up to its length is both
-        // expensive and mostly produces `.`-bridges that the section oracle
-        // rejects. Keep the display candidate; a shorter safe wildcard is not
-        // worth an unbounded search that cannot prove cross-line safety.
-        if (displayPlain is not null) return displayPlain;
+        // The display candidate is only an upper bound now. Quoted terms are
+        // line-local, so the wildcard search can still find a shorter form.
 
         // Mixed range/plain shapes (or a shape with no range punctuation in
         // its plain prefixes/suffixes): find a line-local literal before
@@ -180,7 +229,6 @@ public sealed class FragmentSelector
         var mixedPlain = BestPlain(
             pattern, itemClass, targetList, others, int.MaxValue, displayPatterns);
         if (mixedPlain is not null && (best is null || mixedPlain.Length < best.Length)) best = mixedPlain;
-        if (best is not null) return best;
 
         // The shipped guaranteed policy does not enter the catalog wildcard
         // space. A `.` bridge that has not already been proven line-local by
@@ -316,10 +364,8 @@ public sealed class FragmentSelector
             AddRenderings(into, seed, 0, end, prefixAnchor: true);
         for (var start = 0; start < seed.Length; start++)
         {
-            // An unanchored suffix must start at a word boundary; otherwise
-            // the shortest "safe" candidate is a mid-word run such as
-            // "nt Speed$" or "ent Speed$".
-            if (!IsWordBoundary(seed, start)) continue;
+            // Quoted terms are line-local; mid-word suffixes such as
+            // "k Speed$" are valid shortest forms. The foreign oracle decides.
             AddRenderings(into, seed, start, seed.Length, suffixAnchor: true);
         }
 
@@ -791,6 +837,7 @@ public sealed class FragmentSelector
 
     private bool Validate(string candidate, string? itemClass, string pattern, List<string> targets, List<string> others)
     {
+
         // An anchored prefix that ends in the middle of a stat word
         // ("^\\d+% incr") is a high-collision fragment even though it is
         // shorter than the full word. Require the trailing literal to end at
@@ -830,16 +877,14 @@ public sealed class FragmentSelector
             foreach (var (safetyPattern, raw) in SafetyFor(itemClass))
             {
                 if (string.Equals(safetyPattern, pattern, StringComparison.Ordinal)) continue;
+                if (_allowMinion && IsMinionAlliesLine(raw)) continue;
                 if (!raw.Contains(hint, StringComparison.OrdinalIgnoreCase)) continue;
                 if (matcher.IsMatch(raw)) return false;
             }
         }
 
-        // The per-line check above proves a candidate is line-local for the
-        // modeled text. The game can still match across a line break inside
-        // one item section (a prefix caption and an unrelated stat line, for
-        // example), so reject any wildcard candidate that does so.
-        if (!_corpus.CrossLineSafe(itemClass, candidate)) return false;
+        // Quoted terms are matched line-locally. Cross-line dot checks are an
+        // unquoted-input diagnostic, not a shipping gate.
         return _extraSafety is null || _extraSafety(candidate);
     }
 
@@ -860,9 +905,15 @@ public sealed class FragmentSelector
     private List<string> ForeignLines(string? itemClass, string targetPattern, string hint, List<string> allOthers)
     {
         var key = (itemClass ?? "\0", targetPattern, hint);
-        if (_foreignCache.TryGetValue(key, out var cached)) return cached;
+        if (_foreignCache.TryGetValue(key, out var cached))
+            return _allowMinion
+                ? cached.Where(x => !IsMinionAlliesLine(x)).ToList()
+                : cached;
         var patterns = _corpus.PatternsMatchingLiteral(hint, itemClass);
-        if (patterns.Count == 0) return allOthers;
+        if (patterns.Count == 0)
+            return _allowMinion
+                ? allOthers.Where(x => !IsMinionAlliesLine(x)).ToList()
+                : allOthers;
         var scope = GetScope(itemClass);
         var lines = new List<string>();
         foreach (var p in patterns)
@@ -872,7 +923,9 @@ public sealed class FragmentSelector
         }
         var result = lines.Count < allOthers.Count ? lines : allOthers;
         _foreignCache[key] = result;
-        return result;
+        return _allowMinion
+            ? result.Where(x => !IsMinionAlliesLine(x)).ToList()
+            : result;
     }
 
     /// <summary>

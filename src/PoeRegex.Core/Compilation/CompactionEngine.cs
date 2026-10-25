@@ -18,7 +18,7 @@ public sealed class CompactionEngine
         _corpus = corpus;
         _strategy = strategy;
         _selector = new FragmentSelector(
-            corpus, strategy, policy: FragmentPolicy.Guaranteed, allowFallback: allowFallback);
+            corpus, strategy, policy: FragmentPolicy.Shortest, allowFallback: allowFallback);
     }
 
     /// <summary>
@@ -38,7 +38,15 @@ public sealed class CompactionEngine
         StatLineEntry? bestLine = null;
         foreach (var line in mod.StatLines)
         {
-            var fragment = _selector.Select(line.Pattern, itemClass);
+            var fragment = _selector.SelectWithMinionFallback(line.Pattern, itemClass);
+            // The class anchor is already present in a class-scoped query, so
+            // the global fragment is free to use when it is shorter.
+            if (itemClass is not null)
+            {
+                var global = _selector.SelectWithMinionFallback(line.Pattern, null);
+                if (global is not null && (fragment is null || global.Length < fragment.Length))
+                    fragment = global;
+            }
             if (fragment is null) continue;
             if (best is null || fragment.Length < best.Length)
             {

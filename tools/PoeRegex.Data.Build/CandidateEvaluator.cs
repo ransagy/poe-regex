@@ -366,10 +366,12 @@ internal static class CandidateEvaluator
     /// empty list an honest "none".
     /// </summary>
     public static TopOptions EvaluateTop(
-        ScopeCorpus scope, string pattern, string? current, int maxLength, int top = 3)
+        ScopeCorpus scope, string pattern, string? current, int maxLength, int top = 3,
+        bool includeTwoWildcards = true)
     {
         var targets = scope.Targets(pattern);
-        var candidates = CandidateReport.EnumerateCandidates(targets, maxLength, current);
+        var candidates = CandidateReport.EnumerateCandidates(
+            targets, maxLength, current, includeTwoWildcards);
 
         var strict = new List<CandidateReport.Option>();
         var minion = new List<CandidateReport.Option>();

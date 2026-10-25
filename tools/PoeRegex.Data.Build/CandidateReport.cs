@@ -517,7 +517,8 @@ public static class CandidateReport
     /// fast path cannot silently search a different grammar.
     /// </summary>
     internal static List<Candidate> EnumerateCandidates(
-        IReadOnlyList<string> targets, int maxLength, string? current)
+        IReadOnlyList<string> targets, int maxLength, string? current,
+        bool includeTwoWildcards = true)
     {
         var candidates = new Dictionary<string, Candidate>(StringComparer.Ordinal);
         var allStart = false;
@@ -527,7 +528,7 @@ public static class CandidateReport
         {
             if (fragment.Length == 0 || fragment.Length > maxLength) return;
             if (fragment[0] == ' ' || fragment[^1] == ' ') return;
-            if (fragment.Count(char.IsAsciiLetter) < 3) return;
+            if (fragment.Count(char.IsAsciiLetter) < 2) return;
             if (candidates.TryGetValue(fragment, out var existing))
             {
                 if (!existing.Plausible && plausible)
@@ -629,7 +630,7 @@ public static class CandidateReport
                     var startsWord = start == 0 || !char.IsAsciiLetter(shortest[start - 1]);
                     var endsWord = start + len == shortest.Length || !char.IsAsciiLetter(shortest[start + len]);
                     var letters = raw.Count(char.IsAsciiLetter);
-                    if (letters < 3) continue;
+                    if (letters < 2) continue;
                     if (!startsWord && !endsWord) continue;
                     if (!AllTargetsContain(raw)) continue;
                     AddWithAnchors(raw, false, raw, true);
@@ -639,25 +640,48 @@ public static class CandidateReport
             var baseChunks = WordChunks(shortest);
             var chunkSet = new HashSet<Chunk>(baseChunks);
             foreach (var tail in TailPhrases(shortest)) chunkSet.Add(tail);
+            foreach (var mid in MidStarts(shortest)) chunkSet.Add(mid);
             foreach (var digit in DigitPrefixes(shortest)) chunkSet.Add(digit);
-            var starts = chunkSet.Where(c => c.StartsWord).ToList();
-            var ends = chunkSet.Where(c => c.EndsWord).ToList();
-            var all = chunkSet.ToList();
+            var starts = chunkSet
+                .Where(c => c.StartsWord && AllTargetsMatchPieces(c.Text))
+                .ToList();
+            var ends = chunkSet
+                .Where(c => c.EndsWord && AllTargetsMatchPieces(c.Text))
+                .ToList();
+            var all = chunkSet
+                .Where(c => AllTargetsMatchPieces(c.Text))
+                .ToList();
 
-            // One middle wildcard: two literal pieces.
-            foreach (var a in starts)
+            // One middle wildcard: two literal pieces. Bound the short
+            // chunks used here; the matrix is a shortest-form review and the
+            // winning forms are short guards, not long phrases.
+            var wildcardStarts = starts
+                .Where(c => c.Text.Length <= 8)
+                .OrderBy(c => c.Text.Length)
+                .ThenBy(c => c.Text, StringComparer.Ordinal)
+                .Take(80)
+                .ToList();
+            var wildcardEnds = ends
+                .Where(c => c.Text.Length <= 8)
+                .OrderBy(c => c.Text.Length)
+                .ThenBy(c => c.Text, StringComparer.Ordinal)
+                .Take(80)
+                .ToList();
+            foreach (var a in wildcardStarts)
             {
-                foreach (var b in ends)
+                foreach (var b in wildcardEnds)
                 {
                     foreach (var w in wildcards)
                     {
                         var frag = a.Text + w + b.Text;
                         if (frag.Length > maxLength) continue;
                         if (!AllTargetsMatchPieces(a.Text, b.Text)) continue;
-                        AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), a.StartsWord && b.EndsWord);
+                        AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), b.EndsWord || a.StartsWord);
                     }
                 }
             }
+
+            if (!includeTwoWildcards) continue;
 
             // Two middle wildcards: prefix, middle word, suffix. Keep the
             // middle piece to word-sized literals and use only the base
@@ -680,7 +704,7 @@ public static class CandidateReport
                                 var frag = a.Text + w1 + m.Text + w2 + b.Text;
                                 if (frag.Length > maxLength) continue;
                                 if (!AllTargetsMatchPieces(a.Text, m.Text, b.Text)) continue;
-                                AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), a.StartsWord && b.EndsWord);
+                                AddWithAnchors(frag, true, LongestHint(a.Text, m.Text, b.Text), b.EndsWord || a.StartsWord);
                             }
                         }
                     }
@@ -839,6 +863,42 @@ public static class CandidateReport
     /// Mid-word tails of the final phrase(s). These are what let a candidate
     /// use "m life" for "maximum Life" instead of the full word boundary.
     /// </summary>
+    /// <summary>
+    /// Short mid-word prefixes such as "ov", "x", "o ", and "ax". The selector
+    /// can use these with a wildcard and a word-ending suffix; the matrix
+    /// grammar must expose the same shapes.
+    /// </summary>
+    private static List<Chunk> MidStarts(string text)
+    {
+        var result = new List<Chunk>();
+        var words = Regex.Matches(text, @"[A-Za-z]+(?:'[A-Za-z]+)?")
+            .Select(m => (Start: m.Index, End: m.Index + m.Length))
+            .ToList();
+        foreach (var word in words.Take(3))
+        {
+            for (var start = word.Start; start < word.End; start++)
+            {
+                for (var len = 1; len <= 4 && start + len <= word.End; len++)
+                {
+                    var value = text[start..(start + len)];
+                    if (!IsLiteral(value)) continue;
+                    result.Add(new Chunk(value, start == word.Start, start + len == word.End));
+                }
+            }
+        }
+        // Prefixes with a trailing space, e.g. "o " from "to maximum".
+        for (var start = 0; start < text.Length; start++)
+        {
+            for (var len = 2; len <= 4 && start + len <= text.Length; len++)
+            {
+                var value = text[start..(start + len)];
+                if (!value.Contains(' ') || !IsLiteral(value)) continue;
+                result.Add(new Chunk(value, false, false));
+            }
+        }
+        return result;
+    }
+
     private static List<Chunk> TailPhrases(string text)
     {
         var result = new List<Chunk>();
@@ -872,10 +932,14 @@ public static class CandidateReport
     {
         var result = new List<Chunk>();
         var trimmed = seed.TrimStart();
-        if (trimmed.Length >= 2 && trimmed[0] == '+' && char.IsAsciiDigit(trimmed[1]))
+        if (trimmed.Length >= 1 && trimmed[0] == '+')
         {
-            result.Add(new Chunk(@"\+\d", true, false));
-            result.Add(new Chunk(@"\+\d+", true, false));
+            result.Add(new Chunk(@"\+", true, false));
+            if (trimmed.Length >= 2 && char.IsAsciiDigit(trimmed[1]))
+            {
+                result.Add(new Chunk(@"\+\d", true, false));
+                result.Add(new Chunk(@"\+\d+", true, false));
+            }
         }
         if (trimmed.Length >= 1 && char.IsAsciiDigit(trimmed[0]))
         {

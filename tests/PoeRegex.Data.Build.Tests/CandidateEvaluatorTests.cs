@@ -155,6 +155,34 @@ public class CandidateEvaluatorTests
     }
 
     [Fact]
+    public void Selector_ReachesShortQuotedForms()
+    {
+        var (catalog, corpus, _) = Load();
+        var selector = new FragmentSelector(
+            corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2),
+            usePrecomputed: false, policy: FragmentPolicy.Shortest);
+
+        var life = selector.SelectWithMinionFallback("+\u0001 to maximum Life", null);
+        life.Should().NotBeNull();
+        life!.Length.Should().BeLessThanOrEqualTo(9, $"got {life}");
+
+        var movement = selector.SelectWithMinionFallback(
+            "\u0001% increased Movement Speed", null);
+        movement.Should().NotBeNull();
+        movement!.Length.Should().BeLessThanOrEqualTo(12, $"got {movement}");
+
+        var attack = selector.SelectWithMinionFallback(
+            "\u0001% increased Attack Speed", null);
+        attack.Should().NotBeNull();
+        attack!.Length.Should().BeLessThanOrEqualTo(12, $"got {attack}");
+
+        var classLife = selector.SelectWithMinionFallback(
+            "+\u0001 to maximum Life", "Amulet");
+        classLife.Should().NotBeNull();
+        classLife!.Length.Should().BeLessThanOrEqualTo(7, $"got {classLife}");
+    }
+
+    [Fact]
     public void NewGrammar_TopStrictCandidateIsSafeOnAmulets()
     {
         var (catalog, corpus, table) = Load();

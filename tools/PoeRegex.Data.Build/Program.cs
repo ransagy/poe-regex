@@ -109,16 +109,24 @@ public static class Program
         var corpus = new EngineCorpus(catalog);
         var selector = new FragmentSelector(
             corpus, PoeRegexCompiler.StrategyFor(game), usePrecomputed: false,
-            policy: opts.ContainsKey("--absolute") ? FragmentPolicy.Absolute : FragmentPolicy.Guaranteed);
+            policy: opts.ContainsKey("--absolute") ? FragmentPolicy.Absolute :
+                opts.ContainsKey("--guaranteed") ? FragmentPolicy.Guaranteed :
+                FragmentPolicy.Shortest);
 
         var global = new Dictionary<string, string>(StringComparer.Ordinal);
         var globalUnresolved = new Dictionary<string, string>(StringComparer.Ordinal);
+        var patternFilter = GetValue(opts, "--pattern", "")
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => p.Replace('#', '\u0001'))
+            .ToHashSet(StringComparer.Ordinal);
         var patterns = catalog.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern)
-            .Distinct(StringComparer.Ordinal).ToList();
+            .Distinct(StringComparer.Ordinal)
+            .Where(p => patternFilter.Count == 0 || patternFilter.Contains(p))
+            .ToList();
         var sw = System.Diagnostics.Stopwatch.StartNew();
         foreach (var pattern in patterns)
         {
-            var fragment = selector.Select(pattern, null);
+            var fragment = selector.SelectWithMinionFallback(pattern, null);
             if (fragment is null)
             {
                 Console.Error.WriteLine($"  unresolved global: {pattern.Replace('\u0001', '#')}");
@@ -138,11 +146,13 @@ public static class Program
             var unresolved = new Dictionary<string, string>(StringComparer.Ordinal);
             var classPatterns = catalog.Mods.Where(m => m.Classes.Contains(cls.Id))
                 .SelectMany(m => m.StatLines).Select(l => l.Pattern)
-                .Distinct(StringComparer.Ordinal).ToList();
+                .Distinct(StringComparer.Ordinal)
+                .Where(p => patternFilter.Count == 0 || patternFilter.Contains(p))
+                .ToList();
             sw.Restart();
             foreach (var pattern in classPatterns)
             {
-                var fragment = selector.Select(pattern, cls.Id);
+                var fragment = selector.SelectWithMinionFallback(pattern, cls.Id);
                 if (fragment is not null) map[pattern] = fragment;
                 else unresolved[pattern] = UnresolvedReason(pattern);
             }
@@ -164,8 +174,8 @@ public static class Program
             ByClassUnresolved = byClassUnresolved,
             ClassAnchors = classAnchors,
         };
-        if (string.Equals(gameName, "poe2", StringComparison.OrdinalIgnoreCase))
-            CandidateReport.ApplyKnownGlobalCandidates(table);
+        // The selector now finds the shorter quoted forms directly; the old
+        // hardcoded overlay would overwrite them with longer legacy entries.
         if (opts.ContainsKey("--representative-class"))
         {
             CandidateReport.ApplyRepresentativeClassCandidates(corpus, catalog, table);
