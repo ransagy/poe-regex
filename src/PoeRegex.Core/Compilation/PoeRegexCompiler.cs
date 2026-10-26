@@ -73,6 +73,9 @@ public sealed class PoeRegexCompiler
         }
 
         var query = string.Join(" ", blocks);
+        foreach (var shapeError in QueryShape.Validate(query))
+            diagnostics.Add(new CompilerDiagnostic(
+                DiagnosticLevel.Warning, "query-shape", shapeError));
         var limit = _strategy.GameRules.MaxCharacterLimit;
         if (query.Length > limit && !spec.AllowOverflow)
         {

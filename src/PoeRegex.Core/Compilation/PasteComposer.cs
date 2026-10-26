@@ -142,6 +142,9 @@ public sealed class PasteComposer
         }
 
         var query = string.Join(" ", blocks);
+        foreach (var shapeError in QueryShape.Validate(query))
+            diagnostics.Add(new CompilerDiagnostic(
+                DiagnosticLevel.Warning, "query-shape", shapeError));
         var limit = _strategy.GameRules.MaxCharacterLimit;
         if (query.Length > limit && !allowOverflow)
             throw new RegexLengthOverflowException(query.Length, limit);
