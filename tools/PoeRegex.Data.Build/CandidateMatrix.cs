@@ -39,7 +39,7 @@ public static class CandidateMatrix
         string Kind, IReadOnlyList<string> Classes, string Current,
         MatrixOption? CurrentOption,
         IReadOnlyList<MatrixOption> Known,
-        int Targets, int TargetMax,
+        int Targets, int TargetMax, int Bound,
         IReadOnlyList<MatrixOption> Strict,
         IReadOnlyList<MatrixOption> Minion,
         MatrixOption? Floor,
@@ -182,6 +182,7 @@ public static class CandidateMatrix
                     currentOption,
                     known,
                     targets.Count,
+                    maxLength,
                     top)));
             }
         });
@@ -278,6 +279,7 @@ public static class CandidateMatrix
         CandidateReport.Option? currentOption,
         IReadOnlyList<CandidateReport.Option> known,
         int targets,
+        int bound,
         TopOptions top)
     {
         MatrixOption ToOption(CandidateReport.Option o) => new(
@@ -314,6 +316,7 @@ public static class CandidateMatrix
             known.Select(ToOption).ToList(),
             targets,
             targets,
+            bound,
             top.Strict.Select(ToOption).ToList(),
             top.Minion.Select(ToOption).ToList(),
             floor,
@@ -384,6 +387,7 @@ public static class CandidateMatrix
         foreach (var path in paths)
         {
             if (!File.Exists(path)) continue;
+            var fileBound = path.Contains("m14", StringComparison.OrdinalIgnoreCase) ? 14 : 10;
             var html = File.ReadAllText(path);
             const string marker = "window.MATRIX = ";
             var start = html.IndexOf(marker, StringComparison.Ordinal);
@@ -408,6 +412,7 @@ public static class CandidateMatrix
                         if (pattern["scopes"] is not JsonArray scopes) continue;
                         foreach (var scope in scopes.OfType<JsonObject>())
                         {
+                            if (scope["bound"] is null) scope["bound"] = fileBound;
                             var chosen = scope["chosen"] as JsonObject;
                             var current = scope["currentOption"] as JsonObject;
                             if (chosen is null || current is null) continue;
@@ -499,7 +504,7 @@ public static class CandidateMatrix
             """;
         var sb = new StringBuilder();
         sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Candidate matrix</title><style>").Append(css).Append("</style></head><body>");
-        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. Candidate search bound: ").Append(maxLength).Append(" characters; the current shipped fragment is always shown. This is a data-build artifact; it does not change the runtime table.</div>");
+        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. Search bounds vary by scope (10 or 14 characters); each scope header shows its bound. The current shipped fragment is always shown. This is a data-build artifact; it does not change the runtime table.</div>");
         sb.Append("<div class=\"defs\">");
         sb.Append("<div class=\"def\"><b>Strict</b>Zero same-line foreign lines. The compiler emits this candidate as a quoted, line-local term.</div>");
         sb.Append("<div class=\"def\"><b>Minion-only</b>Same-line foreign lines are only minion / allies / presence variants.</div>");
@@ -598,7 +603,7 @@ public static class CandidateMatrix
                       const scopes = p.scopes.filter(s => !scope || s.kind === scope);
                       if (!scopes.length) return '';
                       return `<div class="pattern"><h4>${esc(p.display)} <span style="color:var(--muted)">(${esc(p.pattern)})</span></h4>` +
-                        scopes.map(s => `<div class="scope"><h5>${esc(scopeTitle(s))} <span class="targets">· ${s.targets === s.targetMax ? s.targets : s.targets + '–' + s.targetMax} target lines${s.kind === 'global' ? '' : ' · ' + s.classes.length + (s.classes.length === 1 ? ' class' : ' classes')} · coverage ${esc(s.coverage)}</span></h5>` +
+                        scopes.map(s => `<div class="scope"><h5>${esc(scopeTitle(s))} <span class="targets">· ${s.targets === s.targetMax ? s.targets : s.targets + '–' + s.targetMax} target lines${s.kind === 'global' ? '' : ' · ' + s.classes.length + (s.classes.length === 1 ? ' class' : ' classes')} · coverage ${esc(s.coverage)} · bound ${s.bound ?? 10}</span></h5>` +
                           `<div class="current">current: ${s.currentOption ? opt(s.currentOption) : (s.current ? `<code>"${esc(s.current)}"</code>` : '<span class="empty">unresolved</span>')}</div>` +
                           knownLine(s) +
                           chosenLine(s) +
