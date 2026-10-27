@@ -24,6 +24,10 @@
             <button id="qcard-@CardId-explain" @onclick="ToggleExplain">
                 @(_showExplain ? "hide explain" : "explain")
             </button>
+            @if (_explainLoading)
+            {
+                <span class="qcopy-status" id="qcard-@CardId-explain-loading">explaining…</span>
+            }
             <span class="qcopy-status">@_copyStatus</span>
             @if (Engine.Validate(_result.Query) is { } warn)
             {
@@ -33,6 +37,12 @@
         @foreach (var d in _result.Diagnostics)
         {
             <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+        }
+        @if (_showExplain && _explainLoading)
+        {
+            <div class="qexplain" id="qcard-@CardId-explain-panel">
+                <span class="qcopy-status">scanning corpus…</span>
+            </div>
         }
         @if (_showExplain && _explain is not null)
         {
@@ -71,6 +81,7 @@
     private CompileResult? _result;
     private ExplainResult? _explain;
     private bool _showExplain;
+    private bool _explainLoading;
     private string _copyStatus = "";
 
     protected override void OnParametersSet()
@@ -78,13 +89,25 @@
         _result = Result;
         if (_result is null) _showExplain = false;
         _explain = null;
+        _explainLoading = false;
     }
 
-    private void ToggleExplain()
+    private async Task ToggleExplain()
     {
         _showExplain = !_showExplain;
-        if (_showExplain && _result is not null)
-            _explain = Engine.Explain(_result.Query, ItemClass);
+        if (!_showExplain || _result is null) return;
+        if (_explain is not null) return;
+
+        _explainLoading = true;
+        StateHasChanged();
+        try
+        {
+            _explain = await Engine.ExplainAsync(_result.Query, ItemClass);
+        }
+        finally
+        {
+            _explainLoading = false;
+        }
     }
 
     private async Task Copy()

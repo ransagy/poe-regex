@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
@@ -19,6 +20,7 @@ public sealed class EngineService
     private readonly Explainer _explainer;
     private readonly ICompilerStrategy _strategy;
     private readonly Lazy<HashSet<string>> _playableClassIds;
+    private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
 
     public EngineService()
     {
@@ -269,8 +271,35 @@ public sealed class EngineService
             excludes.Select(e => new ModifierRequirement(e)),
             allowOverflow);
 
+    /// <summary>
+    /// Explain is the one intentionally expensive action. Results are cached
+    /// by query + class so reopening a panel is instant, and <see cref="ExplainAsync"/>
+    /// yields once so the loading state can paint before the corpus scan.
+    /// </summary>
     public ExplainResult Explain(string query, string? itemClass = null) =>
-        _explainer.Explain(query, itemClass);
+        _explainCache.GetOrAdd((query, itemClass), key =>
+            _explainer.Explain(key.Query, key.ItemClass));
+
+    public async Task<ExplainResult> ExplainAsync(string query, string? itemClass = null)
+    {
+        await Task.Yield();
+        return Explain(query, itemClass);
+    }
+
+    /// <summary>
+    /// Warm the lazy per-class corpus indexes without producing an explanation.
+    /// Intended for an explicit panel-open/idle path, not for app startup.
+    /// </summary>
+    public void PrewarmExplain(string? itemClass = null)
+    {
+        if (itemClass is not null)
+        {
+            _corpus.MatchableLinesForClass(itemClass);
+            return;
+        }
+        foreach (var cls in _corpus.Catalog.ItemClasses)
+            _corpus.MatchableLinesForClass(cls.Id);
+    }
 
     /// <summary>Null when the query is grammatically valid for PoE2.</summary>
     public CompilerDiagnostic? Validate(string query) => _strategy.ValidateFragment(query);

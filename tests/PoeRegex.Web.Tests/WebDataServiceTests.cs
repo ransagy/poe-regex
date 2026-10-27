@@ -142,6 +142,22 @@ public class WebDataServiceTests
     }
 
     [Fact]
+    public async Task Explain_IsCachedByQueryAndClass()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6", 80)],
+            [], itemClass: "Ring");
+
+        var first = Engine.Explain(result.Query, "Ring");
+        var second = Engine.Explain(result.Query, "Ring");
+        var asyncSecond = await Engine.ExplainAsync(result.Query, "Ring");
+
+        second.Should().BeSameAs(first);
+        asyncSecond.Should().BeSameAs(first);
+        Engine.Explain(result.Query, "Amulet").Should().NotBeSameAs(first);
+    }
+
+    [Fact]
     public void Validate_AcceptsGeneratedQuery()
     {
         var result = Engine.Compile(
