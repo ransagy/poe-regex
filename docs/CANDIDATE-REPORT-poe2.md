@@ -111,18 +111,21 @@ escapes anchors as literals; that requires an anchor schema/compiler change.
 
 ## Proof status
 
-`matrix-proof` re-runs the grammar at `chosen.Length - 1` and fails if any
-shorter Strict/Minion-only candidate exists. The repaired deep families were
-checked clean:
+`matrix-proof` re-runs the grammar at `chosen.Length - 1` and reports any
+shorter Strict/Minion-only candidate. The full sharded proof checked every
+expanded scope:
 
 ```text
-49/49 scopes proven in the current grammar
-0 shorter candidates on the repaired families
+1129/1129 scopes checked
+542 shorter candidates in 143 families
+shortestProven: false
 ```
 
-The full catalog is not yet proof-complete; `matrix-status` records
-`shortestProven: false`. The proof is grammar-relative, not a claim about
-arbitrary regexes outside the grammar.
+The 49 scopes in the repaired deep families are clean, but the full catalog is
+not yet proof-shortest. The 542 proof candidates are the next data pass; they
+include many 2–4 character forms and need the same in-game spot-check gate
+before shipping. The proof is grammar-relative, not a claim about arbitrary
+regexes outside the grammar.
 
 ## In-game spot checks
 

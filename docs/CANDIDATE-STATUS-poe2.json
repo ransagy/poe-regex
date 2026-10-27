@@ -3,7 +3,7 @@
   "dataVersion": "2026-08-09",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "indexed-term-v1",
-  "generatedAt": "2026-10-27 20:21:47Z",
+  "generatedAt": "2026-10-27 20:43:32Z",
   "matrixGenerated": "2026-10-27 20:09:40Z",
   "files": {
     "catalog": {
@@ -61,6 +61,13 @@
     "anchorsInMatrix": false,
     "shortestProven": false,
     "boundLimited": 0,
-    "proof": null
+    "proof": {
+      "path": "docs/CANDIDATE-PROOF-poe2.json",
+      "grammarVersion": "quoted-shortest-v1",
+      "checkedScopes": 1129,
+      "workScopes": 1129,
+      "failed": 542,
+      "proven": false
+    }
   }
 }
