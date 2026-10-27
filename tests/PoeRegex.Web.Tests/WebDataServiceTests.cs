@@ -173,6 +173,16 @@ public class WebDataServiceTests
     }
 
     [Fact]
+    public void QueryImport_ResolvesAClassAnchor()
+    {
+        var imported = new QueryImportService(Engine).Import("\": Ri\"");
+
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("Ring");
+        imported.Includes.Should().BeEmpty();
+    }
+
+    [Fact]
     public void QueryImport_PreservesUnknownTokens()
     {
         var imported = new QueryImportService(Engine).Import("\"life\" \"zzzz\"");
