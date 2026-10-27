@@ -38,6 +38,9 @@ public static class MatrixProof
             ? requestedJobs
             : Environment.ProcessorCount;
         var shard = ParseShard(GetValue(opts, "--shard", ""));
+        var mergeFiles = GetValue(opts, "--merge", "");
+        if (mergeFiles.Length > 0)
+            return MergeProofs(mergeFiles, matrixPath, outPath, opts.ContainsKey("--check"));
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         var corpus = new EngineCorpus(catalog);
@@ -144,6 +147,10 @@ public static class MatrixProof
             matrixSha256 = Hash(matrixPath),
             checkedScopes = checkedCount,
             workScopes = work.Count,
+            coveredKeys = work
+                .Select(w => $"{w.Family}\u0001{w.Pattern}\u0001{w.ClassId ?? ""}")
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToArray(),
             proven = checkedCount - orderedFailures.Count,
             failed = orderedFailures.Count,
             missingChosen = missing,
@@ -172,6 +179,91 @@ public static class MatrixProof
         if (opts.ContainsKey("--check") && orderedFailures.Count > 0)
             return 1;
         return 0;
+    }
+
+    private static int MergeProofs(
+        string files, string matrixPath, string outPath, bool check)
+    {
+        var paths = files.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var documents = new List<JsonDocument>();
+        try
+        {
+            var expectedHash = Hash(matrixPath);
+            var grammar = "quoted-shortest-v1";
+            var dataVersion = "";
+            var game = "poe2";
+            var checkedScopes = 0;
+            var workScopes = 0;
+            var failed = 0;
+            var failures = new List<JsonElement>();
+            var shards = 0;
+            foreach (var path in paths)
+            {
+                if (!File.Exists(path))
+                    throw new FileNotFoundException("proof shard not found", path);
+                var doc = JsonDocument.Parse(File.ReadAllText(path));
+                documents.Add(doc);
+                var root = doc.RootElement;
+                shards++;
+                var hash = root.GetProperty("matrixSha256").GetString();
+                if (!string.Equals(hash, expectedHash, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"proof shard '{path}' was built from a different matrix");
+                var shardGrammar = root.GetProperty("grammarVersion").GetString();
+                if (!string.Equals(grammar, shardGrammar, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"proof shard '{path}' uses grammar '{shardGrammar}', expected '{grammar}'");
+                dataVersion = root.GetProperty("dataVersion").GetString() ?? dataVersion;
+                game = root.GetProperty("game").GetString() ?? game;
+                checkedScopes += root.GetProperty("checkedScopes").GetInt32();
+                workScopes += root.GetProperty("workScopes").GetInt32();
+                failed += root.GetProperty("failed").GetInt32();
+                foreach (var failure in root.GetProperty("failures").EnumerateArray())
+                    failures.Add(failure.Clone());
+            }
+
+            var proven = failed == 0 && checkedScopes == workScopes && workScopes > 0;
+            var report = new
+            {
+                game,
+                dataVersion,
+                grammarVersion = grammar,
+                generatedAt = DateTimeOffset.UtcNow.ToString("u"),
+                matrix = Path.GetFileName(matrixPath),
+                matrixSha256 = expectedHash,
+                shards,
+                checkedScopes,
+                workScopes,
+                proven = checkedScopes - failed,
+                failed,
+                failures,
+                status = proven ? "proven-in-grammar" : "shorter-candidate-found",
+            };
+            var json = JsonSerializer.Serialize(report, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
+            if (outPath.Length > 0)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+                File.WriteAllText(outPath, json);
+                Console.WriteLine(
+                    $"matrix-proof: merged {shards} shards, {checkedScopes}/{workScopes} checked, " +
+                    $"{failed} failure(s) -> {outPath}");
+            }
+            else
+            {
+                Console.WriteLine(json);
+            }
+            if (check && !proven) return 1;
+            return 0;
+        }
+        finally
+        {
+            foreach (var document in documents) document.Dispose();
+        }
     }
 
     private static string Hash(string path) =>
