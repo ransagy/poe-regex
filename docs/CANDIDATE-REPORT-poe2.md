@@ -1,14 +1,14 @@
-# PoE2 candidate report — proof-assisted deep pass
+# PoE2 candidate report — proof-complete snapshot
 
 Artifact: `docs/CANDIDATE-MATRIX-poe2.html`  
 Status: `docs/CANDIDATE-STATUS-poe2.json`  
+Proof: `docs/CANDIDATE-PROOF-poe2.json`  
 Table: `data/catalogs/poe2.fragments.json`
 
-This is the current reviewed snapshot. The deep pass shortened every long
-`current-only` scope, and a new `matrix-proof` pass verifies that the repaired
-families have no shorter candidate in the current grammar.
+This snapshot applies the policy-eligible proof candidates and re-proves the
+result to a fixed point.
 
-## Model
+## Model and policy
 
 - Every emitted fragment is a **single quoted block**.
 - Each quoted block is a **line-local term**.
@@ -18,25 +18,28 @@ families have no shorter candidate in the current grammar.
 - `Strict` = zero same-line foreign lines.
 - `Minion` = only minion / allies / presence foreign lines.
 - Simple mode is global-only.
-- Advanced mode uses the slot class; class anchors are separate quoted blocks.
-- Hierarchy: shortest Strict → shortest Minion-only → bound-complete current.
-- Purely reserved regex fragments (`.*`, `\d+`, `^$`, `\+`, `|`) are rejected.
+- Advanced mode uses the slot class; the class anchor is the **first** quoted
+  block.
+- Shipping policy: global fragments have at least 3 characters; class-scoped
+  fragments may have 2 because the class anchor constrains them.
+- In-game safety fixtures are part of the oracle; unique, socketable, base,
+  and skill text is still not a complete game-text model.
 
 ## Artifact coverage
 
 ```text
-194 families · 710 scopes · 0 unresolved
-search bounds: 10 (374 scopes) · 14 (323) · 24 (3) · 48 (10)
+194 families · 926 scopes · 0 unresolved
+bounds: 10 (448) · 14 (465) · 24 (3) · 48 (10)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 179 | 25 | 30 |
-| Class | 288 | 4 | 57 |
-| Per-class | 100 | 11 | 16 |
+| Global | 196 | 24 | 14 |
+| Class | 551 | 4 | 25 |
+| Per-class | 90 | 11 | 11 |
 
-`current-only` means the chosen form equals the current form and is within its
-search bound. **There are 0 bound-limited scopes.**
+There are **0 bound-limited scopes**. The 50 `current-only` scopes are within
+their search bounds.
 
 ## Applied table
 
@@ -44,162 +47,146 @@ search bound. **There are 0 bound-limited scopes.**
 147 global patterns · 30 classes · 0 unresolved
 ```
 
-The table was generated from the matrix with `matrix-table`. It re-verifies
-every applied choice with the indexed term oracle and refuses to write a table
-when a choice fails. All matrix choices passed.
+The full proof pass applied 541 candidates, skipped 1 safety collision, and
+then applied the remaining 5-character Max Elemental Resistance candidate.
+Relative to the previous table:
+
+```text
+58 global patterns shortened
+359 class entries shortened
+0 entries longer
+```
+
+## Proof status
+
+```text
+1129 / 1129 expanded scopes checked
+0 shorter candidates
+shortestProven: true
+```
+
+The proof is relative to the current grammar and safety corpus. It is not a
+claim about arbitrary regexes outside that grammar, nor about unmodeled
+unique/socketable/base text.
 
 ## Representative forms
 
 Quoted length includes the two block quotes; inner length excludes them.
 
-| Family | Scope | Chosen | Quoted | Inner | Profile |
-|---|---|---|---:|---:|---|
-| Maximum Life | global | `\+.*ife` | 9 | 7 | Strict |
-| Maximum Life | Amulet/Ring | `\+.*fe` | 8 | 6 | Strict |
-| Maximum Life | Belt/Helmet/Buckler/Boots | `fe$` | 5 | 3 | Strict |
-| Maximum Life | Gloves/Shield | `m.Life` | 8 | 6 | Strict |
-| Attack Speed | global | `k Speed$` | 10 | 8 | Minion |
-| Movement Speed | global | `Mov.*eed$` | 11 | 9 | Minion |
-| Movement Speed | Boots | `Mov` | 5 | 3 | Strict |
-| Cast Speed | global | `ed Cast Speed$` | 16 | 14 | Minion |
-| Cast Speed | Amulet | `peed$` | 7 | 5 | Strict |
-| Cast Speed | Focus/Staff/Wand | `eed$` | 6 | 4 | Strict |
-| Cast Speed | Ring | `Cast S` | 8 | 6 | Strict |
-| Critical Damage Bonus | global | `^\d.*al Damage.*us$` | 21 | 19 | Strict |
-| Critical Damage Bonus | Amulet | `nus$` | 6 | 4 | Strict |
-| Critical Damage Bonus | Gloves | `Bon` | 5 | 3 | Strict |
-| Damage Gained Fire | global | `^Ga.*of Da.*e Damage$` | 23 | 21 | Strict |
-| Damage Gained Cold | global | `^Ga.*of Da.*d Damage$` | 23 | 21 | Strict |
-| Damage Gained Fire | Staff/Wand | `a F` / `a.f` | 5 | 3 | Strict |
-| Damage Gained Cold | Staff/Wand | `a C` / `ra C` | 5 / 6 | 3 / 4 | Strict |
-| Damage Recouped as Life | global | `of Da.*n Recouped as Life$` | 28 | 26 | Strict |
-| Life per Enemy Hit | global | `per En.*ks$` | 13 | 11 | Strict |
-| Increased Armour | global | `^\d.*d Armour$` | 16 | 14 | Strict |
-| Armour, Evasion and ES | global | `d Armour,` | 11 | 9 | Strict |
-| Increased Energy Shield | global/class | `ed Energy.*ld$` | 16 | 14 | Strict |
-| Stun Threshold | Shield | `hr` | 4 | 2 | Strict |
-| Stun Threshold | Boots/global | `o Stu` | 7 | 5 | Strict |
-| Maximum Mana | Focus | `m M` | 5 | 3 | Strict |
-| Additional Arrow | global | `Su.*w$` | 8 | 6 | Strict |
-| Loads additional bolts | global | `L.bolts` | 9 | 7 | Strict |
-| Loads an additional bolt | global | `s an` | 6 | 4 | Strict |
-| Allies in Presence damage | global | `in y` | 6 | 4 | Minion |
-| Critical Hit Chance | global | `in.*Hit.*e$` | 13 | 11 | Minion |
-| Fire Resistance | class | `to F` | 6 | 4 | Strict |
-| Lightning Resistance | class | `to L` | 6 | 4 | Strict |
-| Cold Resistance | class | `to..o` | 7 | 5 | Strict |
-| Chaos Resistance | global | `to Chaos.*ce$` | 15 | 13 | Strict |
-| Strength | class | `gth` | 5 | 3 | Strict |
-| Dexterity | class | `Dext` | 6 | 4 | Strict |
-| Intelligence | class | `to I` / `Inte` | 6 | 4 | Strict |
-| Local added Fire | global | `Adds.*F.*e$` | 13 | 11 | Strict |
-| Local added Cold | global | `^Ad.*Co.*e$` | 13 | 11 | Strict |
-| Local added Lightning | global | `^Ad.*Li.*e$` | 13 | 11 | Strict |
-| Local added Physical | global | `Adds.*P.*e$` | 13 | 11 | Strict |
-| Local Evasion | global | `^\+.*asion` | 12 | 10 | Strict |
+| Family | Scope | Chosen | Quoted | Inner |
+|---|---|---|---:|---:|
+| Maximum Life | global | `\+.*ife` | 9 | 7 |
+| Maximum Life | Amulet/Ring | `\+.*fe` | 8 | 6 |
+| Maximum Life | Boots | `fe$` | 5 | 3 |
+| Maximum Life | Shield | `m Lif` | 7 | 5 |
+| Attack Speed | global | `k Speed$` | 10 | 8 |
+| Attack Speed | Gloves | `k S` | 5 | 3 |
+| Movement Speed | global | `Mov.*eed$` | 11 | 9 |
+| Movement Speed | Boots | `Mov` | 5 | 3 |
+| Cast Speed | global | `ed Cast.*ed$` | 14 | 12 |
+| Cast Speed | Amulet/Ring | `t S` | 5 | 3 |
+| Cast Speed | Focus/Staff/Wand | `eed$` | 6 | 4 |
+| Critical Damage Bonus | global | `^\d.*al Damage.*us$` | 21 | 19 |
+| Critical Damage Bonus | Amulet | `nus$` | 6 | 4 |
+| Critical Damage Bonus | Gloves | `Bon` | 5 | 3 |
+| Damage Gained Fire | global | `^Ga.*of Da.*e Damage$` | 23 | 21 |
+| Damage Gained Cold | global | `^Ga.*of Da.*d Damage$` | 23 | 21 |
+| Damage Gained Fire | Staff/Wand | `a F` / `a.f` | 5 | 3 |
+| Damage Gained Cold | Staff/Wand | `a C` / `ra C` | 5 / 6 | 3 / 4 |
+| Damage Recouped as Life | global | `of Da.*n Recouped as Life$` | 28 | 26 |
+| Life per Enemy Hit | global | `per En.*ks$` | 13 | 11 |
+| Increased Armour | global | `^\d.*d Armour$` | 16 | 14 |
+| Increased Armour | Shield/Boots | `i.*ur$` | 8 | 6 |
+| Armour, Evasion and ES | global | `d Armour,` | 11 | 9 |
+| Increased Energy Shield | global/class | `ed Energy.*ld$` | 16 | 14 |
+| Physical Damage % | global | `sed Ph` | 8 | 6 |
+| Max Elemental Resistance | global | `um El` | 7 | 5 |
+| Max Elemental Resistance | Shield | `l M` | 5 | 3 |
+| Dexterity | class | `xt` | 4 | 2 |
+| Stun Threshold | Shield | `hr` | 4 | 2 |
+| Stun Threshold | global | `o Stu` | 7 | 5 |
+| Armour | class | `o Ar` | 6 | 4 |
+| Maximum Mana | Focus | `m M` | 5 | 3 |
+| All Elemental Resistance | class | `l E` | 5 | 3 |
+| Additional Arrow | global | `Su.*w$` | 8 | 6 |
+| Loads additional bolts | global | `L.bolts` | 9 | 7 |
+| Loads an additional bolt | global | `s an` | 6 | 4 |
+| Allies in Presence damage | global | `in y` | 6 | 4 |
+| Critical Hit Chance | global | `in.*Hit.*e$` | 13 | 11 |
+| Fire Resistance | class | `to F` | 6 | 4 |
+| Lightning Resistance | class | `to L` | 6 | 4 |
+| Cold Resistance | class | `to..o` | 7 | 5 |
+| Chaos Resistance | global | `to Chaos.*ce$` | 15 | 13 |
+| Strength | class | `gth` | 5 | 3 |
+| Dexterity | global | `o De` | 6 | 4 |
+| Intelligence | class | `to I` / `Inte` | 6 | 4 |
+| Local added Fire | global | `Adds.*F.*e$` | 13 | 11 |
+| Local added Cold | global | `^Ad.*Co.*e$` | 13 | 11 |
+| Local added Lightning | global | `^Ad.*Li.*e$` | 13 | 11 |
+| Local added Physical | global | `Adds.*P.*e$` | 13 | 11 |
+| Local Evasion | global | `^\+.*asion` | 12 | 10 |
 
-Class anchors remain a separate table:
+Class anchors remain a separate table. The mace anchors are still literal
+prefixes and are correct for One/Two Hand Mace isolation. Shorter anchor forms
+such as `": .ne M"` / `": .wo M"` require the anchor regex/plain-flag pipeline
+and remain a later optimization.
+
+## Class-scoped two-character forms
+
+`xt`, `hr`, and the other two-character class forms are valid only with their
+class anchor first:
 
 ```text
-": One Hand M"   12 inner / 14 quoted
-": Two Hand M"   12 inner / 14 quoted
+": Am" "xt"
+": Shields" "hr"
 ```
 
-They are the shortest literal prefixes that isolate the class. A regex anchor
-such as `": .ne M"` / `": .wo M"` could be shorter, but the compiler currently
-escapes anchors as literals; that requires an anchor schema/compiler change.
+The global forms fail because they can hit extra-damage lines, `Shrine
+Sceptre`, `Grants Skill: Spear Throw`, and other unmodeled text. The class
+anchor is not optional for these forms.
 
-## Proof status
+## Security and data coverage
 
-`matrix-proof` re-runs the grammar at `chosen.Length - 1` and reports any
-shorter Strict/Minion-only candidate. The full sharded proof checked every
-expanded scope:
+The raw data includes unique-only, jewel/socketable, base, and skill lines
+that the selectable catalog and vendor corpus deliberately exclude. Observed
+field lines are now in the safety fixtures (`Idol of the Sycophant`,
+`Shrine Sceptre`, `Grants Skill: Spear Throw`). A complete global safety
+corpus remains the next coverage improvement; the current proof is complete
+for the modeled corpus plus captured fixtures.
 
-```text
-1129/1129 scopes checked
-542 shorter candidates in 143 families
-shortestProven: false
-```
+## Recommended in-game checks
 
-The 49 scopes in the repaired deep families are clean, but the full catalog is
-not yet proof-shortest. The 542 proof candidates are the next data pass; they
-include many 2–4 character forms and need the same in-game spot-check gate
-before shipping. The proof is grammar-relative, not a claim about arbitrary
-regexes outside the grammar.
+1. `": Am" "xt"` on an amulet vs weapons with extra cold/fire/lightning
+   damage. The class anchor must exclude the weapons.
+2. `": Shields" "hr"` on a shield vs `Shrine Sceptre`, `Grants Skill: Spear
+   Throw`, and ailment-threshold items.
+3. `"^\d.*al Damage.*us$"` on plain, reduced, attack, spell, trap, and local
+   critical damage lines.
+4. `"^Ga.*of Da.*e Damage$"` / cold on Fire/Cold/Lightning/Physical,
+   `Attacks Gain`, `with Spells`, and Runic Ward.
+5. `"^\d.*d Armour$"` / `"d Armour,"` on plain, hybrid, Break, and
+   Armour Break Duration lines. The jewel-only `from equipped Shield` variant
+   is still an open policy question.
+6. `"ed Energy.*ld$"` on ES, recharge, and hybrid armour pieces.
+7. `"sed Ph"` on local physical damage vs elemental and global physical lines.
+8. `"um El"` on all-maximum elemental resistance vs individual max and normal
+   all-resistance lines.
+9. `": One Hand M"` / `": Two Hand M"` against axes, swords, and the opposite
+   mace class.
 
-## In-game spot checks
+## Import search
 
-Use the compiled quoted query, not the bare inner fragment. For class checks
-use Advanced mode so the class anchor is present.
-
-### New deep forms — check these first
-
-1. **Critical Damage Bonus, global** — `"^\d.*al Damage.*us$"`.
-   Test plain, reduced, attack, spell, trap, and local `+#% to Critical
-   Damage Bonus` lines.
-2. **Damage Gained Fire/Cold** — `"^Ga.*of Da.*e Damage$"` /
-   `"^Ga.*of Da.*d Damage$"`; test both elements plus `Attacks Gain`,
-   `Physical Damage`, `with Spells`, and `Runic Ward`.
-3. **Damage Recouped as Life** — `"of Da.*n Recouped as Life$"`; compare
-   Recouped Mana.
-4. **Life per Enemy Hit** — `"per En.*ks$"`; compare Mana per Enemy Hit.
-5. **Increased Armour** — `"^\d.*d Armour$"`; test `Break ... increased
-   Armour`, hybrid armour, and `Armour Break Duration`.
-6. **Hybrid Armour/Evasion/ES** — `"d Armour,"`; test all hybrid
-   combinations.
-7. **Energy Shield** — `"ed Energy.*ld$"`; test recharge, hybrid, and
-   maximum Energy Shield.
-8. **Very short class forms** — test them in Advanced mode with the anchor
-   first: `": Shields" "hr"`, `": Am" "xt"`, `": Staff" "a C"`,
-   `": Wand" "ra C"`, `": Staff" "a F"`, `": Focus" "m M"`, and the
-   relevant Armour/Stun Threshold class. These are class-scoped only; the
-   same fragments pasted globally are expected to over-match unique,
-   socketable, and other-class text.
-
-### Existing high-risk forms
-
-9. **Maximum Life** — `"\+.*ife"`, `"fe$"`, `"m.Life"`.
-10. **Movement Speed** — `"Mov.*eed$"`, `"Mov"`.
-11. **Attack Speed** — `"k Speed$"`, `"eed$"`.
-12. **Cast Speed** — `"ed Cast Speed$"`, `"peed$"`, `"eed$"`, `"Cast S"`.
-13. **Critical Hit Chance** — `"in.*Hit.*e$"`, `"hance$"`.
-14. **Additional Arrow / Bolts** — `"Su.*w$"`, `"L.bolts"`, `"s an"`.
-15. **Allies in Presence** — `"in y"`, `"yo"`.
-16. **Local added damage** — `"Adds.*F.*e$"`, `"^Ad.*Co.*e$"`,
-    `"^Ad.*Li.*e$"`, `"Adds.*P.*e$"`.
-17. **Evasion / ES local** — `"^\+.*gy"`, `"^\+.*asion"`.
-18. **Resistances/attributes** — `"to F"`, `"to L"`, `"to..o"`, `"to Ch"`,
-    `"gth"`, `"Dext"`, `"to I"`, `"nus$"`, `"Bon"`.
-19. **Mace anchors** — `": One Hand M"` / `": Two Hand M"`; verify class
-    isolation against One/Two Hand Axe/Sword/Mace.
-
-### Structure
-
-20. **Quoted vs unquoted control** — the compiled quoted query must not match
-    an item whose lines would false-positive after unquoted splitting.
-21. **Simple vs Advanced** — Simple uses the global form; Advanced adds the
-    class anchor.
-22. **Multi-slot** — shared class anchor plus one quoted group per slot.
-23. **Threshold** — compile a minimum roll and test below/above values.
+The current importer still expects catalog-generated fragments. Existing
+build-guide regexes use unquoted terms, alternations, affix names, thresholds,
+and broad stat words, so importer semantics remain a separate follow-up.
 
 ## Resource note
 
-Deep searches were run as bounded family batches, one process at a time with
-`--jobs 4–8`. No 24-process run was used.
+The full proof was run as four shards with `--jobs 4`, then merged:
 
-```bash
-# deep current-relative search for a family or batch
-candidate-matrix --game poe2 --family "FamilyA,FamilyB" \
-  --max-length 48 --deep-phrases --jobs 4 --out partial.html
-
-# targeted family replacement (first-wins is intentional here)
-candidate-matrix --game poe2 --merge "partial.html|current.html" \
-  --max-length 14 --out matrix.html
-
-# proof the chosen forms have no shorter candidate in the grammar
-matrix-proof --game poe2 --matrix matrix.html --jobs 6 \
-  --family "FamilyA,FamilyB" --out proof.json --check
-
-# table from the reviewed matrix
-matrix-table --game poe2 --matrix matrix.html --out data/catalogs/poe2.fragments.json
+```text
+4 shards · 1129 expanded scopes · ~3 minutes
 ```
+
+The full applier is `matrix-apply`; `matrix-proof` supports `--shard` and
+`--merge`. No 24-process run was used.
