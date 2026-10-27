@@ -27,6 +27,19 @@ public sealed class PoeRegexCompiler
         var diagnostics = new List<CompilerDiagnostic>();
         var blocks = new List<string>();
 
+        // Class anchor first: single-slot Advanced queries read with the
+        // class constraint up front. The anchor is an oracle-clean
+        // `Item Class:` name prefix, kept as its own quoted block.
+        // PasteComposer already emits its anchor first; this keeps the two
+        // composition paths visually consistent.
+        if (spec.ItemClass is not null)
+        {
+            if (_corpus.FindItemClass(spec.ItemClass) is null)
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
+                    $"No fingerprint available for item class '{spec.ItemClass}'."));
+            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
+        }
+
         // Included modifiers → one quoted block with | alternation.
         var included = new List<string>();
         foreach (var req in spec.IncludedModifiers)
@@ -50,18 +63,6 @@ public sealed class PoeRegexCompiler
                 ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
                 : _strategy.EscapeLiteral(req.Value);
             blocks.Add(_strategy.FormatExclusion(term));
-        }
-
-        // Class anchor.
-        // Class anchor: an oracle-clean `Item Class:` name prefix. Unlike the
-        // old shortest-substring anchor (often a vacuous ":"), this isolates
-        // the class instead of matching every colon line.
-        if (spec.ItemClass is not null)
-        {
-            if (_corpus.FindItemClass(spec.ItemClass) is null)
-                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
-                    $"No fingerprint available for item class '{spec.ItemClass}'."));
-            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
         }
 
         // Custom keywords.

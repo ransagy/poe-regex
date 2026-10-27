@@ -34,6 +34,22 @@ public class CompilerTests
     }
 
     [Fact]
+    public void ClassAnchor_IsTheFirstQuotedBlock()
+    {
+        var compiler = CreateCompiler();
+        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        {
+            ItemClass = "Ring",
+            IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
+            ExcludedModifiers = [new ModifierRequirement("reflect")],
+        });
+
+        result.Query.Should().StartWith("\": Ri\" ");
+        result.Query.IndexOf("\": Ri\"", StringComparison.Ordinal).Should()
+            .BeLessThan(result.Query.IndexOf("!\"reflect\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void MultipleMods_UseAlternation()
     {
         var compiler = CreateCompiler();
