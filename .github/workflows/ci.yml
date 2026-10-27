@@ -24,3 +24,8 @@ jobs:
 
       - name: Test
         run: dotnet test --configuration Release
+
+      - name: Verify catalog provenance
+        run: >
+          dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
+          matrix-status --game poe2 --check

@@ -34,6 +34,7 @@ public static class Program
                 "build" => Build(args[1..]),
                 "fragments" => Fragments(args[1..]),
                 "matrix-table" => MatrixTable(args[1..]),
+                "matrix-status" => BuildStatus.Run(args[1..]),
                 "corpus" => Corpus(args[1..]),
                 "probe" => Probe(args[1..]),
                 "candidate-report" => CandidateReport.Run(args[1..]),
@@ -51,7 +52,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | corpus | probe | candidate-report | candidate-matrix | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | matrix-status | corpus | probe | candidate-report | candidate-matrix | fetch");
         return 2;
     }
 
@@ -111,6 +112,7 @@ public static class Program
         var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
         var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
         var outPath = GetValue(opts, "--out", $"data/catalogs/{gameName}.fragments.json");
+        var allowFallback = opts.ContainsKey("--allow-fallback");
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         FragmentTable? current = null;
@@ -135,9 +137,14 @@ public static class Program
             foreach (var (cls, map) in current.ByClass)
                 byClass[cls] = new Dictionary<string, string>(map, StringComparer.Ordinal);
 
+        var invalidShapes = 0;
         void Set(Dictionary<string, string> map, string pattern, string fragment)
         {
-            if (QueryShape.ValidateFragment(fragment).Count > 0) return;
+            if (QueryShape.ValidateFragment(fragment).Count > 0)
+            {
+                invalidShapes++;
+                return;
+            }
             if (!map.TryGetValue(pattern, out var existing) ||
                 fragment.Length < existing.Length)
                 map[pattern] = fragment;
@@ -215,8 +222,14 @@ public static class Program
                 var fallback = scope is null
                     ? current?.Global.GetValueOrDefault(pattern)
                     : current?.ByClass.GetValueOrDefault(scope)?.GetValueOrDefault(pattern);
-                if (!string.IsNullOrEmpty(fallback)) map[pattern] = fallback;
-                else map.Remove(pattern);
+                if (allowFallback && !string.IsNullOrEmpty(fallback))
+                {
+                    map[pattern] = fallback;
+                }
+                else
+                {
+                    map.Remove(pattern);
+                }
                 Console.Error.WriteLine(
                     $"  rejected {scope ?? "global"}/{pattern.Replace('\u0001', '#')}: " +
                     $"'{fragment}' is not clean under the term oracle");
@@ -224,8 +237,21 @@ public static class Program
         }
         Verify(global, null);
         foreach (var (cls, map) in byClass) Verify(map, cls);
+        if (rejected > 0 && !allowFallback)
+        {
+            Console.Error.WriteLine(
+                $"matrix-table: {rejected} matrix choices failed the term oracle; " +
+                "refusing to write a table. Re-run the affected families or pass --allow-fallback.");
+            return 3;
+        }
+        if (invalidShapes > 0)
+        {
+            Console.Error.WriteLine(
+                $"matrix-table: {invalidShapes} matrix choices had an invalid fragment shape.");
+            return 3;
+        }
         if (rejected > 0)
-            Console.WriteLine($"  rejected {rejected} matrix choices; old table entries kept where available");
+            Console.WriteLine($"  rejected {rejected} matrix choices; old table entries kept (--allow-fallback)");
         else
             Console.WriteLine("  all matrix choices pass the term oracle");
 
@@ -242,13 +268,33 @@ public static class Program
                 if (remaining.Count > 0) byClassUnresolved[cls] = remaining;
             }
 
-        var anchors = current?.ClassAnchors;
-        if (anchors is null || anchors.Count == 0)
+        // Regenerate anchors from the current corpus instead of trusting a
+        // precomputed table from an earlier run. ClassNamePrefix(..., false)
+        // bypasses the embedded table for exactly this purpose.
+        var anchors = catalog.ItemClasses
+            .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
+            .ToDictionary(
+                c => c.Id,
+                c => corpus.ClassNamePrefix(c.Id, usePrecomputed: false),
+                StringComparer.Ordinal);
+        var changedAnchors = anchors
+            .Where(kv => current?.ClassAnchors.TryGetValue(kv.Key, out var old) != true ||
+                         !string.Equals(old, kv.Value, StringComparison.Ordinal))
+            .Select(kv => $"{kv.Key}: {current?.ClassAnchors.GetValueOrDefault(kv.Key) ?? "(none)"} -> {kv.Value}")
+            .ToList();
+        foreach (var (classId, anchor) in anchors)
         {
-            anchors = catalog.ItemClasses
-                .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
-                .ToDictionary(c => c.Id, c => corpus.ClassNamePrefix(c.Id), StringComparer.Ordinal);
+            if (corpus.ClassTermExact(anchor, [classId]) &&
+                corpus.ClassTermQuiet(anchor)) continue;
+            Console.Error.WriteLine(
+                $"matrix-table: anchor for '{classId}' ('{anchor}') failed exact/quiet validation");
+            return 3;
         }
+        if (changedAnchors.Count > 0)
+            Console.WriteLine($"  regenerated {changedAnchors.Count} class anchor(s): " +
+                string.Join("; ", changedAnchors));
+        else
+            Console.WriteLine("  class anchors unchanged");
 
         var table = new FragmentTable
         {

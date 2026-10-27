@@ -24,7 +24,7 @@ This is the reviewed shortest-form snapshot under the corrected in-game model.
 ## Artifact coverage
 
 ```text
-194 families · 710 scopes · 0 unresolved
+194 families · 709 scopes · 0 unresolved
 search bounds: 10 (374 scopes) · 14 (335 scopes)
 ```
 

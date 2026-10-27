@@ -121,9 +121,18 @@ public sealed class EngineCorpus
     /// the class instead of matching every colon line. Falls back to the full
     /// name (callers surface residual risk as diagnostics).
     /// </summary>
-    public string ClassNamePrefix(string itemClass)
+    public string ClassNamePrefix(string itemClass) =>
+        ClassNamePrefix(itemClass, usePrecomputed: true);
+
+    /// <summary>
+    /// Computes the anchor without consulting the shipped table. Data builds
+    /// use this to regenerate and verify anchors instead of trusting a stale
+    /// precomputed entry.
+    /// </summary>
+    public string ClassNamePrefix(string itemClass, bool usePrecomputed)
     {
-        if (_fragments?.ClassAnchors is not null &&
+        if (usePrecomputed &&
+            _fragments?.ClassAnchors is not null &&
             _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
             precomputedAnchor.Length > 0)
             return precomputedAnchor;

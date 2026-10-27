@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 
@@ -54,6 +55,80 @@ public class FragmentShapeTests
                             CheckFragment($"{key}/{stat}/{kind}/{list}", option, failures);
                 }
             }
+        }
+        failures.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The status report is a build artifact; it must agree with the matrix
+    /// and table it describes, otherwise stale-scope counts start lying.
+    /// </summary>
+    [Fact]
+    public void MatrixStatus_MatchesArtifacts()
+    {
+        var root = RepoRoot();
+        using var status = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(root, "docs", "CANDIDATE-STATUS-poe2.json")));
+        var matrixHtml = File.ReadAllText(
+            Path.Combine(root, "docs", "CANDIDATE-MATRIX-poe2.html"));
+        var matrixMatch = Regex.Match(
+            matrixHtml, @"window\.MATRIX = (\{.*?\});</script>", RegexOptions.Singleline);
+        using var matrix = JsonDocument.Parse(matrixMatch.Groups[1].Value);
+        var table = JsonSerializer.Deserialize<FragmentTable>(File.ReadAllText(
+            Path.Combine(root, "data", "catalogs", "poe2.fragments.json")),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        var families = 0;
+        var scopes = 0;
+        var longCurrentOnly = 0;
+        foreach (var family in matrix.RootElement.GetProperty("families").EnumerateArray())
+        {
+            families++;
+            foreach (var pattern in family.GetProperty("patterns").EnumerateArray())
+            foreach (var scope in pattern.GetProperty("scopes").EnumerateArray())
+            {
+                scopes++;
+                if (scope.GetProperty("coverage").GetString() != "current-only") continue;
+                var bound = scope.GetProperty("bound").GetInt32();
+                var length = scope.GetProperty("chosen").GetProperty("length").GetInt32();
+                if (length > bound) longCurrentOnly++;
+            }
+        }
+
+        var statusRoot = status.RootElement;
+        statusRoot.GetProperty("dataVersion").GetString().Should().Be(table.DataVersion);
+        statusRoot.GetProperty("matrix").GetProperty("families").GetInt32().Should().Be(families);
+        statusRoot.GetProperty("matrix").GetProperty("scopes").GetInt32().Should().Be(scopes);
+        statusRoot.GetProperty("matrix").GetProperty("longCurrentOnlyCount").GetInt32()
+            .Should().Be(longCurrentOnly);
+        statusRoot.GetProperty("table").GetProperty("global").GetInt32()
+            .Should().Be(table.Global.Count);
+        statusRoot.GetProperty("table").GetProperty("classAnchors").GetInt32()
+            .Should().Be(table.ClassAnchors.Count);
+    }
+
+    /// <summary>
+    /// Every shipped anchor must be a clean class-line selector and must not
+    /// match a mod or universal line. This is the data-side guard for the
+    /// anchor regeneration path.
+    /// </summary>
+    [Fact]
+    public void ShippedClassAnchors_AreExactAndQuiet()
+    {
+        var root = RepoRoot();
+        var table = JsonSerializer.Deserialize<FragmentTable>(
+            File.ReadAllText(Path.Combine(root, "data", "catalogs", "poe2.fragments.json")),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load(GameTarget.PoE2);
+        var corpus = new EngineCorpus(catalog);
+        var failures = new List<string>();
+        foreach (var (classId, anchor) in table.ClassAnchors)
+        {
+            if (!corpus.ClassTermExact(anchor, [classId]))
+                failures.Add($"{classId}: '{anchor}' is not exact");
+            if (!corpus.ClassTermQuiet(anchor))
+                failures.Add($"{classId}: '{anchor}' matches a mod/universal line");
         }
         failures.Should().BeEmpty();
     }
