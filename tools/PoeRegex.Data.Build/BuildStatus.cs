@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
@@ -145,6 +146,7 @@ public static class BuildStatus
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         });
         if (outPath.Length > 0)
         {
