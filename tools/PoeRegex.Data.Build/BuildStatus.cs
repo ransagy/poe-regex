@@ -103,6 +103,8 @@ public static class BuildStatus
         {
             game = catalog.Game,
             dataVersion = catalog.DataVersion,
+            grammarVersion = "quoted-shortest-v1",
+            oracleVersion = "indexed-term-v1",
             generatedAt = DateTimeOffset.UtcNow.ToString("u"),
             matrixGenerated = matrix.RootElement.TryGetProperty("generated", out var generated)
                 ? generated.GetString()
@@ -139,6 +141,7 @@ public static class BuildStatus
                 staleReasons,
                 anchorsInMatrix = false,
                 shortestProven = false,
+                boundLimited = longCurrentOnly.Count,
             },
         };
 
