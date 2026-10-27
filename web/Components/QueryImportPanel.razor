@@ -89,7 +89,8 @@
     private bool CanApply =>
         _result is not null &&
         _result.Mode is "simple" or "advanced" &&
-        _result.Keywords.Count == 0;
+        _result.Keywords.Count == 0 &&
+        _result.Tokens.All(t => t.Confidence != "ambiguous");
 
     private void Parse()
     {
@@ -104,6 +105,8 @@
             return "multi-class import is preview-only; apply is not wired for slot groups yet";
         if (_result.Keywords.Count > 0)
             return "unknown/custom terms are present; remove them or import a fully catalog-backed query";
+        if (_result.Tokens.Any(t => t.Confidence == "ambiguous"))
+            return "one or more fragments map to multiple mods; edit the source query or choose explicitly";
         return "nothing importable was found";
     }
 
