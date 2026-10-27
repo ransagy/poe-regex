@@ -58,6 +58,40 @@ public class FragmentShapeTests
         failures.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The family row shows the first pattern's global chosen form, quoted,
+    /// right-aligned. Every family must therefore have one.
+    /// </summary>
+    [Fact]
+    public void MatrixArtifact_EveryFamilyHasGlobalChosen()
+    {
+        var root = RepoRoot();
+        var artifact = Path.Combine(root, "docs", "CANDIDATE-MATRIX-poe2.html");
+        var html = File.ReadAllText(artifact);
+        var match = Regex.Match(html, @"window\.MATRIX = (\{.*?\});</script>", RegexOptions.Singleline);
+        match.Success.Should().BeTrue("the committed matrix artifact must embed its JSON");
+
+        using var document = JsonDocument.Parse(match.Groups[1].Value);
+        var missing = new List<string>();
+        foreach (var family in document.RootElement.GetProperty("families").EnumerateArray())
+        {
+            var key = family.GetProperty("key").GetString() ?? "";
+            var patterns = family.GetProperty("patterns");
+            var first = patterns.EnumerateArray().First();
+            var global = first.GetProperty("scopes").EnumerateArray()
+                .FirstOrDefault(scope =>
+                    scope.GetProperty("kind").GetString() == "global");
+            if (global.ValueKind != JsonValueKind.Object ||
+                !global.TryGetProperty("chosen", out var chosen) ||
+                chosen.ValueKind != JsonValueKind.Object ||
+                string.IsNullOrEmpty(chosen.GetProperty("fragment").GetString()))
+                missing.Add(key);
+        }
+
+        missing.Should().BeEmpty(
+            "the family row renders the first pattern's global chosen form");
+    }
+
     private static void CheckOption(
         string where, JsonElement scope, string property, List<string> failures)
     {

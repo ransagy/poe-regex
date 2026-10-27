@@ -475,7 +475,9 @@ public static class CandidateMatrix
             main { padding:18px 28px 80px; max-width:1500px; margin:0 auto; }
             details { border:1px solid var(--line); border-radius:6px; margin:8px 0; background:var(--panel); overflow:hidden; }
             summary { cursor:pointer; padding:10px 12px; font-weight:600; color:var(--gold); }
-            summary span.meta { color:var(--muted); font-weight:400; margin-left:10px; }
+            summary .family-row { display:flex; align-items:baseline; gap:10px; }
+            summary span.meta { color:var(--muted); font-weight:400; }
+            summary .family-chosen { margin-left:auto; text-align:right; color:var(--good); font-weight:500; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; white-space:nowrap; }
             .patterns { padding:0 12px 12px; }
             .pattern { border-top:1px solid var(--line); padding:10px 0; }
             .pattern h4 { margin:0 0 8px; font-size:13px; color:var(--text); }
@@ -504,7 +506,7 @@ public static class CandidateMatrix
             .badge.foreign { color:var(--bad); }
             .badge.diag { color:var(--warn); text-transform:uppercase; letter-spacing:.05em; }
             .empty { color:var(--muted); font-style:italic; }
-            @media (max-width:700px) { header,.toolbar,main { padding-left:14px; padding-right:14px; } .sub { font-size:13px; } }
+            @media (max-width:700px) { header,.toolbar,main { padding-left:14px; padding-right:14px; } .sub { font-size:13px; } summary .family-row { flex-wrap:wrap; } summary .family-chosen { white-space:normal; overflow-wrap:anywhere; } }
             """;
         var sb = new StringBuilder();
         sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Candidate matrix</title><style>").Append(css).Append("</style></head><body>");
@@ -592,6 +594,14 @@ public static class CandidateMatrix
                   if (!s.chosen) return '';
                   return `<div class="chosen">chosen: ${opt(s.chosen)} <span class="badge">${esc(s.coverage)}</span> <span class="badge">save ${s.save}</span></div>`;
                 }
+                function familyChosen(f) {
+                  const patterns = f.patterns || [];
+                  const first = patterns[0];
+                  const global = first && first.scopes.find(s => s.kind === 'global' && s.chosen);
+                  const chosen = (global && global.chosen) || patterns
+                    .flatMap(p => p.scopes).map(s => s.chosen).find(Boolean);
+                  return chosen ? (chosen.quoted || ('"' + chosen.fragment + '"')) : '';
+                }
                 function knownLine(s) {
                   if (!s.known || !s.known.length) return '';
                   return `<div class="known">known reference: ${s.known.map(o => opt(o) + ' <span class="badge">verified in-game</span>').join(' · ')}</div>`;
@@ -617,7 +627,11 @@ public static class CandidateMatrix
                     }).join('');
                     if (!patterns) return '';
                     shown++;
-                    return `<details class="family"><summary>${esc(f.display)} <span class="meta">${esc(f.key)} · ${esc(f.prefix)} · ${f.tiers} tiers · ${f.classes.length} classes</span></summary><div class="patterns">${patterns}</div></details>`;
+                    const chosen = familyChosen(f);
+                    const chosenHtml = chosen
+                      ? `<span class="family-chosen" title="chosen global fragment">${esc(chosen)}</span>`
+                      : '';
+                    return `<details class="family"><summary><span class="family-row"><span>${esc(f.display)}</span> <span class="meta">${esc(f.key)} · ${esc(f.prefix)} · ${f.tiers} tiers · ${f.classes.length} classes</span>${chosenHtml}</span></summary><div class="patterns">${patterns}</div></details>`;
                   }).join('');
                   root.innerHTML = html || '<p class="empty">no families match</p>';
                   count.textContent = `${shown} / ${window.MATRIX.families.length} families`;
