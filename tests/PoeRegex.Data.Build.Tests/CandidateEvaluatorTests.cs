@@ -314,6 +314,27 @@ public class CandidateEvaluatorTests
         return table.ByClass.GetValueOrDefault(scope)?.GetValueOrDefault(pattern) ?? "";
     }
 
+    [Fact]
+    public void DeepSearch_ReachesTwoBridgePhraseCandidates()
+    {
+        var (_, corpus, _) = Load();
+        const string pattern = "Gain \u0001% of Damage as Extra Fire Damage";
+        var targets = corpus.RealLinesGlobal()
+            .Where(x => x.Pattern == pattern)
+            .Select(x => x.Real)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var candidates = CandidateReport.EnumerateCandidates(
+            targets, 48, current: null, includeDeepPhrases: true);
+
+        candidates.Should().Contain(c =>
+            c.Fragment.Contains("of Damage", StringComparison.Ordinal) &&
+            c.Fragment.Contains("Fire Damage", StringComparison.Ordinal) &&
+            c.Fragment.Contains(".*", StringComparison.Ordinal),
+            "the deep grammar must be able to reach phrase bridges");
+    }
+
     private static (Catalog Catalog, EngineCorpus Corpus, FragmentTable? Table) Load()
     {
         var root = RepoRoot();

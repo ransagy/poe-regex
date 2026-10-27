@@ -518,7 +518,7 @@ public static class CandidateReport
     /// </summary>
     internal static List<Candidate> EnumerateCandidates(
         IReadOnlyList<string> targets, int maxLength, string? current,
-        bool includeTwoWildcards = true)
+        bool includeTwoWildcards = true, bool includeDeepPhrases = false)
     {
         var candidates = new Dictionary<string, Candidate>(StringComparer.Ordinal);
         var allStart = false;
@@ -652,20 +652,21 @@ public static class CandidateReport
                 .Where(c => AllTargetsMatchPieces(c.Text))
                 .ToList();
 
-            // One middle wildcard: two literal pieces. Bound the short
-            // chunks used here; the matrix is a shortest-form review and the
-            // winning forms are short guards, not long phrases.
+            // One middle wildcard: two literal pieces. The shipped bound-10/14
+            // review uses short chunks; a deep (current-relative) search needs
+            // longer phrases such as "Fire Damage" to reach a current-only form.
+            var deep = includeDeepPhrases;
             var wildcardStarts = starts
-                .Where(c => c.Text.Length <= 8)
+                .Where(c => c.Text.Length <= (deep ? 16 : 8))
                 .OrderBy(c => c.Text.Length)
                 .ThenBy(c => c.Text, StringComparer.Ordinal)
-                .Take(80)
+                .Take(deep ? 160 : 80)
                 .ToList();
             var wildcardEnds = ends
-                .Where(c => c.Text.Length <= 8)
+                .Where(c => c.Text.Length <= (deep ? 16 : 8))
                 .OrderBy(c => c.Text.Length)
                 .ThenBy(c => c.Text, StringComparer.Ordinal)
-                .Take(80)
+                .Take(deep ? 160 : 80)
                 .ToList();
             foreach (var a in wildcardStarts)
             {
@@ -683,14 +684,47 @@ public static class CandidateReport
 
             if (!includeTwoWildcards) continue;
 
-            // Two middle wildcards: prefix, middle word, suffix. Keep the
-            // middle piece to word-sized literals and use only the base
-            // word-aligned chunks here; digit prefixes and mid-word tails are
-            // reserved for the one-wildcard search where they matter.
-            var mids = baseChunks.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
-                                             c.Text.Length <= 10).ToList();
-            var firsts = baseChunks.Where(c => c.StartsWord && c.Text.Length <= 8).Take(24).ToList();
-            var lasts = baseChunks.Where(c => c.EndsWord && c.Text.Length <= 8).Take(24).ToList();
+            // Two middle wildcards: prefix, middle phrase, suffix. A deep
+            // search adds arbitrary literal substrings as middle pieces so a
+            // form like "^Gain.*of Damage.*Fire Damage$" is reachable; the
+            // bounded review keeps the small word-chunk pool.
+            var deepPieces = chunkSet;
+            if (deep)
+            {
+                deepPieces = new HashSet<Chunk>(chunkSet);
+                for (var start = 0; start < shortest.Length; start++)
+                {
+                    if (shortest[start] == ' ') continue;
+                    for (var len = 2; len <= 18 && start + len <= shortest.Length; len++)
+                    {
+                        var raw = shortest.Substring(start, len);
+                        if (raw.EndsWith(' ') || !IsLiteral(raw)) continue;
+                        if (raw.Count(char.IsAsciiLetter) < 2) continue;
+                        if (!AllTargetsContain(raw)) continue;
+                        var startsWord = start == 0 || !char.IsAsciiLetter(shortest[start - 1]);
+                        var endsWord = start + len == shortest.Length ||
+                                       !char.IsAsciiLetter(shortest[start + len]);
+                        deepPieces.Add(new Chunk(raw, startsWord, endsWord));
+                    }
+                }
+            }
+            IEnumerable<Chunk> pieces = deep ? deepPieces : baseChunks;
+            var mids = pieces
+                .Where(c => c.StartsWord && (deep || !c.Text.Contains(' ')) &&
+                            c.Text.Length <= (deep ? 18 : 10))
+                .ToList();
+            var firsts = pieces
+                .Where(c => c.StartsWord && c.Text.Length <= (deep ? 16 : 8))
+                .OrderBy(c => c.Text.Length)
+                .ThenBy(c => c.Text, StringComparer.Ordinal)
+                .Take(deep ? 80 : 24)
+                .ToList();
+            var lasts = pieces
+                .Where(c => c.EndsWord && c.Text.Length <= (deep ? 18 : 8))
+                .OrderBy(c => c.Text.Length)
+                .ThenBy(c => c.Text, StringComparer.Ordinal)
+                .Take(deep ? 80 : 24)
+                .ToList();
             foreach (var a in firsts)
             {
                 foreach (var m in mids)
