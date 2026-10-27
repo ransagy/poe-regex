@@ -183,6 +183,20 @@ public class CandidateEvaluatorTests
     }
 
     [Fact]
+    public void AnchoredDigitCandidate_CountsForeignLines()
+    {
+        var (catalog, corpus, _) = Load();
+        var scope = ScopeCorpus.Build(corpus, "Shield");
+        const string pattern = "\u0001% increased Energy Shield";
+
+        var option = CandidateEvaluator.EvaluateFragment(scope, pattern, @"^\d.*eld");
+
+        option.Should().NotBeNull();
+        option!.ForeignOtherLines.Should().BeGreaterThan(0,
+            "the anchor belongs to the regex, not to the first literal piece");
+    }
+
+    [Fact]
     public void NewGrammar_TopStrictCandidateIsSafeOnAmulets()
     {
         var (catalog, corpus, table) = Load();

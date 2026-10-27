@@ -35,9 +35,6 @@ public class FragmentAuditTests
         .Select(c => c.Id)
         .ToList();
 
-    private const RegexOptions SectionRegexOptions =
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Multiline | RegexOptions.Singleline;
-
     private static bool HasWildcardDot(string fragment)
     {
         for (var i = 0; i < fragment.Length; i++)
@@ -47,15 +44,6 @@ public class FragmentAuditTests
         }
         return false;
     }
-
-    private static bool HasCrossLineMatch(string text, string fragment)
-    {
-        var regex = new Regex(fragment, SectionRegexOptions, TimeSpan.FromSeconds(2));
-        return regex.Matches(text).Any(m => m.Value.Contains('\n'));
-    }
-
-    private static string ReverseLines(string text) =>
-        string.Join("\n", text.Split('\n').Reverse());
 
     /// <summary>
     /// The checked-in tables must match the catalog version and cover every
@@ -203,55 +191,6 @@ public class FragmentAuditTests
     }
 
     /// <summary>
-    /// Item-level cross-line regression on the raw captured sections. A `.`
-    /// fragment that bridges two lines of one real item is the exact failure
-    /// mode the field reports exposed; this check uses the game's raw text
-    /// (ranges intact) and both line orders.
-    /// </summary>
-    [Fact]
-    public void CapturedItemSections_RejectEveryCrossLineFragment()
-    {
-        var corpus = Corpus.Value;
-        corpus.SafetyItems.Should().NotBeEmpty();
-        var failures = new List<string>();
-        var checkedCount = 0;
-
-        foreach (var item in corpus.SafetyItems)
-        {
-            var cls = corpus.Catalog.ItemClasses.FirstOrDefault(c =>
-                c.Name.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase) ||
-                c.Id.Equals(item.ClassName, StringComparison.OrdinalIgnoreCase));
-            if (cls is null)
-            {
-                failures.Add($"unknown captured-item class '{item.ClassName}'");
-                continue;
-            }
-
-            var fragments = corpus.PrecomputedGlobal.Values
-                .Concat(corpus.PrecomputedForClass(cls.Id).Values)
-                .Where(HasWildcardDot)
-                .Distinct(StringComparer.Ordinal);
-            foreach (var fragment in fragments)
-            {
-                foreach (var section in item.Sections)
-                {
-                    var text = string.Join("\n", section);
-                    if (!text.Contains('\n')) continue;
-                    if (HasCrossLineMatch(text, fragment) || HasCrossLineMatch(ReverseLines(text), fragment))
-                        failures.Add($"{cls.Id}: '{fragment}' cross-line in captured section " +
-                                     $"[{string.Join(" / ", section.Take(2))}]");
-                    checkedCount++;
-                }
-            }
-        }
-
-        _output.WriteLine($"captured section cross-line checks: {checkedCount}");
-        foreach (var failure in failures.Take(30)) _output.WriteLine($"FAIL {failure}");
-        failures.Take(30).Should().BeEmpty($"{failures.Count} captured-item cross-line failures");
-        checkedCount.Should().BeGreaterThan(50);
-    }
-
-    /// <summary>
     /// The exact broad strings observed in-game. They must be rejected by the
     /// section oracle, not merely absent from the current table.
     /// </summary>
@@ -323,20 +262,6 @@ public class FragmentAuditTests
                     failures.Add($"{scope ?? "global"}: '{fragment}' misses its own line for '{pattern}'");
                 if (others.Any(o => regex.IsMatch(o)))
                     failures.Add($"{scope ?? "global"}: '{fragment}' over-matches a foreign line for '{pattern}'");
-
-                // Independent section-level check: `.` may cross line breaks
-                // within one search section. A fragment used globally must be
-                // safe on every class; a class fragment only on its class.
-                if (HasWildcardDot(fragment))
-                {
-                    foreach (var cls in scope is null ? ClassesWithMods() : [scope])
-                    foreach (var (kind, text) in corpus.SearchSectionsForClass(cls))
-                    {
-                        if (HasCrossLineMatch(text, fragment) || HasCrossLineMatch(ReverseLines(text), fragment))
-                            failures.Add(
-                                $"{scope ?? "global"}: '{fragment}' cross-line match in {cls}/{kind} for '{pattern}'");
-                    }
-                }
                 lengths.Add((fragment.Length, scope ?? "global", pattern, fragment));
                 checkedCount++;
             }

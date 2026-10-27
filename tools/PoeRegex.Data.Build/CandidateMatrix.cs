@@ -73,6 +73,10 @@ public static class CandidateMatrix
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
             return Merge(mergeFiles, outPath, maxLength);
+        var jobs = int.TryParse(GetValue(opts, "--jobs", "0"), out var requestedJobs) &&
+                   requestedJobs > 0
+            ? requestedJobs
+            : Environment.ProcessorCount;
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         var corpus = new EngineCorpus(catalog);
@@ -145,7 +149,7 @@ public static class CandidateMatrix
         var results = new ConcurrentBag<WorkItem>();
         Parallel.ForEach(tasks, new ParallelOptions
         {
-            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount),
+            MaxDegreeOfParallelism = Math.Max(1, jobs),
         }, task =>
         {
             var (scope, scopeCorpus, key) = task;

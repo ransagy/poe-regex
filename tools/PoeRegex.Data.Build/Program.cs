@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
@@ -32,6 +33,7 @@ public static class Program
             {
                 "build" => Build(args[1..]),
                 "fragments" => Fragments(args[1..]),
+                "matrix-table" => MatrixTable(args[1..]),
                 "corpus" => Corpus(args[1..]),
                 "probe" => Probe(args[1..]),
                 "candidate-report" => CandidateReport.Run(args[1..]),
@@ -49,7 +51,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | corpus | probe | candidate-report | candidate-matrix | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | corpus | probe | candidate-report | candidate-matrix | fetch");
         return 2;
     }
 
@@ -93,6 +95,177 @@ public static class Program
         var classes = corpus.Lines.Select(x => x.ClassId).Where(x => x is not null).Distinct().Count();
         Console.WriteLine($"  {corpus.Lines.Count} lines, {classes} classes");
         Console.WriteLine($"  wrote {outPath} ({new FileInfo(outPath).Length / 1024} KiB)");
+        return 0;
+    }
+
+    /// <summary>
+    /// Builds the precomputed fragment table from the reviewed matrix artifact.
+    /// The matrix is the indexed search result; this command applies its chosen
+    /// forms (global and per class) and keeps the current table as a fallback.
+    /// </summary>
+    private static int MatrixTable(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe2");
+        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
+        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
+        var outPath = GetValue(opts, "--out", $"data/catalogs/{gameName}.fragments.json");
+
+        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        FragmentTable? current = null;
+        if (File.Exists(outPath))
+        {
+            try
+            {
+                current = JsonSerializer.Deserialize<FragmentTable>(
+                    File.ReadAllText(outPath),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (JsonException)
+            {
+                current = null;
+            }
+        }
+
+        var global = new Dictionary<string, string>(
+            current?.Global ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+        var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        if (current is not null)
+            foreach (var (cls, map) in current.ByClass)
+                byClass[cls] = new Dictionary<string, string>(map, StringComparer.Ordinal);
+
+        void Set(Dictionary<string, string> map, string pattern, string fragment)
+        {
+            if (QueryShape.ValidateFragment(fragment).Count > 0) return;
+            if (!map.TryGetValue(pattern, out var existing) ||
+                fragment.Length < existing.Length)
+                map[pattern] = fragment;
+        }
+
+        var html = File.ReadAllText(matrixPath);
+        const string marker = "window.MATRIX = ";
+        var start = html.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) throw new InvalidOperationException("matrix JSON not found");
+        start += marker.Length;
+        var end = html.IndexOf(";</script>", start, StringComparison.Ordinal);
+        if (end < 0) throw new InvalidOperationException("matrix JSON terminator not found");
+
+        using var document = JsonDocument.Parse(html[start..end]);
+        var applied = 0;
+        foreach (var family in document.RootElement.GetProperty("families").EnumerateArray())
+        {
+            foreach (var patternNode in family.GetProperty("patterns").EnumerateArray())
+            {
+                var raw = patternNode.GetProperty("pattern").GetString();
+                if (string.IsNullOrEmpty(raw)) continue;
+                var pattern = raw.Replace('#', '\u0001');
+                foreach (var scope in patternNode.GetProperty("scopes").EnumerateArray())
+                {
+                    string? fragment = null;
+                    if (scope.TryGetProperty("chosen", out var chosen) &&
+                        chosen.ValueKind == JsonValueKind.Object)
+                        fragment = chosen.GetProperty("fragment").GetString();
+                    else if (scope.TryGetProperty("currentOption", out var currentOption) &&
+                             currentOption.ValueKind == JsonValueKind.Object)
+                        fragment = currentOption.GetProperty("fragment").GetString();
+                    if (string.IsNullOrEmpty(fragment)) continue;
+
+                    var kind = scope.GetProperty("kind").GetString();
+                    if (string.Equals(kind, "global", StringComparison.Ordinal))
+                    {
+                        Set(global, pattern, fragment);
+                        applied++;
+                    }
+                    else
+                    {
+                        foreach (var cls in scope.GetProperty("classes").EnumerateArray())
+                        {
+                            var classId = cls.GetString();
+                            if (string.IsNullOrEmpty(classId)) continue;
+                            if (!byClass.TryGetValue(classId, out var map))
+                            {
+                                map = new Dictionary<string, string>(StringComparer.Ordinal);
+                                byClass[classId] = map;
+                            }
+                            Set(map, pattern, fragment);
+                            applied++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate every applied choice with the same indexed evaluator used
+        // by the matrix. This catches stale artifact data, bad class grouping,
+        // or a matrix bug before it can reach the shipped table.
+        var corpus = new EngineCorpus(catalog);
+        var globalScope = ScopeCorpus.Build(corpus, null);
+        var rejected = 0;
+        void Verify(Dictionary<string, string> map, string? scope)
+        {
+            var scopeCorpus = scope is null ? globalScope : ScopeCorpus.Build(corpus, scope);
+            foreach (var pattern in map.Keys.ToList())
+            {
+                var fragment = map[pattern];
+                var option = CandidateEvaluator.EvaluateFragment(
+                    scopeCorpus, pattern, fragment);
+                if (option is not null && option.ForeignOtherLines == 0) continue;
+                rejected++;
+                var fallback = scope is null
+                    ? current?.Global.GetValueOrDefault(pattern)
+                    : current?.ByClass.GetValueOrDefault(scope)?.GetValueOrDefault(pattern);
+                if (!string.IsNullOrEmpty(fallback)) map[pattern] = fallback;
+                else map.Remove(pattern);
+                Console.Error.WriteLine(
+                    $"  rejected {scope ?? "global"}/{pattern.Replace('\u0001', '#')}: " +
+                    $"'{fragment}' is not clean under the term oracle");
+            }
+        }
+        Verify(global, null);
+        foreach (var (cls, map) in byClass) Verify(map, cls);
+        if (rejected > 0)
+            Console.WriteLine($"  rejected {rejected} matrix choices; old table entries kept where available");
+        else
+            Console.WriteLine("  all matrix choices pass the term oracle");
+
+        var unresolved = new Dictionary<string, string>(
+            current?.GlobalUnresolved ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+        foreach (var pattern in global.Keys) unresolved.Remove(pattern);
+        var byClassUnresolved = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        if (current is not null)
+            foreach (var (cls, map) in current.ByClassUnresolved)
+            {
+                var remaining = new Dictionary<string, string>(map, StringComparer.Ordinal);
+                if (byClass.TryGetValue(cls, out var resolved))
+                    foreach (var pattern in resolved.Keys) remaining.Remove(pattern);
+                if (remaining.Count > 0) byClassUnresolved[cls] = remaining;
+            }
+
+        var anchors = current?.ClassAnchors;
+        if (anchors is null || anchors.Count == 0)
+        {
+            anchors = catalog.ItemClasses
+                .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
+                .ToDictionary(c => c.Id, c => corpus.ClassNamePrefix(c.Id), StringComparer.Ordinal);
+        }
+
+        var table = new FragmentTable
+        {
+            Game = catalog.Game,
+            DataVersion = catalog.DataVersion,
+            Global = global,
+            ByClass = byClass,
+            ClassAnchors = anchors,
+            GlobalUnresolved = unresolved,
+            ByClassUnresolved = byClassUnresolved,
+        };
+        Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+        File.WriteAllText(outPath, JsonSerializer.Serialize(
+            table, new JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"matrix-table: applied {applied} scope choices, " +
+            $"{global.Count} global, {byClass.Count} classes, " +
+            $"{unresolved.Count} unresolved -> {outPath}");
         return 0;
     }
 

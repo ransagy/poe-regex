@@ -99,7 +99,6 @@ internal sealed class ScopeCorpus
             ? LiteralHits(hint)
             : Enumerable.Range(0, Lines.Count);
 
-        var (startAnchor, endAnchor) = Anchors(candidate.Fragment);
         var regex = compiled ?? RegexFor(candidate.Fragment);
         var matches = new List<int>();
         if (regex is not null)
@@ -107,12 +106,10 @@ internal sealed class ScopeCorpus
             foreach (var index in seed)
             {
                 var text = Lines[index].Real;
-                if (pieces.Count > 0)
-                {
-                    if (startAnchor && !text.StartsWith(pieces[0], StringComparison.OrdinalIgnoreCase)) continue;
-                    if (endAnchor && !text.EndsWith(pieces[^1], StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!PiecesInOrder(text, pieces)) continue;
-                }
+                // Anchors belong to the regex; the first/last literal piece is
+                // not necessarily at the fragment boundary (e.g. "^\d.*eld").
+                // Do not use the pieces as anchor guards; the regex verifies.
+                if (pieces.Count > 0 && !PiecesInOrder(text, pieces)) continue;
                 try
                 {
                     if (regex.IsMatch(text)) matches.Add(index);
@@ -172,9 +169,6 @@ internal sealed class ScopeCorpus
         _regexCache[fragment] = regex;
         return regex;
     }
-
-    internal static (bool Starts, bool Ends) Anchors(string fragment) =>
-        (fragment.StartsWith('^'), fragment.EndsWith('$'));
 
     internal static (string Body, bool Starts, bool Ends) SplitAnchors(string fragment)
     {
