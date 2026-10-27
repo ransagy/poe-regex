@@ -474,10 +474,15 @@ public static class CandidateMatrix
             .count { color:var(--muted); margin-left:auto; }
             main { padding:18px 28px 80px; max-width:1500px; margin:0 auto; }
             details { border:1px solid var(--line); border-radius:6px; margin:8px 0; background:var(--panel); overflow:hidden; }
-            summary { cursor:pointer; padding:10px 12px; font-weight:600; color:var(--gold); }
-            summary .family-row { display:flex; align-items:baseline; gap:10px; }
-            summary span.meta { color:var(--muted); font-weight:400; }
-            summary .family-chosen { margin-left:auto; text-align:right; color:var(--good); font-weight:500; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; white-space:nowrap; }
+            details.family > summary { cursor:pointer; padding:10px 12px; font-weight:600; color:var(--gold); list-style:none; display:grid; grid-template-columns:1.1rem minmax(0,1fr) auto; align-items:center; gap:10px; }
+            details.family > summary::-webkit-details-marker { display:none; }
+            details.family > summary .chev { color:var(--muted); font-size:12px; line-height:1; transition:transform .15s ease; transform-origin:center; }
+            details[open].family > summary .chev { transform:rotate(90deg); }
+            details.family > summary .family-label { display:flex; align-items:baseline; gap:8px; min-width:0; }
+            details.family > summary .family-name { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            details.family > summary span.meta { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-weight:400; }
+            details.family > summary .family-chosen { justify-self:end; display:inline-flex; align-items:center; gap:6px; min-width:0; max-width:100%; text-align:right; color:var(--good); font-weight:500; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; white-space:nowrap; }
+            details.family > summary .family-chosen code { min-width:0; overflow:hidden; text-overflow:ellipsis; color:var(--good); background:#0d1216; padding:2px 5px; border-radius:3px; }
             .patterns { padding:0 12px 12px; }
             .pattern { border-top:1px solid var(--line); padding:10px 0; }
             .pattern h4 { margin:0 0 8px; font-size:13px; color:var(--text); }
@@ -506,7 +511,7 @@ public static class CandidateMatrix
             .badge.foreign { color:var(--bad); }
             .badge.diag { color:var(--warn); text-transform:uppercase; letter-spacing:.05em; }
             .empty { color:var(--muted); font-style:italic; }
-            @media (max-width:700px) { header,.toolbar,main { padding-left:14px; padding-right:14px; } .sub { font-size:13px; } summary .family-row { flex-wrap:wrap; } summary .family-chosen { white-space:normal; overflow-wrap:anywhere; } }
+            @media (max-width:700px) { header,.toolbar,main { padding-left:14px; padding-right:14px; } .sub { font-size:13px; } details.family > summary .family-label .meta { display:none; } details.family > summary .family-chosen code { max-width:38vw; } }
             """;
         var sb = new StringBuilder();
         sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Candidate matrix</title><style>").Append(css).Append("</style></head><body>");
@@ -598,9 +603,8 @@ public static class CandidateMatrix
                   const patterns = f.patterns || [];
                   const first = patterns[0];
                   const global = first && first.scopes.find(s => s.kind === 'global' && s.chosen);
-                  const chosen = (global && global.chosen) || patterns
-                    .flatMap(p => p.scopes).map(s => s.chosen).find(Boolean);
-                  return chosen ? (chosen.quoted || ('"' + chosen.fragment + '"')) : '';
+                  return (global && global.chosen) || patterns
+                    .flatMap(p => p.scopes).map(s => s.chosen).find(Boolean) || null;
                 }
                 function knownLine(s) {
                   if (!s.known || !s.known.length) return '';
@@ -628,10 +632,12 @@ public static class CandidateMatrix
                     if (!patterns) return '';
                     shown++;
                     const chosen = familyChosen(f);
+                    const chosenText = chosen ? (chosen.quoted || ('"' + chosen.fragment + '"')) : '';
+                    const chosenLen = chosen ? (chosen.quotedLength ?? (chosen.fragment.length + 2)) : 0;
                     const chosenHtml = chosen
-                      ? `<span class="family-chosen" title="chosen global fragment">${esc(chosen)}</span>`
+                      ? `<span class="family-chosen" title="chosen global fragment · ${chosenLen} quoted chars · inner ${chosen.length}"><code>${esc(chosenText)}</code><span class="badge len">${chosenLen}</span></span>`
                       : '';
-                    return `<details class="family"><summary><span class="family-row"><span>${esc(f.display)}</span> <span class="meta">${esc(f.key)} · ${esc(f.prefix)} · ${f.tiers} tiers · ${f.classes.length} classes</span>${chosenHtml}</span></summary><div class="patterns">${patterns}</div></details>`;
+                    return `<details class="family"><summary><span class="chev" aria-hidden="true">›</span><span class="family-label"><span class="family-name">${esc(f.display)}</span><span class="meta">${esc(f.key)} · ${esc(f.prefix)} · ${f.tiers} tiers · ${f.classes.length} classes</span></span>${chosenHtml}</summary><div class="patterns">${patterns}</div></details>`;
                   }).join('');
                   root.innerHTML = html || '<p class="empty">no families match</p>';
                   count.textContent = `${shown} / ${window.MATRIX.families.length} families`;
