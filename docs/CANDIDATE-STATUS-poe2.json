@@ -1,8 +1,8 @@
 {
   "game": "poe2",
   "dataVersion": "2026-08-09",
-  "generatedAt": "2026-10-27 18:10:00Z",
-  "matrixGenerated": "2026-10-27 18:09:44Z",
+  "generatedAt": "2026-10-27 18:47:20Z",
+  "matrixGenerated": "2026-10-27 18:47:19Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
@@ -11,8 +11,8 @@
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 1302345,
-      "sha256": "2a4efbf1f62633d298475e9de7df13a37317993fa98bb03cf56206c410930efa"
+      "bytes": 1302350,
+      "sha256": "a332e4683994efa4c8041f0d51c663699fe9986542838c81ce607162cb392d99"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
