@@ -19,7 +19,8 @@ public static class MatrixProof
         string Family, string Pattern, string? ClassId, string ScopeLabel, string Chosen);
 
     private sealed record Failure(
-        string Family, string Pattern, string Scope, string Chosen, string Shorter, int Length);
+        string Family, string Pattern, string Scope, string Chosen, string Shorter,
+        int Length, string Profile, int ForeignMinion, int ForeignOther);
 
     public static int Run(string[] args)
     {
@@ -88,11 +89,16 @@ public static class MatrixProof
         var failures = new ConcurrentBag<Failure>();
         var checkedCount = 0;
         var missing = 0;
+        var completed = 0;
         Parallel.ForEach(work, new ParallelOptions
         {
             MaxDegreeOfParallelism = Math.Max(1, jobs),
         }, item =>
         {
+            Interlocked.Increment(ref checkedCount);
+            var progress = Interlocked.Increment(ref completed);
+            if (progress % 50 == 0)
+                Console.Error.WriteLine($"  proof progress {progress}/{work.Count}");
             var scopeCorpus = ScopeCorpus.Build(corpus, item.ClassId);
             var chosenOption = CandidateEvaluator.EvaluateFragment(
                 scopeCorpus, item.Pattern, item.Chosen);
@@ -101,7 +107,8 @@ public static class MatrixProof
                 Interlocked.Increment(ref missing);
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
-                    "chosen fragment is not clean", item.Chosen.Length));
+                    "chosen fragment is not clean", item.Chosen.Length,
+                    "none", 0, 0));
                 return;
             }
 
@@ -109,14 +116,17 @@ public static class MatrixProof
                 scopeCorpus, item.Pattern, current: null,
                 maxLength: Math.Max(0, item.Chosen.Length - 1), top: 1,
                 includeTwoWildcards: true, includeDeepPhrases: true);
-            var legal = shorter.Strict.Concat(shorter.Minion).FirstOrDefault();
+            var strict = shorter.Strict.FirstOrDefault();
+            var minion = shorter.Minion.FirstOrDefault();
+            var legal = strict ?? minion;
             if (legal is not null)
             {
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
-                    legal.Fragment, legal.Length));
+                    legal.Fragment, legal.Length,
+                    strict is not null ? "strict" : "minion",
+                    legal.ForeignMinionLines, legal.ForeignOtherLines));
             }
-            Interlocked.Increment(ref checkedCount);
         });
 
         var orderedFailures = failures

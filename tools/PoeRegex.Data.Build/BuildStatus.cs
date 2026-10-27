@@ -23,6 +23,7 @@ public static class BuildStatus
         var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
         var tablePath = GetValue(opts, "--table", $"data/catalogs/{gameName}.fragments.json");
         var outPath = GetValue(opts, "--out", "");
+        var proofPath = GetValue(opts, "--proof", $"docs/CANDIDATE-PROOF-{gameName}.json");
         var check = opts.ContainsKey("--check");
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
@@ -89,6 +90,37 @@ public static class BuildStatus
             }
         }
 
+        object? proof = null;
+        var proven = false;
+        if (File.Exists(proofPath))
+        {
+            using var proofDoc = JsonDocument.Parse(File.ReadAllText(proofPath));
+            var root = proofDoc.RootElement;
+            var checkedScopes = root.TryGetProperty("checkedScopes", out var checkedNode)
+                ? checkedNode.GetInt32()
+                : 0;
+            var workScopes = root.TryGetProperty("workScopes", out var workNode)
+                ? workNode.GetInt32()
+                : 0;
+            var failed = root.TryGetProperty("failed", out var failedNode)
+                ? failedNode.GetInt32()
+                : 0;
+            var proofGrammar = root.TryGetProperty("grammarVersion", out var proofGrammarNode)
+                ? proofGrammarNode.GetString()
+                : null;
+            proven = failed == 0 && checkedScopes == workScopes && workScopes > 0 &&
+                      string.Equals(proofGrammar, "quoted-shortest-v1", StringComparison.Ordinal);
+            proof = new
+            {
+                path = proofPath,
+                grammarVersion = proofGrammar,
+                checkedScopes,
+                workScopes,
+                failed,
+                proven,
+            };
+        }
+
         var staleReasons = new List<string>();
         if (!string.Equals(table.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
             staleReasons.Add(
@@ -140,8 +172,9 @@ public static class BuildStatus
                 stale = staleReasons.Count > 0,
                 staleReasons,
                 anchorsInMatrix = false,
-                shortestProven = false,
+                shortestProven = proven,
                 boundLimited = longCurrentOnly.Count,
+                proof,
             },
         };
 
