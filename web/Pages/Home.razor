@@ -109,6 +109,7 @@
                 </HelpTip>
             </div>
             <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
+            <button id="query-import-open" class="btn" @onclick="() => _queryImportOpen = true">import search</button>
             <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
             <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
                     title="@RemoveTitle()" @onclick="RemoveSelected">remove item</button>
@@ -117,6 +118,7 @@
             <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
         </div>
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
+        <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
     </section>
     <div class="advanced-reserve" aria-hidden="true"></div>
@@ -186,6 +188,7 @@
     private HashSet<string> _highlight = [];
     private bool _dimNonMatching;
     private bool _importOpen;
+    private bool _queryImportOpen;
     private bool _builderOpen;
     private MultiPasteResult? _paste;
     private double _ttX;
@@ -208,6 +211,7 @@
     }
 
     private void CloseImport() => _importOpen = false;
+    private void CloseQueryImport() => _queryImportOpen = false;
 
     private void CloseBuilder() => _builderOpen = false;
 
