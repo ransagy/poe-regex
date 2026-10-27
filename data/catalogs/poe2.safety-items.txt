@@ -177,3 +177,24 @@ Adds 3(3-5) to 6(6-8) Cold damage to Attacks
 --------
 After the eruption, the skies turned grey,
 ash began to fall, and a chill set in...
+
+
+
+Item Class: Augment
+Rarity: Unique
+Idol of the Sycophant
+--------
+Item Level: 1
+--------
+{ Unique Modifier }
+Damage gained as a Random Element
+
+
+
+Item Class: Sceptres
+Rarity: Unique
+Shrine Sceptre
+--------
+Item Level: 1
+--------
+Grants Skill: Spear Throw

@@ -111,9 +111,11 @@ public class CatalogPropertyTests
                 result.Query.Should().NotContain(
                     placeholder,
                     $"query for {mod.Id} on {cls} must not contain the digit placeholder (got '{result.Query}')");
-                var fragment = quoted.Match(result.Query);
-                fragment.Success.Should().BeTrue($"query for {mod.Id} on {cls} must carry a quoted fragment");
-                var text = fragment.Groups[1].Value;
+                var fragment = quoted.Matches(result.Query)
+                    .Select(m => m.Groups[1].Value)
+                    .FirstOrDefault(x => !x.StartsWith(": ", StringComparison.Ordinal));
+                fragment.Should().NotBeNull($"query for {mod.Id} on {cls} must carry a quoted fragment");
+                var text = fragment!;
                 mod.StatLines.Any(sl => System.Text.RegularExpressions.Regex.IsMatch(
                         AdvancedStatLine.For(sl), text, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     .Should().BeTrue($"fragment '{text}' of {mod.Id} must match one of its copy-text lines");

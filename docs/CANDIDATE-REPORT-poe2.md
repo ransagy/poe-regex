@@ -149,10 +149,12 @@ use Advanced mode so the class anchor is present.
    combinations.
 7. **Energy Shield** — `"ed Energy.*ld$"`; test recharge, hybrid, and
    maximum Energy Shield.
-8. **Very short class forms** — `"hr"` (Shield Stun Threshold), `"a C"` /
-   `"ra C"` (Staff/Wand Cold), `"a F"` / `"a.f"` (Fire), `"m M"` (Focus
-   Mana), `"o Ar"` (Armour), `"o Stu"` (Stun Threshold). These are the
-   highest-risk forms despite passing the catalog oracle.
+8. **Very short class forms** — test them in Advanced mode with the anchor
+   first: `": Shields" "hr"`, `": Am" "xt"`, `": Staff" "a C"`,
+   `": Wand" "ra C"`, `": Staff" "a F"`, `": Focus" "m M"`, and the
+   relevant Armour/Stun Threshold class. These are class-scoped only; the
+   same fragments pasted globally are expected to over-match unique,
+   socketable, and other-class text.
 
 ### Existing high-risk forms
 
