@@ -38,6 +38,8 @@ public static class MatrixProof
             ? requestedJobs
             : Environment.ProcessorCount;
         var shard = ParseShard(GetValue(opts, "--shard", ""));
+        var minGlobal = int.TryParse(GetValue(opts, "--min-global", "3"), out var mg) ? mg : 3;
+        var minClass = int.TryParse(GetValue(opts, "--min-class", "2"), out var mc) ? mc : 2;
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
             return MergeProofs(mergeFiles, matrixPath, outPath, opts.ContainsKey("--check"));
@@ -92,6 +94,7 @@ public static class MatrixProof
         var failures = new ConcurrentBag<Failure>();
         var checkedCount = 0;
         var missing = 0;
+        var policyExcluded = 0;
         var completed = 0;
         Parallel.ForEach(work, new ParallelOptions
         {
@@ -124,6 +127,12 @@ public static class MatrixProof
             var legal = strict ?? minion;
             if (legal is not null)
             {
+                var minimum = item.ClassId is null ? minGlobal : minClass;
+                if (legal.Length < minimum)
+                {
+                    Interlocked.Increment(ref policyExcluded);
+                    return;
+                }
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
                     legal.Fragment, legal.Length,
@@ -154,6 +163,7 @@ public static class MatrixProof
             proven = checkedCount - orderedFailures.Count,
             failed = orderedFailures.Count,
             missingChosen = missing,
+            policyExcluded,
             failures = orderedFailures,
             status = orderedFailures.Count == 0 ? "proven-in-grammar" : "shorter-candidate-found",
         };
@@ -195,6 +205,7 @@ public static class MatrixProof
             var checkedScopes = 0;
             var workScopes = 0;
             var failed = 0;
+            var policyExcluded = 0;
             var failures = new List<JsonElement>();
             var shards = 0;
             foreach (var path in paths)
@@ -218,6 +229,8 @@ public static class MatrixProof
                 checkedScopes += root.GetProperty("checkedScopes").GetInt32();
                 workScopes += root.GetProperty("workScopes").GetInt32();
                 failed += root.GetProperty("failed").GetInt32();
+                if (root.TryGetProperty("policyExcluded", out var excludedNode))
+                    policyExcluded += excludedNode.GetInt32();
                 foreach (var failure in root.GetProperty("failures").EnumerateArray())
                     failures.Add(failure.Clone());
             }
@@ -236,6 +249,7 @@ public static class MatrixProof
                 workScopes,
                 proven = checkedScopes - failed,
                 failed,
+                policyExcluded,
                 failures,
                 status = proven ? "proven-in-grammar" : "shorter-candidate-found",
             };

@@ -554,7 +554,7 @@ public static class CandidateMatrix
         return (length, coverage);
     }
 
-    private static string Html(string json, int familyCount, int requestedCount, int maxLength)
+    internal static string Html(string json, int familyCount, int requestedCount, int maxLength)
     {
         const string css = """
             :root { --bg:#101418; --panel:#171d24; --line:#2d3742; --text:#d8dee8; --muted:#8995a5; --gold:#d9a441; --good:#6fcf97; --warn:#f2c94c; --bad:#eb5757; --accent:#8fb8ff; }

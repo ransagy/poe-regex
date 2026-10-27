@@ -36,6 +36,7 @@ public static class Program
                 "matrix-table" => MatrixTable(args[1..]),
                 "matrix-status" => BuildStatus.Run(args[1..]),
                 "matrix-proof" => MatrixProof.Run(args[1..]),
+                "matrix-apply" => MatrixApply.Run(args[1..]),
                 "corpus" => Corpus(args[1..]),
                 "probe" => Probe(args[1..]),
                 "candidate-report" => CandidateReport.Run(args[1..]),
@@ -53,7 +54,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | matrix-status | matrix-proof | corpus | probe | candidate-report | candidate-matrix | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | matrix-status | matrix-proof | matrix-apply | corpus | probe | candidate-report | candidate-matrix | fetch");
         return 2;
     }
 
