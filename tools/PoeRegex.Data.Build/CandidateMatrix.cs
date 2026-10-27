@@ -441,6 +441,7 @@ public static class CandidateMatrix
         var ordered = families.Values
             .OrderBy(x => x["key"]?.GetValue<string>() ?? "", StringComparer.Ordinal)
             .ToList();
+        ValidateNoClassOverlap(ordered);
         var result = new JsonArray();
         foreach (var family in ordered) result.Add(family);
         var merged = new JsonObject
@@ -500,6 +501,31 @@ public static class CandidateMatrix
                 }
                 if (ScopeScore(incomingScope).CompareTo(ScopeScore(existing.scope)) < 0)
                     existingScopes[existing.index] = incomingScope.DeepClone();
+            }
+        }
+    }
+
+    private static void ValidateNoClassOverlap(IEnumerable<JsonObject> families)
+    {
+        foreach (var family in families)
+        {
+            if (family["patterns"] is not JsonArray patterns) continue;
+            foreach (var pattern in patterns.OfType<JsonObject>())
+            {
+                if (pattern["scopes"] is not JsonArray scopes) continue;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var scope in scopes.OfType<JsonObject>())
+                {
+                    if (scope["classes"] is not JsonArray classes) continue;
+                    foreach (var cls in classes.Select(x => x?.GetValue<string>() ?? ""))
+                    {
+                        if (cls.Length > 0 && !seen.Add(cls))
+                            throw new InvalidOperationException(
+                                $"matrix merge produced duplicate coverage for class '{cls}' " +
+                                $"in family '{family["key"]?.GetValue<string>()}' / " +
+                                $"pattern '{pattern["pattern"]?.GetValue<string>()}'");
+                    }
+                }
             }
         }
     }

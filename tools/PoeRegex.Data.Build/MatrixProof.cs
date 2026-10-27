@@ -1,0 +1,203 @@
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text.Json;
+using PoeRegex.Core;
+using PoeRegex.Core.Compilation;
+using PoeRegex.Core.Data;
+
+namespace PoeRegex.Data.Build;
+
+/// <summary>
+/// Re-checks every chosen matrix scope against the current candidate grammar
+/// and proves that no shorter Strict/Minion-only candidate exists in that
+/// grammar. This is the build-side proof step; it never writes the shipped
+/// table.
+/// </summary>
+public static class MatrixProof
+{
+    private sealed record Work(
+        string Family, string Pattern, string? ClassId, string ScopeLabel, string Chosen);
+
+    private sealed record Failure(
+        string Family, string Pattern, string Scope, string Chosen, string Shorter, int Length);
+
+    public static int Run(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe2");
+        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
+        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
+        var outPath = GetValue(opts, "--out", "");
+        var familyFilter = GetValue(opts, "--family", "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.Ordinal);
+        var jobs = int.TryParse(GetValue(opts, "--jobs", "0"), out var requestedJobs) &&
+                   requestedJobs > 0
+            ? requestedJobs
+            : Environment.ProcessorCount;
+        var shard = ParseShard(GetValue(opts, "--shard", ""));
+
+        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var corpus = new EngineCorpus(catalog);
+        var html = File.ReadAllText(matrixPath);
+        const string marker = "window.MATRIX = ";
+        var start = html.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) throw new InvalidOperationException("matrix JSON not found");
+        start += marker.Length;
+        var end = html.IndexOf(";</script>", start, StringComparison.Ordinal);
+        if (end < 0) throw new InvalidOperationException("matrix JSON terminator not found");
+        using var matrix = JsonDocument.Parse(html[start..end]);
+
+        var work = new List<Work>();
+        foreach (var family in matrix.RootElement.GetProperty("families").EnumerateArray())
+        {
+            var key = family.GetProperty("key").GetString() ?? "";
+            if (familyFilter.Count > 0 && !familyFilter.Contains(key)) continue;
+            foreach (var patternNode in family.GetProperty("patterns").EnumerateArray())
+            {
+                var raw = patternNode.GetProperty("pattern").GetString() ?? "";
+                var pattern = raw.Replace('#', '\u0001');
+                foreach (var scope in patternNode.GetProperty("scopes").EnumerateArray())
+                {
+                    if (!scope.TryGetProperty("chosen", out var chosenNode) ||
+                        chosenNode.ValueKind != JsonValueKind.Object) continue;
+                    var chosen = chosenNode.GetProperty("fragment").GetString() ?? "";
+                    if (chosen.Length == 0) continue;
+                    var kind = scope.GetProperty("kind").GetString() ?? "";
+                    var classes = scope.GetProperty("classes").EnumerateArray()
+                        .Select(x => x.GetString() ?? "")
+                        .Where(x => x.Length > 0)
+                        .ToList();
+                    if (kind == "global")
+                    {
+                        work.Add(new Work(key, pattern, null, "global", chosen));
+                    }
+                    else
+                    {
+                        foreach (var classId in classes)
+                            work.Add(new Work(key, pattern, classId, classId, chosen));
+                    }
+                }
+            }
+        }
+
+        if (shard is { } shardInfo)
+            work = work.Where((_, index) => index % shardInfo.Count == shardInfo.Index).ToList();
+
+        var failures = new ConcurrentBag<Failure>();
+        var checkedCount = 0;
+        var missing = 0;
+        Parallel.ForEach(work, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Max(1, jobs),
+        }, item =>
+        {
+            var scopeCorpus = ScopeCorpus.Build(corpus, item.ClassId);
+            var chosenOption = CandidateEvaluator.EvaluateFragment(
+                scopeCorpus, item.Pattern, item.Chosen);
+            if (chosenOption is null || chosenOption.ForeignOtherLines > 0)
+            {
+                Interlocked.Increment(ref missing);
+                failures.Add(new Failure(
+                    item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
+                    "chosen fragment is not clean", item.Chosen.Length));
+                return;
+            }
+
+            var shorter = CandidateEvaluator.EvaluateTop(
+                scopeCorpus, item.Pattern, current: null,
+                maxLength: Math.Max(0, item.Chosen.Length - 1), top: 1,
+                includeTwoWildcards: true, includeDeepPhrases: true);
+            var legal = shorter.Strict.Concat(shorter.Minion).FirstOrDefault();
+            if (legal is not null)
+            {
+                failures.Add(new Failure(
+                    item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
+                    legal.Fragment, legal.Length));
+            }
+            Interlocked.Increment(ref checkedCount);
+        });
+
+        var orderedFailures = failures
+            .OrderBy(x => x.Family, StringComparer.Ordinal)
+            .ThenBy(x => x.Pattern, StringComparer.Ordinal)
+            .ThenBy(x => x.Scope, StringComparer.Ordinal)
+            .ToList();
+        var report = new
+        {
+            game = catalog.Game,
+            dataVersion = catalog.DataVersion,
+            grammarVersion = "quoted-shortest-v1",
+            generatedAt = DateTimeOffset.UtcNow.ToString("u"),
+            matrix = Path.GetFileName(matrixPath),
+            matrixSha256 = Hash(matrixPath),
+            checkedScopes = checkedCount,
+            workScopes = work.Count,
+            proven = checkedCount - orderedFailures.Count,
+            failed = orderedFailures.Count,
+            missingChosen = missing,
+            failures = orderedFailures,
+            status = orderedFailures.Count == 0 ? "proven-in-grammar" : "shorter-candidate-found",
+        };
+        var json = JsonSerializer.Serialize(report, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+        if (outPath.Length > 0)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+            File.WriteAllText(outPath, json);
+            Console.WriteLine(
+                $"matrix-proof: checked {checkedCount}/{work.Count}, " +
+                $"{orderedFailures.Count} shorter candidate(s) -> {outPath}");
+        }
+        else
+        {
+            Console.WriteLine(json);
+        }
+
+        if (opts.ContainsKey("--check") && orderedFailures.Count > 0)
+            return 1;
+        return 0;
+    }
+
+    private static string Hash(string path) =>
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+
+    private static (int Index, int Count)? ParseShard(string value)
+    {
+        if (value.Length == 0) return null;
+        var parts = value.Split('/');
+        if (parts.Length != 2 ||
+            !int.TryParse(parts[0], out var index) ||
+            !int.TryParse(parts[1], out var count) ||
+            count <= 0 || index < 0 || index >= count)
+            throw new ArgumentException("--shard must be i/n with 0 <= i < n");
+        return (index, count);
+    }
+
+    private static Dictionary<string, string> ParseOptions(string[] args)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--", StringComparison.Ordinal)) continue;
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                dict[args[i]] = args[i + 1];
+                i++;
+            }
+            else
+            {
+                dict[args[i]] = "1";
+            }
+        }
+        return dict;
+    }
+
+    private static string GetValue(Dictionary<string, string> opts, string key, string fallback) =>
+        opts.TryGetValue(key, out var value) ? value : fallback;
+}
