@@ -158,6 +158,31 @@ public class WebDataServiceTests
     }
 
     [Fact]
+    public void QueryImport_ReconstructsAdvancedModsAndClass()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6")], [],
+            itemClass: "Ring");
+        var imported = new QueryImportService(Engine).Import(result.Query);
+
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("Ring");
+        imported.Includes.Should().Contain(x => x.Value.StartsWith("IncreasedLife"));
+        imported.Excludes.Should().BeEmpty();
+        imported.Keywords.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QueryImport_PreservesUnknownTokens()
+    {
+        var imported = new QueryImportService(Engine).Import("\"life\" \"zzzz\"");
+
+        imported.Mode.Should().Be("simple");
+        imported.Keywords.Should().Contain("zzzz");
+        imported.Tokens.Should().Contain(x => x.Kind == "keyword" && x.Phrase == "zzzz");
+    }
+
+    [Fact]
     public void Validate_AcceptsGeneratedQuery()
     {
         var result = Engine.Compile(

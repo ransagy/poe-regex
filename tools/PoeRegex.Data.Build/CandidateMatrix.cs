@@ -73,7 +73,7 @@ public static class CandidateMatrix
         var deepPhrases = opts.ContainsKey("--deep-phrases");
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
-            return Merge(mergeFiles, outPath, maxLength);
+            return Merge(mergeFiles, outPath, maxLength, opts.ContainsKey("--merge-best"));
         var jobs = int.TryParse(GetValue(opts, "--jobs", "0"), out var requestedJobs) &&
                    requestedJobs > 0
             ? requestedJobs
@@ -384,11 +384,10 @@ public static class CandidateMatrix
               $"{option.TermSplits}:{option.Wildcard}:{option.Anchored}:{option.GuardLetters}:" +
               $"{option.QuotedLength}";
 
-    private static int Merge(string files, string outPath, int maxLength)
+    private static int Merge(string files, string outPath, int maxLength, bool mergeBest)
     {
         var paths = files.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var families = new List<JsonNode>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var families = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
         var game = "poe2";
         foreach (var path in paths)
         {
@@ -409,7 +408,7 @@ public static class CandidateMatrix
             {
                 if (item is not JsonObject family) continue;
                 var key = family["key"]?.GetValue<string>() ?? "";
-                if (key.Length == 0 || !seen.Add(key)) continue;
+                if (key.Length == 0) continue;
                 var clone = (JsonObject)family.DeepClone();
                 if (clone["patterns"] is JsonArray patterns)
                 {
@@ -430,11 +429,16 @@ public static class CandidateMatrix
                         }
                     }
                 }
-                families.Add(clone);
+                if (families.TryGetValue(key, out var existing))
+                {
+                    if (mergeBest) MergeFamily(existing, clone, fileBound);
+                    continue;
+                }
+                families[key] = clone;
             }
         }
 
-        var ordered = families
+        var ordered = families.Values
             .OrderBy(x => x["key"]?.GetValue<string>() ?? "", StringComparer.Ordinal)
             .ToList();
         var result = new JsonArray();
@@ -451,8 +455,77 @@ public static class CandidateMatrix
         }).Replace("</script", "<\\/script", StringComparison.OrdinalIgnoreCase);
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, Html(json, ordered.Count, ordered.Count, maxLength));
-        Console.WriteLine($"merged {paths.Length} files, {ordered.Count} families -> {outPath}");
+        Console.WriteLine($"merged {paths.Length} files, {ordered.Count} families" +
+            $"{(mergeBest ? " (best-of)" : "")} -> {outPath}");
         return 0;
+    }
+
+    /// <summary>
+    /// Merge duplicate family entries by keeping the shortest chosen scope for
+    /// each pattern/scope key. First file wins is useful for an explicit repair
+    /// override; best-of is the safe mode for incremental full passes.
+    /// </summary>
+    private static void MergeFamily(JsonObject target, JsonObject incoming, int fileBound)
+    {
+        if (target["patterns"] is not JsonArray targetPatterns ||
+            incoming["patterns"] is not JsonArray incomingPatterns)
+            return;
+
+        foreach (var incomingPattern in incomingPatterns.OfType<JsonObject>())
+        {
+            var patternKey = incomingPattern["pattern"]?.GetValue<string>() ?? "";
+            if (patternKey.Length == 0) continue;
+            var existingPattern = targetPatterns.OfType<JsonObject>().FirstOrDefault(
+                p => string.Equals(p["pattern"]?.GetValue<string>(), patternKey, StringComparison.Ordinal));
+            if (existingPattern is null)
+            {
+                targetPatterns.Add(incomingPattern.DeepClone());
+                continue;
+            }
+            if (existingPattern["scopes"] is not JsonArray existingScopes ||
+                incomingPattern["scopes"] is not JsonArray incomingScopes)
+                continue;
+
+            foreach (var incomingScope in incomingScopes.OfType<JsonObject>())
+            {
+                if (incomingScope["bound"] is null) incomingScope["bound"] = fileBound;
+                var scopeKey = ScopeKey(incomingScope);
+                var existing = existingScopes.OfType<JsonObject>()
+                    .Select((scope, index) => (scope, index))
+                    .FirstOrDefault(x => string.Equals(ScopeKey(x.scope), scopeKey, StringComparison.Ordinal));
+                if (existing.scope is null)
+                {
+                    existingScopes.Add(incomingScope.DeepClone());
+                    continue;
+                }
+                if (ScopeScore(incomingScope).CompareTo(ScopeScore(existing.scope)) < 0)
+                    existingScopes[existing.index] = incomingScope.DeepClone();
+            }
+        }
+    }
+
+    private static string ScopeKey(JsonObject scope)
+    {
+        var kind = scope["kind"]?.GetValue<string>() ?? "";
+        var classes = scope["classes"] is JsonArray array
+            ? string.Join(",", array.Select(x => x?.GetValue<string>() ?? "")
+                .OrderBy(x => x, StringComparer.Ordinal))
+            : "";
+        return kind + "|" + classes;
+    }
+
+    private static (int Length, int Coverage) ScopeScore(JsonObject scope)
+    {
+        var chosen = scope["chosen"] as JsonObject;
+        var length = chosen?["length"]?.GetValue<int>() ?? int.MaxValue;
+        var coverage = scope["coverage"]?.GetValue<string>() switch
+        {
+            "strict" => 0,
+            "minion" => 1,
+            "current-only" => 2,
+            _ => 3,
+        };
+        return (length, coverage);
     }
 
     private static string Html(string json, int familyCount, int requestedCount, int maxLength)
@@ -517,7 +590,7 @@ public static class CandidateMatrix
             """;
         var sb = new StringBuilder();
         sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Candidate matrix</title><style>").Append(css).Append("</style></head><body>");
-        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. Search bounds vary by scope (10 or 14 characters); each scope header shows its bound. The current shipped fragment is always shown. This is a data-build artifact; it does not change the runtime table.</div>");
+        sb.Append("<header><h1>Candidate matrix</h1><div class=\"sub\">Compare fragment choices for every catalog family. ").Append(familyCount).Append(" families loaded from ").Append(requestedCount).Append(" requested. Search bounds vary by scope (10, 14, or 48 characters); each scope header shows its bound. The current shipped fragment is always shown. This is a data-build artifact; it does not change the runtime table.</div>");
         sb.Append("<div class=\"defs\">");
         sb.Append("<div class=\"def\"><b>Strict</b>Zero same-line foreign lines. The compiler emits this candidate as a quoted, line-local term.</div>");
         sb.Append("<div class=\"def\"><b>Minion-only</b>Same-line foreign lines are only minion / allies / presence variants.</div>");

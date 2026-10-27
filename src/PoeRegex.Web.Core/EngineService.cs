@@ -47,6 +47,14 @@ public sealed class EngineService
 
     public IReadOnlyList<ItemClassEntry> Classes => _corpus.Catalog.ItemClasses;
 
+    public IReadOnlyList<ModEntry> ModsForPattern(string pattern) =>
+        _corpus.ModsWithPattern(pattern);
+
+    public string ClassNamePrefix(string classId) => _corpus.ClassNamePrefix(classId);
+
+    public IEnumerable<(string Pattern, string Fragment, string? Class)> PrecomputedFragments() =>
+        _corpus.PrecomputedFragments();
+
     /// <summary>Classes referenced by at least one mod (hides flasks, currency, gems...).</summary>
     public IEnumerable<ItemClassEntry> PlayableClasses() =>
         Classes.Where(c => _playableClassIds.Value.Contains(c.Id));

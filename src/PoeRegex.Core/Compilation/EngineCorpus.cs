@@ -321,6 +321,20 @@ public sealed class EngineCorpus
     }
 
     /// <summary>
+    /// Enumerates the shipped precomputed fragments. Query import uses this as
+    /// a reverse index; it never triggers selection or a corpus scan.
+    /// </summary>
+    public IEnumerable<(string Pattern, string Fragment, string? Class)> PrecomputedFragments()
+    {
+        if (_fragments is null) yield break;
+        foreach (var (pattern, fragment) in _fragments.Global)
+            yield return (pattern, fragment, null);
+        foreach (var (cls, map) in _fragments.ByClass)
+        foreach (var (pattern, fragment) in map)
+            yield return (pattern, fragment, cls);
+    }
+
+    /// <summary>
     /// Reason a precomputed scope deliberately has no fragment, or null when
     /// the pattern is present (or the table is absent/stale).
     /// </summary>
