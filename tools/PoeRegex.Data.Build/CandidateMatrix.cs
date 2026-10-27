@@ -70,6 +70,7 @@ public static class CandidateMatrix
         // that can beat the common shipped fragments. Pass --max-length 24
         // for the exhaustive grammar when needed.
         var maxLength = int.TryParse(GetValue(opts, "--max-length", "14"), out var ml) ? ml : 14;
+        var deepPhrases = opts.ContainsKey("--deep-phrases");
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
             return Merge(mergeFiles, outPath, maxLength);
@@ -167,7 +168,8 @@ public static class CandidateMatrix
                 var targets = scopeCorpus.Targets(pattern);
                 if (targets.Count == 0) continue;
                 var top = CandidateEvaluator.EvaluateTop(
-                    scopeCorpus, pattern, current, maxLength);
+                    scopeCorpus, pattern, current, maxLength,
+                    includeDeepPhrases: deepPhrases);
                 var currentOption = CandidateEvaluator.EvaluateFragment(
                     scopeCorpus, pattern, current);
                 var known = scope is null &&

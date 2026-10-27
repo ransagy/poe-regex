@@ -617,6 +617,7 @@ public static class CandidateReport
         {
             allStart = targets.All(t => t.Length > 0 && t.StartsWith(shortest[0]));
             allEnd = targets.All(t => t.Length > 0 && t.EndsWith(shortest[^1]));
+            var deep = includeDeepPhrases;
 
             // Literal substrings. This includes arbitrary partial words, not just full words.
             for (var start = 0; start < shortest.Length; start++)
@@ -631,7 +632,10 @@ public static class CandidateReport
                     var endsWord = start + len == shortest.Length || !char.IsAsciiLetter(shortest[start + len]);
                     var letters = raw.Count(char.IsAsciiLetter);
                     if (letters < 2) continue;
-                    if (!startsWord && !endsWord) continue;
+                    // Deep mode must consider double-mid-word literals such as
+                    // "d Armour, E"; the bounded review keeps the word-edge
+                    // heuristic to hold down the candidate pool.
+                    if (!deep && !startsWord && !endsWord) continue;
                     if (!AllTargetsContain(raw)) continue;
                     AddWithAnchors(raw, false, raw, true);
                 }
@@ -655,7 +659,6 @@ public static class CandidateReport
             // One middle wildcard: two literal pieces. The shipped bound-10/14
             // review uses short chunks; a deep (current-relative) search needs
             // longer phrases such as "Fire Damage" to reach a current-only form.
-            var deep = includeDeepPhrases;
             var wildcardStarts = starts
                 .Where(c => c.Text.Length <= (deep ? 16 : 8))
                 .OrderBy(c => c.Text.Length)
@@ -688,43 +691,141 @@ public static class CandidateReport
             // search adds arbitrary literal substrings as middle pieces so a
             // form like "^Gain.*of Damage.*Fire Damage$" is reachable; the
             // bounded review keeps the small word-chunk pool.
-            var deepPieces = chunkSet;
-            if (deep)
+            var firsts = new List<Chunk>();
+            var mids = new List<Chunk>();
+            var lasts = new List<Chunk>();
+            if (!deep)
             {
-                deepPieces = new HashSet<Chunk>(chunkSet);
+                mids = baseChunks.Where(c => c.StartsWord && !c.Text.Contains(' ') &&
+                                             c.Text.Length <= 10).ToList();
+                firsts = baseChunks.Where(c => c.StartsWord && c.Text.Length <= 8)
+                    .Take(24).ToList();
+                lasts = baseChunks.Where(c => c.EndsWord && c.Text.Length <= 8)
+                    .Take(24).ToList();
+            }
+            else
+            {
+                // Deep mode is deliberately targeted: prefixes, suffixes and
+                // 1-3 word middle phrases. Enumerating every substring as a
+                // middle piece explodes on 50-character current forms.
+                for (var end = 1; end <= shortest.Length; end++)
+                {
+                    if (shortest[end - 1] == ' ') continue;
+                    var raw = shortest[..end];
+                    if (raw.Length < 2 || raw.Length > 32 || !IsLiteral(raw)) continue;
+                    if (raw.Count(char.IsAsciiLetter) < 2 || !AllTargetsContain(raw)) continue;
+                    firsts.Add(new Chunk(raw, true,
+                        end == shortest.Length || !char.IsAsciiLetter(shortest[end])));
+                }
                 for (var start = 0; start < shortest.Length; start++)
                 {
                     if (shortest[start] == ' ') continue;
-                    for (var len = 2; len <= 18 && start + len <= shortest.Length; len++)
+                    var raw = shortest[start..];
+                    if (raw.Length < 2 || raw.Length > 40 || !IsLiteral(raw)) continue;
+                    if (raw.Count(char.IsAsciiLetter) < 2 || !AllTargetsContain(raw)) continue;
+                    lasts.Add(new Chunk(raw,
+                        start == 0 || !char.IsAsciiLetter(shortest[start - 1]), true));
+                }
+                var words = Regex.Matches(shortest, @"[A-Za-z]+(?:'[A-Za-z]+)?")
+                    .Select(m => (Start: m.Index, End: m.Index + m.Length))
+                    .ToList();
+                void AddMiddle(string raw)
+                {
+                    if (raw.Length < 2 || raw.Length > 28 || !IsLiteral(raw)) return;
+                    if (raw.Count(char.IsAsciiLetter) < 2 || !AllTargetsContain(raw)) return;
+                    mids.Add(new Chunk(raw, true, false));
+                }
+                for (var i = 0; i < words.Count; i++)
+                {
+                    for (var span = 0; span < 3 && i + span < words.Count; span++)
                     {
-                        var raw = shortest.Substring(start, len);
-                        if (raw.EndsWith(' ') || !IsLiteral(raw)) continue;
-                        if (raw.Count(char.IsAsciiLetter) < 2) continue;
-                        if (!AllTargetsContain(raw)) continue;
-                        var startsWord = start == 0 || !char.IsAsciiLetter(shortest[start - 1]);
-                        var endsWord = start + len == shortest.Length ||
-                                       !char.IsAsciiLetter(shortest[start + len]);
-                        deepPieces.Add(new Chunk(raw, startsWord, endsWord));
+                        var j = i + span;
+                        var start = words[i].Start;
+                        var end = words[j].End;
+                        AddMiddle(shortest[start..end]);
+                        var firstWord = words[i];
+                        var lastWord = words[j];
+                        for (var cut = 2; cut < lastWord.End - lastWord.Start; cut++)
+                            AddMiddle(shortest[start..(lastWord.Start + cut)]);
+                        if (span > 0)
+                            for (var cut = 2; cut < firstWord.End - firstWord.Start; cut++)
+                                AddMiddle(shortest[(firstWord.End - cut)..end]);
+                    }
+                }
+                firsts = firsts.DistinctBy(c => c.Text).Take(80).ToList();
+                mids = mids.DistinctBy(c => c.Text).Take(160).ToList();
+                lasts = lasts.DistinctBy(c => c.Text).Take(80).ToList();
+            }
+            // A digit-prefixed roll is the strongest short guard for many
+            // armour/ES lines: "^\d.*d Armour$" is 14 characters and can beat
+            // the 34-character current form even inside the normal bound.
+            if (targets.All(t => t.Length > 0 && char.IsAsciiDigit(t.TrimStart()[0])))
+            {
+                var digitSuffixes = new HashSet<string>(StringComparer.Ordinal);
+                for (var start = 0; start < shortest.Length; start++)
+                {
+                    if (shortest[start] == ' ') continue;
+                    var raw = shortest[start..];
+                    if (raw.Length < 2 || !IsLiteral(raw)) continue;
+                    if (raw.Count(char.IsAsciiLetter) < 2) continue;
+                    if (!targets.All(t => t.EndsWith(raw, StringComparison.OrdinalIgnoreCase))) continue;
+                    digitSuffixes.Add(raw);
+                }
+                foreach (var suffix in digitSuffixes)
+                {
+                    foreach (var prefix in new[] { @"^\d.*", @"^\d+.*" })
+                    {
+                        var frag = prefix + suffix + "$";
+                        if (frag.Length > maxLength) continue;
+                        AddCandidate(frag, true, suffix, true);
+                    }
+                    if (!deep) continue;
+                    foreach (var mid in mids)
+                    {
+                        if (!AllTargetsMatchPieces(mid.Text, suffix)) continue;
+                        var frag = @"^\d.*" + mid.Text + ".*" + suffix + "$";
+                        if (frag.Length > maxLength) continue;
+                        AddCandidate(frag, true, LongestHint(mid.Text, suffix), true);
                     }
                 }
             }
-            IEnumerable<Chunk> pieces = deep ? deepPieces : baseChunks;
-            var mids = pieces
-                .Where(c => c.StartsWord && (deep || !c.Text.Contains(' ')) &&
-                            c.Text.Length <= (deep ? 18 : 10))
-                .ToList();
-            var firsts = pieces
-                .Where(c => c.StartsWord && c.Text.Length <= (deep ? 16 : 8))
-                .OrderBy(c => c.Text.Length)
-                .ThenBy(c => c.Text, StringComparer.Ordinal)
-                .Take(deep ? 80 : 24)
-                .ToList();
-            var lasts = pieces
-                .Where(c => c.EndsWord && c.Text.Length <= (deep ? 18 : 8))
-                .OrderBy(c => c.Text.Length)
-                .ThenBy(c => c.Text, StringComparer.Ordinal)
-                .Take(deep ? 80 : 24)
-                .ToList();
+
+            foreach (var a in firsts)
+            {
+                foreach (var b in lasts)
+                {
+                    foreach (var w in wildcards)
+                    {
+                        var frag = a.Text + w + b.Text;
+                        if (frag.Length > maxLength) continue;
+                        if (!AllTargetsMatchPieces(a.Text, b.Text)) continue;
+                        AddWithAnchors(frag, true, LongestHint(a.Text, b.Text), b.EndsWord || a.StartsWord);
+                    }
+                }
+                foreach (var m in mids)
+                {
+                    foreach (var w in wildcards)
+                    {
+                        var frag = a.Text + w + m.Text;
+                        if (frag.Length > maxLength) continue;
+                        if (!AllTargetsMatchPieces(a.Text, m.Text)) continue;
+                        AddWithAnchors(frag, true, LongestHint(a.Text, m.Text), a.StartsWord);
+                    }
+                }
+            }
+            foreach (var m in mids)
+            {
+                foreach (var b in lasts)
+                {
+                    foreach (var w in wildcards)
+                    {
+                        var frag = m.Text + w + b.Text;
+                        if (frag.Length > maxLength) continue;
+                        if (!AllTargetsMatchPieces(m.Text, b.Text)) continue;
+                        AddWithAnchors(frag, true, LongestHint(m.Text, b.Text), b.EndsWord);
+                    }
+                }
+            }
             foreach (var a in firsts)
             {
                 foreach (var m in mids)
@@ -1049,7 +1150,8 @@ public static class CandidateReport
     {
         if (value.Length == 0) return false;
         foreach (var c in value)
-            if (!(char.IsAsciiLetter(c) || char.IsWhiteSpace(c) || c is '\'' or '-'))
+            if (!(char.IsAsciiLetter(c) || char.IsWhiteSpace(c) ||
+                  c is '\'' or '-' or ',' or '%' or '/' or ':'))
                 return false;
         return value.Trim().Length > 0;
     }

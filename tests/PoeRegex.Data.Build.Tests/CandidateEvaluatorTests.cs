@@ -335,6 +335,22 @@ public class CandidateEvaluatorTests
             "the deep grammar must be able to reach phrase bridges");
     }
 
+    [Fact]
+    public void DeepSearch_ReachesDigitAnchoredSuffix()
+    {
+        var targets = new[]
+        {
+            "10(10-15)% increased Armour",
+            "20(20-30)% increased Armour",
+            "35(35-40)% increased Armour",
+        };
+
+        var candidates = CandidateReport.EnumerateCandidates(
+            targets, 14, current: null, includeDeepPhrases: true);
+
+        candidates.Should().Contain(c => c.Fragment == @"^\d.*d Armour$");
+    }
+
     private static (Catalog Catalog, EngineCorpus Corpus, FragmentTable? Table) Load()
     {
         var root = RepoRoot();
