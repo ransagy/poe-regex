@@ -166,6 +166,12 @@ public static class BuildStatus
             Console.Error.WriteLine("matrix-status: stale table data version");
             return 1;
         }
+        if (opts.ContainsKey("--check-shortest") && longCurrentOnly.Count > 0)
+        {
+            Console.Error.WriteLine(
+                $"matrix-status: {longCurrentOnly.Count} bound-limited current-only scope(s)");
+            return 1;
+        }
         return 0;
     }
 
