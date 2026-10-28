@@ -198,3 +198,18 @@ Shrine Sceptre
 Item Level: 1
 --------
 Grants Skill: Spear Throw
+
+
+Item Class: Amulets
+Rarity: Rare
+Item Level: 80
+--------
+35% increased Energy Shield from Equipped Body Armour
+
+
+
+Item Class: Bows
+Rarity: Rare
+Item Level: 80
+--------
+30% increased bonuses gained from Equipped Quiver

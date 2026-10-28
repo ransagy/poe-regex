@@ -28,17 +28,17 @@ result to a fixed point.
 ## Artifact coverage
 
 ```text
-182 families · 769 scopes · 0 unresolved
-bounds: 10 (350) · 14 (406) · 24 (3) · 48 (10)
+182 families · 765 scopes · 0 unresolved
+bounds: 10 (343) · 14 (409) · 24 (3) · 48 (10)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 177 | 22 | 22 |
-| Class | 405 | 4 | 36 |
+| Global | 176 | 22 | 23 |
+| Class | 399 | 4 | 38 |
 | Per-class | 77 | 11 | 15 |
 
-There are **0 bound-limited scopes**. The 73 `current-only` scopes are within
+There are **0 bound-limited scopes**. The 76 `current-only` scopes are within
 their search bounds.
 
 ## Applied table
@@ -56,6 +56,11 @@ Buckler scope choices. Relative to the previous table:
 3 Buckler scope choices shortened
 0 released class entries lost
 ```
+
+A later cross-stat safety pass lengthened two class fragments:
+Amulet Evasion `d E` -> `d Ev`, and Bow Critical Damage Bonus `nu` -> `nus$`.
+Both changes are forced by the desecrated `from Equipped` fixtures described
+below.
 
 ## Non-game class pruning
 
@@ -110,6 +115,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 | Critical Damage Bonus | global | `^\d.*al Damage.*us$` | 21 | 19 |
 | Critical Damage Bonus | Amulet | `nus$` | 6 | 4 |
 | Critical Damage Bonus | Gloves | `Bon` | 5 | 3 |
+| Critical Damage Bonus | Bow | `nus$` | 6 | 4 |
 | Reduced Critical Damage | Shield/Targe | `Bon` | 5 | 3 |
 | Damage Gained Fire | global | `^Ga.*of Da.*e Damage$` | 23 | 21 |
 | Damage Gained Cold | global | `^Ga.*of Da.*d Damage$` | 23 | 21 |
@@ -147,6 +153,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 | Local added Lightning | global | `^Ad.*Li.*e$` | 13 | 11 |
 | Local added Physical | global | `Adds.*P.*e$` | 13 | 11 |
 | Local Evasion | global | `^\+.*asion` | 12 | 10 |
+| Evasion Rating | Amulet | `d Ev` | 6 | 4 |
 | Evasion Rating | Buckler | `o E` | 5 | 3 |
 | Increased Evasion Rating | Buckler | `d Ev` | 6 | 4 |
 | Accuracy | global | `o Ac` | 6 | 4 |
@@ -217,20 +224,30 @@ anchor is not optional for these forms.
 The raw data includes unique-only, jewel/socketable, base, and skill lines
 that the selectable catalog and vendor corpus deliberately exclude. Observed
 field lines are now in the safety fixtures (`Idol of the Sycophant`,
-`Shrine Sceptre`, `Grants Skill: Spear Throw`). A complete global safety
-corpus remains the next coverage improvement; the current proof is complete
-for the modeled corpus plus captured fixtures.
+`Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
+`from Equipped Body Armour` and `from Equipped Quiver` lines). A complete
+global safety corpus remains the next coverage improvement; the current proof
+is complete for the modeled corpus plus captured fixtures.
 
 ### Accepted soft collisions
 
-The global table deliberately accepts two soft-collision classes:
+The table deliberately accepts these same-stat source collisions:
 
 - Minion/allies/presence variants of the same displayed stat, under the
   existing minion policy.
-- The jewel-only `... from Equipped Shield` suffix for `d Armour,`. A jewel
-  prefix can render `#% increased Armour, Evasion and Energy Shield from
-  Equipped Shield`, and the shortest global form for the armour hybrid
-  prefix matches it. The class-scoped form (`Ar.*A.+nd`) is unaffected.
+- Jewel `... from Equipped Shield` for `d Armour,`. A jewel prefix renders
+  `#% increased Armour, Evasion and Energy Shield from Equipped Shield`, and
+  the shortest global form for the armour hybrid prefix matches it. The
+  class-scoped form (`Ar.*A.+nd`) is unaffected.
+- Desecrated Amulet `#% increased Armour from Equipped Body Armour` for the
+  Amulet `d Ar` form (`#% increased Armour`).
+- Desecrated Amulet `#% increased Evasion Rating from Equipped Body Armour`
+  for the global `d Evasion R` and Amulet `d Ev` forms.
+
+Cross-stat collisions are not accepted. The safety fixtures include the
+desecrated Amulet Energy Shield line and the desecrated Bow Quiver-bonuses
+line, which forced the Amulet Evasion form from `d E` to `d Ev` and the Bow
+Critical Damage Bonus form from `nu` to `nus$`.
 
 If strict jewel exclusion is ever required, the known end-anchored fallback is
 `d Armour, Evasion and Energy Shield$` (36 characters). It avoids both the
