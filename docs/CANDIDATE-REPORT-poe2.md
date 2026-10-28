@@ -238,8 +238,9 @@ for the modeled corpus plus captured fixtures.
 7. `"sed Ph"` on local physical damage vs elemental and global physical lines.
 8. `"um El"` on all-maximum elemental resistance vs individual max and normal
    all-resistance lines.
-9. `": One Hand M"` / `": Two Hand M"` against axes, swords, and the opposite
-   mace class.
+9. `": One Hand M"` / `": Two Hand M"` against the opposite mace class and
+   other in-game weapon class lines. Axes and swords have no released bases and
+   are no longer part of the in-game scope.
 
 ## Import search
 
