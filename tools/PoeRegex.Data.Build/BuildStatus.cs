@@ -158,6 +158,9 @@ public static class BuildStatus
                 longCurrentOnlyCount = longCurrentOnly.Count,
                 longCurrentOnly,
             },
+            classAnchors = table.ClassAnchors
+                .OrderBy(x => x.Key, StringComparer.Ordinal)
+                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
             table = new
             {
                 global = table.Global.Count,

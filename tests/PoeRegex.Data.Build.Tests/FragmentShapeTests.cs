@@ -105,6 +105,11 @@ public class FragmentShapeTests
             .Should().Be(table.Global.Count);
         statusRoot.GetProperty("table").GetProperty("classAnchors").GetInt32()
             .Should().Be(table.ClassAnchors.Count);
+        var statusAnchors = statusRoot.GetProperty("classAnchors");
+        foreach (var (classId, anchor) in table.ClassAnchors)
+            statusAnchors.GetProperty(classId).GetString().Should().Be(anchor);
+        statusAnchors.GetProperty("Staff").GetString().Should().Be("Stav");
+        statusAnchors.GetProperty("Focus").GetString().Should().Be("Fo");
     }
 
     /// <summary>

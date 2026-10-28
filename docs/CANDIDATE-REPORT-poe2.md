@@ -131,6 +131,44 @@ prefixes and are correct for One/Two Hand Mace isolation. Shorter anchor forms
 such as `": .ne M"` / `": .wo M"` require the anchor regex/plain-flag pipeline
 and remain a later optimization.
 
+## Class anchors
+
+These are the actual anchors emitted in Advanced mode. The anchor is always
+the first quoted block; colloquial class names such as "Staff" or "Focus" are
+not the class-line text. Non-game classes are omitted here and should be
+pruned from the in-game build.
+
+| Class | Anchor |
+|---|---|
+| Amulet | `": Am"` |
+| Belt | `": Bel"` |
+| Body Armour | `": Bod"` |
+| Boots | `": Boo"` |
+| Bow | `": Bow"` |
+| Buckler | `": Bu"` |
+| Crossbow | `": Cro"` |
+| Focus | `": Fo"` |
+| Gloves | `": Gl"` |
+| Helmet | `": Hel"` |
+| One Hand Mace | `": One Hand M"` |
+| Quiver | `": Qui"` |
+| Ring | `": Ri"` |
+| Sceptre | `": Sce"` |
+| Shield | `": Shields"` |
+| Spear | `": Spea"` |
+| Staff | `": Stav"` |
+| Talisman | `": Tal"` |
+| Two Hand Mace | `": Two Hand M"` |
+| Wand | `": Wan"` |
+| Warstaff | `": Qua"` |
+
+For query examples use the anchor column verbatim:
+
+```text
+": Stav" "a C"
+": Fo" "m M"
+```
+
 ## Class-scoped two-character forms
 
 `xt`, `hr`, and the other two-character class forms are valid only with their
