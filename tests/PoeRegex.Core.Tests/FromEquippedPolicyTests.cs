@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using AwesomeAssertions;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
+using PoeRegex.Core.Explain;
 
 namespace PoeRegex.Core.Tests;
 
@@ -63,6 +64,15 @@ public class FromEquippedPolicyTests
         Matches("+15% to Critical Damage Bonus", bowCrit).Should().BeTrue();
         Matches(BowQuiver, bowCrit).Should().BeFalse(
             "increased bonuses gained must not answer a Critical Damage Bonus query");
+    }
+
+    [Fact]
+    public void Explain_GlobalScope_ExcludesNotInGameClasses()
+    {
+        var explained = new Explainer(Corpus).Explain("\": Dag\"");
+        explained.Tokens.Should().ContainSingle();
+        explained.Tokens[0].Kind.Should().NotBe("class");
+        explained.Tokens[0].Classes.Should().BeEmpty();
     }
 
     private static bool Matches(string line, string fragment) =>
