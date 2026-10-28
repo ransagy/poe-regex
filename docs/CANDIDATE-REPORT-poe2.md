@@ -221,6 +221,23 @@ field lines are now in the safety fixtures (`Idol of the Sycophant`,
 corpus remains the next coverage improvement; the current proof is complete
 for the modeled corpus plus captured fixtures.
 
+### Accepted soft collisions
+
+The global table deliberately accepts two foreign-line classes outside the
+selectable item scope:
+
+- Minion/allies/presence variants of the same displayed stat, under the
+  existing minion policy.
+- The jewel-only `... from Equipped Shield` suffix for `d Armour,`. A jewel
+  prefix can render `#% increased Armour, Evasion and Energy Shield from
+  Equipped Shield`, and the shortest global form for the armour hybrid
+  prefix matches it. The class-scoped form (`Ar.*A.+nd`) is unaffected.
+
+If strict jewel exclusion is ever required, the known end-anchored fallback is
+`d Armour, Evasion and Energy Shield$` (36 characters). It avoids both the
+jewel suffix and the `#% increased Global Armour, Evasion and Energy Shield`
+lines. No shorter jewel-safe anchored form is retained in the current grammar.
+
 ## Recommended in-game checks
 
 1. `": Am" "xt"` on an amulet vs weapons with extra cold/fire/lightning
@@ -233,7 +250,7 @@ for the modeled corpus plus captured fixtures.
    `Attacks Gain`, `with Spells`, and Runic Ward.
 5. `"^\d.*d Armour$"` / `"d Armour,"` on plain, hybrid, Break, and
    Armour Break Duration lines. The jewel-only `from equipped Shield` variant
-   is still an open policy question.
+   is an accepted soft collision; see “Accepted soft collisions” above.
 6. `"ed Energy.*ld$"` on ES, recharge, and hybrid armour pieces.
 7. `"sed Ph"` on local physical damage vs elemental and global physical lines.
 8. `"um El"` on all-maximum elemental resistance vs individual max and normal
