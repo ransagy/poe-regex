@@ -57,9 +57,7 @@ public class CatalogPropertyTests
     {
         var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
         var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
-        var withMods = corpus.Catalog.ItemClasses
-            .Where(c => corpus.Mods.Any(m => m.Classes.Contains(c.Id)))
-            .ToList();
+        var withMods = corpus.InGameClasses.ToList();
         foreach (var cls in withMods)
         {
             var fp = corpus.ClassFingerprint(cls.Id);
@@ -88,9 +86,9 @@ public class CatalogPropertyTests
 
         var checkedCount = 0;
         var unresolvedCount = 0;
-        foreach (var mod in corpus.Mods)
+        foreach (var mod in corpus.InGameMods)
         {
-            foreach (var cls in mod.Classes)
+            foreach (var cls in mod.Classes.Where(corpus.IsInGameClass))
             {
                 var result = compiler.Compile(QuerySpecification.For(game) with
                 {
@@ -141,7 +139,7 @@ public class CatalogPropertyTests
 
         var checkedCount = 0;
         var unresolvedCount = 0;
-        foreach (var mod in corpus.Mods)
+        foreach (var mod in corpus.InGameMods)
         {
             var result = compiler.Compile(QuerySpecification.For(game) with
             {

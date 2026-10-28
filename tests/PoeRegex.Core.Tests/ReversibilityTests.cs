@@ -51,9 +51,9 @@ public class ReversibilityTests
     {
         var (corpus, compiler, explainer) = Create(game);
         var checkedCount = 0;
-        foreach (var mod in corpus.Mods)
+        foreach (var mod in corpus.InGameMods)
         {
-            foreach (var cls in mod.Classes)
+            foreach (var cls in mod.Classes.Where(corpus.IsInGameClass))
             {
                 var result = compiler.Compile(QuerySpecification.For(game) with
                 {
@@ -69,7 +69,7 @@ public class ReversibilityTests
                 checkedCount++;
             }
         }
-        checkedCount.Should().BeGreaterThan(4000, "expected a meaningful number of pairs to reverse");
+        checkedCount.Should().BeGreaterThan(3700, "expected a meaningful number of pairs to reverse");
     }
 
     /// <summary>
@@ -81,7 +81,7 @@ public class ReversibilityTests
     public void GlobalQueries_ReverseToSourceMod(GameTarget game)
     {
         var (corpus, compiler, explainer) = Create(game);
-        var mods = corpus.Mods.Where(m => m.StatLines.Count > 0).ToList();
+        var mods = corpus.InGameMods.Where(m => m.StatLines.Count > 0).ToList();
         var step = Math.Max(1, mods.Count / 60);
         var checkedCount = 0;
         for (var i = 0; i < mods.Count; i += step)
@@ -112,15 +112,15 @@ public class ReversibilityTests
     public void SeededMultiMod_AllSourcesReverse(GameTarget game)
     {
         var (corpus, compiler, explainer) = Create(game);
-        var groups = corpus.Mods
-            .Select(m => m.Classes.FirstOrDefault())
-            .Where(c => c is not null)
+        var groups = corpus.InGameMods
+            .SelectMany(m => m.Classes)
+            .Where(corpus.IsInGameClass)
             .Distinct()
             .ToList();
         var checkedCount = 0;
         foreach (var cls in groups)
         {
-            var candidates = corpus.Mods.Where(m => m.Classes.Contains(cls)).Take(3).ToList();
+            var candidates = corpus.InGameMods.Where(m => m.Classes.Contains(cls)).Take(3).ToList();
             if (candidates.Count < 3) continue;
 
             var result = compiler.Compile(QuerySpecification.For(game) with
@@ -149,8 +149,9 @@ public class ReversibilityTests
     public void Threshold_ReversesToSourceMod(GameTarget game)
     {
         var (corpus, compiler, explainer) = Create(game);
-        var mods = corpus.Mods
-            .Where(m => m.StatLines.Any(sl => sl.Pattern.Contains((char)SuffixIndex.DigitPlaceholder) && sl.MinValue > 0))
+        var mods = corpus.InGameMods
+            .Where(m => m.Classes.Any(corpus.IsInGameClass) &&
+                        m.StatLines.Any(sl => sl.Pattern.Contains((char)SuffixIndex.DigitPlaceholder) && sl.MinValue > 0))
             .ToList();
         var step = Math.Max(1, mods.Count / 50);
         var checkedCount = 0;
@@ -158,14 +159,15 @@ public class ReversibilityTests
         {
             var mod = mods[i];
             var min = (int)Math.Ceiling(mod.StatLines[0].MinValue);
+            var cls = mod.Classes.First(corpus.IsInGameClass);
             var result = compiler.Compile(QuerySpecification.For(game) with
             {
-                ItemClass = mod.Classes[0],
+                ItemClass = cls,
                 IncludedModifiers = [new ModifierRequirement(mod.Id, min)],
             });
             if (result.Diagnostics.Any(d => d.Code == "unresolved-modifier")) continue;
 
-            var explained = explainer.Explain(result.Query, mod.Classes[0]);
+            var explained = explainer.Explain(result.Query, cls);
             ModIds(explained).Should().Contain(
                 mod.Id,
                 $"threshold query '{result.Query}' for {mod.Id} must reverse to a candidate set including the source mod");
@@ -184,13 +186,13 @@ public class ReversibilityTests
     public void Exclusions_KeepSourceAndDropExcluded(GameTarget game)
     {
         var (corpus, compiler, explainer) = Create(game);
-        var mods = corpus.Mods.Where(m => m.Classes.Count > 0).ToList();
+        var mods = corpus.InGameMods.Where(m => m.Classes.Any(corpus.IsInGameClass)).ToList();
         var step = Math.Max(1, mods.Count / 60);
         var checkedCount = 0;
         for (var i = 0; i < mods.Count; i += step)
         {
             var source = mods[i];
-            var cls = source.Classes[0];
+            var cls = source.Classes.First(corpus.IsInGameClass);
             var excluded = mods.FirstOrDefault(m => m.Id != source.Id && m.Classes.Contains(cls));
             if (excluded is null) continue;
 

@@ -17,9 +17,7 @@ public class FragmentMatcherTests
         var corpus = RealCatalog.Corpus();
         var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
         var scopes = new List<string?> { null };
-        scopes.AddRange(corpus.Catalog.ItemClasses
-            .Where(c => corpus.Mods.Any(m => m.Classes.Contains(c.Id)))
-            .Select(c => c.Id));
+        scopes.AddRange(corpus.InGameClasses.Select(c => c.Id));
 
         var checkedCount = 0;
         foreach (var scope in scopes)

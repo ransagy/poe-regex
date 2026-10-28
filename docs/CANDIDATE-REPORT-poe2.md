@@ -28,15 +28,15 @@ result to a fixed point.
 ## Artifact coverage
 
 ```text
-194 families · 891 scopes · 0 unresolved
-bounds: 10 (424) · 14 (454) · 24 (3) · 48 (10)
+182 families · 769 scopes · 0 unresolved
+bounds: 10 (350) · 14 (406) · 24 (3) · 48 (10)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 188 | 24 | 22 |
-| Class | 501 | 4 | 36 |
-| Per-class | 90 | 11 | 15 |
+| Global | 177 | 22 | 22 |
+| Class | 405 | 4 | 36 |
+| Per-class | 77 | 11 | 15 |
 
 There are **0 bound-limited scopes**. The 73 `current-only` scopes are within
 their search bounds.
@@ -44,18 +44,28 @@ their search bounds.
 ## Applied table
 
 ```text
-147 global patterns · 30 classes · 0 unresolved
+136 global patterns · 21 classes · 0 unresolved
 ```
 
-The full proof pass applied 541 candidates, skipped 1 safety collision, and
-then applied the remaining 5-character Max Elemental Resistance candidate.
-Relative to the previous table:
+The pruned-scope build removed 11 non-game global patterns and 190 class
+fragments, shortened five released global patterns, and shortened three
+Buckler scope choices. Relative to the previous table:
 
 ```text
-58 global patterns shortened
-359 class entries shortened
-0 entries longer
+5 released global patterns shortened
+3 Buckler scope choices shortened
+0 released class entries lost
 ```
+
+## Non-game class pruning
+
+Nine catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
+`One Hand Sword`, `One Hand Axe`, `Two Hand Sword`, `Two Hand Axe`,
+`FishingRod`, `TrapTool`) are excluded from the in-game matrix, shipped table,
+global union, and proof. Their catalog entries remain for data fidelity. The
+pruned artifacts drop 12 fishing/trap families, 11 global patterns, and 190
+class fragments; released classes keep their fragments. The global union,
+safety lines, and cross-line sections now contain released classes only.
 
 ## Class-mapping correction
 
@@ -71,7 +81,7 @@ resistance remains on both Shields and Bucklers because both have the regular
 ## Proof status
 
 ```text
-1121 / 1121 expanded scopes checked
+892 / 892 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -137,6 +147,13 @@ Quoted length includes the two block quotes; inner length excludes them.
 | Local added Lightning | global | `^Ad.*Li.*e$` | 13 | 11 |
 | Local added Physical | global | `Adds.*P.*e$` | 13 | 11 |
 | Local Evasion | global | `^\+.*asion` | 12 | 10 |
+| Evasion Rating | Buckler | `o E` | 5 | 3 |
+| Increased Evasion Rating | Buckler | `d Ev` | 6 | 4 |
+| Accuracy | global | `o Ac` | 6 | 4 |
+| Melee Skills | global | `l Me` | 6 | 4 |
+| Stun Buildup | global | `Ca.+p$` | 7 | 5 |
+| Allies added Cold | global | `k Co` | 6 | 4 |
+| Allies added Physical | global | `k Ph` | 6 | 4 |
 
 Class anchors remain a separate table. The mace anchors are still literal
 prefixes and are correct for One/Two Hand Mace isolation. Shorter anchor forms
@@ -147,8 +164,8 @@ and remain a later optimization.
 
 These are the actual anchors emitted in Advanced mode. The anchor is always
 the first quoted block; colloquial class names such as "Staff" or "Focus" are
-not the class-line text. Non-game classes are omitted here and should be
-pruned from the in-game build.
+not the class-line text. Non-game classes are pruned from the in-game
+matrix, table, and proof; their catalog entries remain for data fidelity.
 
 | Class | Anchor |
 |---|---|
@@ -235,7 +252,7 @@ and broad stat words, so importer semantics remain a separate follow-up.
 The full proof was run as four shards with `--jobs 4`, then merged:
 
 ```text
-4 shards · 1121 expanded scopes · ~3 minutes
+4 shards · 892 expanded scopes · ~2.5 minutes
 ```
 
 The full applier is `matrix-apply`; `matrix-proof` supports `--shard` and

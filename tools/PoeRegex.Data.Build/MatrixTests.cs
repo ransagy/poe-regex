@@ -13,12 +13,6 @@ namespace PoeRegex.Data.Build;
 /// </summary>
 public static class MatrixTests
 {
-    private static readonly HashSet<string> NotInGame = new(StringComparer.Ordinal)
-    {
-        "Dagger", "Claw", "Flail", "One Hand Sword", "One Hand Axe",
-        "Two Hand Sword", "Two Hand Axe", "FishingRod", "TrapTool",
-    };
-
     public static int Run(string[] args)
     {
         var opts = ParseOptions(args);
@@ -44,7 +38,8 @@ public static class MatrixTests
                      .OrderBy(g => g.Key, StringComparer.Ordinal))
         {
             if (familyFilter.Count > 0 && !familyFilter.Contains(group.Key)) continue;
-            if (!group.Any(m => m.Classes.Any(c => !NotInGame.Contains(c)))) continue;
+            if (!group.Any(m => m.Classes.Count == 0 ||
+                                m.Classes.Any(c => GameItemClasses.IsInGame(game, c)))) continue;
             foreach (var pattern in group
                          .SelectMany(m => m.StatLines.Select(sl => sl.Pattern))
                          .Distinct(StringComparer.Ordinal)
@@ -54,7 +49,7 @@ public static class MatrixTests
                     rows.Add((group.Key, pattern, "global", Quote(global)));
                 foreach (var (cls, map) in table.ByClass.OrderBy(x => x.Key, StringComparer.Ordinal))
                 {
-                    if (NotInGame.Contains(cls)) continue;
+                    if (!GameItemClasses.IsInGame(game, cls)) continue;
                     if (!map.TryGetValue(pattern, out var fragment)) continue;
                     if (!table.ClassAnchors.TryGetValue(cls, out var anchor) ||
                         string.IsNullOrEmpty(anchor)) continue;

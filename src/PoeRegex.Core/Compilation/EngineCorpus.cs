@@ -13,6 +13,10 @@ public sealed class EngineCorpus
     /// <summary>Prefix marking safety-item-only patterns (names/flavor/base).</summary>
     public const char SafetyPatternMarker = '\u0003';
     private readonly Catalog _catalog;
+    private readonly IReadOnlyList<ItemClassEntry> _inGameCatalogClasses;
+    private readonly IReadOnlyList<ItemClassEntry> _inGameClasses;
+    private readonly HashSet<string> _inGameClassIds;
+    private readonly IReadOnlyList<ModEntry> _inGameMods;
     private readonly Lazy<Dictionary<string, ClassIndex>> _byClass;
     private readonly Dictionary<string, ModEntry> _modsById;
     private readonly Lazy<IReadOnlyList<SafetyItem>> _safetyItems;
@@ -25,6 +29,7 @@ public sealed class EngineCorpus
     private HashSet<string>? _knownPatterns;
     private readonly object _knownLock = new();
     private readonly Lazy<UnionIndex> _union;
+    private readonly Lazy<UnionIndex> _fullUnion;
     private readonly Lazy<Dictionary<string, List<ModEntry>>> _modsByPattern;
 
     private sealed class ClassIndex
@@ -181,7 +186,10 @@ public sealed class EngineCorpus
     public bool ClassTermQuiet(string innerTerm)
     {
         var test = ": " + innerTerm;
-        foreach (var (_, real) in _union.Value.RealLines)
+        // Anchor generation stays conservative across every catalog class,
+        // including classes with no released bases, so pruning the in-game
+        // scope cannot silently shorten an anchor that was verified in game.
+        foreach (var (_, real) in _fullUnion.Value.RealLines)
         {
             if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
             if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
@@ -209,6 +217,15 @@ public sealed class EngineCorpus
     public EngineCorpus(Catalog catalog)
     {
         _catalog = catalog;
+        _inGameCatalogClasses = GameItemClasses.InGame(catalog);
+        _inGameClassIds = _inGameCatalogClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        _inGameClasses = _inGameCatalogClasses
+            .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
+            .ToList();
+        _inGameMods = catalog.Mods
+            .Where(m => m.Classes.Count == 0 ||
+                        m.Classes.Any(c => _inGameClassIds.Contains(c)))
+            .ToList();
         _modsById = catalog.Mods.ToDictionary(m => m.Id);
         // Startup must not parse the large vendor corpus or build the
         // per-class suffix indexes. The normal browser compile path uses the
@@ -216,15 +233,16 @@ public sealed class EngineCorpus
         // import, or audit actually asks for it.
         _safetyItems = new(() => SafetyItemCorpus.For(catalog.Game));
         _vendorLines = new(() => VendorCorpus.For(catalog.Game)?.Lines ?? []);
-        _vendorNormalized = new(() => _vendorLines.Value
+        _vendorNormalized = new(() => InGameVendorLines()
             .Select(l => CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
-        _vendorPatterns = new(() => _vendorLines.Value
+        _vendorPatterns = new(() => InGameVendorLines()
             .Select(l => l.Pattern ?? CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
         _byClass = new(() => BuildClassIndexes(catalog, _vendorLines.Value));
         _sectionsByClass = new(() => BuildSearchSections(catalog, _vendorLines.Value));
-        _union = new(BuildUnionIndex, LazyThreadSafetyMode.ExecutionAndPublication);
+        _union = new(() => BuildUnionIndex(includeNotInGame: false), LazyThreadSafetyMode.ExecutionAndPublication);
+        _fullUnion = new(() => BuildUnionIndex(includeNotInGame: true), LazyThreadSafetyMode.ExecutionAndPublication);
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _fragments = FragmentTables.For(catalog.Game);
         if (_fragments is not null &&
@@ -233,6 +251,18 @@ public sealed class EngineCorpus
     }
 
     public Catalog Catalog => _catalog;
+
+    /// <summary>Classes with released bases and at least one catalog mod.</summary>
+    public IReadOnlyList<ItemClassEntry> InGameClasses => _inGameClasses;
+
+    public bool IsInGameClass(string? classId) =>
+        classId is not null && _inGameClassIds.Contains(classId);
+
+    /// <summary>Mods that can appear on at least one in-game class.</summary>
+    public IReadOnlyList<ModEntry> InGameMods => _inGameMods;
+
+    private IEnumerable<VendorLine> InGameVendorLines() =>
+        _vendorLines.Value.Where(l => l.ClassId is null || _inGameClassIds.Contains(l.ClassId));
 
     /// <summary>Captured regression items (not all are in the modeled oracle).</summary>
     public IReadOnlyList<SafetyItem> SafetyItems => _safetyItems.Value;
@@ -464,7 +494,7 @@ public sealed class EngineCorpus
     private SearchSection[] FindCrossSections(string? itemClass, string hint)
     {
         IEnumerable<string> classes = itemClass is null
-            ? _sectionsByClass.Value.Keys
+            ? _sectionsByClass.Value.Keys.Where(_inGameClassIds.Contains)
             : new[] { itemClass };
         var result = new List<SearchSection>();
         foreach (var cls in classes)
@@ -570,7 +600,7 @@ public sealed class EngineCorpus
             ? ci.AllRealLines.Where(x => !UniversalPatterns.Contains(x.Pattern)).ToList()
             : [];
 
-    /// <summary>Real copy-text lines across every class (global scope), with their patterns.</summary>
+    /// <summary>Union corpus over released classes only (global scope).</summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
         _union.Value.RealLines;
 
@@ -584,7 +614,7 @@ public sealed class EngineCorpus
     }
 
     private Dictionary<string, List<ModEntry>> BuildModsByPattern() =>
-        _catalog.Mods
+        _inGameMods
             .SelectMany(m => m.StatLines.Select(sl => (Mod: m, Pattern: sl.Pattern)))
             .GroupBy(x => x.Pattern, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Mod).Distinct().ToList(), StringComparer.Ordinal);
@@ -748,28 +778,31 @@ public sealed class EngineCorpus
         return union.FoldIndex.LinesMatching(literal).Select(i => union.Index.ClassCorpus[i]).ToList();
     }
 
-    private UnionIndex BuildUnionIndex()
+    private UnionIndex BuildUnionIndex(bool includeNotInGame)
     {
-        var patterns = _catalog.Mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
+        var mods = includeNotInGame ? _catalog.Mods : _inGameMods;
+        var classes = includeNotInGame ? _catalog.ItemClasses : _inGameCatalogClasses;
+        var vendor = includeNotInGame ? _vendorLines.Value : InGameVendorLines().ToList();
+        var patterns = mods.SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
             .Concat(UniversalLines.Select(CatalogLineNormalizer.Normalize))
-            .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
-            .Concat(_vendorLines.Value.Select(l => l.Pattern ?? SafetyPattern(l.Line)))
+            .Concat(classes.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+            .Concat(vendor.Select(l => l.Pattern ?? SafetyPattern(l.Line)))
             .Distinct().ToList();
         patterns.Sort(StringComparer.Ordinal);
         var patternToIndex = new Dictionary<string, int>();
         for (var i = 0; i < patterns.Count; i++) patternToIndex[patterns[i]] = i;
 
-        var vendorPatterns = _vendorLines.Value
+        var vendorPatterns = vendor
             .Where(l => !string.IsNullOrWhiteSpace(l.Pattern))
             .Select(l => l.Pattern!)
             .ToHashSet(StringComparer.Ordinal);
-        var realLines = _catalog.Mods
+        var realLines = mods
             .SelectMany(m => m.StatLines)
             .Where(sl => !vendorPatterns.Contains(sl.Pattern))
             .Select(sl => (sl.Pattern, sl.Line))
             .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
-            .Concat(_catalog.ItemClasses.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
-            .Concat(_vendorLines.Value.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
+            .Concat(classes.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
+            .Concat(vendor.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
             .Distinct()
             .ToList();
 
@@ -874,10 +907,10 @@ public sealed class EngineCorpus
     {
         lock (_knownLock)
             return _knownPatterns ??=
-                _catalog.Mods.SelectMany(m => m.StatLines)
+                _inGameMods.SelectMany(m => m.StatLines)
                     .Select(sl => sl.Pattern)
                     .Concat(UniversalPatterns)
-                    .Concat(_catalog.ItemClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
+                    .Concat(_inGameCatalogClasses.Select(c => CatalogLineNormalizer.Normalize($"Item Class: {c.Name}")))
                     .ToHashSet(StringComparer.Ordinal);
     }
 

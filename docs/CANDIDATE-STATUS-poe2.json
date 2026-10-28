@@ -3,8 +3,8 @@
   "dataVersion": "2026-08-09",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "indexed-term-v1",
-  "generatedAt": "2026-10-28 18:33:28Z",
-  "matrixGenerated": "2026-10-28 18:30:43Z",
+  "generatedAt": "2026-10-28 20:09:57Z",
+  "matrixGenerated": "2026-10-28 20:06:51Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
@@ -13,33 +13,33 @@
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 1823653,
-      "sha256": "0b55ed37a1c0af647d129860c233a7bdad3d916e4e77956b1ecd1f6200e1d6e6"
+      "bytes": 1531408,
+      "sha256": "6ca17c879c71a2e78cf49789309b3a66c98f221b79b6561aa86a67f2236ce2e6"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 49018,
-      "sha256": "66812d5d1476e3108fe074e196c722f7e52a089aed0725bd954a0f95665d1070"
+      "bytes": 38020,
+      "sha256": "f0b2309442906a6dda44d408b0ee845f2f9b21517e496ecd3074086c1a18cbbd"
     }
   },
   "matrix": {
-    "families": 194,
-    "patterns": 234,
-    "scopes": 891,
+    "families": 182,
+    "patterns": 221,
+    "scopes": 769,
     "coverage": {
       "class/current-only": 36,
       "class/minion": 4,
-      "class/strict": 501,
+      "class/strict": 405,
       "global/current-only": 22,
-      "global/minion": 24,
-      "global/strict": 188,
+      "global/minion": 22,
+      "global/strict": 177,
       "per-class/current-only": 15,
       "per-class/minion": 11,
-      "per-class/strict": 90
+      "per-class/strict": 77
     },
     "bounds": {
-      "10": 424,
-      "14": 454,
+      "10": 350,
+      "14": 406,
       "24": 3,
       "48": 10
     },
@@ -54,17 +54,11 @@
     "Boots": "Boo",
     "Bow": "Bow",
     "Buckler": "Bu",
-    "Claw": "Cl",
     "Crossbow": "Cro",
-    "Dagger": "Dag",
-    "FishingRod": "Fis",
-    "Flail": "Fl",
     "Focus": "Fo",
     "Gloves": "Gl",
     "Helmet": "Hel",
-    "One Hand Axe": "One Hand A",
     "One Hand Mace": "One Hand M",
-    "One Hand Sword": "One Hand S",
     "Quiver": "Qui",
     "Ring": "Ri",
     "Sceptre": "Sce",
@@ -72,20 +66,17 @@
     "Spear": "Spea",
     "Staff": "Stav",
     "Talisman": "Tal",
-    "TrapTool": "Trap",
-    "Two Hand Axe": "Two Hand A",
     "Two Hand Mace": "Two Hand M",
-    "Two Hand Sword": "Two Hand S",
     "Wand": "Wan",
     "Warstaff": "Qua"
   },
   "table": {
-    "global": 147,
-    "classes": 30,
-    "classFragments": 715,
+    "global": 136,
+    "classes": 21,
+    "classFragments": 525,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
-    "classAnchors": 30
+    "classAnchors": 21
   },
   "status": {
     "stale": false,
@@ -96,8 +87,8 @@
     "proof": {
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
-      "checkedScopes": 1121,
-      "workScopes": 1121,
+      "checkedScopes": 892,
+      "workScopes": 892,
       "failed": 0,
       "proven": true
     }

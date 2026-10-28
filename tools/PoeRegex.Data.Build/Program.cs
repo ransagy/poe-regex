@@ -133,12 +133,22 @@ public static class Program
             }
         }
 
+        var corpus = new EngineCorpus(catalog);
+        var inGamePatterns = corpus.InGameMods
+            .SelectMany(m => m.StatLines)
+            .Select(sl => sl.Pattern)
+            .ToHashSet(StringComparer.Ordinal);
         var global = new Dictionary<string, string>(
             current?.Global ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+        foreach (var pattern in global.Keys.ToList())
+            if (!inGamePatterns.Contains(pattern)) global.Remove(pattern);
         var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         if (current is not null)
             foreach (var (cls, map) in current.ByClass)
+            {
+                if (!corpus.IsInGameClass(cls)) continue;
                 byClass[cls] = new Dictionary<string, string>(map, StringComparer.Ordinal);
+            }
 
         var invalidShapes = 0;
         void Set(Dictionary<string, string> map, string pattern, string fragment)
@@ -193,6 +203,7 @@ public static class Program
                         {
                             var classId = cls.GetString();
                             if (string.IsNullOrEmpty(classId)) continue;
+                            if (!corpus.IsInGameClass(classId)) continue;
                             if (!byClass.TryGetValue(classId, out var map))
                             {
                                 map = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -209,7 +220,6 @@ public static class Program
         // Validate every applied choice with the same indexed evaluator used
         // by the matrix. This catches stale artifact data, bad class grouping,
         // or a matrix bug before it can reach the shipped table.
-        var corpus = new EngineCorpus(catalog);
         var globalScope = ScopeCorpus.Build(corpus, null);
         var rejected = 0;
         void Verify(Dictionary<string, string> map, string? scope)
@@ -259,13 +269,20 @@ public static class Program
             Console.WriteLine("  all matrix choices pass the term oracle");
 
         var unresolved = new Dictionary<string, string>(
-            current?.GlobalUnresolved ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+            (current?.GlobalUnresolved ?? new Dictionary<string, string>())
+            .Where(kv => inGamePatterns.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+            StringComparer.Ordinal);
         foreach (var pattern in global.Keys) unresolved.Remove(pattern);
         var byClassUnresolved = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         if (current is not null)
             foreach (var (cls, map) in current.ByClassUnresolved)
             {
-                var remaining = new Dictionary<string, string>(map, StringComparer.Ordinal);
+                if (!corpus.IsInGameClass(cls)) continue;
+                var remaining = new Dictionary<string, string>(
+                    map.Where(kv => inGamePatterns.Contains(kv.Key))
+                        .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+                    StringComparer.Ordinal);
                 if (byClass.TryGetValue(cls, out var resolved))
                     foreach (var pattern in resolved.Keys) remaining.Remove(pattern);
                 if (remaining.Count > 0) byClassUnresolved[cls] = remaining;
@@ -275,6 +292,7 @@ public static class Program
         // precomputed table from an earlier run. ClassNamePrefix(..., false)
         // bypasses the embedded table for exactly this purpose.
         var anchors = catalog.ItemClasses
+            .Where(c => corpus.IsInGameClass(c.Id))
             .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
             .ToDictionary(
                 c => c.Id,

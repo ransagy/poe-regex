@@ -65,16 +65,11 @@ public sealed class EngineService
     /// carries them. Not listed: `Warstaff`, whose poe2 export entry carries
     /// the Quarterstaves class (38 released quarterstaff bases).
     /// </summary>
-    public static readonly HashSet<string> NotInGameClassIds = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Dagger", "Claw", "Flail",
-        "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
-        "FishingRod", "TrapTool",
-    };
+    public static IReadOnlySet<string> NotInGameClassIds => GameItemClasses.NotInGame;
 
     /// <summary>Playable classes actually in the game (picker scope).</summary>
     public IEnumerable<ItemClassEntry> InGameClasses() =>
-        PlayableClasses().Where(c => !NotInGameClassIds.Contains(c.Id));
+        PlayableClasses().Where(c => _corpus.IsInGameClass(c.Id));
 
     /// <summary>Mods for one class, or the union across several (deduped by id, first wins).</summary>
     public IReadOnlyList<ModEntry> ModsForClasses(IEnumerable<string> classIds)
@@ -86,9 +81,9 @@ public sealed class EngineService
     public IReadOnlyList<ModEntry> ModsForClass(string classId) =>
         _corpus.Mods.Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();
 
-    /// <summary>Union of mods across every playable class (global scope).</summary>
+    /// <summary>Union of mods across every in-game class (global scope).</summary>
     public IReadOnlyList<ModEntry> PlayableMods() =>
-        ModSearch.MergeMods(PlayableClasses().Select(c => ModsForClass(c.Id)));
+        ModSearch.MergeMods(InGameClasses().Select(c => ModsForClass(c.Id)));
 
     /// <summary>
     /// Resolve a pasted `Item Class:` value to a catalog class id, matching
@@ -305,7 +300,7 @@ public sealed class EngineService
             _corpus.MatchableLinesForClass(itemClass);
             return;
         }
-        foreach (var cls in _corpus.Catalog.ItemClasses)
+        foreach (var cls in _corpus.InGameClasses)
             _corpus.MatchableLinesForClass(cls.Id);
     }
 

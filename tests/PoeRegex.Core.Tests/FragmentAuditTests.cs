@@ -30,10 +30,21 @@ public class FragmentAuditTests
     private static readonly Lazy<PasteComposer> Composer =
         new(() => new PasteComposer(Corpus.Value, PoeRegexCompiler.StrategyFor(GameTarget.PoE2)));
 
-    private static IReadOnlyList<string> ClassesWithMods() => Corpus.Value.Catalog.ItemClasses
-        .Where(c => Corpus.Value.Mods.Any(m => m.Classes.Contains(c.Id)))
-        .Select(c => c.Id)
-        .ToList();
+    private static IReadOnlyList<string> ClassesWithMods() =>
+        Corpus.Value.InGameClasses.Select(c => c.Id).ToList();
+
+    [Fact]
+    public void InGameScope_ExcludesDataminedClasses()
+    {
+        var corpus = Corpus.Value;
+        corpus.InGameClasses.Select(c => c.Id)
+            .Intersect(GameItemClasses.NotInGame).Should().BeEmpty();
+        corpus.InGameMods.Any(m =>
+                m.Classes.Count > 0 && !m.Classes.Any(corpus.IsInGameClass))
+            .Should().BeFalse("a non-game-only mod must not enter the in-game union");
+        corpus.RealLinesGlobal().Select(x => x.Real)
+            .Should().NotContain("Item Class: Dagger");
+    }
 
     private static bool HasWildcardDot(string fragment)
     {
@@ -63,16 +74,14 @@ public class FragmentAuditTests
             "the fragment table is stale; regenerate it with the fragments tool");
 
         var scopes = new List<string?> { null };
-        scopes.AddRange(corpus.Catalog.ItemClasses
-            .Where(c => corpus.Mods.Any(m => m.Classes.Contains(c.Id)))
-            .Select(c => c.Id));
+        scopes.AddRange(corpus.InGameClasses.Select(c => c.Id));
         var checkedCount = 0;
         var unresolved = new List<string>();
         foreach (var scope in scopes)
         {
             var patterns = scope is null
-                ? corpus.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct()
-                : corpus.Mods.Where(m => m.Classes.Contains(scope))
+                ? corpus.InGameMods.SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct()
+                : corpus.InGameMods.Where(m => m.Classes.Contains(scope))
                     .SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct();
             foreach (var pattern in patterns)
             {
@@ -94,7 +103,7 @@ public class FragmentAuditTests
         _output.WriteLine($"{game}: {checkedCount} precomputed fragments, " +
                           $"{unresolved.Count} documented unresolved, across {scopes.Count} scopes");
         foreach (var row in unresolved) _output.WriteLine($"  unresolved {row}");
-        checkedCount.Should().BeGreaterThan(700);
+        checkedCount.Should().BeGreaterThan(600);
         unresolved.Count.Should().BeLessThan(60, "unresolved patterns need a deliberate, documented review");
     }
 
@@ -109,7 +118,7 @@ public class FragmentAuditTests
         var corpus = Corpus.Value;
         corpus.SafetyItems.Should().NotBeEmpty("the captured-item corpus must be present");
         var selector = new FragmentSelector(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
-        var allPatterns = corpus.Mods.SelectMany(m => m.StatLines)
+        var allPatterns = corpus.InGameMods.SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern).Distinct(StringComparer.Ordinal).ToList();
         var failures = new List<string>();
         var unmodeledHits = new List<string>();
@@ -235,8 +244,8 @@ public class FragmentAuditTests
                 ? corpus.RealLinesGlobal()
                 : corpus.RealLinesForClass(scope);
             var patterns = scope is null
-                ? corpus.Mods.SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct()
-                : corpus.Mods.Where(m => m.Classes.Contains(scope))
+                ? corpus.InGameMods.SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct()
+                : corpus.InGameMods.Where(m => m.Classes.Contains(scope))
                     .SelectMany(m => m.StatLines).Select(l => l.Pattern).Distinct();
 
             foreach (var pattern in patterns)
@@ -276,7 +285,7 @@ public class FragmentAuditTests
                           $"plain={lengths.Count(x => !HasWildcardDot(x.Fragment) && !x.Fragment.StartsWith('^') && !x.Fragment.EndsWith('$'))}");
 
         failures.Should().BeEmpty();
-        checkedCount.Should().BeGreaterThan(700, "the audit must cover the global patterns and every class scope");
+        checkedCount.Should().BeGreaterThan(600, "the audit must cover the global patterns and every class scope");
         unresolved.Count.Should().BeLessThan(10, "unresolved patterns need a deliberate, documented review");
         lengths.Max(x => x.Length).Should().BeLessThanOrEqualTo(250, "fragments stay inside the game limit");
     }
@@ -290,7 +299,7 @@ public class FragmentAuditTests
         var checkedCount = 0;
         var knownGlobalUnresolved = 0;
 
-        foreach (var mod in corpus.Mods)
+        foreach (var mod in corpus.InGameMods)
         {
             var global = compiler.Compile(QuerySpecification.For(GameTarget.PoE2) with
             {
@@ -305,7 +314,7 @@ public class FragmentAuditTests
             }
             checkedCount++;
 
-            foreach (var cls in mod.Classes)
+            foreach (var cls in mod.Classes.Where(corpus.IsInGameClass))
             {
                 var classResult = compiler.Compile(QuerySpecification.For(GameTarget.PoE2) with
                 {

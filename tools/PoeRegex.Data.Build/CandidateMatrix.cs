@@ -71,6 +71,7 @@ public static class CandidateMatrix
         // for the exhaustive grammar when needed.
         var maxLength = int.TryParse(GetValue(opts, "--max-length", "14"), out var ml) ? ml : 14;
         var deepPhrases = opts.ContainsKey("--deep-phrases");
+        var globalOnly = opts.ContainsKey("--global-only");
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
             return Merge(mergeFiles, outPath, maxLength, opts.ContainsKey("--merge-best"));
@@ -105,16 +106,25 @@ public static class CandidateMatrix
             .GroupBy(m => FamilyKey(m), StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
+        // Datamined classes have no released bases. They stay in the catalog,
+        // but they must not create matrix scopes or pollute the global union.
+        familyKeys = familyKeys
+            .Where(key => modsByFamily.TryGetValue(key, out var mods) &&
+                          mods.Any(m => m.Classes.Count == 0 ||
+                                        m.Classes.Any(corpus.IsInGameClass)))
+            .ToArray();
+
         var applicableClasses = familyKeys
             .Where(modsByFamily.ContainsKey)
             .SelectMany(key => modsByFamily[key])
             .SelectMany(m => m.Classes)
+            .Where(corpus.IsInGameClass)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
         var scopes = new List<string?> { null };
-        scopes.AddRange(applicableClasses);
+        if (!globalOnly) scopes.AddRange(applicableClasses);
 
         // Materialize the shared corpus/indexes once, then partition the work
         // by scope. Each worker owns its ScopeCorpus (trigram index + caches);
@@ -122,11 +132,12 @@ public static class CandidateMatrix
         _ = corpus.RealLinesGlobal();
         _ = corpus.SafetyItems;
         _ = corpus.SafetyLines(null).ToList();
-        foreach (var itemClass in applicableClasses)
-        {
-            _ = corpus.RealLinesForClass(itemClass);
-            _ = corpus.SearchSectionsForClass(itemClass);
-        }
+        if (!globalOnly)
+            foreach (var itemClass in applicableClasses)
+            {
+                _ = corpus.RealLinesForClass(itemClass);
+                _ = corpus.SearchSectionsForClass(itemClass);
+            }
 
         var scopeCorpora = scopes
             .Select(scope => (Scope: scope, Corpus: ScopeCorpus.Build(corpus, scope)))
@@ -254,6 +265,7 @@ public static class CandidateMatrix
                 PatternDisplay(patterns[0].Pattern.Replace('#', '\u0001')),
                 mods.Select(m => m.Name ?? "").Distinct(StringComparer.Ordinal).Count(),
                 mods.SelectMany(m => m.Classes)
+                    .Where(corpus.IsInGameClass)
                     .Distinct(StringComparer.Ordinal)
                     .OrderBy(x => x, StringComparer.Ordinal)
                     .ToList(),
@@ -297,8 +309,12 @@ public static class CandidateMatrix
             o.Fragment.Length + 2);
 
         var floor = top.Floor is null ? null : ToOption(top.Floor);
+        // Global terms need three characters; a class anchor supplies the
+        // context that makes a two-character class fragment safe.
+        var minimum = kind == "global" ? 3 : 2;
         var chosenOption = top.Strict
             .Concat(top.Minion)
+            .Where(o => o.Length >= minimum)
             .OrderBy(o => o.Length)
             .ThenByDescending(o => o.GuardLetters)
             .ThenBy(o => o.Fragment, StringComparer.Ordinal)
@@ -410,6 +426,7 @@ public static class CandidateMatrix
                 var key = family["key"]?.GetValue<string>() ?? "";
                 if (key.Length == 0) continue;
                 var clone = (JsonObject)family.DeepClone();
+                if (game == "poe2" && !PruneNotInGame(clone)) continue;
                 if (clone["patterns"] is JsonArray patterns)
                 {
                     foreach (var pattern in patterns.OfType<JsonObject>())
@@ -459,6 +476,84 @@ public static class CandidateMatrix
         Console.WriteLine($"merged {paths.Length} files, {ordered.Count} families" +
             $"{(mergeBest ? " (best-of)" : "")} -> {outPath}");
         return 0;
+    }
+
+    /// <summary>
+    /// Removes scopes for classes with no released bases and returns false
+    /// when the family has no in-game scope left. This runs on every merge so
+    /// an older artifact cannot reintroduce datamined classes into the matrix
+    /// or the table derived from it.
+    /// </summary>
+    private static bool PruneNotInGame(JsonObject family)
+    {
+        var familyClasses = family["classes"] is JsonArray classesNode
+            ? classesNode.Select(x => x?.GetValue<string>() ?? "").ToList()
+            : [];
+        if (familyClasses.Count > 0 &&
+            !familyClasses.Any(c => GameItemClasses.IsInGame(GameTarget.PoE2, c)))
+            return false;
+
+        var hasScope = false;
+        if (family["patterns"] is JsonArray patterns)
+        {
+            for (var i = patterns.Count - 1; i >= 0; i--)
+            {
+                if (patterns[i] is not JsonObject pattern ||
+                    pattern["scopes"] is not JsonArray scopes)
+                {
+                    patterns.RemoveAt(i);
+                    continue;
+                }
+                for (var j = scopes.Count - 1; j >= 0; j--)
+                {
+                    if (scopes[j] is not JsonObject scope)
+                    {
+                        scopes.RemoveAt(j);
+                        continue;
+                    }
+                    if (scope["kind"]?.GetValue<string>() == "global")
+                    {
+                        hasScope = true;
+                        continue;
+                    }
+                    if (scope["classes"] is not JsonArray classes)
+                    {
+                        scopes.RemoveAt(j);
+                        continue;
+                    }
+                    var kept = classes
+                        .Select(x => x?.GetValue<string>() ?? "")
+                        .Where(c => GameItemClasses.IsInGame(GameTarget.PoE2, c))
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(x => x, StringComparer.Ordinal)
+                        .ToList();
+                    if (kept.Count == 0)
+                    {
+                        scopes.RemoveAt(j);
+                        continue;
+                    }
+                    var replacement = (JsonObject)scope.DeepClone();
+                    var keptNodes = new JsonArray();
+                    foreach (var cls in kept) keptNodes.Add(cls);
+                    replacement["classes"] = keptNodes;
+                    scopes[j] = replacement;
+                    hasScope = true;
+                }
+                if (scopes.Count == 0) patterns.RemoveAt(i);
+            }
+        }
+        if (family["classes"] is JsonArray classesArray)
+        {
+            var keptClasses = new JsonArray();
+            foreach (var cls in classesArray
+                         .Select(x => x?.GetValue<string>() ?? "")
+                         .Where(c => GameItemClasses.IsInGame(GameTarget.PoE2, c))
+                         .Distinct(StringComparer.Ordinal)
+                         .OrderBy(x => x, StringComparer.Ordinal))
+                keptClasses.Add(cls);
+            family["classes"] = keptClasses;
+        }
+        return hasScope;
     }
 
     /// <summary>
