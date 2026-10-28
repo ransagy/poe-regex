@@ -3,47 +3,47 @@
   "dataVersion": "2026-08-09",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "indexed-term-v1",
-  "generatedAt": "2026-10-28 16:37:04Z",
-  "matrixGenerated": "2026-10-27 22:21:34Z",
+  "generatedAt": "2026-10-28 18:33:28Z",
+  "matrixGenerated": "2026-10-28 18:30:43Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
-      "bytes": 747774,
-      "sha256": "3bd62c336d21a0d1fb3d9e543a6c8c9ef5f4881ca79f1eaff192db132c289d46"
+      "bytes": 746518,
+      "sha256": "266eb1a3d83aa34f7e4e8407c31efcccf6ca2def1c2bf439979258c4da91dc86"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 1951030,
-      "sha256": "23390aeb2c0bc67698ab159a6a6056e21a36caf563dd3445af466e8b4db67229"
+      "bytes": 1823653,
+      "sha256": "0b55ed37a1c0af647d129860c233a7bdad3d916e4e77956b1ecd1f6200e1d6e6"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 49299,
-      "sha256": "a0a4c18e269a06fee5174135d3e1b17513896eb9f6b96364ce2968e95d947117"
+      "bytes": 49018,
+      "sha256": "66812d5d1476e3108fe074e196c722f7e52a089aed0725bd954a0f95665d1070"
     }
   },
   "matrix": {
     "families": 194,
     "patterns": 234,
-    "scopes": 926,
+    "scopes": 891,
     "coverage": {
-      "class/current-only": 25,
+      "class/current-only": 36,
       "class/minion": 4,
-      "class/strict": 551,
-      "global/current-only": 14,
+      "class/strict": 501,
+      "global/current-only": 22,
       "global/minion": 24,
-      "global/strict": 196,
-      "per-class/current-only": 11,
+      "global/strict": 188,
+      "per-class/current-only": 15,
       "per-class/minion": 11,
       "per-class/strict": 90
     },
     "bounds": {
-      "10": 448,
-      "14": 465,
+      "10": 424,
+      "14": 454,
       "24": 3,
       "48": 10
     },
-    "boundCompleteCurrentOnly": 50,
+    "boundCompleteCurrentOnly": 73,
     "longCurrentOnlyCount": 0,
     "longCurrentOnly": []
   },
@@ -82,7 +82,7 @@
   "table": {
     "global": 147,
     "classes": 30,
-    "classFragments": 720,
+    "classFragments": 715,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
     "classAnchors": 30
@@ -96,8 +96,8 @@
     "proof": {
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
-      "checkedScopes": 1129,
-      "workScopes": 1129,
+      "checkedScopes": 1121,
+      "workScopes": 1121,
       "failed": 0,
       "proven": true
     }

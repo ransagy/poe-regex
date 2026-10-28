@@ -28,17 +28,17 @@ result to a fixed point.
 ## Artifact coverage
 
 ```text
-194 families · 926 scopes · 0 unresolved
-bounds: 10 (448) · 14 (465) · 24 (3) · 48 (10)
+194 families · 891 scopes · 0 unresolved
+bounds: 10 (424) · 14 (454) · 24 (3) · 48 (10)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 196 | 24 | 14 |
-| Class | 551 | 4 | 25 |
-| Per-class | 90 | 11 | 11 |
+| Global | 188 | 24 | 22 |
+| Class | 501 | 4 | 36 |
+| Per-class | 90 | 11 | 15 |
 
-There are **0 bound-limited scopes**. The 50 `current-only` scopes are within
+There are **0 bound-limited scopes**. The 73 `current-only` scopes are within
 their search bounds.
 
 ## Applied table
@@ -57,10 +57,21 @@ Relative to the previous table:
 0 entries longer
 ```
 
+## Class-mapping correction
+
+RePoE includes unique bases in `mods_by_base`, and the class mapper was
+treating a unique-only base as evidence that a regular prefix/suffix can roll
+on the whole class. Filtering those bases removed 40 false Buckler mappings
+across six families (Strength, Armour/Evasion, Armour/Evasion/Stun Threshold,
+Base Armour/Evasion, Armour Applies to Elemental Damage, and Reduced Critical
+Damage). Reduced Critical Damage Bonus is now Shield/Targe only; max elemental
+resistance remains on both Shields and Bucklers because both have the regular
+`shield` tag.
+
 ## Proof status
 
 ```text
-1129 / 1129 expanded scopes checked
+1121 / 1121 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -89,6 +100,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 | Critical Damage Bonus | global | `^\d.*al Damage.*us$` | 21 | 19 |
 | Critical Damage Bonus | Amulet | `nus$` | 6 | 4 |
 | Critical Damage Bonus | Gloves | `Bon` | 5 | 3 |
+| Reduced Critical Damage | Shield/Targe | `Bon` | 5 | 3 |
 | Damage Gained Fire | global | `^Ga.*of Da.*e Damage$` | 23 | 21 |
 | Damage Gained Cold | global | `^Ga.*of Da.*d Damage$` | 23 | 21 |
 | Damage Gained Fire | Staff/Wand | `a F` / `a.f` | 5 | 3 |
@@ -223,7 +235,7 @@ and broad stat words, so importer semantics remain a separate follow-up.
 The full proof was run as four shards with `--jobs 4`, then merged:
 
 ```text
-4 shards · 1129 expanded scopes · ~3 minutes
+4 shards · 1121 expanded scopes · ~3 minutes
 ```
 
 The full applier is `matrix-apply`; `matrix-proof` supports `--shard` and

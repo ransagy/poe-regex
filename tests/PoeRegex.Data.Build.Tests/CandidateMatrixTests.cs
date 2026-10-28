@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using PoeRegex.Data.Build.RePoE;
 using AwesomeAssertions;
 
 namespace PoeRegex.Data.Build.Tests;
@@ -43,6 +44,31 @@ public class CandidateMatrixTests
         {
             Directory.Delete(dir, recursive: true);
         }
+    }
+
+    [Fact]
+    public void MapModsToClasses_IgnoresUniqueOnlyBucklerBases()
+    {
+        var root = RepoRoot();
+        var raw = Path.Combine(root, "data", "raw", "poe2");
+        var classes = RePoEJson.LoadItemClasses(Path.Combine(raw, "item_classes.min.json"));
+        var map = CatalogBuilder.MapModsToClasses(raw, classes);
+        map.Should().ContainKey("ReducedExtraDamageFromCrits1___");
+        map["ReducedExtraDamageFromCrits1___"].Should().Contain("Shield");
+        map["ReducedExtraDamageFromCrits1___"].Should().NotContain("Buckler",
+            "the only Buckler base with the str_dex_shield tag is unique-only");
+    }
+
+    private static string RepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "data", "catalogs", "poe2.catalog.json")))
+                return directory.FullName;
+            directory = directory.Parent;
+        }
+        throw new InvalidOperationException("repository root not found");
     }
 
     private static string Matrix(string fragment, int length, string coverage) =>
