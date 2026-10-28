@@ -223,8 +223,7 @@ for the modeled corpus plus captured fixtures.
 
 ### Accepted soft collisions
 
-The global table deliberately accepts two foreign-line classes outside the
-selectable item scope:
+The global table deliberately accepts two soft-collision classes:
 
 - Minion/allies/presence variants of the same displayed stat, under the
   existing minion policy.
