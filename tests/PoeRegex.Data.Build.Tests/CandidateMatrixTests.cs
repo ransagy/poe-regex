@@ -1,7 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using PoeRegex.Data.Build.RePoE;
 using AwesomeAssertions;
+using PoeRegex.Core;
+using PoeRegex.Core.Data;
 
 namespace PoeRegex.Data.Build.Tests;
 
@@ -47,15 +48,14 @@ public class CandidateMatrixTests
     }
 
     [Fact]
-    public void MapModsToClasses_IgnoresUniqueOnlyBucklerBases()
+    public void ShippedCatalog_DoesNotMapReducedCritToBuckler()
     {
         var root = RepoRoot();
-        var raw = Path.Combine(root, "data", "raw", "poe2");
-        var classes = RePoEJson.LoadItemClasses(Path.Combine(raw, "item_classes.min.json"));
-        var map = CatalogBuilder.MapModsToClasses(raw, classes);
-        map.Should().ContainKey("ReducedExtraDamageFromCrits1___");
-        map["ReducedExtraDamageFromCrits1___"].Should().Contain("Shield");
-        map["ReducedExtraDamageFromCrits1___"].Should().NotContain("Buckler",
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load(GameTarget.PoE2);
+        var mod = catalog.Mods.First(m => m.Id.StartsWith("ReducedExtraDamageFromCrits"));
+        mod.Classes.Should().Contain("Shield");
+        mod.Classes.Should().NotContain("Buckler",
             "the only Buckler base with the str_dex_shield tag is unique-only");
     }
 
