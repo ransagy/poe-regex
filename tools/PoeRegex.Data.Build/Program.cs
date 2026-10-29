@@ -33,11 +33,13 @@ public static class Program
             {
                 "build" => Build(args[1..]),
                 "fragments" => Fragments(args[1..]),
+                "matrix-solve" => MatrixSolve(args[1..]),
                 "matrix-table" => MatrixTable(args[1..]),
                 "matrix-status" => BuildStatus.Run(args[1..]),
                 "matrix-proof" => MatrixProof.Run(args[1..]),
                 "matrix-apply" => MatrixApply.Run(args[1..]),
                 "matrix-tests" => MatrixTests.Run(args[1..]),
+                "solve-exact" => SolveExact(args[1..]),
                 "corpus" => Corpus(args[1..]),
                 "probe" => Probe(args[1..]),
                 "candidate-report" => CandidateReport.Run(args[1..]),
@@ -55,7 +57,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-table | matrix-status | matrix-proof | matrix-apply | matrix-tests | corpus | probe | candidate-report | candidate-matrix | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | fragments | matrix-solve | matrix-table | matrix-status | matrix-proof | matrix-apply | matrix-tests | corpus | probe | candidate-report | candidate-matrix | fetch");
         return 2;
     }
 
@@ -116,6 +118,7 @@ public static class Program
         var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
         var outPath = GetValue(opts, "--out", $"data/catalogs/{gameName}.fragments.json");
         var allowFallback = opts.ContainsKey("--allow-fallback");
+        var exact = opts.ContainsKey("--exact");
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         FragmentTable? current = null;
@@ -138,12 +141,14 @@ public static class Program
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)
             .ToHashSet(StringComparer.Ordinal);
-        var global = new Dictionary<string, string>(
-            current?.Global ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+        var global = exact
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(
+                current?.Global ?? new Dictionary<string, string>(), StringComparer.Ordinal);
         foreach (var pattern in global.Keys.ToList())
             if (!inGamePatterns.Contains(pattern)) global.Remove(pattern);
         var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-        if (current is not null)
+        if (!exact && current is not null)
             foreach (var (cls, map) in current.ByClass)
             {
                 if (!corpus.IsInGameClass(cls)) continue;
@@ -158,7 +163,8 @@ public static class Program
                 invalidShapes++;
                 return;
             }
-            if (!map.TryGetValue(pattern, out var existing) ||
+            if (exact ||
+                !map.TryGetValue(pattern, out var existing) ||
                 fragment.Length < existing.Length)
                 map[pattern] = fragment;
         }
@@ -333,6 +339,69 @@ public static class Program
         Console.WriteLine($"matrix-table: applied {applied} scope choices, " +
             $"{global.Count} global, {byClass.Count} classes, " +
             $"{unresolved.Count} unresolved -> {outPath}");
+        return 0;
+    }
+
+    private static int MatrixSolve(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe2");
+        var jobs = GetValue(opts, "--jobs", Math.Max(1, Environment.ProcessorCount - 1).ToString());
+        var catalog = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var matrix = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
+        var table = GetValue(opts, "--table", $"data/catalogs/{gameName}.fragments.json");
+        var proof = GetValue(opts, "--proof", $"docs/CANDIDATE-PROOF-{gameName}.json");
+        var status = GetValue(opts, "--status", $"docs/CANDIDATE-STATUS-{gameName}.json");
+
+        var common = new[] { "--game", gameName, "--catalog", catalog };
+        var matrixArgs = common.Concat(new[] { "--exact", "--jobs", jobs, "--out", matrix });
+        if (opts.ContainsKey("--from-scratch")) matrixArgs = matrixArgs.Append("--from-scratch");
+        var code = CandidateMatrix.Run(matrixArgs.ToArray());
+        if (code != 0) return code;
+
+        code = MatrixTable(common.Concat(new[]
+        {
+            "--exact", "--matrix", matrix, "--out", table,
+        }).ToArray());
+        if (code != 0) return code;
+
+        code = MatrixProof.Run(common.Concat(new[]
+        {
+            "--exact", "--matrix", matrix, "--jobs", jobs, "--out", proof,
+        }).ToArray());
+        if (code != 0) return code;
+
+        return BuildStatus.Run(common.Concat(new[]
+        {
+            "--matrix", matrix, "--table", table, "--proof", proof, "--out", status,
+        }).ToArray());
+    }
+
+    private static int SolveExact(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var gameName = GetValue(opts, "--game", "poe2");
+        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
+        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
+        var pattern = GetValue(opts, "--pattern", "").Replace('#', '\u0001');
+        var scope = opts.TryGetValue("--scope", out var value) ? value : null;
+        var min = int.TryParse(GetValue(opts, "--min", "3"), out var mn) ? mn : 3;
+        var max = int.TryParse(GetValue(opts, "--max", "48"), out var mx) ? mx : 48;
+        if (string.IsNullOrEmpty(pattern))
+        {
+            Console.Error.WriteLine("solve-exact requires --pattern");
+            return 2;
+        }
+        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var corpus = new EngineCorpus(catalog);
+        var scopeCorpus = ScopeCorpus.Build(corpus, scope);
+        var result = ExactSearchSolver.Solve(scopeCorpus, pattern, min, max);
+        if (result is null)
+        {
+            Console.WriteLine("none");
+            return 0;
+        }
+        Console.WriteLine($"{result.Fragment} (len={result.Length}, iterations={result.Iterations}, negatives={result.Negatives})");
         return 0;
     }
 

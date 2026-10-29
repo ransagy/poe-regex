@@ -213,3 +213,21 @@ Rarity: Rare
 Item Level: 80
 --------
 30% increased bonuses gained from Equipped Quiver
+
+
+Item Class: Jewels
+Rarity: Rare
+Item Level: 80
+--------
+18% increased Armour, Evasion and Energy Shield from Equipped Shield
+15% increased Energy Shield from Equipped Focus
+4% increased bonuses gained from Equipped Quiver
+
+
+
+Item Class: Amulets
+Rarity: Rare
+Item Level: 80
+--------
+35% increased Armour from Equipped Body Armour
+35% increased Evasion Rating from Equipped Body Armour

@@ -7,9 +7,9 @@ using PoeRegex.Core.Explain;
 namespace PoeRegex.Core.Tests;
 
 /// <summary>
-/// Policy guard for non-catalog "from Equipped" lines. Same-stat source
-/// collisions are accepted; cross-stat collisions must be avoided by the
-/// shortest fragment that is still clean for the catalog scope.
+/// Policy guard for non-catalog "from Equipped" lines. Target membership is
+/// strict: a same-stat source variant or a cross-stat line is foreign unless
+/// the target pattern itself includes that source/condition.
 /// </summary>
 public class FromEquippedPolicyTests
 {
@@ -27,40 +27,34 @@ public class FromEquippedPolicyTests
         "30% increased bonuses gained from Equipped Quiver";
 
     [Fact]
-    public void AcceptedSameStatCollisions_AreRecorded()
+    public void SameStatFromEquippedLines_AreForeign()
     {
-        Corpus.PrecomputedGlobal["\u0001% increased Armour, Evasion and Energy Shield"]
-            .Should().Be("d Armour,");
-        Matches(JewelShield,
-            Corpus.PrecomputedGlobal["\u0001% increased Armour, Evasion and Energy Shield"])
-            .Should().BeTrue();
+        var armourHybrid =
+            Corpus.PrecomputedGlobal["\u0001% increased Armour, Evasion and Energy Shield"];
+        Matches(JewelShield, armourHybrid).Should().BeFalse(
+            "the jewel source line is not the armour hybrid target");
 
-        Corpus.PrecomputedForClass("Amulet")["\u0001% increased Armour"]
-            .Should().Be("d Ar");
-        Matches(AmuletArmour,
-            Corpus.PrecomputedForClass("Amulet")["\u0001% increased Armour"])
-            .Should().BeTrue();
+        var amuletArmour = Corpus.PrecomputedForClass("Amulet")["\u0001% increased Armour"];
+        Matches(AmuletArmour, amuletArmour).Should().BeFalse(
+            "the desecrated source line is not the plain armour target");
 
-        Corpus.PrecomputedForClass("Amulet")["\u0001% increased Evasion Rating"]
-            .Should().Be("d Ev");
-        Matches(AmuletEvasion,
-            Corpus.PrecomputedForClass("Amulet")["\u0001% increased Evasion Rating"])
-            .Should().BeTrue();
-        Matches(AmuletEvasion,
-            Corpus.PrecomputedGlobal["\u0001% increased Evasion Rating"])
-            .Should().BeTrue("the global Evasion fragment still covers the same stat");
+        var amuletEvasion =
+            Corpus.PrecomputedForClass("Amulet")["\u0001% increased Evasion Rating"];
+        Matches(AmuletEvasion, amuletEvasion).Should().BeFalse(
+            "the desecrated source line is not the plain evasion target");
     }
 
     [Fact]
     public void CrossStatCollisions_AreExcluded()
     {
-        var amuletEvasion = Corpus.PrecomputedForClass("Amulet")["\u0001% increased Evasion Rating"];
-        amuletEvasion.Should().Be("d Ev");
+        var amuletEvasion =
+            Corpus.PrecomputedForClass("Amulet")["\u0001% increased Evasion Rating"];
+        Matches("35(35-50)% increased Evasion Rating", amuletEvasion).Should().BeTrue();
         Matches(AmuletEnergyShield, amuletEvasion).Should().BeFalse(
             "increased Energy Shield must not answer an Evasion query");
 
-        var bowCrit = Corpus.PrecomputedForClass("Bow")["+\u0001% to Critical Damage Bonus"];
-        bowCrit.Should().Be("nus$");
+        var bowCrit =
+            Corpus.PrecomputedForClass("Bow")["+\u0001% to Critical Damage Bonus"];
         Matches("+15% to Critical Damage Bonus", bowCrit).Should().BeTrue();
         Matches(BowQuiver, bowCrit).Should().BeFalse(
             "increased bonuses gained must not answer a Critical Damage Bonus query");

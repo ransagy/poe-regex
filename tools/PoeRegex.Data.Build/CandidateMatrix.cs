@@ -71,6 +71,8 @@ public static class CandidateMatrix
         // for the exhaustive grammar when needed.
         var maxLength = int.TryParse(GetValue(opts, "--max-length", "14"), out var ml) ? ml : 14;
         var deepPhrases = opts.ContainsKey("--deep-phrases");
+        var exact = opts.ContainsKey("--exact");
+        if (exact) maxLength = 250;
         var globalOnly = opts.ContainsKey("--global-only");
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
@@ -82,7 +84,11 @@ public static class CandidateMatrix
 
         var catalog = new FileCatalogSource(catalogPath).Load(game);
         var corpus = new EngineCorpus(catalog);
-        var table = LoadTable($"data/catalogs/{gameName}.fragments.json");
+        var loadedTable = LoadTable($"data/catalogs/{gameName}.fragments.json");
+        var fromScratch = opts.ContainsKey("--from-scratch") ||
+                          loadedTable is null ||
+                          !string.Equals(loadedTable.DataVersion, catalog.DataVersion, StringComparison.Ordinal);
+        var table = fromScratch ? new FragmentTable() : loadedTable!;
         var familyKeys = only.Length > 0
             ? only.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : CandidateReport.AllFamilies(catalog).ToArray();
@@ -178,11 +184,30 @@ public static class CandidateMatrix
                 var current = CurrentFragment(table, scope, pattern);
                 var targets = scopeCorpus.Targets(pattern);
                 if (targets.Count == 0) continue;
-                var top = CandidateEvaluator.EvaluateTop(
-                    scopeCorpus, pattern, current, maxLength,
-                    includeDeepPhrases: deepPhrases);
                 var currentOption = CandidateEvaluator.EvaluateFragment(
                     scopeCorpus, pattern, current);
+                TopOptions top;
+                if (exact)
+                {
+                    var minimum = scope is null ? 3 : 2;
+                    var maximum = currentOption is { ForeignLines: 0 } && current is not null
+                        ? current.Length - 1
+                        : 250;
+                    var solved = CandidateEvaluator.SolveExact(
+                        scopeCorpus, pattern, minimum, maximum);
+                    var chosen = solved ??
+                                 (currentOption is { ForeignLines: 0 } ? currentOption : null);
+                    top = new TopOptions(
+                        chosen,
+                        chosen is null ? [] : [chosen],
+                        []);
+                }
+                else
+                {
+                    top = CandidateEvaluator.EvaluateTop(
+                        scopeCorpus, pattern, current, maxLength,
+                        includeDeepPhrases: deepPhrases);
+                }
                 var known = scope is null &&
                             KnownReferences.TryGetValue(pattern, out var knownForms)
                     ? knownForms
@@ -195,7 +220,7 @@ public static class CandidateMatrix
                 results.Add(new WorkItem(scope, key, pattern, ToScope(
                     scope is null ? "global" : "class",
                     scope is null ? [] : [scope],
-                    current,
+                    current ?? "",
                     currentOption,
                     known,
                     targets.Count,

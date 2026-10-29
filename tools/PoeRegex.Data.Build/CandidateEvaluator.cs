@@ -353,6 +353,22 @@ internal sealed record TopOptions(
 internal static class CandidateEvaluator
 {
     /// <summary>
+    /// Exact shortest-form search under the declared grammar using the
+    /// product-state solver. Returns null when no shorter form than maxLength
+    /// exists; the caller decides whether to keep the validated current form.
+    /// </summary>
+    public static CandidateReport.Option? SolveExact(
+        ScopeCorpus scope,
+        string pattern,
+        int minLength,
+        int maxLength)
+    {
+        var result = ExactSearchSolver.Solve(scope, pattern, minLength, maxLength);
+        if (result is null) return null;
+        return EvaluateFragment(scope, pattern, result.Fragment);
+    }
+
+    /// <summary>
     /// Exact top-N evaluation. Candidates are visited in ascending length, so
     /// once every profile has N entries and the next candidate is longer than
     /// every profile's Nth entry, no remaining candidate can change the

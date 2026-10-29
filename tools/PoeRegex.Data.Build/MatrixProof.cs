@@ -40,6 +40,7 @@ public static class MatrixProof
         var shard = ParseShard(GetValue(opts, "--shard", ""));
         var minGlobal = int.TryParse(GetValue(opts, "--min-global", "3"), out var mg) ? mg : 3;
         var minClass = int.TryParse(GetValue(opts, "--min-class", "2"), out var mc) ? mc : 2;
+        var exact = opts.ContainsKey("--exact");
         var mergeFiles = GetValue(opts, "--merge", "");
         if (mergeFiles.Length > 0)
             return MergeProofs(mergeFiles, matrixPath, outPath, opts.ContainsKey("--check"));
@@ -108,7 +109,8 @@ public static class MatrixProof
             var scopeCorpus = ScopeCorpus.Build(corpus, item.ClassId);
             var chosenOption = CandidateEvaluator.EvaluateFragment(
                 scopeCorpus, item.Pattern, item.Chosen);
-            if (chosenOption is null || chosenOption.ForeignOtherLines > 0)
+            if (chosenOption is null ||
+                (exact ? chosenOption.ForeignLines > 0 : chosenOption.ForeignOtherLines > 0))
             {
                 Interlocked.Increment(ref missing);
                 failures.Add(new Failure(
@@ -118,13 +120,22 @@ public static class MatrixProof
                 return;
             }
 
-            var shorter = CandidateEvaluator.EvaluateTop(
-                scopeCorpus, item.Pattern, current: null,
-                maxLength: Math.Max(0, item.Chosen.Length - 1), top: 1,
-                includeTwoWildcards: true, includeDeepPhrases: true);
-            var strict = shorter.Strict.FirstOrDefault();
-            var minion = shorter.Minion.FirstOrDefault();
-            var legal = strict ?? minion;
+            CandidateReport.Option? legal;
+            if (exact)
+            {
+                legal = CandidateEvaluator.SolveExact(
+                    scopeCorpus, item.Pattern,
+                    item.ClassId is null ? minGlobal : minClass,
+                    Math.Max(0, item.Chosen.Length - 1));
+            }
+            else
+            {
+                var shorter = CandidateEvaluator.EvaluateTop(
+                    scopeCorpus, item.Pattern, current: null,
+                    maxLength: Math.Max(0, item.Chosen.Length - 1), top: 1,
+                    includeTwoWildcards: true, includeDeepPhrases: true);
+                legal = shorter.Strict.FirstOrDefault() ?? shorter.Minion.FirstOrDefault();
+            }
             if (legal is not null)
             {
                 var minimum = item.ClassId is null ? minGlobal : minClass;
@@ -136,7 +147,7 @@ public static class MatrixProof
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
                     legal.Fragment, legal.Length,
-                    strict is not null ? "strict" : "minion",
+                    "strict",
                     legal.ForeignMinionLines, legal.ForeignOtherLines));
             }
         });

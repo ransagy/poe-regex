@@ -28,18 +28,18 @@ result to a fixed point.
 ## Artifact coverage
 
 ```text
-182 families · 765 scopes · 0 unresolved
-bounds: 10 (343) · 14 (409) · 24 (3) · 48 (10)
+182 families · 606 scopes · 0 unresolved
+bounds: 250 (606)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 176 | 22 | 23 |
-| Class | 399 | 4 | 38 |
-| Per-class | 77 | 11 | 15 |
+| Global | 104 | 0 | 117 |
+| Class | 75 | 0 | 185 |
+| Per-class | 29 | 0 | 96 |
 
-There are **0 bound-limited scopes**. The 76 `current-only` scopes are within
-their search bounds.
+There are **0 bound-limited scopes**. The 398 `current-only` scopes are
+within the exact search bound.
 
 ## Applied table
 
@@ -47,20 +47,26 @@ their search bounds.
 136 global patterns · 21 classes · 0 unresolved
 ```
 
-The pruned-scope build removed 11 non-game global patterns and 190 class
-fragments, shortened five released global patterns, and shortened three
-Buckler scope choices. Relative to the previous table:
+The exact strict pass replaced the heuristic candidate grammar. It shortened
+51 global and 82 class fragments and lengthened 15 global and 13 class
+fragments where the old form collided with a same-stat source or cross-stat
+line. Net inner-character savings: **206**.
 
-```text
-5 released global patterns shortened
-3 Buckler scope choices shortened
-0 released class entries lost
-```
+Examples:
 
-A later cross-stat safety pass lengthened two class fragments:
-Amulet Evasion `d E` -> `d Ev`, and Bow Critical Damage Bonus `nu` -> `nus$`.
-Both changes are forced by the desecrated `from Equipped` fixtures described
-below.
+| Pattern | Scope | Exact form |
+|---|---|---|
+| `#% increased maximum Life` | global | `^\d.+um.+e$` |
+| `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` |
+| `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
+| `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
+| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` |
+| `#% increased Evasion Rating` | Amulet | `-.*va` |
+| `+#% to Critical Damage Bonus` | Bow | `nus$` |
+
+The strict pass is exact for the declared grammar and target display model
+(advanced item text, including ranged `roll(min-max)` forms).
 
 ## Non-game class pruning
 
@@ -95,77 +101,31 @@ The proof is relative to the current grammar and safety corpus. It is not a
 claim about arbitrary regexes outside that grammar, nor about unmodeled
 unique/socketable/base text.
 
-## Representative forms
+## Representative exact forms
 
 Quoted length includes the two block quotes; inner length excludes them.
 
-| Family | Scope | Chosen | Quoted | Inner |
-|---|---|---|---:|---:|
-| Maximum Life | global | `\+.*ife` | 9 | 7 |
-| Maximum Life | Amulet/Ring | `\+.*fe` | 8 | 6 |
-| Maximum Life | Boots | `fe$` | 5 | 3 |
-| Maximum Life | Shield | `m Lif` | 7 | 5 |
-| Attack Speed | global | `k Speed$` | 10 | 8 |
-| Attack Speed | Gloves | `k S` | 5 | 3 |
-| Movement Speed | global | `Mov.*eed$` | 11 | 9 |
-| Movement Speed | Boots | `Mov` | 5 | 3 |
-| Cast Speed | global | `ed Cast.*ed$` | 14 | 12 |
-| Cast Speed | Amulet/Ring | `t S` | 5 | 3 |
-| Cast Speed | Focus/Staff/Wand | `eed$` | 6 | 4 |
-| Critical Damage Bonus | global | `^\d.*al Damage.*us$` | 21 | 19 |
-| Critical Damage Bonus | Amulet | `nus$` | 6 | 4 |
-| Critical Damage Bonus | Gloves | `Bon` | 5 | 3 |
-| Critical Damage Bonus | Bow | `nus$` | 6 | 4 |
-| Reduced Critical Damage | Shield/Targe | `Bon` | 5 | 3 |
-| Damage Gained Fire | global | `^Ga.*of Da.*e Damage$` | 23 | 21 |
-| Damage Gained Cold | global | `^Ga.*of Da.*d Damage$` | 23 | 21 |
-| Damage Gained Fire | Staff/Wand | `a F` / `a.f` | 5 | 3 |
-| Damage Gained Cold | Staff/Wand | `a C` / `ra C` | 5 / 6 | 3 / 4 |
-| Damage Recouped as Life | global | `of Da.*n Recouped as Life$` | 28 | 26 |
-| Life per Enemy Hit | global | `per En.*ks$` | 13 | 11 |
-| Increased Armour | global | `^\d.*d Armour$` | 16 | 14 |
-| Increased Armour | Shield/Boots | `i.*ur$` | 8 | 6 |
-| Armour, Evasion and ES | global | `d Armour,` | 11 | 9 |
-| Increased Energy Shield | global/class | `ed Energy.*ld$` | 16 | 14 |
-| Physical Damage % | global | `sed Ph` | 8 | 6 |
-| Max Elemental Resistance | global | `um El` | 7 | 5 |
-| Max Elemental Resistance | Shield | `l M` | 5 | 3 |
-| Dexterity | class | `xt` | 4 | 2 |
-| Stun Threshold | Shield | `hr` | 4 | 2 |
-| Stun Threshold | global | `o Stu` | 7 | 5 |
-| Armour | class | `o Ar` | 6 | 4 |
-| Maximum Mana | Focus | `m M` | 5 | 3 |
-| All Elemental Resistance | class | `l E` | 5 | 3 |
-| Additional Arrow | global | `Su.*w$` | 8 | 6 |
-| Loads additional bolts | global | `L.bolts` | 9 | 7 |
-| Loads an additional bolt | global | `s an` | 6 | 4 |
-| Allies in Presence damage | global | `in y` | 6 | 4 |
-| Critical Hit Chance | global | `in.*Hit.*e$` | 13 | 11 |
-| Fire Resistance | class | `to F` | 6 | 4 |
-| Lightning Resistance | class | `to L` | 6 | 4 |
-| Cold Resistance | class | `to..o` | 7 | 5 |
-| Chaos Resistance | global | `to Chaos.*ce$` | 15 | 13 |
-| Strength | class | `gth` | 5 | 3 |
-| Dexterity | global | `o De` | 6 | 4 |
-| Intelligence | class | `to I` / `Inte` | 6 | 4 |
-| Local added Fire | global | `Adds.*F.*e$` | 13 | 11 |
-| Local added Cold | global | `^Ad.*Co.*e$` | 13 | 11 |
-| Local added Lightning | global | `^Ad.*Li.*e$` | 13 | 11 |
-| Local added Physical | global | `Adds.*P.*e$` | 13 | 11 |
-| Local Evasion | global | `^\+.*asion` | 12 | 10 |
-| Evasion Rating | Amulet | `d Ev` | 6 | 4 |
-| Evasion Rating | Buckler | `o E` | 5 | 3 |
-| Increased Evasion Rating | Buckler | `d Ev` | 6 | 4 |
-| Accuracy | global | `o Ac` | 6 | 4 |
-| Melee Skills | global | `l Me` | 6 | 4 |
-| Stun Buildup | global | `Ca.+p$` | 7 | 5 |
-| Allies added Cold | global | `k Co` | 6 | 4 |
-| Allies added Physical | global | `k Ph` | 6 | 4 |
+| Pattern | Scope | Form | Inner |
+|---|---|---|---:|
+| `#% increased maximum Life` | global | `^\d.+um.+e$` | 9 |
+| `#% increased maximum Life` | Amulet/Ring | `cr.*fe` | 6 |
+| `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 10 |
+| `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` | 14 |
+| `#% increased Critical Damage Bonus` | Gloves | `nus$` | 4 |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 16 |
+| `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 16 |
+| `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` | 12 |
+| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` | 9 |
+| `#% increased Armour` | global | `^\d.*d Armour$` | 14 |
+| `#% increased Energy Shield` | global | `ed en.+d$` | 9 |
+| `+# to maximum Energy Shield` | global | `^\+.*gy` | 6 |
+| `#% increased Evasion Rating` | Amulet | `-.*va` | 5 |
+| `#% increased Armour` | Amulet | `-.*rm` | 6 |
+| `+#% to Critical Damage Bonus` | Bow | `nus$` | 4 |
 
-Class anchors remain a separate table. The mace anchors are still literal
-prefixes and are correct for One/Two Hand Mace isolation. Shorter anchor forms
-such as `": .ne M"` / `": .wo M"` require the anchor regex/plain-flag pipeline
-and remain a later optimization.
+All forms are strict: zero foreign lines in their scope. Some forms use the
+range hyphen from advanced item display; the target model includes those
+display shapes.
 
 ## Class anchors
 
@@ -229,51 +189,35 @@ field lines are now in the safety fixtures (`Idol of the Sycophant`,
 global safety corpus remains the next coverage improvement; the current proof
 is complete for the modeled corpus plus captured fixtures.
 
-### Accepted soft collisions
+### Strict target membership
 
-The table deliberately accepts these same-stat source collisions:
+The table no longer allows soft collisions. A line is a target only when its
+normalized pattern is the target pattern for the scope. Minion/allies lines,
+jewel `from Equipped Shield` lines, and desecrated `from Equipped` lines are
+foreign unless the target pattern itself includes that subject/source.
 
-- Minion/allies/presence variants of the same displayed stat, under the
-  existing minion policy.
-- Jewel `... from Equipped Shield` for `d Armour,`. A jewel prefix renders
-  `#% increased Armour, Evasion and Energy Shield from Equipped Shield`, and
-  the shortest global form for the armour hybrid prefix matches it. The
-  class-scoped form (`Ar.*A.+nd`) is unaffected.
-- Desecrated Amulet `#% increased Armour from Equipped Body Armour` for the
-  Amulet `d Ar` form (`#% increased Armour`).
-- Desecrated Amulet `#% increased Evasion Rating from Equipped Body Armour`
-  for the global `d Evasion R` and Amulet `d Ev` forms.
+This is why the previous accepted forms are gone:
 
-Cross-stat collisions are not accepted. The safety fixtures include the
-desecrated Amulet Energy Shield line and the desecrated Bow Quiver-bonuses
-line, which forced the Amulet Evasion form from `d E` to `d Ev` and the Bow
-Critical Damage Bonus form from `nu` to `nus$`.
+- `d Armour,` is replaced by `-.*d a.+,` (the latter excludes the fixed-value
+  jewel line without matching it).
+- Amulet Evasion is `-.*va`, not `d Ev`.
+- Amulet Armour is `-.*rm`, not `d Ar`.
 
-If strict jewel exclusion is ever required, the known end-anchored fallback is
-`d Armour, Evasion and Energy Shield$` (36 characters). It avoids both the
-jewel suffix and the `#% increased Global Armour, Evasion and Energy Shield`
-lines. No shorter jewel-safe anchored form is retained in the current grammar.
+Cross-stat and same-stat source lines are both in the foreign corpus. No
+policy exception can reintroduce them without changing the basis.
 
-## Recommended in-game checks
+## Optional changed-form checks
 
-1. `": Am" "xt"` on an amulet vs weapons with extra cold/fire/lightning
-   damage. The class anchor must exclude the weapons.
-2. `": Shields" "hr"` on a shield vs `Shrine Sceptre`, `Grants Skill: Spear
-   Throw`, and ailment-threshold items.
-3. `"^\d.*al Damage.*us$"` on plain, reduced, attack, spell, trap, and local
-   critical damage lines.
-4. `"^Ga.*of Da.*e Damage$"` / cold on Fire/Cold/Lightning/Physical,
-   `Attacks Gain`, `with Spells`, and Runic Ward.
-5. `"^\d.*d Armour$"` / `"d Armour,"` on plain, hybrid, Break, and
-   Armour Break Duration lines. The jewel-only `from equipped Shield` variant
-   is an accepted soft collision; see “Accepted soft collisions” above.
-6. `"ed Energy.*ld$"` on ES, recharge, and hybrid armour pieces.
-7. `"sed Ph"` on local physical damage vs elemental and global physical lines.
-8. `"um El"` on all-maximum elemental resistance vs individual max and normal
-   all-resistance lines.
-9. `": One Hand M"` / `": Two Hand M"` against the opposite mace class and
-   other in-game weapon class lines. Axes and swords have no released bases and
-   are no longer part of the in-game scope.
+The data and exact grammar proof are authoritative. Optional confidence
+sheets can be generated from the table:
+
+```bash
+dotnet ... matrix-tests --game poe2 --out tests.md
+```
+
+No random in-game item sampling is required for the guarantee. A future
+grammar profile that adds a new regex construct needs a one-time conformance
+test for that construct.
 
 ## Import search
 
@@ -286,7 +230,7 @@ and broad stat words, so importer semantics remain a separate follow-up.
 The full proof was run as four shards with `--jobs 4`, then merged:
 
 ```text
-4 shards · 892 expanded scopes · ~2.5 minutes
+4 shards · 892 expanded scopes · ~3 minutes
 ```
 
 The full applier is `matrix-apply`; `matrix-proof` supports `--shard` and
