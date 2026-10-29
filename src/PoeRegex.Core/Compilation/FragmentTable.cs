@@ -26,10 +26,25 @@ public sealed class FragmentTable
     public Dictionary<string, Dictionary<string, string>> ByClass { get; init; } = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Precomputed class-anchor prefixes. Paste/compiler class anchors must not
-    /// rebuild the vendor-derived class corpus on the browser's first use.
+    /// Precomputed shortest class-line selectors. Values are regex fragments
+    /// and may contain wildcards; paste/compiler class anchors must not rebuild
+    /// the vendor-derived class corpus on the browser's first use.
     /// </summary>
     public Dictionary<string, string> ClassAnchors { get; init; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Precomputed literal class-name prefixes used to import older literal
+    /// anchors. Kept separate from <see cref="ClassAnchors"/> because anchors
+    /// may contain wildcards and must not be escaped as literals.
+    /// </summary>
+    public Dictionary<string, string> ClassPrefixes { get; init; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Precomputed exact terms that select more than one class at once. Paste
+    /// composition only combines these verified groups; it never rescans the
+    /// corpus or validates a heuristic candidate at runtime.
+    /// </summary>
+    public List<ClassGroupEntry> ClassGroups { get; init; } = [];
 
     /// <summary>
     /// Patterns with no safe verbatim line-local fragment in the global scope,
@@ -54,6 +69,13 @@ public sealed class FragmentTable
         if (scope is null) return GlobalUnresolved.GetValueOrDefault(pattern);
         return ByClassUnresolved.TryGetValue(scope, out var map) ? map.GetValueOrDefault(pattern) : null;
     }
+}
+
+/// <summary>One precomputed multi-class selector and the classes it matches.</summary>
+public sealed class ClassGroupEntry
+{
+    public string Term { get; init; } = "";
+    public List<string> Classes { get; init; } = [];
 }
 
 [JsonSerializable(typeof(FragmentTable))]

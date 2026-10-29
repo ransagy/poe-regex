@@ -32,6 +32,7 @@ public class TargetModelTests
             Global = good.Global,
             ByClass = good.ByClass,
             ClassAnchors = good.ClassAnchors,
+            ClassPrefixes = good.ClassPrefixes,
         };
 
         var corpus = new EngineCorpus(TestCatalog.Build(), bad);

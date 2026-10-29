@@ -4,8 +4,8 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-10-29 19:45:32Z",
-  "matrixGenerated": "2026-10-29 19:44:56Z",
+  "generatedAt": "2026-10-29 22:54:19Z",
+  "matrixGenerated": "2026-10-29 22:53:43Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
@@ -15,12 +15,12 @@
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
       "bytes": 397004,
-      "sha256": "045855dd36c36415a0c0b53621ef3e77fef65b1e23cebb61056c21ce3cb80138"
+      "sha256": "91a33d06d92e3bef2d1fbd52227a7ad0f17db8298845dea2922ea55ac0208b65"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 38141,
-      "sha256": "b35e96d1f15a7d4a7859366a97679db41fd60b3a55aba30f0e85bf2def6face4"
+      "bytes": 39088,
+      "sha256": "c799db37f997e95a82e48720becc99a63509d00fbdcd3e7846c98eb2a621948c"
     }
   },
   "matrix": {
@@ -50,15 +50,15 @@
     "Focus": "Fo",
     "Gloves": "Gl",
     "Helmet": "Hel",
-    "One Hand Mace": "One Hand M",
+    "One Hand Mace": "On.+M",
     "Quiver": "Qui",
     "Ring": "Ri",
     "Sceptre": "Sce",
-    "Shield": "Shields",
+    "Shield": "Shi.+s",
     "Spear": "Spea",
     "Staff": "Stav",
     "Talisman": "Tal",
-    "Two Hand Mace": "Two Hand M",
+    "Two Hand Mace": "Tw.+M",
     "Wand": "Wan",
     "Warstaff": "Qua"
   },
@@ -68,7 +68,8 @@
     "classFragments": 525,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
-    "classAnchors": 21
+    "classAnchors": 21,
+    "classGroups": 4
   },
   "status": {
     "stale": false,
@@ -80,7 +81,7 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "045855dd36c36415a0c0b53621ef3e77fef65b1e23cebb61056c21ce3cb80138",
+      "matrixSha256": "91a33d06d92e3bef2d1fbd52227a7ad0f17db8298845dea2922ea55ac0208b65",
       "checkedScopes": 892,
       "workScopes": 892,
       "failed": 0,

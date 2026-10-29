@@ -101,6 +101,8 @@ public class FragmentShapeTests
             .Should().Be(table.Global.Count);
         statusRoot.GetProperty("table").GetProperty("classAnchors").GetInt32()
             .Should().Be(table.ClassAnchors.Count);
+        statusRoot.GetProperty("table").GetProperty("classGroups").GetInt32()
+            .Should().Be(table.ClassGroups.Count);
         var statusAnchors = statusRoot.GetProperty("classAnchors");
         foreach (var (classId, anchor) in table.ClassAnchors)
             statusAnchors.GetProperty(classId).GetString().Should().Be(anchor);
@@ -132,6 +134,31 @@ public class FragmentShapeTests
                 failures.Add($"{classId}: '{anchor}' matches a mod/universal line");
         }
         failures.Should().BeEmpty();
+
+        table.ClassPrefixes.Count.Should().Be(table.ClassAnchors.Count);
+        foreach (var (classId, prefix) in table.ClassPrefixes)
+        {
+            var name = catalog.ItemClasses.Single(c => c.Id == classId).Name;
+            name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase).Should().BeTrue(
+                $"{classId}: '{prefix}' must be a literal name prefix");
+            corpus.ClassTermExact(prefix, [classId]).Should().BeTrue(
+                $"{classId}: '{prefix}' must select only its class line");
+            corpus.ClassTermQuiet(prefix).Should().BeTrue(
+                $"{classId}: '{prefix}' matches a mod/universal line");
+            corpus.ClassNamePrefix(classId).Should().Be(prefix);
+            corpus.ComputeClassNamePrefix(classId).Should().Be(prefix,
+                $"{classId}: shipped prefix must equal the data-time computation");
+        }
+
+        table.ClassGroups.Should().NotBeEmpty();
+        foreach (var group in table.ClassGroups)
+        {
+            group.Classes.Should().HaveCountGreaterThanOrEqualTo(2, group.Term);
+            group.Classes.Distinct(StringComparer.Ordinal).Should().HaveCount(group.Classes.Count);
+            group.Classes.Should().OnlyContain(id => table.ClassAnchors.ContainsKey(id));
+            corpus.ClassTermExact(group.Term, group.Classes).Should().BeTrue(group.Term);
+            corpus.ClassTermQuiet(group.Term).Should().BeTrue(group.Term);
+        }
     }
 
     /// <summary>

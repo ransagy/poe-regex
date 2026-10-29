@@ -32,6 +32,8 @@ public sealed class EngineCorpus
     private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
     private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _computedAnchors = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _computedPrefixes = new(StringComparer.Ordinal);
 
     private sealed class ClassIndex
     {
@@ -117,43 +119,68 @@ public sealed class EngineCorpus
         .Select(CatalogLineNormalizer.Normalize).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
-    /// Shortest class-name prefix unique across all catalog class names
-    /// (case-insensitive), extended until its `: prefix` form matches only
-    /// that class's `Item Class:` line and no mod or universal line in the
-    /// corpus. Used for class anchors and paste class groups so they isolate
-    /// the class instead of matching every colon line. Falls back to the full
-    /// name (callers surface residual risk as diagnostics).
+    /// Shortest literal class-name prefix unique across all catalog class
+    /// names (case-insensitive), extended until its `: prefix` form matches
+    /// only that class's `Item Class:` line and no mod or universal line in
+    /// the corpus. Used by query import for older literal anchors and as the
+    /// baseline for <see cref="ComputeClassNameAnchor"/>; emitted single-class
+    /// selectors come from <see cref="ClassNameAnchor"/>.
     /// </summary>
-    public string ClassNamePrefix(string itemClass) =>
-        ClassNamePrefix(itemClass, usePrecomputed: true);
+    public string ClassNamePrefix(string itemClass)
+    {
+        if (_fragments?.ClassPrefixes is not null &&
+            _fragments.ClassPrefixes.TryGetValue(itemClass, out var precomputedPrefix) &&
+            precomputedPrefix.Length > 0)
+            return precomputedPrefix;
+        return ComputeClassNamePrefix(itemClass);
+    }
 
     /// <summary>
-    /// Computes the anchor without consulting the shipped table. Data builds
-    /// use this to regenerate and verify anchors instead of trusting a stale
-    /// precomputed entry.
+    /// Recomputes the literal merge prefix from the corpus without trusting the
+    /// shipped table. Data builds use this to regenerate the table.
     /// </summary>
-    public string ClassNamePrefix(string itemClass, bool usePrecomputed)
+    public string ComputeClassNamePrefix(string itemClass) =>
+        _computedPrefixes.GetOrAdd(itemClass, id =>
+        {
+            var entry = FindItemClass(id);
+            var name = entry?.Name ?? id;
+            var allNames = _catalog.ItemClasses.Select(c => c.Name).ToList();
+            var len = 1;
+            for (; len < name.Length; len++)
+            {
+                var p = name[..len];
+                if (allNames.Count(n => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)) == 1)
+                    break;
+            }
+            len = Math.Min(len, name.Length);
+            while (len < name.Length && !PrefixClean(name[..len], name))
+                len++;
+            return name[..len];
+        });
+
+    /// <summary>
+    /// Shortest class-line selector emitted by the compiler and reverse-mapped
+    /// by query import. The shipped table may use wildcards (for example
+    /// <c>On.+M</c>); a corpus without a table entry falls back to the escaped
+    /// literal prefix. The value is a regex fragment, not a literal.
+    /// </summary>
+    public string ClassNameAnchor(string itemClass)
     {
-        if (usePrecomputed &&
-            _fragments?.ClassAnchors is not null &&
+        if (_fragments?.ClassAnchors is not null &&
             _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
             precomputedAnchor.Length > 0)
             return precomputedAnchor;
-        var entry = FindItemClass(itemClass);
-        var name = entry?.Name ?? itemClass;
-        var allNames = _catalog.ItemClasses.Select(c => c.Name).ToList();
-        var len = 1;
-        for (; len < name.Length; len++)
-        {
-            var p = name[..len];
-            if (allNames.Count(n => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)) == 1)
-                break;
-        }
-        len = Math.Min(len, name.Length);
-        while (len < name.Length && !PrefixClean(name[..len], name))
-            len++;
-        return name[..len];
+        return Poe2Syntax.EscapeLiteral(ClassNamePrefix(itemClass));
     }
+
+    /// <summary>
+    /// Recomputes the shortest anchor from the corpus without trusting the
+    /// shipped table. Data builds and anchor audits use this; the browser
+    /// runtime stays lookup-only.
+    /// </summary>
+    public string ComputeClassNameAnchor(string itemClass) =>
+        _computedAnchors.GetOrAdd(itemClass,
+            id => ClassAnchorOptimizer.Shortest(this, id));
 
     private bool PrefixClean(string prefix, string className)
     {
@@ -358,7 +385,11 @@ public sealed class EngineCorpus
     public IReadOnlyDictionary<string, string> PrecomputedGlobal =>
         _fragments?.Global ?? new Dictionary<string, string>();
 
-    /// <summary>Class precomputed map (empty when absent).</summary>
+    /// <summary>Multi-class paste groups (empty when the table is absent/stale).</summary>
+    public IReadOnlyList<ClassGroupEntry> PrecomputedClassGroups =>
+        _fragments?.ClassGroups ?? [];
+
+    /// <summary>Per-class precomputed map (empty when absent).</summary>
     public IReadOnlyDictionary<string, string> PrecomputedForClass(string itemClass) =>
         _fragments is not null && _fragments.ByClass.TryGetValue(itemClass, out var map)
             ? map

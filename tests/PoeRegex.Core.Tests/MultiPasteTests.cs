@@ -59,6 +59,20 @@ public class MultiPasteTests
     }
 
     [Fact]
+    public void Combine_SingleClass_UsesCompactAnchorWithoutGrouping()
+    {
+        var corpus = Corpus();
+        var result = Composer(corpus).Compose(
+        [
+            new PasteSlotCriterion("One Hand Mace", [new ModifierRequirement("Strength1")], "weapon"),
+        ], []);
+
+        result.Anchor.Should().Be(": On.+M");
+        result.Query.Should().StartWith("\": On.+M\" ");
+        result.Query.Should().NotContain("\": (");
+    }
+
+    [Fact]
     public void Combine_SameClass_MergesIntoOneGroup()
     {
         var corpus = Corpus();
@@ -96,9 +110,9 @@ public class MultiPasteTests
             new PasteSlotCriterion("One Hand Mace", [new ModifierRequirement("wwww")], "weapon"),
             new PasteSlotCriterion("Two Hand Mace", [new ModifierRequirement("wwww")], "offhand"),
         ], []);
-        result.Anchor.Should().Be(": (Bel|.*Hand M)");
+        result.Anchor.Should().Be(": (Bel|.*Mac)");
         var belt = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["Belt"]));
-        belt.Token.Should().StartWith(": (.*Hand M)|");
+        belt.Token.Should().StartWith(": (.*Mac)|");
         var maces = result.Groups.Single(g => g.TargetClasses.SequenceEqual(["One Hand Mace", "Two Hand Mace"]));
         maces.Token.Should().StartWith(": (Bel)|");
         result.Diagnostics.Should().BeEmpty();

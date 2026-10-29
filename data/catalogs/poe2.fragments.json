@@ -713,6 +713,29 @@
     "Amulet": "Am",
     "Ring": "Ri",
     "Wand": "Wan",
+    "One Hand Mace": "On.\u002BM",
+    "Bow": "Bow",
+    "Staff": "Stav",
+    "Two Hand Mace": "Tw.\u002BM",
+    "Quiver": "Qui",
+    "Belt": "Bel",
+    "Gloves": "Gl",
+    "Boots": "Boo",
+    "Body Armour": "Bod",
+    "Helmet": "Hel",
+    "Shield": "Shi.\u002Bs",
+    "Sceptre": "Sce",
+    "Warstaff": "Qua",
+    "Spear": "Spea",
+    "Crossbow": "Cro",
+    "Focus": "Fo",
+    "Buckler": "Bu",
+    "Talisman": "Tal"
+  },
+  "ClassPrefixes": {
+    "Amulet": "Am",
+    "Ring": "Ri",
+    "Wand": "Wan",
     "One Hand Mace": "One Hand M",
     "Bow": "Bow",
     "Staff": "Stav",
@@ -732,6 +755,37 @@
     "Buckler": "Bu",
     "Talisman": "Tal"
   },
+  "ClassGroups": [
+    {
+      "Term": ".*Bow",
+      "Classes": [
+        "Bow",
+        "Crossbow"
+      ]
+    },
+    {
+      "Term": ".*ves",
+      "Classes": [
+        "Gloves",
+        "Staff",
+        "Warstaff"
+      ]
+    },
+    {
+      "Term": ".*Mac",
+      "Classes": [
+        "One Hand Mace",
+        "Two Hand Mace"
+      ]
+    },
+    {
+      "Term": ".*tav",
+      "Classes": [
+        "Staff",
+        "Warstaff"
+      ]
+    }
+  ],
   "GlobalUnresolved": {},
   "ByClassUnresolved": {}
 }
