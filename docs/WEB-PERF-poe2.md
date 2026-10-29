@@ -17,7 +17,7 @@ artifact:       published Release wwwroot
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---|
-| boot to interactive | 928 ms | — | < 2500 ms |
+| boot to interactive (test area collapsed) | 934 ms | — | < 2500 ms |
 | mode: advanced | 44 ms | 44 ms | < 50 ms |
 | slot focus | 41 ms | 41 ms | < 50 ms |
 | mode: simple | 11 ms | 12 ms | < 50 ms |
@@ -36,6 +36,8 @@ artifact:       published Release wwwroot
 | import cancel | 15 ms | 15 ms | < 50 ms |
 | builder open | 34 ms | 36 ms | < 50 ms |
 | builder cancel | 15 ms | 17 ms | < 50 ms |
+| test area open | 18 ms | 18 ms | < 50 ms |
+| test area close | 16 ms | 16 ms | < 50 ms |
 
 ### Advanced mode, 1–10 slots
 
@@ -43,17 +45,17 @@ artifact:       published Release wwwroot
 |---|---:|---:|
 | advanced switch | 15 ms | 16 ms |
 | focus helmet | 6 ms | 7 ms |
-| pick helmet | 41 ms | 44 ms |
+| pick helmet | 45 ms | 46 ms |
 | pick body | 28 ms | 29 ms |
 | pick gloves | 25 ms | 26 ms |
 | pick boots | 14 ms | 17 ms |
 | pick weapon (10-slot state) | 56 ms | 57 ms |
 | pick offhand / belt / amulet / ring | 55–59 ms | 56–60 ms |
-| 10-slot paste update | 34 ms | 36 ms |
+| 10-slot paste update | 29 ms | 30 ms |
 | class change (10 slots) | 36 ms | 37 ms |
 | explain helmet cold | 45 ms | 45 ms |
 
-Long tasks: 6 over 50 ms, max 147 ms, **0 over 200 ms** after boot.
+Long tasks: 6 over 50 ms, max 140 ms, **0 over 200 ms** after boot.
 
 ## Narrow viewport — 900×1200
 
@@ -69,11 +71,11 @@ import parse 5 items ~66 ms · builder open ~35 ms · no long task > 200 ms
 This is a deliberately harsh low-end pass:
 
 ```text
-boot 4.0 s · picker filter 149 ms · family pick 97 ms
-explain cold 594 ms · import parse 5 items 285 ms
-builder open 152 ms · advanced helmet pick 180 ms
-10-slot paste update 147 ms · class change 158 ms
-max long task 582 ms
+boot 3.9 s · picker filter 165 ms · family pick 100 ms
+explain cold 602 ms · import parse 5 items 290 ms
+builder open 158 ms · advanced helmet pick 191 ms
+10-slot paste update 119 ms · class change 148 ms
+max long task 587 ms
 ```
 
 Normal actions remain usable; cold explain and import are the expected
