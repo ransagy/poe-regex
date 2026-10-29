@@ -101,6 +101,45 @@ The proof is relative to the current grammar and safety corpus. It is not a
 claim about arbitrary regexes outside that grammar, nor about unmodeled
 unique/socketable/base text.
 
+## From-scratch reproducibility
+
+The post-patch independence run used the exact solver with no table seed:
+
+```bash
+dotnet ... matrix-solve --game poe2 --from-scratch --jobs 4
+```
+
+```text
+runtime: 101s
+matrix:  182 families · 607 rows · 892 expanded scopes
+table:   136 global · 21 classes · 525 class fragments
+proof:   892 / 892 · 0 failures
+```
+
+Compared with the shipped artifacts:
+
+- Expanded scopes: 892 vs 892, identical keys.
+- Chosen length: identical on all 892 scopes.
+- Table: 136/21/525 in both.
+- 376 table entries differ only at equal length: 201 case-only and 175
+  same-length shape ties.
+- The seeded matrix has 606 rows; the from-scratch matrix has 607. The
+  difference is row grouping; both expand to the same 892 scopes.
+
+The differences are tie-breaks, not coverage or length regressions. The
+seeded run keeps an already-proven equal-length form; from-scratch returns
+the solver's preferred equal-length form. The shortest-length guarantee is
+seed-independent. The exact string is not canonical across equal-length
+solutions by design; the table remains a validated cache and
+`--from-scratch` remains the authority when the cache is stale.
+
+## Solver validation
+
+`ExactSolverDifferentialTests` compares the exact product-state solver with an
+exhaustive token search on synthetic target/foreign corpora. The cases cover
+literals, wildcards, anchors, `\d`, `\d+`, and a no-form input. All cases agree
+on length and strictness.
+
 ## Representative exact forms
 
 Quoted length includes the two block quotes; inner length excludes them.
@@ -227,11 +266,13 @@ and broad stat words, so importer semantics remain a separate follow-up.
 
 ## Resource note
 
-The full proof was run as four shards with `--jobs 4`, then merged:
+The current pipeline is one command with `--jobs 4`:
 
 ```text
-4 shards · 892 expanded scopes · ~3 minutes
+matrix-solve (seeded):        ~72s
+matrix-solve (from scratch):  ~101s
+exact proof:                  ~41s
 ```
 
-The full applier is `matrix-apply`; `matrix-proof` supports `--shard` and
-`--merge`. No 24-process run was used.
+The full applier is `matrix-apply`; `matrix-proof` still supports `--shard`
+and `--merge` for manual sharding.
