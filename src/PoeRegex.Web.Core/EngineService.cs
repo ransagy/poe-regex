@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
@@ -19,13 +20,14 @@ public sealed class EngineService
     private readonly Explainer _explainer;
     private readonly ICompilerStrategy _strategy;
     private readonly Lazy<HashSet<string>> _playableClassIds;
+    private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
 
     public EngineService()
     {
         var catalog = new EmbeddedCatalogSource().Load(GameTarget.PoE2);
         _corpus = new EngineCorpus(catalog);
         _strategy = PoeRegexCompiler.StrategyFor(GameTarget.PoE2);
-        _compiler = new PoeRegexCompiler(_corpus, _strategy);
+        _compiler = new PoeRegexCompiler(_corpus, _strategy, allowFallback: false);
         _explainer = new Explainer(_corpus);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
@@ -39,7 +41,19 @@ public sealed class EngineService
 
     public string DataVersion => _corpus.Catalog.DataVersion;
 
+    /// <summary>Documented global unresolved reason for a catalog pattern.</summary>
+    public string? GlobalUnresolvedReason(string pattern) =>
+        _corpus.PrecomputedUnresolvedReason(pattern, null);
+
     public IReadOnlyList<ItemClassEntry> Classes => _corpus.Catalog.ItemClasses;
+
+    public IReadOnlyList<ModEntry> ModsForPattern(string pattern) =>
+        _corpus.ModsWithPattern(pattern);
+
+    public string ClassNamePrefix(string classId) => _corpus.ClassNamePrefix(classId);
+
+    public IEnumerable<(string Pattern, string Fragment, string? Class)> PrecomputedFragments() =>
+        _corpus.PrecomputedFragments();
 
     /// <summary>Classes referenced by at least one mod (hides flasks, currency, gems...).</summary>
     public IEnumerable<ItemClassEntry> PlayableClasses() =>
@@ -51,16 +65,11 @@ public sealed class EngineService
     /// carries them. Not listed: `Warstaff`, whose poe2 export entry carries
     /// the Quarterstaves class (38 released quarterstaff bases).
     /// </summary>
-    public static readonly HashSet<string> NotInGameClassIds = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Dagger", "Claw", "Flail",
-        "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
-        "FishingRod", "TrapTool",
-    };
+    public static IReadOnlySet<string> NotInGameClassIds => GameItemClasses.NotInGame;
 
     /// <summary>Playable classes actually in the game (picker scope).</summary>
     public IEnumerable<ItemClassEntry> InGameClasses() =>
-        PlayableClasses().Where(c => !NotInGameClassIds.Contains(c.Id));
+        PlayableClasses().Where(c => _corpus.IsInGameClass(c.Id));
 
     /// <summary>Mods for one class, or the union across several (deduped by id, first wins).</summary>
     public IReadOnlyList<ModEntry> ModsForClasses(IEnumerable<string> classIds)
@@ -72,9 +81,9 @@ public sealed class EngineService
     public IReadOnlyList<ModEntry> ModsForClass(string classId) =>
         _corpus.Mods.Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();
 
-    /// <summary>Union of mods across every playable class (global scope).</summary>
+    /// <summary>Union of mods across every in-game class (global scope).</summary>
     public IReadOnlyList<ModEntry> PlayableMods() =>
-        ModSearch.MergeMods(PlayableClasses().Select(c => ModsForClass(c.Id)));
+        ModSearch.MergeMods(InGameClasses().Select(c => ModsForClass(c.Id)));
 
     /// <summary>
     /// Resolve a pasted `Item Class:` value to a catalog class id, matching
@@ -257,7 +266,7 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false) =>
-        new PasteComposer(_corpus, _strategy).Compose(
+        new PasteComposer(_corpus, _strategy, allowFallback: false, validateRecall: false).Compose(
             slots.Select(s => new PasteSlotCriterion(
                 s.ClassId,
                 s.Includes.SelectMany(m => m.Requirements()).ToList(),
@@ -265,8 +274,35 @@ public sealed class EngineService
             excludes.Select(e => new ModifierRequirement(e)),
             allowOverflow);
 
+    /// <summary>
+    /// Explain is the one intentionally expensive action. Results are cached
+    /// by query + class so reopening a panel is instant, and <see cref="ExplainAsync"/>
+    /// yields once so the loading state can paint before the corpus scan.
+    /// </summary>
     public ExplainResult Explain(string query, string? itemClass = null) =>
-        _explainer.Explain(query, itemClass);
+        _explainCache.GetOrAdd((query, itemClass), key =>
+            _explainer.Explain(key.Query, key.ItemClass));
+
+    public async Task<ExplainResult> ExplainAsync(string query, string? itemClass = null)
+    {
+        await Task.Yield();
+        return Explain(query, itemClass);
+    }
+
+    /// <summary>
+    /// Warm the lazy per-class corpus indexes without producing an explanation.
+    /// Intended for an explicit panel-open/idle path, not for app startup.
+    /// </summary>
+    public void PrewarmExplain(string? itemClass = null)
+    {
+        if (itemClass is not null)
+        {
+            _corpus.MatchableLinesForClass(itemClass);
+            return;
+        }
+        foreach (var cls in _corpus.InGameClasses)
+            _corpus.MatchableLinesForClass(cls.Id);
+    }
 
     /// <summary>Null when the query is grammatically valid for PoE2.</summary>
     public CompilerDiagnostic? Validate(string query) => _strategy.ValidateFragment(query);

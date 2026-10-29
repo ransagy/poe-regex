@@ -1,0 +1,90 @@
+{
+  "game": "poe2",
+  "dataVersion": "2026-08-09",
+  "grammarVersion": "quoted-shortest-v1",
+  "oracleVersion": "indexed-term-v1",
+  "generatedAt": "2026-10-29 17:12:48Z",
+  "matrixGenerated": "2026-10-29 17:11:26Z",
+  "files": {
+    "catalog": {
+      "path": "data/catalogs/poe2.catalog.json",
+      "bytes": 746518,
+      "sha256": "266eb1a3d83aa34f7e4e8407c31efcccf6ca2def1c2bf439979258c4da91dc86"
+    },
+    "matrix": {
+      "path": "docs/CANDIDATE-MATRIX-poe2.html",
+      "bytes": 757365,
+      "sha256": "c71e32cbd2f53bad1a60261e3e4c8cead1fea9000b5739a314f59b9e624568f0"
+    },
+    "table": {
+      "path": "data/catalogs/poe2.fragments.json",
+      "bytes": 38102,
+      "sha256": "00ebd1792a4e019f83d822b6218a746f46b1d650ea48c4ea503121bb22fae2cc"
+    }
+  },
+  "matrix": {
+    "families": 182,
+    "patterns": 221,
+    "scopes": 606,
+    "coverage": {
+      "class/current-only": 185,
+      "class/strict": 75,
+      "global/current-only": 117,
+      "global/strict": 104,
+      "per-class/current-only": 96,
+      "per-class/strict": 29
+    },
+    "bounds": {
+      "250": 606
+    },
+    "boundCompleteCurrentOnly": 398,
+    "longCurrentOnlyCount": 0,
+    "longCurrentOnly": []
+  },
+  "classAnchors": {
+    "Amulet": "Am",
+    "Belt": "Bel",
+    "Body Armour": "Bod",
+    "Boots": "Boo",
+    "Bow": "Bow",
+    "Buckler": "Bu",
+    "Crossbow": "Cro",
+    "Focus": "Fo",
+    "Gloves": "Gl",
+    "Helmet": "Hel",
+    "One Hand Mace": "One Hand M",
+    "Quiver": "Qui",
+    "Ring": "Ri",
+    "Sceptre": "Sce",
+    "Shield": "Shields",
+    "Spear": "Spea",
+    "Staff": "Stav",
+    "Talisman": "Tal",
+    "Two Hand Mace": "Two Hand M",
+    "Wand": "Wan",
+    "Warstaff": "Qua"
+  },
+  "table": {
+    "global": 136,
+    "classes": 21,
+    "classFragments": 525,
+    "unresolvedGlobal": 0,
+    "unresolvedClass": 0,
+    "classAnchors": 21
+  },
+  "status": {
+    "stale": false,
+    "staleReasons": [],
+    "anchorsInMatrix": false,
+    "shortestProven": true,
+    "boundLimited": 0,
+    "proof": {
+      "path": "docs/CANDIDATE-PROOF-poe2.json",
+      "grammarVersion": "quoted-shortest-v1",
+      "checkedScopes": 892,
+      "workScopes": 892,
+      "failed": 0,
+      "proven": true
+    }
+  }
+}

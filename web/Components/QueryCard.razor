@@ -3,6 +3,7 @@
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 @inject IJSRuntime JS
+@implements IDisposable
 
 <div class="qcard" id="qcard-@CardId">
     <div class="qcard-head"><span>@Title</span>
@@ -24,6 +25,10 @@
             <button id="qcard-@CardId-explain" @onclick="ToggleExplain">
                 @(_showExplain ? "hide explain" : "explain")
             </button>
+            @if (_explainLoading)
+            {
+                <span class="qcopy-status" id="qcard-@CardId-explain-loading">explaining…</span>
+            }
             <span class="qcopy-status">@_copyStatus</span>
             @if (Engine.Validate(_result.Query) is { } warn)
             {
@@ -33,6 +38,12 @@
         @foreach (var d in _result.Diagnostics)
         {
             <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+        }
+        @if (_showExplain && _explainLoading)
+        {
+            <div class="qexplain" id="qcard-@CardId-explain-panel">
+                <span class="qcopy-status">scanning corpus…</span>
+            </div>
         }
         @if (_showExplain && _explain is not null)
         {
@@ -71,20 +82,69 @@
     private CompileResult? _result;
     private ExplainResult? _explain;
     private bool _showExplain;
+    private bool _explainLoading;
     private string _copyStatus = "";
+    private CancellationTokenSource? _prewarmCts;
 
     protected override void OnParametersSet()
     {
+        _prewarmCts?.Cancel();
+        _prewarmCts?.Dispose();
+        _prewarmCts = null;
+
         _result = Result;
         if (_result is null) _showExplain = false;
         _explain = null;
+        _explainLoading = false;
+
+        if (_result is not null)
+        {
+            _prewarmCts = new CancellationTokenSource();
+            _ = PrewarmAsync(_prewarmCts.Token);
+        }
     }
 
-    private void ToggleExplain()
+    /// <summary>
+    /// Warm the explain corpus after the card has settled. This is deliberately
+    /// delayed so compilation and rendering finish first; opening Explain then
+    /// does not pay the first-scan cost.
+    /// </summary>
+    private async Task PrewarmAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(500, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (token.IsCancellationRequested || _result is null || _showExplain) return;
+        Engine.PrewarmExplain(ItemClass);
+    }
+
+    public void Dispose()
+    {
+        _prewarmCts?.Cancel();
+        _prewarmCts?.Dispose();
+    }
+
+    private async Task ToggleExplain()
     {
         _showExplain = !_showExplain;
-        if (_showExplain && _result is not null)
-            _explain = Engine.Explain(_result.Query, ItemClass);
+        if (!_showExplain || _result is null) return;
+        if (_explain is not null) return;
+
+        _explainLoading = true;
+        StateHasChanged();
+        try
+        {
+            _explain = await Engine.ExplainAsync(_result.Query, ItemClass);
+        }
+        finally
+        {
+            _explainLoading = false;
+        }
     }
 
     private async Task Copy()

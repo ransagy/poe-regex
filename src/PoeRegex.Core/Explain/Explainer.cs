@@ -27,7 +27,7 @@ public sealed class Explainer
         // and is typically ambiguous, so it cannot narrow the scope on its own).
         var scope = itemClass is not null
             ? new List<string> { itemClass }
-            : _corpus.Catalog.ItemClasses.Select(c => c.Id).OrderBy(x => x, StringComparer.Ordinal).ToList();
+            : _corpus.InGameClasses.Select(c => c.Id).OrderBy(x => x, StringComparer.Ordinal).ToList();
 
         // Pass 1: classify each token. A token is a class anchor only when it
         // matches a class line AND no mod line in scope — mod fragments such as
@@ -45,7 +45,7 @@ public sealed class Explainer
                 kinds[i] = "excluded";
                 continue;
             }
-            if (matches.Count == 0 && MatchedClasses(phrase).Count > 0)
+            if (matches.All(m => m.ModIds.Count == 0) && MatchedClasses(phrase).Count > 0)
             {
                 kinds[i] = "class";
             }
@@ -165,7 +165,7 @@ public sealed class Explainer
     {
         var regex = PhraseToRegex(phrase);
         var result = new HashSet<string>();
-        foreach (var cls in _corpus.Catalog.ItemClasses)
+        foreach (var cls in _corpus.InGameClasses)
         {
             var line = $"Item Class: {cls.Name}";
             if (System.Text.RegularExpressions.Regex.IsMatch(line, regex, System.Text.RegularExpressions.RegexOptions.IgnoreCase))

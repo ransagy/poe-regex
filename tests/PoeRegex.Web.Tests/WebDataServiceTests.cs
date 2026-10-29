@@ -38,7 +38,7 @@ public class WebDataServiceTests
     }
 
     [Fact]
-    public void FilterMods_SearchesNameIdAndLine_CaseInsensitively()
+    public void FilterMods_SearchesNameAndLine_CaseInsensitively()
     {
         var ring = Engine.ModsForClass("Ring");
         var byName = ModSearch.FilterMods(ring, "brute");
@@ -48,6 +48,8 @@ public class WebDataServiceTests
 
         var byLine = ModSearch.FilterMods(ring, "maximum Life");
         byLine.Should().Contain(m => m.Id == "IncreasedLife6");
+        ModSearch.FilterMods(ring, "IncreasedLife6").Should().BeEmpty(
+            "internal mod IDs are not user-facing search text");
 
         ModSearch.FilterMods(ring, "   ").Should().HaveCount(ring.Count);
         ModSearch.FilterMods(ring, "zzz-no-such-mod").Should().BeEmpty();
@@ -123,7 +125,7 @@ public class WebDataServiceTests
         second.Query.Should().Be(first.Query);
         // Byte parity with `poe-regex generate --game poe2 --class Ring
         // --min IncreasedLife6:80 --exclude reflect`.
-        first.Query.Should().Be("\"\\+(\\d{3,}|[9-9]\\d|8[0-9]) to maximum Life\" !\"reflect\" \": Ri\"");
+        first.Query.Should().Be("\": Ri\" \"\\+(\\d{3,}|[9-9]\\d|8[0-9])\\(\\d+-\\d+\\) to maximum Life\" !\"reflect\"");
         first.Limit.Should().Be(250);
         first.Diagnostics.Should().BeEmpty();
     }
@@ -137,6 +139,57 @@ public class WebDataServiceTests
             itemClass: "Ring");
         var explained = Engine.Explain(result.Query, "Ring");
         explained.Mods.Should().Contain(m => m.Id == "IncreasedLife6");
+    }
+
+    [Fact]
+    public async Task Explain_IsCachedByQueryAndClass()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6", 80)],
+            [], itemClass: "Ring");
+
+        var first = Engine.Explain(result.Query, "Ring");
+        var second = Engine.Explain(result.Query, "Ring");
+        var asyncSecond = await Engine.ExplainAsync(result.Query, "Ring");
+
+        second.Should().BeSameAs(first);
+        asyncSecond.Should().BeSameAs(first);
+        Engine.Explain(result.Query, "Amulet").Should().NotBeSameAs(first);
+    }
+
+    [Fact]
+    public void QueryImport_ReconstructsAdvancedModsAndClass()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6")], [],
+            itemClass: "Ring");
+        var imported = new QueryImportService(Engine).Import(result.Query);
+
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("Ring");
+        imported.Includes.Should().Contain(x => x.Value.StartsWith("IncreasedLife"));
+        imported.Excludes.Should().BeEmpty();
+        imported.Keywords.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QueryImport_ResolvesAClassAnchor()
+    {
+        var imported = new QueryImportService(Engine).Import("\": Ri\"");
+
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("Ring");
+        imported.Includes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QueryImport_PreservesUnknownTokens()
+    {
+        var imported = new QueryImportService(Engine).Import("\"life\" \"zzzz\"");
+
+        imported.Mode.Should().Be("simple");
+        imported.Keywords.Should().Contain("zzzz");
+        imported.Tokens.Should().Contain(x => x.Kind == "keyword" && x.Phrase == "zzzz");
     }
 
     [Fact]

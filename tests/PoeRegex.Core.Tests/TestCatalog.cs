@@ -29,7 +29,7 @@ public static class TestCatalog
 
         return new Catalog
         {
-            Game = "poe1",
+            Game = "test",
             DataVersion = "test",
             ItemClasses = new[]
             {

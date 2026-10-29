@@ -1,13 +1,17 @@
 @using PoeRegex.Web.Core
 
-<div class="mode-switch" role="group" aria-label="Slot mode">
-    @foreach (var mode in new[] { "global", "single", "multi" })
+@* Two stacked options instead of a segmented row: each states what the mode
+   means, so no separate explanation is needed. *@
+<div class="mode-stack" role="group" aria-label="Search mode">
+    @foreach (var (mode, label, blurb) in Options)
     {
-        <button id="mode-@mode"
-                class="mode-btn @(State.Mode == mode ? "active" : "")"
-                aria-pressed="@(State.Mode == mode)"
+        var active = State.Mode == mode;
+        <button id="mode-@mode" class="mode-opt @(active ? "active" : "")"
+                title="@blurb" aria-pressed="@active"
                 @onclick="() => State.SetMode(mode)">
-            @mode
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span class="mode-name">@label</span>
+            <span class="mode-blurb">@blurb</span>
         </button>
     }
 </div>
@@ -15,4 +19,10 @@
 @code {
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
+
+    private static readonly (string Mode, string Label, string Blurb)[] Options =
+    [
+        ("simple", "Simple", "same mods for every item"),
+        ("advanced", "Advanced", "different mods per slot"),
+    ];
 }

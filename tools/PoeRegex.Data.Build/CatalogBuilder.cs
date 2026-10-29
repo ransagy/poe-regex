@@ -143,7 +143,7 @@ public static class CatalogBuilder
         };
     }
 
-    private static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string game, string rawDir)
+    internal static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string game, string rawDir)
     {
         var result = new List<RePoESchema.StatTranslationEntry>();
         if (game == "poe1")
@@ -177,7 +177,7 @@ public static class CatalogBuilder
     /// hosted files carry no version field, so the mods file's write time (set
     /// when `fetch` downloaded it) is used.
     /// </summary>
-    private static string ReadVersionFile(string rawDir)
+    internal static string ReadVersionFile(string rawDir)
     {
         var modsPath = Path.Combine(rawDir, "mods.min.json");
         if (File.Exists(modsPath)) return File.GetLastWriteTimeUtc(modsPath).ToString("yyyy-MM-dd");
@@ -204,7 +204,7 @@ public static class CatalogBuilder
     /// mods_by_base.json (authoritative RePoE structure):
     /// class name → tag group → {bases, mods: {generation → group → {mod_id → weight}}}.
     /// </summary>
-    private static Dictionary<string, HashSet<string>> MapModsToClasses(
+    internal static Dictionary<string, HashSet<string>> MapModsToClasses(
         string rawDir,
         Dictionary<string, RePoESchema.ItemClass> itemClasses)
     {
@@ -225,6 +225,8 @@ public static class CatalogBuilder
             foreach (var tagGroup in classProp.Value.EnumerateObject())
             {
                 if (!tagGroup.Value.TryGetProperty("mods", out var modsEl)) continue;
+                if (!tagGroup.Value.TryGetProperty("bases", out var basesEl) ||
+                    !HasRegularBase(basesEl)) continue;
                 foreach (var genProp in modsEl.EnumerateObject())
                 {
                     foreach (var groupProp in genProp.Value.EnumerateObject())
@@ -244,5 +246,23 @@ public static class CatalogBuilder
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// True when a mods_by_base tag group has at least one non-unique base.
+    /// Unique bases are included in RePoE's mods_by_base export, but their
+    /// affixes are fixed unique mods, not selectable random affixes. Mapping a
+    /// regular prefix/suffix through a unique-only base creates false class
+    /// coverage (e.g. reduced critical damage on Bucklers).
+    /// </summary>
+    private static bool HasRegularBase(System.Text.Json.JsonElement bases)
+    {
+        foreach (var baseItem in bases.EnumerateArray())
+        {
+            var path = baseItem.GetString();
+            if (string.IsNullOrEmpty(path)) continue;
+            if (!path.Contains("Unique", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
     }
 }

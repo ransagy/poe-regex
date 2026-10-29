@@ -53,6 +53,7 @@ public static class RePoESchema
         [JsonPropertyName("required_level")] public int RequiredLevel { get; init; }
         [JsonPropertyName("stats")] public required List<ModStat> Stats { get; init; }
         [JsonPropertyName("groups")] public List<string>? Groups { get; init; }
+        [JsonPropertyName("implicit_tags")] public List<string>? ImplicitTags { get; init; }
         [JsonPropertyName("spawn_weights")] public List<SpawnWeight>? SpawnWeights { get; init; }
     }
 
@@ -80,9 +81,24 @@ public static class RePoESchema
     // ---- base_items.json ----
     public sealed class BaseItem
     {
+        [JsonPropertyName("domain")] public string? Domain { get; init; }
+        [JsonPropertyName("release_state")] public string? ReleaseState { get; init; }
         [JsonPropertyName("item_class")] public required string ItemClass { get; init; }
         [JsonPropertyName("name")] public required string Name { get; init; }
         [JsonPropertyName("tags")] public List<string>? Tags { get; init; }
+        [JsonPropertyName("implicits")] public List<string>? Implicits { get; init; }
+        [JsonPropertyName("properties")] public Dictionary<string, JsonElement>? Properties { get; init; }
+        [JsonPropertyName("requirements")] public BaseRequirements? Requirements { get; init; }
+        [JsonPropertyName("skills_granted")] public List<string>? SkillsGranted { get; init; }
+        [JsonPropertyName("drop_level")] public int DropLevel { get; init; }
+    }
+
+    public sealed class BaseRequirements
+    {
+        [JsonPropertyName("level")] public int Level { get; init; }
+        [JsonPropertyName("strength")] public int Strength { get; init; }
+        [JsonPropertyName("dexterity")] public int Dexterity { get; init; }
+        [JsonPropertyName("intelligence")] public int Intelligence { get; init; }
     }
 }
 

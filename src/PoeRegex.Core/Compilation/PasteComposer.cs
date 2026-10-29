@@ -36,13 +36,17 @@ public sealed class PasteComposer
     private readonly ICompilerStrategy _strategy;
     private readonly CompactionEngine _compaction;
     private readonly Explainer _explainer;
+    private readonly bool _validateRecall;
 
-    public PasteComposer(EngineCorpus corpus, ICompilerStrategy strategy)
+    public PasteComposer(
+        EngineCorpus corpus, ICompilerStrategy strategy,
+        bool allowFallback = true, bool validateRecall = true)
     {
         _corpus = corpus;
         _strategy = strategy;
-        _compaction = new CompactionEngine(corpus, strategy);
+        _compaction = new CompactionEngine(corpus, strategy, allowFallback);
         _explainer = new Explainer(corpus);
+        _validateRecall = validateRecall;
     }
 
     /// <summary>
@@ -123,7 +127,8 @@ public sealed class PasteComposer
             if (tokenDiag is not null) diagnostics.Add(tokenDiag);
             groups.Add(new PasteGroup(label, targets, token));
             blocks.Add(_strategy.Quote(token));
-            ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
+            if (_validateRecall)
+                ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
         }
 
         // Exclusions union globally: block negation cannot be scoped per slot.
@@ -137,6 +142,9 @@ public sealed class PasteComposer
         }
 
         var query = string.Join(" ", blocks);
+        foreach (var shapeError in QueryShape.Validate(query))
+            diagnostics.Add(new CompilerDiagnostic(
+                DiagnosticLevel.Warning, "query-shape", shapeError));
         var limit = _strategy.GameRules.MaxCharacterLimit;
         if (query.Length > limit && !allowOverflow)
             throw new RegexLengthOverflowException(query.Length, limit);

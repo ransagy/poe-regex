@@ -1,7 +1,6 @@
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
-@inject IJSRuntime JS
 
 <div class="modpicker">
     @{
@@ -11,132 +10,121 @@
         @* The add-all button is the filter's right edge; it only exists
            while a filter is typed (matching every family is not a workflow). *@
         <div class="search-unit">
-            <input id="mod-search" placeholder="type to filter mods…" value="@_search"
+            <input id="mod-search" placeholder="@_placeholder" value="@_search"
                    @oninput="OnSearch" aria-label="Filter mods" />
             @if (_bulkVisible)
             {
                 <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
-                        disabled="@_bulkOverflow" @onclick="SelectAll">++</button>
+                        disabled="@(_bulkOverflow || _bulkTooMany)" @onclick="SelectAll">++</button>
             }
         </div>
-    </div>
-
-    @* Picks rail: permanent between the filter and the list, so the chips
-       never pop in above the filter; with no picks it sits inert (pagers at
-       +0, clear disabled). *@
-    <div class="chips-row" id="@RailRowId">
-        <button type="button" class="chips-more start" data-dir="-1" aria-label="show earlier picks" disabled>
-            <svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M6.5 1.5L2 6l4.5 4.5" /></svg><span class="n">+0</span>
-        </button>
-        <div class="chips" aria-label="Wanted mods">
-            @foreach (var inc in crit.Included)
-            {
-                <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
-                        title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
-                    @ChipLabel(inc)
-                </button>
-            }
-            @foreach (var exc in crit.Excluded)
-            {
-                <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
-                        @onclick="() => State.RemoveExclude(Scope, exc)">
-                    !@DisplayFor(exc)
-                </button>
-            }
-        </div>
-        <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
-            <span class="n">+0</span><svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1.5 1.5L6 6l-4.5 4.5" /></svg>
-        </button>
-        <button class="chip clear" id="chips-clear-@Scope"
-                disabled="@(crit.Included.Count + crit.Excluded.Count == 0)"
-                @onclick="() => State.ClearChips(Scope)">clear</button>
     </div>
 
     @if (_families.Count == 0)
     {
-        <div class="more">no mods match the filter</div>
+        <div class="more">@(_search.Trim().Length == 0
+            ? _placeholder
+            : "no mods match the filter")</div>
     }
-    <div class="mod-list">
-        <ol class="suggest" aria-label="Mods">
-            @foreach (var fam in _families.Take(MaxShown))
-            {
-                var plainPick = new WantedMod(fam.Anchor.Id);
-                var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
-                var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
-                <li class="fam-block">
-                    <div class="suggest-row fam-row">
-                        <span class="gen-tag">@(fam.IsPrefix ? "PREFIX" : "SUFFIX")</span>
-                        <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
-                                aria-expanded="@(expanded ? "true" : "false")"
-                                title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)")"
-                                @onclick="() => Toggle(fam.Key)">
-                            <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
-                            <span class="fam-text @(fam.DisplayLines.Count > 1 ? "multi" : "")">
-                                @if (fam.DisplayLines.Count == 1)
-                                {
-                                    @fam.DisplayLines[0]
-                                }
-                                else
-                                {
-                                    foreach (var fl in fam.DisplayLines)
-                                    {
-                                        <span class="mod-line">@fl</span>
-                                    }
-                                }
-                            </span>
-                            <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
-                        </button>
-                        <button id="pick-inc-@fam.Anchor.Id" title="include this stat (any tier)"
-                                disabled="@pickedPlain"
-                                @onclick="() => Include(plainPick)">+</button>
-                        <button id="pick-exc-@fam.Anchor.Id" title="exclude this stat (any tier)"
-                                @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
-                    </div>
-                    @if (expanded)
-                    {
-                        <ul class="tier-list">
-                            @foreach (var tier in fam.Tiers)
+    else
+    {
+        <div class="mod-list">
+            @{
+                (IReadOnlyList<ModFamily> List, string Header)[] sections =
+                    [(_prefixes, "prefixes"), (_suffixes, "suffixes")];
+                var twoCols = _prefixes.Count > 0 && _suffixes.Count > 0;
+            }
+            <div class="mod-cols @(twoCols ? "" : "single")">
+                @foreach (var (list, header) in sections)
+                {
+                    if (list.Count == 0) continue;
+                    <section class="mod-sec">
+                        <div class="gen-head">@header</div>
+                        <ol class="suggest" aria-label="@header mods">
+                            @foreach (var fam in list)
                             {
-                                var exactPick = new WantedMod(tier.Anchor.Id, [tier.Name]);
-                                var upNames = fam.NamesFrom(tier);
-                                var upPick = new WantedMod(tier.Anchor.Id, upNames);
-                                var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
-                                var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
-                                <li class="suggest-row tier-row">
-                                    <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
-                                    <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
-                                        @foreach (var l in tier.DisplayLines)
-                                        {
-                                            <span class="mod-line">@l</span>
-                                        }
-                                    </span>
-                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)"
-                                            disabled="@pickedExact"
-                                            @onclick="() => Include(exactPick)">+</button>
-                                    @if (upNames.Count > 1)
+                                var plainPick = fam.Pick();
+                                var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
+                                var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
+                                <li class="fam-block">
+                                    <div class="suggest-row fam-row">
+                                        <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
+                                                aria-expanded="@(expanded ? "true" : "false")"
+                                                title="@FamilyToggleTitle(fam, expanded)"
+                                                @onclick="() => Toggle(fam.Key)">
+                                            <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
+                                            <span class="fam-text @(fam.DisplayLines.Count > 1 ? "multi" : "")">
+                                                @if (fam.DisplayLines.Count == 1)
+                                                {
+                                                    @fam.DisplayLines[0]
+                                                }
+                                                else
+                                                {
+                                                    foreach (var fl in fam.DisplayLines)
+                                                    {
+                                                        <span class="mod-line">@fl</span>
+                                                    }
+                                                }
+                                            </span>
+                                            <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
+                                        </button>
+                                        <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)"
+                                                disabled="@pickedPlain"
+                                                @onclick="() => Include(plainPick)">+</button>
+                                        <button id="pick-exc-@fam.Anchor.Id" class="exc" title="@FamilyExcludeTitle(fam)"
+                                                @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
+                                    </div>
+                                    @if (expanded)
                                     {
-                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)"
-                                                disabled="@pickedUp"
-                                                @onclick="() => Include(upPick)">↑</button>
+                                        <ul class="tier-list">
+                                            @foreach (var tier in fam.Tiers)
+                                            {
+                                                var exactPick = new WantedMod(tier.Anchor.Id, [tier.Name]);
+                                                var upNames = fam.NamesFrom(tier);
+                                                var upPick = new WantedMod(tier.Anchor.Id, upNames);
+                                                var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
+                                                var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
+                                                <li class="suggest-row tier-row">
+                                                    <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                                    <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
+                                                        @foreach (var l in tier.DisplayLines)
+                                                        {
+                                                            <span class="mod-line">@l</span>
+                                                        }
+                                                    </span>
+                                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)"
+                                                            disabled="@pickedExact"
+                                                            @onclick="() => Include(exactPick)">+</button>
+                                                    @if (upNames.Count > 1)
+                                                    {
+                                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)"
+                                                                disabled="@pickedUp"
+                                                                @onclick="() => Include(upPick)">↑</button>
+                                                    }
+                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc" title="@TierExcludeTitle(tier)"
+                                                            @onclick="() => AddExclude(tier.Name)">−</button>
+                                                </li>
+                                            }
+                                        </ul>
                                     }
-                                    <button id="pick-tier-exc-@tier.Anchor.Id" title="@TierExcludeTitle(tier)"
-                                            @onclick="() => AddExclude(tier.Name)">−</button>
                                 </li>
                             }
-                        </ul>
-                    }
-                </li>
+                        </ol>
+                    </section>
+                }
+            </div>
+            @if (_families.Count > MaxShown)
+            {
+                <div class="more">@(_families.Count - MaxShown) more… keep typing to narrow</div>
             }
-        </ol>
-    </div>
-    @if (_families.Count > MaxShown)
-    {
-        <div class="more">@(_families.Count - MaxShown) more… keep typing to narrow</div>
+        </div>
     }
 </div>
 
 @code {
     private const int MaxShown = 50;
+    private const int MaxAutoExpanded = 8;
+    private const int MaxBulkPreview = 64;
 
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
@@ -152,40 +140,36 @@
     private string _search = "";
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
+    private IReadOnlyList<ModFamily> _prefixes = [];
+    private IReadOnlyList<ModFamily> _suffixes = [];
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _autoExpanded = new(StringComparer.Ordinal);
     private bool _bulkVisible;
     private bool _bulkOverflow;
+    private bool _bulkTooMany;
     private int _bulkNew;
     private int _bulkLength;
     private int _bulkLimit;
-
-    private string RailRowId => $"chips-row-{Scope ?? "global"}";
+    private string _placeholder = "type to search families";
 
     /// <summary>Item class the scope compiles with (null in global mode).</summary>
     private string? ScopeClassId => Scope is null ? null : State.CriteriaFor(Scope).ClassId;
 
-    protected override void OnParametersSet() => Refresh();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnParametersSet()
     {
-        try
-        {
-            await JS.InvokeVoidAsync("poeRegexChipsSync", RailRowId);
-        }
-        catch
-        {
-            // No JS yet (static render) — the next interactive render syncs.
-        }
+        // Group once per scope change; typing only filters this snapshot.
+        _allFamilies = ModFamilies.Group(Mods);
+        Refresh();
     }
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
 
     private void Refresh()
     {
-        _allFamilies = ModFamilies.Group(Mods);
+        _placeholder = $"showing common picks — type to search all {_allFamilies.Count} families";
         var filter = _search.Trim();
         _families = filter.Length == 0
-            ? _allFamilies
+            ? _allFamilies.Where(ModFamilies.IsCommon).ToList()
             : _allFamilies
                 .Select(f => f with
                 {
@@ -194,6 +178,15 @@
                 })
                 .Where(f => f.Tiers.Count > 0)
                 .ToList();
+        var shown = _families.Take(MaxShown).ToList();
+        _prefixes = shown.Where(f => f.IsPrefix).ToList();
+        _suffixes = shown.Where(f => !f.IsPrefix).ToList();
+        // A single letter is too broad to expand every match (hundreds of
+        // tier rows in the interpreter); keep it collapsed and auto-expand a
+        // capped set once the filter is narrower.
+        _autoExpanded.Clear();
+        if (filter.Length >= 2)
+            foreach (var fam in shown.Take(MaxAutoExpanded)) _autoExpanded.Add(fam.Key);
         UpdateBulk();
     }
 
@@ -206,12 +199,25 @@
     {
         _bulkVisible = false;
         _bulkOverflow = false;
+        _bulkTooMany = false;
         _bulkNew = 0;
         if (_search.Trim().Length == 0 || _families.Count == 0) return;
         var crit = ScopeCriteria();
-        var picks = _families.Select(f => new WantedMod(f.Anchor.Id)).ToList();
+        var picks = _families.Select(f => f.Pick()).ToList();
         _bulkNew = picks.Count(p => !crit.Included.Any(m => m.SamePick(p)));
         if (_bulkNew < 2) return; // one match: the row's own + is the action
+        // Broad filters can match most of the catalog; compiling a preview for
+        // every match on each keystroke is what made the first letter hang.
+        // Keep ++ visible, but disabled until the filter narrows enough.
+        if (_bulkNew > MaxBulkPreview)
+        {
+            _bulkVisible = true;
+            _bulkTooMany = true;
+            _bulkOverflow = true;
+            _bulkLength = _bulkNew * 4;
+            _bulkLimit = 250;
+            return;
+        }
         var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
         _bulkLength = preview.Length;
         _bulkLimit = preview.Limit;
@@ -225,6 +231,8 @@
         var what = already > 0
             ? $"add all {_bulkNew} matching families ({already} already added)"
             : $"add all {_bulkNew} matching families";
+        if (_bulkTooMany)
+            return $"{what} — more than {MaxBulkPreview} matches would exceed the query budget; narrow the filter";
         return _bulkOverflow
             ? $"{what} — would exceed the game's character limit ({_bulkLength}/{_bulkLimit}); narrow the filter"
             : $"{what} ({_bulkLength}/{_bulkLimit} characters)";
@@ -235,34 +243,18 @@
         if (!_expanded.Add(key)) _expanded.Remove(key);
     }
 
-    /// <summary>Plain picks show the family's unioned stat text (what they
-    /// match, any tier); name picks show the quoted affix name(s).</summary>
-    private string DisplayFor(string modId)
-    {
-        var mod = Mods.FirstOrDefault(m => m.Id == modId);
-        if (mod is null) return modId;
-        var fam = _allFamilies.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(mod));
-        return fam?.DisplayText
-               ?? (mod.StatLines.Count > 0 ? ModSearch.DisplayLine(mod.StatLines[0]) : mod.Id);
-    }
-
-    private string ChipKey(WantedMod pick) =>
-        pick.IsNamePick ? $"{pick.ModId}-n{pick.Names!.Count}" : pick.ModId;
-
-    private string ChipLabel(WantedMod pick) =>
-        pick.IsNamePick
-            ? (pick.Names!.Count == 1 ? $"\"{pick.Names[0]}\"" : $"\"{pick.Names[0]}\" +{pick.Names.Count - 1}")
-            : DisplayFor(pick.ModId);
-
-    private string ChipTitle(WantedMod pick) =>
-        pick.IsNamePick
-            ? pick.Names!.Count == 1
-                ? $"remove \"{pick.Names[0]}\""
-                : $"remove ({string.Join(", ", pick.Names)})"
-            : "remove (any tier)";
-
     // Titles are built here, not as markup entities: Blazor sets attributes
-    // through DOM APIs, so a literal `&quot;` would show verbatim.
+    // through DOM APIs, so a literal `&quot;` would show verbatim. Family
+    // titles name the content, like the tier titles do.
+    private static string FamilyToggleTitle(ModFamily fam, bool expanded) =>
+        $"{(expanded ? "hide" : "show")} {fam.Tiers.Count} tiers: {fam.DisplayText}";
+
+    private static string FamilyIncludeTitle(ModFamily fam) =>
+        $"include \"{fam.DisplayText}\" (any tier)";
+
+    private static string FamilyExcludeTitle(ModFamily fam) =>
+        $"exclude \"{fam.DisplayText}\" (any tier)";
+
     private static string TierPickTitle(ModTier tier) =>
         $"include \"{tier.Name}\"";
 
@@ -295,8 +287,8 @@
     /// append, so nothing shifts); the pagers reveal what is off-screen.</summary>
     private void SelectAll()
     {
-        if (_bulkOverflow) return;
-        State.AddIncludes(Scope, _families.Select(f => new WantedMod(f.Anchor.Id)));
+        if (_bulkOverflow || _bulkTooMany) return;
+        State.AddIncludes(Scope, _families.Select(f => f.Pick()));
         Refresh();
     }
 }

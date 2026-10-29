@@ -1,0 +1,63 @@
+name: matrix-deep
+
+# Manual deep-search runner. Use this for current-relative family batches on a
+# CI runner instead of a full local sweep. The output is an artifact; it does
+# not modify the shipped matrix or table.
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: 'Comma-separated family keys (empty = all families)'
+        required: false
+        type: string
+        default: ''
+      max_length:
+        description: 'Maximum candidate length'
+        required: true
+        type: string
+        default: '48'
+      jobs:
+        description: 'Internal worker count (keep small on hosted runners)'
+        required: true
+        type: string
+        default: '2'
+
+permissions:
+  contents: read
+
+jobs:
+  deep:
+    name: deep matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Deep search
+        shell: bash
+        env:
+          FAMILY: ${{ inputs.family }}
+          MAX_LENGTH: ${{ inputs.max_length }}
+          JOBS: ${{ inputs.jobs }}
+        run: |
+          set -euo pipefail
+          args=(candidate-matrix --game poe2 --deep-phrases
+                --max-length "$MAX_LENGTH" --jobs "$JOBS"
+                --out deep-matrix.html)
+          if [ -n "$FAMILY" ]; then
+            args+=(--family "$FAMILY")
+          fi
+          dotnet run --project tools/PoeRegex.Data.Build --configuration Release -- "${args[@]}"
+
+      - name: Upload deep matrix
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deep-matrix
+          path: deep-matrix.html
+          if-no-files-found: error

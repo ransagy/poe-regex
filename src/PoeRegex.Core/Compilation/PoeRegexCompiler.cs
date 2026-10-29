@@ -12,11 +12,11 @@ public sealed class PoeRegexCompiler
     private readonly ICompilerStrategy _strategy;
     private readonly CompactionEngine _compaction;
 
-    public PoeRegexCompiler(EngineCorpus corpus, ICompilerStrategy strategy)
+    public PoeRegexCompiler(EngineCorpus corpus, ICompilerStrategy strategy, bool allowFallback = true)
     {
         _corpus = corpus;
         _strategy = strategy;
-        _compaction = new CompactionEngine(corpus, strategy);
+        _compaction = new CompactionEngine(corpus, strategy, allowFallback);
     }
 
     public static ICompilerStrategy StrategyFor(GameTarget target) =>
@@ -26,6 +26,19 @@ public sealed class PoeRegexCompiler
     {
         var diagnostics = new List<CompilerDiagnostic>();
         var blocks = new List<string>();
+
+        // Class anchor first: single-slot Advanced queries read with the
+        // class constraint up front. The anchor is an oracle-clean
+        // `Item Class:` name prefix, kept as its own quoted block.
+        // PasteComposer already emits its anchor first; this keeps the two
+        // composition paths visually consistent.
+        if (spec.ItemClass is not null)
+        {
+            if (_corpus.FindItemClass(spec.ItemClass) is null)
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
+                    $"No fingerprint available for item class '{spec.ItemClass}'."));
+            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
+        }
 
         // Included modifiers → one quoted block with | alternation.
         var included = new List<string>();
@@ -52,18 +65,6 @@ public sealed class PoeRegexCompiler
             blocks.Add(_strategy.FormatExclusion(term));
         }
 
-        // Class anchor.
-        // Class anchor: an oracle-clean `Item Class:` name prefix. Unlike the
-        // old shortest-substring anchor (often a vacuous ":"), this isolates
-        // the class instead of matching every colon line.
-        if (spec.ItemClass is not null)
-        {
-            if (_corpus.FindItemClass(spec.ItemClass) is null)
-                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
-                    $"No fingerprint available for item class '{spec.ItemClass}'."));
-            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
-        }
-
         // Custom keywords.
         foreach (var kw in spec.Keywords)
         {
@@ -73,6 +74,9 @@ public sealed class PoeRegexCompiler
         }
 
         var query = string.Join(" ", blocks);
+        foreach (var shapeError in QueryShape.Validate(query))
+            diagnostics.Add(new CompilerDiagnostic(
+                DiagnosticLevel.Warning, "query-shape", shapeError));
         var limit = _strategy.GameRules.MaxCharacterLimit;
         if (query.Length > limit && !spec.AllowOverflow)
         {

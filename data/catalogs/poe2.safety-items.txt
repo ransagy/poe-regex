@@ -1,0 +1,233 @@
+Item Class: Crossbows
+Rarity: Unique
+Mist Whisper
+Makeshift Crossbow
+--------
+Physical Damage: 7-12
+Cold Damage: 10-15 (cold)
+Critical Hit Chance: 5.00%
+Attacks per Second: 1.60
+Reload Time: 0.80
+--------
+Item Level: 82
+--------
+{ Unique Modifier — Damage, Elemental, Cold, Attack }
+Adds 10(8-10) to 15(13-15) Cold Damage
+{ Unique Modifier — Mana }
+Gain 5 Mana per enemy killed
+{ Unique Modifier — Elemental, Cold, Ailment }
+50(30-50)% increased Freeze Buildup
+{ Unique Modifier }
+Attacks Chain 2 additional times
+{ Unique Modifier — Elemental, Cold, Ailment }
+30% increased Chill Duration on Enemies
+--------
+Sibilant promises surrounded them in the night.
+All the travelers had to give him was their devotion...
+
+
+
+Item Class: Gloves
+Rarity: Rare
+Corpse Knuckle
+Stalking Bracers
+--------
+Evasion Rating: 249 (augmented)
+--------
+Requires: Level 65, 80 (unmet) Dex
+--------
+Sockets: S 
+--------
+Item Level: 79
+--------
+{ Prefix Modifier "Reliable" (Tier: 8) — Attack }
++44(33-60) to Accuracy Rating
+{ Prefix Modifier "Stalwart" (Tier: 6) — Life }
++43(40-59) to maximum Life
+{ Prefix Modifier "Phantasm's" (Tier: 3) — Evasion }
+68(68-79)% increased Evasion Rating
+{ Suffix Modifier "of the Yeti" (Tier: 5) — Elemental, Cold, Resistance }
++25(21-25)% to Cold Resistance
+{ Suffix Modifier "of the Salamander" (Tier: 7) — Elemental, Fire, Resistance }
++15(11-15)% to Fire Resistance
+{ Suffix Modifier "of Plunder" (Tier: 3) }
+8(6-10)% increased Rarity of Items found
+
+
+
+
+Item Class: Gloves
+Rarity: Rare
+Ghoul Vise
+Barbed Bracers
+--------
+Evasion Rating: 202 (augmented)
+--------
+Requires: Level 75, 94 (unmet) Dex
+--------
+Item Level: 80
+--------
+{ Prefix Modifier "Shade's" (Tier: 7) — Evasion }
+24(15-26)% increased Evasion Rating
+{ Prefix Modifier "Precise" (Tier: 9) — Attack }
++18(11-32) to Accuracy Rating
+{ Prefix Modifier "Scorching" (Tier: 4) — Damage, Elemental, Fire, Attack }
+Adds 15(11-16) to 22(21-26) Fire damage to Attacks
+{ Suffix Modifier "of the Yeti" (Tier: 5) — Elemental, Cold, Resistance }
++25(21-25)% to Cold Resistance
+{ Suffix Modifier "of Bending" (Tier: 4) — Evasion }
+Gain Deflection Rating equal to 14(12-14)% of Evasion Rating
+{ Suffix Modifier "of the Phantom" (Tier: 2) — Attribute }
++31(31-33) to Dexterity
+
+
+
+Item Class: Wands
+Rarity: Unique
+Sanguine Diviner
+Bone Wand
+--------
+Sockets: S S 
+--------
+Item Level: 80
+--------
+Grants Skill: Level 18 Bone Blast
+--------
+{ Unique Modifier — Damage, Caster }
+99(80-100)% increased Spell Damage
+{ Unique Modifier }
+25% chance to inflict Bleeding on Hit
+{ Unique Modifier — Life, Caster }
+25% of Spell Mana Cost Converted to Life Cost
+{ Unique Modifier — Life }
+Gain 10(10-15) Life per enemy killed
+--------
+One way or another, it will find what it seeks.
+
+
+
+Item Class: Jewels
+Rarity: Rare
+Dusk Sliver
+Emerald
+--------
+Item Level: 82
+--------
+{ Prefix Modifier "Slaying" (Tier: 1) — Damage }
+19(10-20)% increased Damage with Hits against Rare and Unique Enemies
+{ Suffix Modifier "of Prolonging" (Tier: 1) }
+8(5-10)% increased Flask Effect Duration
+{ Suffix Modifier "of Sequencing" (Tier: 1) — Attack, Speed }
+2(2-4)% increased Attack Speed with Quarterstaves
+--------
+Place into an allocated Jewel Socket on the Passive Skill Tree. Right click to remove from the Socket.
+
+
+
+Item Class: Belts
+Rarity: Rare
+Armageddon Trap
+Wide Belt
+--------
+Requires: Level 15
+--------
+Item Level: 28
+--------
+{ Implicit Modifier }
+20(20-30)% increased Flask Charges gained
+{ Implicit Modifier — Charm }
+Has 1 Charm Slot
+--------
+{ Prefix Modifier "Barbed" (Tier: 5) — Damage, Physical }
+16(11-16) to 19(17-23) Physical Thorns damage
+{ Prefix Modifier "Healthy" (Tier: 9) — Life }
++29(20-29) to maximum Life
+{ Prefix Modifier "Restoring" (Tier: 6) — Life }
+9(5-10)% increased Flask Life Recovery rate
+{ Suffix Modifier "of the Starfish" (Tier: 6) — Life }
+4.4(4.1-6) Life Regeneration per second
+{ Suffix Modifier "of Frugality" (Tier: 5) — Charm }
+11(13-11)% reduced Charm Charges used
+{ Suffix Modifier "of the Squall" (Tier: 7) — Elemental, Lightning, Resistance }
++14(11-15)% to Lightning Resistance
+
+
+
+Item Class: Gloves
+Rarity: Unique
+Grip of Winter
+Firm Bracers
+--------
+Evasion Rating: 42 (augmented)
+--------
+Requires: Level 11, 16 Dex
+--------
+Item Level: 80
+--------
+{ Unique Modifier — Evasion }
+35(30-50)% increased Evasion Rating
+{ Unique Modifier — Damage, Elemental, Cold, Attack }
+Adds 3(3-5) to 6(6-8) Cold damage to Attacks
+{ Unique Modifier — Elemental, Cold, Ailment }
+40(40-50)% increased Freeze Buildup
+{ Unique Modifier — Elemental, Cold, Ailment }
+30(20-30)% increased Magnitude of Chill you inflict
+{ Unique Modifier — Elemental, Cold, Resistance }
++25(20-30)% to Cold Resistance
+--------
+After the eruption, the skies turned grey,
+ash began to fall, and a chill set in...
+
+
+
+Item Class: Augment
+Rarity: Unique
+Idol of the Sycophant
+--------
+Item Level: 1
+--------
+{ Unique Modifier }
+Damage gained as a Random Element
+
+
+
+Item Class: Sceptres
+Rarity: Unique
+Shrine Sceptre
+--------
+Item Level: 1
+--------
+Grants Skill: Spear Throw
+
+
+Item Class: Amulets
+Rarity: Rare
+Item Level: 80
+--------
+35% increased Energy Shield from Equipped Body Armour
+
+
+
+Item Class: Bows
+Rarity: Rare
+Item Level: 80
+--------
+30% increased bonuses gained from Equipped Quiver
+
+
+Item Class: Jewels
+Rarity: Rare
+Item Level: 80
+--------
+18% increased Armour, Evasion and Energy Shield from Equipped Shield
+15% increased Energy Shield from Equipped Focus
+4% increased bonuses gained from Equipped Quiver
+
+
+
+Item Class: Amulets
+Rarity: Rare
+Item Level: 80
+--------
+35% increased Armour from Equipped Body Armour
+35% increased Evasion Rating from Equipped Body Armour

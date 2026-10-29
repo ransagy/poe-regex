@@ -42,6 +42,21 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>Single-line form for chips: lines joined with `/`.</summary>
     public string DisplayText => string.Join(" / ", DisplayLines);
 
+    /// <summary>
+    /// The family pick: the anchor plus every tier variant. Compiling all
+    /// variant mod ids ORs their fragments, so a family whose tiers differ in
+    /// wording (singular/plural, an explicit "2") still matches every tier.
+    /// </summary>
+    public WantedMod Pick() => new(
+        Anchor.Id,
+        null,
+        Tiers.SelectMany(t => t.Members)
+            .Where(m => m.StatLines.Count > 0)
+            .Select(m => m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList());
+
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) => Tiers
@@ -62,6 +77,28 @@ public static class ModFamilies
     /// <summary>Awaiting name for the group key of a mod outside any family.</summary>
     public static string KeyOf(ModEntry mod) =>
         mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
+
+    /// <summary>
+    /// Families offered before the user types: the usual goals across gear
+    /// (defence, resistances, attributes, speed, damage). Scope-dependent —
+    /// keys missing from the current scope are simply skipped.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CommonKeys = new HashSet<string>(StringComparer.Ordinal)
+    {
+        // prefixes
+        "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
+        "LocalFireDamage", "LocalColdDamage", "LocalLightningDamage",
+        "LocalEnergyShield", "LocalPhysicalDamageReductionRating", "LocalEvasionRating",
+        "BaseSpirit",
+        // suffixes
+        "FireResistance", "ColdResistance", "LightningResistance", "ChaosResistance",
+        "Strength", "Dexterity", "Intelligence",
+        "MovementVelocity", "LocalIncreasedAttackSpeed", "LocalBaseCriticalStrikeChance",
+        "LocalAccuracyRating", "ManaRegeneration",
+    };
+
+    /// <summary>True when the family is in the pre-typing shortlist.</summary>
+    public static bool IsCommon(ModFamily family) => CommonKeys.Contains(family.Key);
 
     public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods)
     {

@@ -31,34 +31,46 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
 /// that tier, several select "this tier or better" (never game tier numbers —
 /// they are not derivable from data).
 /// </summary>
-public sealed record WantedMod(string ModId, IReadOnlyList<string>? Names = null)
+public sealed record WantedMod(
+    string ModId,
+    IReadOnlyList<string>? Names = null,
+    IReadOnlyList<string>? VariantModIds = null)
 {
     /// <summary>Computed; kept out of snapshots (plain picks would carry
     /// `IsNamePick:false` noise on every entry).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNamePick => Names is { Count: > 0 };
 
-    /// <summary>Exact-pick identity: same anchor and same names in order.</summary>
+    /// <summary>Exact-pick identity: same anchor, names, and family variants in order.</summary>
     public bool SamePick(WantedMod other) => Equals(other);
 
     public bool Equals(WantedMod? other) =>
         other is not null && ModId == other.ModId &&
-        (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal);
+        (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal) &&
+        (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal);
 
     public override int GetHashCode()
     {
         var hash = new HashCode();
         hash.Add(ModId, StringComparer.Ordinal);
         foreach (var name in Names ?? []) hash.Add(name, StringComparer.Ordinal);
+        foreach (var id in VariantModIds ?? []) hash.Add(id, StringComparer.Ordinal);
         return hash.ToHashCode();
     }
 
-    /// <summary>Compile-time requirements: one free-text name per name pick,
-    /// else the catalog mod id (fragment resolution happens in the engine).</summary>
-    public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements() =>
-        IsNamePick
-            ? Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n))
-            : [new PoeRegex.Core.ModifierRequirement(ModId)];
+    /// <summary>
+    /// Compile-time requirements: one free-text name per name pick; for a
+    /// plain family pick, every tier variant's mod id (the engine ORs the
+    /// fragments, so a singular/plural or numbered variant is not missed);
+    /// otherwise the catalog mod id.
+    /// </summary>
+    public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements()
+    {
+        if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
+        if (VariantModIds is { Count: > 0 })
+            return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id));
+        return [new PoeRegex.Core.ModifierRequirement(ModId)];
+    }
 }
 
 /// <summary>Search criteria for one slot (or the global scope): base class + wanted/unwanted mods.</summary>
@@ -92,14 +104,11 @@ public sealed class WorkbenchState
         ["ring2"] = "Ring",
     };
 
-    /// <summary>Global is the first and default mode (one string for chosen mods).</summary>
-    public string Mode { get; private set; } = "global";
+    /// <summary>Simple is the default: one mod set for every item.</summary>
+    public string Mode { get; private set; } = "simple";
 
-    /// <summary>Single mode: the active slot id (default: weapon).</summary>
-    public string? SelectedSlot { get; private set; } = null;
-
-    /// <summary>Multi mode: the slot whose editor is showing (membership is derived from chips).</summary>
-    public string? MultiFocus { get; private set; } = null;
+    /// <summary>Advanced: the slot whose editor is showing (membership is derived from picks).</summary>
+    public string? FocusedSlot { get; private set; } = null;
 
     /// <summary>Per-slot criteria (class + wanted/unwanted mods).</summary>
     public Dictionary<string, SlotCriteria> Slots { get; } = new(StringComparer.Ordinal);
@@ -149,15 +158,9 @@ public sealed class WorkbenchState
 
     public void SetMode(string mode)
     {
-        if (mode is not ("single" or "global" or "multi"))
-            throw new ArgumentOutOfRangeException(nameof(mode), mode, "expected single|global|multi");
+        if (mode is not ("simple" or "advanced"))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "expected simple|advanced");
         Mode = mode;
-        if (mode == "global")
-            SelectedSlot = null;
-        else if (mode == "single" && SelectedSlot is null)
-            SelectedSlot = "weapon";
-        else if (mode == "multi")
-            MultiFocus ??= SelectedSlot ?? "weapon";
         Notify();
     }
 
@@ -165,35 +168,29 @@ public sealed class WorkbenchState
     {
         if (GearSlot.ById(slotId) is null)
             throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
-        if (Mode == "global")
+        if (Mode == "simple")
             return;
-        if (Mode == "single")
-            SelectedSlot = slotId;
-        else
-            MultiFocus = slotId;
+        FocusedSlot = slotId;
         Notify();
     }
 
-    /// <summary>Set the multi editing focus directly (snapshot restore).</summary>
+    /// <summary>Set the advanced editing focus directly (snapshot restore).</summary>
     public void FocusSlot(string slotId)
     {
         if (GearSlot.ById(slotId) is null)
             throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "unknown gear slot");
-        MultiFocus = slotId;
+        FocusedSlot = slotId;
         Notify();
     }
 
-    /// <summary>True when a slot has any wanted/unwanted chips (multi enrollment).</summary>
+    /// <summary>True when a slot has any wanted/unwanted chips (advanced enrollment).</summary>
     public bool Enrolled(string slotId) =>
         Slots.TryGetValue(slotId, out var c) && (c.Included.Count > 0 || c.Excluded.Count > 0);
 
-    /// <summary>Slots the query engine should compile for (global: none).</summary>
-    public IReadOnlyList<string> ActiveSlots() => Mode switch
-    {
-        "global" => [],
-        "single" => SelectedSlot is null ? [] : [SelectedSlot],
-        _ => GearSlot.All.Where(s => Enrolled(s.Id)).Select(s => s.Id).ToList(),
-    };
+    /// <summary>Slots the query engine should compile for (simple: none).</summary>
+    public IReadOnlyList<string> ActiveSlots() => Mode == "simple"
+        ? []
+        : GearSlot.All.Where(s => Enrolled(s.Id)).Select(s => s.Id).ToList();
 
     public void SetSlotClass(string slotId, string classId)
     {
@@ -358,9 +355,8 @@ public sealed class WorkbenchState
     /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
     public void Reset()
     {
-        Mode = "global";
-        SelectedSlot = null;
-        MultiFocus = null;
+        Mode = "simple";
+        FocusedSlot = null;
         Slots.Clear();
         foreach (var (slot, cls) in DefaultClasses)
             Slots[slot] = new SlotCriteria { ClassId = cls };

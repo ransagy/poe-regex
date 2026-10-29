@@ -5,58 +5,53 @@ namespace PoeRegex.Web.Tests;
 public class WorkbenchStateTests
 {
     [Fact]
-    public void Defaults_GlobalMode_NoSlots()
+    public void Defaults_SimpleMode_NoSlots()
     {
         var state = new WorkbenchState();
-        state.Mode.Should().Be("global");
+        state.Mode.Should().Be("simple");
+        state.FocusedSlot.Should().BeNull();
         state.ActiveSlots().Should().BeEmpty();
     }
 
     [Fact]
-    public void SetMode_Global_ClearsSlot_GlobalYieldsNoSlots()
+    public void SetMode_Simple_IgnoresSlotSelection()
     {
         var state = new WorkbenchState();
-        state.SetMode("global");
+        state.SetMode("simple");
         state.ActiveSlots().Should().BeEmpty();
-        state.SelectSlot("helmet"); // ignored in global mode
+        state.SelectSlot("helmet"); // ignored in simple mode
+        state.FocusedSlot.Should().BeNull();
         state.ActiveSlots().Should().BeEmpty();
     }
 
     [Fact]
-    public void SetMode_BackToSingle_RestoresWeapon_WhenNoneSelected()
+    public void SetMode_Advanced_StartsUnfocused()
     {
         var state = new WorkbenchState();
-        state.SetMode("global");
-        state.SetMode("single");
-        state.ActiveSlots().Should().Equal(["weapon"]);
+        state.SetMode("advanced");
+        state.FocusedSlot.Should().BeNull("the doll is the entry point, not the weapon slot");
+        state.ActiveSlots().Should().BeEmpty();
     }
 
     [Fact]
-    public void SelectSlot_Single_Replaces()
+    public void SelectSlot_Advanced_MovesFocus_WithoutEnrolling()
     {
         var state = new WorkbenchState();
-        state.SetMode("single");
+        state.SetMode("simple");
+        state.SelectSlot("body"); // ignored while simple
+        state.SetMode("advanced");
         state.SelectSlot("body");
-        state.ActiveSlots().Should().Equal(["body"]);
-    }
-
-    [Fact]
-    public void SelectSlot_Multi_MovesFocus_WithoutEnrolling()
-    {
-        var state = new WorkbenchState();
-        state.SetMode("multi");
-        state.MultiFocus.Should().Be("weapon", "multi defaults the editing focus");
-        state.SelectSlot("body");
+        state.FocusedSlot.Should().Be("body");
         state.SelectSlot("helmet");
-        state.MultiFocus.Should().Be("helmet");
+        state.FocusedSlot.Should().Be("helmet");
         state.ActiveSlots().Should().BeEmpty("enrollment is derived from chips");
     }
 
     [Fact]
-    public void Multi_Enrollment_FollowsChips_InPanelOrder()
+    public void Advanced_Enrollment_FollowsChips_InPanelOrder()
     {
         var state = new WorkbenchState();
-        state.SetMode("multi");
+        state.SetMode("advanced");
         state.AddInclude("body", "IncreasedLife6");
         state.AddInclude("helmet", "IncreasedLife6");
         state.AddExclude("ring2", "reflect"); // excluded-only still enrolls
@@ -70,6 +65,9 @@ public class WorkbenchStateTests
     {
         var state = new WorkbenchState();
         Assert.Throws<ArgumentOutOfRangeException>(() => state.SetMode("bogus"));
+        // Retired mode names are not accepted (snapshots are migrated separately).
+        Assert.Throws<ArgumentOutOfRangeException>(() => state.SetMode("global"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => state.SetMode("single"));
         Assert.Throws<ArgumentOutOfRangeException>(() => state.SelectSlot("bogus"));
     }
 
@@ -84,7 +82,7 @@ public class WorkbenchStateTests
     public void Snapshot_RoundTrips_State()
     {
         var state = new WorkbenchState();
-        state.SetMode("multi");
+        state.SetMode("advanced");
         state.SelectSlot("helmet"); // editing focus
         state.SetSlotClass("body", "Helmet");
         state.AddInclude("body", "IncreasedLife6");
@@ -101,8 +99,8 @@ public class WorkbenchStateTests
 
         var restored = new WorkbenchState();
         WorkbenchSnapshot.Restore(restored, back);
-        restored.Mode.Should().Be("multi");
-        restored.MultiFocus.Should().Be("helmet");
+        restored.Mode.Should().Be("advanced");
+        restored.FocusedSlot.Should().Be("helmet");
         restored.ActiveSlots().Should().Equal(["helmet", "body"]);
         restored.SlotClassOrDefault("body").Should().Be("Helmet");
         restored.CriteriaFor("body").Included.Should().Equal([new WantedMod("IncreasedLife6")]);
@@ -127,10 +125,32 @@ public class WorkbenchStateTests
             new SlotCriteria(),
             []);
         WorkbenchSnapshot.Restore(state, snap);
-        state.Mode.Should().Be("global");
-        state.MultiFocus.Should().BeNull("unknown focus slot is dropped");
+        state.Mode.Should().Be("simple");
+        state.FocusedSlot.Should().BeNull("unknown focus slot is dropped");
         state.SlotClassOrDefault("body").Should().Be("Helmet");
         state.ActiveSlots().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Snapshot_Migrates_RetiredModes()
+    {
+        static WorkbenchSnapshot Snap(string mode, string? selected, string? focus) =>
+            new(2, mode, selected, focus, new Dictionary<string, SlotCriteria>(), new SlotCriteria(), []);
+
+        var simple = new WorkbenchState();
+        WorkbenchSnapshot.Restore(simple, Snap("global", "helmet", "body"));
+        simple.Mode.Should().Be("simple");
+        simple.FocusedSlot.Should().BeNull();
+
+        var single = new WorkbenchState();
+        WorkbenchSnapshot.Restore(single, Snap("single", "helmet", null));
+        single.Mode.Should().Be("advanced");
+        single.FocusedSlot.Should().Be("helmet", "the retired single slot becomes the advanced focus");
+
+        var multi = new WorkbenchState();
+        WorkbenchSnapshot.Restore(multi, Snap("multi", null, "body"));
+        multi.Mode.Should().Be("advanced");
+        multi.FocusedSlot.Should().Be("body");
     }
 
     [Fact]
@@ -189,7 +209,7 @@ public class WorkbenchStateTests
         WorkbenchSnapshot.Restore(state, snap);
 
         notifications.Should().Be(1, "restore must not leak half-applied states to observers");
-        saved!.Mode.Should().Be("multi");
+        saved!.Mode.Should().Be("advanced");
         saved.TestItems.Should().ContainSingle(i => i.Name == "b",
             "the save triggered by restore must already see the restored backpack");
     }
