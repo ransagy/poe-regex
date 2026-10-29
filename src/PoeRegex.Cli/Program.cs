@@ -11,14 +11,14 @@ internal static class Program
     private const int ExitError = 1;
     private const int ExitUsage = 2;
 
-    private static EngineCorpus LoadCorpus(GameTarget game, string? catalogPath)
+    private static EngineCorpus LoadCorpus(string? catalogPath)
     {
         ICatalogSource source = catalogPath is null
             ? new EmbeddedCatalogSource()
             : new FileCatalogSource(catalogPath);
         try
         {
-            return new EngineCorpus(source.Load(game));
+            return new EngineCorpus(source.Load());
         }
         catch (FileNotFoundException ex)
         {
@@ -66,15 +66,15 @@ internal static class Program
 
             usage:
               poe-regex                          interactive
-              poe-regex generate --game <poe1|poe2> [--catalog <path>] [--class <id>]
+              poe-regex generate [--catalog <path>] [--class <id>]
                   [--include <mod-or-text>]... [--min <text:value>]...
                   [--exclude <text>]... [--ilvl <n>] [--keyword <kw>]...
                   [--clipboard] [--json] [--allow-overflow]
-              poe-regex list-classes --game <poe1|poe2> [--catalog <path>] [--json]
-              poe-regex list-mods --game <poe1|poe2> [--catalog <path>] [--class <id>]
+              poe-regex list-classes [--catalog <path>] [--json]
+              poe-regex list-mods [--catalog <path>] [--class <id>]
                   [--search <text>] [--limit <n>] [--json]
-              poe-regex validate --game <poe1|poe2> [--catalog <path>] --query "<regex>" [--json]
-            poe-regex explain --game <poe1|poe2> [--catalog <path>] [--class <id>]
+              poe-regex validate [--catalog <path>] --query "<regex>" [--json]
+            poe-regex explain [--catalog <path>] [--class <id>]
                   --query "<regex>" [--json]
 
             --json: emit machine-readable JSON on stdout (suitable for other
@@ -97,8 +97,6 @@ internal static class Program
     private static int RunGenerate(string[] args)
     {
         var opts = new Dictionary<string, List<string>>();
-        var minValues = new List<(string Text, double Value)>();
-        var game = GameTarget.PoE1;
         string? catalogPath = null;
         string? itemClass = null;
         var includes = new List<ModifierRequirement>();
@@ -112,9 +110,6 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--game":
-                    game = ParseGame(GetValue(args, ref i, "--game"));
-                    break;
                 case "--catalog":
                     catalogPath = GetValue(args, ref i, "--catalog");
                     break;
@@ -163,9 +158,9 @@ internal static class Program
             return Usage("generate requires at least one --include or --keyword");
         }
 
-        var corpus = LoadCorpus(game, catalogPath);
-        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
-        var spec = QuerySpecification.For(game) with
+        var corpus = LoadCorpus(catalogPath);
+        var compiler = new PoeRegexCompiler(corpus);
+        var spec = new QuerySpecification
         {
             ItemClass = itemClass,
             IncludedModifiers = includes,
@@ -228,20 +223,18 @@ internal static class Program
 
     private static int RunListClasses(string[] args)
     {
-        var game = GameTarget.PoE1;
         string? catalogPath = null;
         var json = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
-                case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--json": json = true; break;
                 default: return Usage($"unknown option '{args[i]}'");
             }
         }
-        var corpus = LoadCorpus(game, catalogPath);
+        var corpus = LoadCorpus(catalogPath);
         var classes = corpus.Catalog.ItemClasses.OrderBy(c => c.Id, StringComparer.Ordinal).ToList();
         if (json)
         {
@@ -259,7 +252,6 @@ internal static class Program
 
     private static int RunListMods(string[] args)
     {
-        var game = GameTarget.PoE1;
         string? catalogPath = null;
         string? itemClass = null;
         string? search = null;
@@ -269,7 +261,6 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--class": itemClass = GetValue(args, ref i, "--class"); break;
                 case "--search": search = GetValue(args, ref i, "--search"); break;
@@ -281,7 +272,7 @@ internal static class Program
             }
         }
 
-        var corpus = LoadCorpus(game, catalogPath);
+        var corpus = LoadCorpus(catalogPath);
         var mods = corpus.Mods.AsEnumerable();
         if (itemClass is not null) mods = mods.Where(m => m.Classes.Contains(itemClass));
         var list = mods.Where(m => search is null || Matches(m, search))
@@ -323,7 +314,6 @@ internal static class Program
 
     private static int RunValidate(string[] args)
     {
-        var game = GameTarget.PoE1;
         string? catalogPath = null;
         string? query = null;
         var json = false;
@@ -331,7 +321,6 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--query": query = GetValue(args, ref i, "--query"); break;
                 case "--json": json = true; break;
@@ -340,14 +329,13 @@ internal static class Program
         }
         if (query is null) return Usage("validate requires --query");
 
-        var strategy = PoeRegexCompiler.StrategyFor(game);
-        var diag = strategy.ValidateFragment(query);
+        var diag = Poe2Syntax.ValidateFragment(query);
         if (json)
         {
             var payload = new JsonValidateResult
             {
                 Ok = true,
-                Game = game.ToRuleKey(),
+                Game = "poe2",
                 Warning = diag is null ? null : new JsonEmitDiagnostic
                 {
                     Level = diag.Level.ToString().ToLowerInvariant(),
@@ -363,7 +351,7 @@ internal static class Program
             {
                 Console.WriteLine($"warning: {diag.Code}: {diag.Message}");
             }
-            Console.WriteLine($"ok: query is syntactically acceptable for {game.ToRuleKey()}");
+            Console.WriteLine($"ok: query is syntactically acceptable for PoE2");
         }
         return ExitOk;
     }
@@ -372,7 +360,6 @@ internal static class Program
 
     private static int RunExplain(string[] args)
     {
-        var game = GameTarget.PoE1;
         string? catalogPath = null;
         string? itemClass = null;
         string? query = null;
@@ -381,7 +368,6 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--game": game = ParseGame(GetValue(args, ref i, "--game")); break;
                 case "--catalog": catalogPath = GetValue(args, ref i, "--catalog"); break;
                 case "--class": itemClass = GetValue(args, ref i, "--class"); break;
                 case "--query": query = GetValue(args, ref i, "--query"); break;
@@ -391,7 +377,7 @@ internal static class Program
         }
         if (query is null) return Usage("explain requires --query");
 
-        var corpus = LoadCorpus(game, catalogPath);
+        var corpus = LoadCorpus(catalogPath);
         var explainer = new Explainer(corpus);
         var result = explainer.Explain(query, itemClass);
 
@@ -470,13 +456,8 @@ internal static class Program
 
     private static int RunInteractive()
     {
-        Console.WriteLine("Poe Regex Compiler (interactive)");
-        Console.WriteLine("Pick a game:");
-        Console.WriteLine("  1) Path of Exile 1");
-        Console.WriteLine("  2) Path of Exile 2");
-        var gameChoice = Console.ReadLine()?.Trim();
-        var game = gameChoice == "2" ? GameTarget.PoE2 : GameTarget.PoE1;
-        var corpus = LoadCorpus(game, null);
+        Console.WriteLine("Poe Regex Compiler (interactive, PoE2)");
+        var corpus = LoadCorpus(null);
 
         Console.WriteLine("Item class (enter to skip, '?' to list):");
         var classLine = Console.ReadLine()?.Trim();
@@ -518,8 +499,8 @@ internal static class Program
             excludes.Add(new ModifierRequirement(line));
         }
 
-        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
-        var spec = QuerySpecification.For(game) with
+        var compiler = new PoeRegexCompiler(corpus);
+        var spec = new QuerySpecification
         {
             ItemClass = itemClass,
             IncludedModifiers = includes,
@@ -542,12 +523,6 @@ internal static class Program
     }
 
     // ---- helpers ----
-
-    private static GameTarget ParseGame(string value)
-    {
-        try { return GameTargetExtensions.Parse(value); }
-        catch { Console.Error.WriteLine($"invalid game '{value}'"); Environment.Exit(ExitUsage); throw; }
-    }
 
     private static string GetValue(string[] args, ref int i, string option)
     {

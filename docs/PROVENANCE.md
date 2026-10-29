@@ -20,12 +20,11 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 
 ## Data lineage
 
-1. **Game files** — Path of Exile 1/2 data is © Grinding Gear Games Limited.
+1. **Game files** — Path of Exile 2 data is © Grinding Gear Games Limited.
 2. **Extraction tooling** — RePoE extracts the game files with PyPoE and the
    poe-tool-dev data schema. Neither is redistributed here.
 3. **RePoE exports** — `tools/PoeRegex.Data.Build fetch` downloads RePoE's
-   hosted JSON: <https://repoe-fork.github.io> (PoE 1) and
-   <https://repoe-fork.github.io/poe2> (PoE 2), from
+   hosted PoE2 JSON from <https://repoe-fork.github.io/poe2>, from
    <https://github.com/repoe-fork/repoe>, a fork of
    <https://github.com/brather1ng/RePoE>. Both repositories are MIT-licensed;
    their `LICENSE.md` adds that the contents of generated `data` files are
@@ -33,13 +32,14 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 4. **Our build tool** — renders modifier text, maps mods to item classes,
    computes fingerprints, and writes the catalogs. Raw exports stay in
    `data/raw/` (gitignored) and are never committed.
-5. **Shipped catalogs** — `data/catalogs/poe1.catalog.json` and
-   `poe2.catalog.json`, embedded into the CLI and web assemblies at build time.
+5. **Shipped catalog** — `data/catalogs/poe2.catalog.json`, embedded into the
+   CLI and web assemblies at build time.
    They contain item class names, mod ids and affix names, generation type,
    family, required level, class/group membership, rendered stat text, and
-   precomputed shortest-fragment fingerprints.
-6. **Vendor/stash safety corpus** — `poe1.vendor-corpus.json` and
-   `poe2.vendor-corpus.json` are also derived from the same raw exports. They
+   precomputed catalog fingerprints. `poe2.fragments.json` is the exact
+   shortest-form table derived from the same catalog plus the safety corpus.
+6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` is derived from
+   the same raw exports. It
    add the searchable line text that the selectable catalog omits: regular,
    corrupted, essence, crafted, and implicit item mods; base item names,
    properties, requirements, implicits, and granted skills; regular affix
@@ -48,7 +48,8 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    reported as unmodeled in the audit. No game binaries, memory, client logs,
    or runtime extraction are involved.
 7. **Consumers** — the CLI, the library, and the web workbench read only the
-   derived catalogs and corpora; nothing downloads game data at runtime.
+   derived catalog, exact fragment table, vendor corpus, and safety fixtures;
+   nothing downloads game data at runtime.
 
 ### `dataVersion`
 
@@ -58,11 +59,10 @@ and `build` records the download date of `mods.min.json` as the catalog's
 re-run `fetch` and `build` and commit the regenerated catalogs:
 
 ```sh
-dotnet run --project tools/PoeRegex.Data.Build -- fetch --game poe1 --out data/raw/poe1
-dotnet run --project tools/PoeRegex.Data.Build -- build --game poe1 --raw data/raw/poe1 --catalog data/catalogs/poe1.catalog.json
-dotnet run --project tools/PoeRegex.Data.Build -- corpus --game poe1 --raw data/raw/poe1 --out data/catalogs/poe1.vendor-corpus.json
-dotnet run --project tools/PoeRegex.Data.Build -- fragments --game poe1
-# repeat with --game poe2
+dotnet run --project tools/PoeRegex.Data.Build -- fetch
+dotnet run --project tools/PoeRegex.Data.Build -- build
+dotnet run --project tools/PoeRegex.Data.Build -- corpus
+dotnet run --project tools/PoeRegex.Data.Build -- matrix-solve --from-scratch
 ```
 
 ## Stat-text rendering
@@ -72,7 +72,7 @@ implementation of the translation format documented by RePoE
 (`RePoE/docs/stat_translations.md`): per-id variants and conditions, `formats`,
 `index_handlers` (numeric fields supplied by RePoE's
 `stat_value_handlers.json`), and `{i}` substitution. Its output is pinned by
-unit tests and by rebuilding both catalogs byte-for-byte from the raw exports.
+unit tests and by rebuilding the catalog byte-for-byte from the raw exports.
 
 PyPoE is the best-known prior renderer of the same data and is **GPL-3.0**
 (maintained fork: <https://github.com/Project-Path-of-Exile-Wiki/PyPoE>). It

@@ -28,4 +28,9 @@ jobs:
       - name: Verify catalog provenance
         run: >
           dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
-          matrix-status --game poe2 --check --check-shortest
+          matrix-status --check --check-shortest
+
+      - name: Verify exact PoE2 proof
+        run: >
+          dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
+          matrix-proof --jobs 2 --check --out /tmp/poe2-proof.json

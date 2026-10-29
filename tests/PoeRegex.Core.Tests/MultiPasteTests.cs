@@ -13,7 +13,7 @@ public class MultiPasteTests
     private static EngineCorpus Corpus() => RealCatalog.Corpus();
 
     private static PasteComposer Composer(EngineCorpus corpus) =>
-        new(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
+        new(corpus);
 
     [Fact]
     public void Combine_RingAmuletHelmet_StructureAndRecall()

@@ -22,10 +22,10 @@ chmod +x out/dotnet-install.sh
 # Pages (it compresses at the edge itself). BlazorEnableCompression
 # normally suppresses them; the delete is a safety net in case the
 # property is renamed in a future SDK.
-# The UI is PoE2-only. Excluding the PoE1 catalogs/corpus keeps the
-# embedded-resource wasm under Cloudflare Pages' 25 MiB per-file limit.
+# The app is PoE2-only; the embedded catalog/table/vendor corpus stays
+# below Cloudflare Pages' per-file limit.
 ./out/dotnet/dotnet publish web/web.csproj -c Release -o out/web \
-  -p:BlazorEnableCompression=false -p:PoeRegexEmbedPoE1=false
+  -p:BlazorEnableCompression=false
 
 find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
 

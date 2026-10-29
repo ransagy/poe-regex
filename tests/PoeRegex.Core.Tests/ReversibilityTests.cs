@@ -25,17 +25,10 @@ public class ReversibilityTests
         return dir ?? throw new DirectoryNotFoundException("repo root not found");
     }
 
-    private static (EngineCorpus Corpus, PoeRegexCompiler Compiler, Explainer Explainer) Create(GameTarget game)
+    private static (EngineCorpus Corpus, PoeRegexCompiler Compiler, Explainer Explainer) Create()
     {
-        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
-        return (corpus, new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game)), new Explainer(corpus));
-    }
-
-    public static IEnumerable<object[]> Games()
-    {
-        yield return new object[] { GameTarget.PoE1 };
-        yield return new object[] { GameTarget.PoE2 };
+        var corpus = RealCatalog.Corpus();
+        return (corpus, new PoeRegexCompiler(corpus), new Explainer(corpus));
     }
 
     private static List<string> ModIds(ExplainResult explained) => explained.Mods.Select(m => m.Id).ToList();
@@ -45,17 +38,16 @@ public class ReversibilityTests
     /// candidate set containing that mod. Skips pairs the compiler flags as
     /// unresolvable (their line has no distinguishing copy-text fragment).
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Games))]
-    public void EveryClassModPair_ReversesToSourceMod(GameTarget game)
+    [Fact]
+    public void EveryClassModPair_ReversesToSourceMod()
     {
-        var (corpus, compiler, explainer) = Create(game);
+        var (corpus, compiler, explainer) = Create();
         var checkedCount = 0;
         foreach (var mod in corpus.InGameMods)
         {
             foreach (var cls in mod.Classes.Where(corpus.IsInGameClass))
             {
-                var result = compiler.Compile(QuerySpecification.For(game) with
+                var result = compiler.Compile(new QuerySpecification
                 {
                     ItemClass = cls,
                     IncludedModifiers = [new ModifierRequirement(mod.Id)],
@@ -76,18 +68,17 @@ public class ReversibilityTests
     /// A sample of global (no-class) queries must reverse to a candidate set that
     /// includes the source mod across the union corpus.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Games))]
-    public void GlobalQueries_ReverseToSourceMod(GameTarget game)
+    [Fact]
+    public void GlobalQueries_ReverseToSourceMod()
     {
-        var (corpus, compiler, explainer) = Create(game);
+        var (corpus, compiler, explainer) = Create();
         var mods = corpus.InGameMods.Where(m => m.StatLines.Count > 0).ToList();
         var step = Math.Max(1, mods.Count / 60);
         var checkedCount = 0;
         for (var i = 0; i < mods.Count; i += step)
         {
             var mod = mods[i];
-            var result = compiler.Compile(QuerySpecification.For(game) with
+            var result = compiler.Compile(new QuerySpecification
             {
                 IncludedModifiers = [new ModifierRequirement(mod.Id)],
             });
@@ -107,11 +98,10 @@ public class ReversibilityTests
     /// reverse to a candidate set containing all three source mods (factored
     /// alternation and AND-intersection must not drop any source).
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Games))]
-    public void SeededMultiMod_AllSourcesReverse(GameTarget game)
+    [Fact]
+    public void SeededMultiMod_AllSourcesReverse()
     {
-        var (corpus, compiler, explainer) = Create(game);
+        var (corpus, compiler, explainer) = Create();
         var groups = corpus.InGameMods
             .SelectMany(m => m.Classes)
             .Where(corpus.IsInGameClass)
@@ -123,7 +113,7 @@ public class ReversibilityTests
             var candidates = corpus.InGameMods.Where(m => m.Classes.Contains(cls)).Take(3).ToList();
             if (candidates.Count < 3) continue;
 
-            var result = compiler.Compile(QuerySpecification.For(game) with
+            var result = compiler.Compile(new QuerySpecification
             {
                 ItemClass = cls,
                 IncludedModifiers = candidates.Select(m => new ModifierRequirement(m.Id)).ToList(),
@@ -144,11 +134,10 @@ public class ReversibilityTests
     /// includes the source mod; the digit-range pattern matches at least one real
     /// copy-text roll of the source line.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Games))]
-    public void Threshold_ReversesToSourceMod(GameTarget game)
+    [Fact]
+    public void Threshold_ReversesToSourceMod()
     {
-        var (corpus, compiler, explainer) = Create(game);
+        var (corpus, compiler, explainer) = Create();
         var mods = corpus.InGameMods
             .Where(m => m.Classes.Any(corpus.IsInGameClass) &&
                         m.StatLines.Any(sl => sl.Pattern.Contains((char)SuffixIndex.DigitPlaceholder) && sl.MinValue > 0))
@@ -160,7 +149,7 @@ public class ReversibilityTests
             var mod = mods[i];
             var min = (int)Math.Ceiling(mod.StatLines[0].MinValue);
             var cls = mod.Classes.First(corpus.IsInGameClass);
-            var result = compiler.Compile(QuerySpecification.For(game) with
+            var result = compiler.Compile(new QuerySpecification
             {
                 ItemClass = cls,
                 IncludedModifiers = [new ModifierRequirement(mod.Id, min)],
@@ -181,11 +170,10 @@ public class ReversibilityTests
     /// drop the excluded mod when the emitted exclusion term actually matches the
     /// excluded mod's copy text.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Games))]
-    public void Exclusions_KeepSourceAndDropExcluded(GameTarget game)
+    [Fact]
+    public void Exclusions_KeepSourceAndDropExcluded()
     {
-        var (corpus, compiler, explainer) = Create(game);
+        var (corpus, compiler, explainer) = Create();
         var mods = corpus.InGameMods.Where(m => m.Classes.Any(corpus.IsInGameClass)).ToList();
         var step = Math.Max(1, mods.Count / 60);
         var checkedCount = 0;
@@ -201,7 +189,7 @@ public class ReversibilityTests
             var sharesPattern = source.StatLines.Any(a => excluded.StatLines.Any(b => b.Pattern == a.Pattern));
             if (sharesPattern) continue;
 
-            var result = compiler.Compile(QuerySpecification.For(game) with
+            var result = compiler.Compile(new QuerySpecification
             {
                 ItemClass = cls,
                 IncludedModifiers = [new ModifierRequirement(source.Id)],

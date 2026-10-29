@@ -15,7 +15,7 @@ public class ExactSolverDifferentialTests
         {
             var path = Path.Combine(directory.FullName, "data", "catalogs", "poe2.catalog.json");
             if (File.Exists(path))
-                return new EngineCorpus(new FileCatalogSource(path).Load(GameTarget.PoE2));
+                return new EngineCorpus(new FileCatalogSource(path).Load());
             directory = directory.Parent;
         }
         throw new InvalidOperationException("repository root not found");
@@ -50,12 +50,12 @@ public class ExactSolverDifferentialTests
 
     private static ScopeCorpus MakeScope(string[] targets, string[] foreign)
     {
-        var lines = new List<CandidateReport.SourceLine>();
+        var lines = new List<SourceLine>();
         lines.AddRange(targets.Select(x =>
-            new CandidateReport.SourceLine("target", x)));
+            new SourceLine("target", x)));
         lines.AddRange(foreign.Select(x =>
-            new CandidateReport.SourceLine("foreign", x)));
-        return new ScopeCorpus(Corpus.Value, null, lines);
+            new SourceLine("foreign", x)));
+        return ScopeCorpus.FromLines(null, lines);
     }
 
     private static string? BruteForce(

@@ -2,23 +2,22 @@ using System.Text.Json;
 
 namespace PoeRegex.Core.Data;
 
-/// <summary>Loads a catalog from a JSON file on disk.</summary>
+/// <summary>Loads a PoE2 catalog from a JSON file on disk.</summary>
 public sealed class FileCatalogSource : ICatalogSource
 {
     private readonly string _path;
 
     public FileCatalogSource(string path) => _path = path;
 
-    public Catalog Load(GameTarget game)
+    public Catalog Load()
     {
-        var path = _path.Replace("{game}", game.ToRuleKey());
-        if (!File.Exists(path))
+        if (!File.Exists(_path))
         {
-            throw new FileNotFoundException($"Catalog not found: {path}", path);
+            throw new FileNotFoundException($"Catalog not found: {_path}", _path);
         }
 
-        using var stream = File.OpenRead(path);
+        using var stream = File.OpenRead(_path);
         return JsonSerializer.Deserialize(stream, CatalogJsonContext.Default.Catalog)
-               ?? throw new InvalidDataException($"Catalog at {path} is empty.");
+               ?? throw new InvalidDataException($"Catalog at {_path} is empty.");
     }
 }

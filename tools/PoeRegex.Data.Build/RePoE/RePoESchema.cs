@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace PoeRegex.Data.Build.RePoE;
 
-/// <summary>Raw RePoE export schema types (poe1 monolithic + poe2 per-file formats).</summary>
+/// <summary>Raw RePoE PoE2 export schema types (per-file formats).</summary>
 public static class RePoESchema
 {
     // ---- stat_value_handlers.json ----
@@ -18,7 +18,7 @@ public static class RePoESchema
         [JsonPropertyName("values")] public Dictionary<string, string>? Values { get; init; }
     }
 
-    // ---- stat_translations.json (poe1) / *_stat_descriptions.json (poe2) ----
+    // ---- *_stat_descriptions.json (PoE2) ----
     public sealed class StatTranslationEntry
     {
         [JsonPropertyName("English")] public required List<TranslationVariant> English { get; init; }

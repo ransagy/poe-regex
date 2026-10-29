@@ -1,108 +1,149 @@
-# Path of Exile Regex Compiler Engine — Design Specification
+# Poe2 Regex Compiler Engine — Design Specification
 
 **Target stack:** .NET 10 (LTS), pure-BCL core (WASM-safe), CLI-first.
-**License:** MIT (project); third-party components are all MIT or Apache-2.0 (see `NOTICE`). Catalog data is a derived subset of GGG-owned game data extracted by RePoE — see `PROVENANCE.md`.
-**Scope:** English client only. v0.1 = engine + CLI + test suite. The web reference implementation ("Renly's Recipes") lives in `web/`, documented in `WEB-APP-PLAN.md` and `DEPLOYING-WEB.md`.
+**License:** MIT (project); third-party components are all MIT or Apache-2.0
+(see `NOTICE`). Catalog data is a derived subset of GGG-owned game data
+extracted by RePoE — see `PROVENANCE.md`.
+**Scope:** English client, PoE2 only. The web reference implementation
+("Renly's Recipes") lives in `web/`, documented in `WEB-APP-PLAN.md` and
+`DEPLOYING-WEB.md`.
 
 ---
 
 ## 1. Data & Licensing Policy
 
-- **Upstream:** `repoe-fork/repoe` gh-pages exports — PoE 1 at root, PoE 2 under `/poe2`. The exports carry no version field; the catalog records the fetch date as `DataVersion`. Re-fetching is a repeatable build step (`PoeRegex.Data.Build`), designed so league patches re-source cleanly. Full lineage and refresh procedure: [`PROVENANCE.md`](PROVENANCE.md).
-- **Distribution:** only **derived catalogs** ship (human-readable mod-text lines + precomputed fingerprints). Raw RePoE JSON is dev-only and gitignored. RePoE's license states that generated data files are owned by GGG and must be used per GGG's terms; the repo ships attribution and trademark/affiliation disclaimers in `NOTICE` and records the exact subset in `PROVENANCE.md`.
-- RePoE data files are GGG-owned per RePoE's `LICENSE.md`; the project deliberately distributes the minimal derived subset (short factual text + fingerprints) rather than raw extracted data.
-- **Grammar/validation sources:** the trade-search regex grammar is treated as a *functional fact* of GGG's trade sites and is described in our own words only. No content (prose, example query strings, or snippets) is reproduced from community wikis, forums, subreddits, or guide sites. In particular: poewiki/poe2wiki content is **CC BY-NC-SA 3.0** (non-commercial + share-alike, incompatible with this MIT repo) and poe.re/poe2.re publish without a license — both are consulted at most for factual understanding by humans and never copied. Reddit threads and Maxroll/Mobalytics are treated as all-rights-reserved and unused. All query→expected-string test cases are self-authored, modeled on functional behavior.
-- **Why self-authored fixtures are sufficient:** trade-search query strings are *functional optima*. The shortest unique fragment for a given mod line is dictated by the catalog data, not by creative authorship, so any correct implementation converges on the same output. Self-authored fixtures therefore naturally match what community tooling produces (independent creation, not reproduction), without copying anyone's expression.
-- **Community contributions are welcome and covered:** direct contributions — new test cases, corrected cases, or bug reports of wrong output — come in via pull requests and are licensed in-bound under this project's MIT license. This is a permissive, standard inbound-licensing arrangement; contributors do not need a separate license grant. See `CONTRIBUTING.md` for how to add cases.
+- **Upstream:** `repoe-fork/repoe` PoE2 exports under `/poe2`. The exports
+  carry no version field; the catalog records the fetch date as `DataVersion`.
+  Re-fetching is a repeatable build step, designed so league patches re-source
+  cleanly. Full lineage and refresh procedure: `PROVENANCE.md`.
+- **Distribution:** only **derived catalogs** ship (human-readable mod-text
+  lines + precomputed fingerprints). Raw RePoE JSON is dev-only and
+  gitignored. RePoE's license states that generated data files are owned by
+  GGG and must be used per GGG's terms; the repo ships attribution and
+  trademark/affiliation disclaimers in `NOTICE` and records the exact subset
+  in `PROVENANCE.md`.
+- **Grammar/validation sources:** the search grammar is treated as a
+  functional fact of the game and described in our own words. No prose,
+  example query strings, or snippets are reproduced from community wikis,
+  forums, subreddits, or guide sites.
+- **Why self-authored fixtures are sufficient:** the shortest unique fragment
+  for a line is dictated by the catalog data, not creative authorship, so any
+  correct implementation converges on the same functional output.
 
 ## 2. Repository Layout
 
-```
+```text
 poe-regex/
   PoeRegex.slnx
   src/
-    PoeRegex.Core/                 # engine, grammar, compaction, catalogs (net10.0, BCL-only)
-    PoeRegex.Cli/                  # interactive + batch (net10.0)
-    PoeRegex.Web.Core/             # browser-facing services (net10.0, AOT-compatible)
+    PoeRegex.Core/                 # engine, exact table lookup, assembly
+    PoeRegex.Cli/                  # interactive + batch
+    PoeRegex.Web.Core/             # browser-facing services
   tools/
-    PoeRegex.Data.Build/           # dev-time ingestion + fingerprint builder (net10.0)
+    PoeRegex.Data.Build/           # ingestion + exact solver + artifacts
   tests/
     PoeRegex.Core.Tests/
     PoeRegex.Data.Build.Tests/
     PoeRegex.Web.Tests/
   data/
     raw/                           # gitignored RePoE downloads
-    catalogs/                      # checked-in, versioned: poe1.catalog.json, poe2.catalog.json
-  web/                             # "Renly's Recipes" Blazor WASM workbench
+    catalogs/                      # checked-in PoE2 catalog, vendor corpus,
+                                   # safety fixtures, exact fragment table
+  web/                             # "Renly's Recipes" Blazor WASM
   docs/
-    DESIGN.md
-    BUILDING.md
-    DEPLOYING-WEB.md
-    PROVENANCE.md
-    USING-THE-ENGINE.md
-    WEB-APP-PLAN.md
-  NOTICE
-  LICENSE
-  README.md
 ```
-
-For consuming `PoeRegex.Core` as a library in your own project, see
-[`USING-THE-ENGINE.md`](USING-THE-ENGINE.md); for publishing the CLI, see
-[`BUILDING.md`](BUILDING.md).
 
 ## 3. Data Pipeline (`tools/PoeRegex.Data.Build`, dev-time)
 
-1. **Fetch** pinned `.min.json` files per game: `mods.json`, `stat_translations.json`, `stat_value_handlers.json`, `stats.json`, `base_items.json`, `item_classes.json`, `mods_by_base.json`. Deterministic, versioned; skips download if already cached at pinned version.
-2. **Render mod text:** for each mod (explicit/prefix/suffix generation types), for each stat entry `(id, min, max)`: resolve the stat's translation template by index shape, apply `index_handlers` (e.g. MultiplyByHundred) and numeric formatting → one copy-text line per stat. Multi-stat mods render multiple lines.
-3. **Corpus construction:** via `mods_by_base.json` + `base_items.json`, map mods → item class → their renderable lines. Class corpus = distinct mod lines for that class (digit-runs normalized) + the `Item Class: X` line. PoE 1 and PoE 2 corpora are never mixed.
-4. **Fingerprinting:** shortest-unique-substring per line within its class corpus; class-line fingerprints computed over the union of class lines to avoid cross-class collisions. Digit-runs are treated as a single value token so fingerprints stay value-agnostic across tiers.
-5. **Emit catalog:** compact JSON with `game`, `dataVersion`, `itemClasses`, `mods`, `statLines`. No raw game data. The catalog is the only game-data artifact the engine consumes, so upstream schema changes affect only the build tool, not the engine.
+1. **Fetch** the PoE2 `.min.json` exports: `mods`, `base_items`,
+   `item_classes`, `mods_by_base`, `stat_value_handlers`, and the
+   `stat_translations/*` descriptions.
+2. **Render mod text:** resolve each stat translation, apply index handlers
+   and numeric formatting, and emit one copy-text line per stat. Multi-stat
+   mods render multiple lines.
+3. **Corpus construction:** map mods to item classes, build the catalog, and
+   build the vendor/stash line corpus (regular, corrupted, essence, crafted,
+   implicit, base properties, captions, requirements, sockets, usage).
+4. **Exact solve:** for every pattern/scope, search the G1 grammar over the
+   target and foreign lines and return the shortest legal quoted term.
+5. **Emit artifacts:** catalog, vendor corpus, exact fragment table, review
+   matrix, exact proof, and status.
+6. **Ship only derived data:** no raw RePoE JSON is committed.
+
+The exact solver is a product-state NFA search with a counterexample-guided
+outer loop. It runs at data-build time, never in the browser.
 
 ## 4. Core Domain (`src/PoeRegex.Core`)
 
-- `GameTarget { PoE1, PoE2 }`
-- `GameRules` (per game, from an embedded `rules.json` with an **optional on-disk override** so regex/limit rules can be updated without a recompile): `MaxCharacterLimit` (default 250 both), `SupportsLookahead` (PoE2 true, PoE1 false), `RequireQuotedBlocks` (true both), `SupportsModNameAnchors` (feature flag, off until in-game verified), `CustomKeywords` (`ilvl:`, `str:`, `dex:`, `int:` with spacing rules), `SocketSyntax`.
-- `QuerySpecification { GameTarget, ItemClass?, IncludedModifiers, ExcludedModifiers, Keywords, AllowOverflow }` where each modifier requirement is either a catalog `ModId` or free text, optionally with `MinValue`.
-- `ICompilerStrategy`: `Compile(spec, corpus)`, `ValidateFragment`, `FormatExclusion`, `GameRules`. Implemented by `PathOfExileOneStrategy` / `PathOfExileTwoStrategy`.
-- `PoeRegexCompiler` facade → `CompileResult { Query, Length, Limit, Diagnostics, Exceeded }`. Throws `RegexLengthOverflowException` unless `AllowOverflow = true` (then best-effort with a diagnostic).
-- Engine depends only on an `ICatalogSource` abstraction (file path in CLI; embedded resource in a future WASM build). No platform APIs, no filesystem access inside the engine beyond the injected source.
+- `Catalog`, `ModEntry`, `StatLineEntry`, `ItemClassEntry`.
+- `EngineCorpus` loads the embedded catalog and exact `FragmentTable`.
+  It exposes table lookup, class anchors, explain/matching lines, and
+  threshold validation. It does not search for fragments.
+- `Poe2Syntax` owns the query dialect: quoted terms, `!` exclusions, the
+  250-character limit, custom keywords, escaping, and `\b` validation.
+- `QuerySpecification { ItemClass?, IncludedModifiers, ExcludedModifiers,
+  Keywords, AllowOverflow }`; each modifier is a catalog mod id or free text,
+  optionally with `MinValue`.
+- `PoeRegexCompiler(corpus)` composes a query from table lookups and
+  threshold patterns. `PasteComposer(corpus)` composes multi-slot pastes.
+- `CompileResult { Query, Length, Limit, Diagnostics, Exceeded }`.
+  `RegexLengthOverflowException` is thrown unless `AllowOverflow = true`.
+- `ICatalogSource` abstracts the catalog source; `EmbeddedCatalogSource` is
+  the shipped path, `FileCatalogSource` is for tools/tests.
+- Missing or stale table entries produce `unresolved-modifier` diagnostics;
+  there is no live heuristic fallback.
 
 ## 5. Grammar & Assembly
 
-- **Shared base (both games):** literals, `|`, `+ * ? {m,n}`, `[a-z]`/`[0-9]`, `.`, `^`/`$` (per-line anchors), `\d \w \s`, `( )`, case-insensitive per-line matching.
-- **PoE 2 (functional behavior of the trade site):** quoted-block AND `"A" "B"`, `!` negation as its own quoted block, lookaheads `(?=...)`/`(?!...)` supported, custom keywords.
-- **Validation:** per-game tokenizer accepts the supported set; unsupported constructs (lookahead in PoE 1, `\b` everywhere) produce a diagnostic warning — the engine never emits them and never claims they "crash" the game.
-- **Assembly rules:** one quoted block with `|` alternation over included-mod patterns; separate quoted blocks for exclusions (`!"term"`), the class fingerprint, and keywords, joined by spaces (quoted-blocks-separated-by-spaces = AND). Deterministic ordering everywhere.
-- Unquoted spaces inside a quote are literal; they are NOT implicit AND separators.
+- **G1 fragment grammar:** literal pieces at any position, zero to three
+  wildcards (`.`, `.*`, `.+`), optional `^`/`$`, and optional leading
+  `\d`/`\d+`. No lookahead, character classes, alternation, or backreferences.
+- **Semantics:** one quoted term is line-local; matching is case-insensitive.
+- **Assembly:** class anchor first (when present), one quoted block with `|`
+  alternation over included fragments, separate `!"term"` exclusion blocks,
+  and quoted keyword blocks, joined by spaces. Spaces inside a quote are
+  literal; unquoted whitespace separates ANDed blocks.
+- **Exactness:** the table is the only source of stat fragments. Each entry
+  was proven shortest for its scope under G1 against the modeled corpus and
+  safety fixtures.
 
-## 6. Compaction Engine (corpus-backed)
+## 6. Compaction Engine
 
-- Select the shortest unique fingerprint per selected mod from the catalog; `MinValue` → digit-range pattern from the mod's value span, re-validated for uniqueness.
-- Common-prefix factorization via trie (`m(ana|ax)` style) to reduce length.
-- Vowel-stripping heuristic gated by the uniqueness oracle, **off by default** (correctness first).
-- **False-positive oracle:** every emitted fragment is asserted to match no other line in the scope. The scope is the line-scoped vendor/stash corpus (regular/corrupted/essence/crafted/implicit mods, base item text, affix captions, and universal lines); unique-only text, flavour, and rare names are excluded and reported as unmodeled. Property tests enforce the modeled checks over both catalogs.
-- Output is fully deterministic (stable for tests and reproducible builds).
+- Table lookup per stat line; choose the shortest table form across a hybrid
+  mod's lines and between class/global scopes.
+- `MinValue` builds a digit-range alternation from the catalog value span and
+  re-validates it against real display shapes.
+- Common-prefix factorization via a trie reduces multi-mod alternations.
+- Output is deterministic.
+- The proof boundary: exact table forms are line-local and strict; unmodeled
+  unique/socketable/base text remains outside the safety corpus.
 
 ## 7. CLI (`src/PoeRegex.Cli`)
 
-- Bare run → interactive: pick game → class → searchable mod list → thresholds → exclusions → output query + `n/250` meter.
-- Batch: `generate --game poe2 --catalog <path> --class Helmets --include "to maximum life" --min "increased rarity:30" --exclude "reflect" --ilvl 60 [--clipboard] [--json]`
-- Support: `list-classes`, `list-mods --class X`, `validate --game X --query "..."`.
-- All commands accept `--json`: exactly one JSON document on stdout, diagnostics/errors on stderr — the cross-language subprocess contract (see `USING-THE-ENGINE.md` §12). JSON is source-generated (AOT-safe) and byte-identical between JIT and Native AOT builds; the CI smoke test asserts it parses on every platform.
-- Clipboard via TextCopy (cross-platform). Exit codes 0/1/2.
+- Bare run → interactive PoE2 flow: class → mods → thresholds → exclusions →
+  query + `n/250` meter.
+- Batch:
+  `generate --class Helmet --include "to maximum life" --min "increased rarity:30" --exclude reflect --ilvl 60 [--clipboard] [--json]`
+- Support: `list-classes`, `list-mods --class X`, `validate --query "..."`,
+  `explain --class X --query "..."`.
+- All commands accept `--json`: one JSON document on stdout, diagnostics on
+  stderr. JSON is source-generated and AOT-safe.
+- Clipboard via TextCopy. Exit codes 0/1/2.
 
-## 8. Test Suite (xUnit + Awesome Assertions)
+## 8. Test Suite
 
-- **Grammar/validation:** per-game accept/reject matrices; assembly determinism.
-- **Length enforcement:** injected `GameRules` (limit 50 → overflow; 250 → passes).
-- **Compaction:** no-false-positive property tests over catalog fixtures; threshold pattern correctness; deterministic output.
-- **Data build:** fixture RePoE JSONs → expected rendered lines (number formatting, handlers), fingerprint correctness.
-- **Integration:** self-authored query→expected-string cases modeling functional trade-site behavior (no third-party example text).
-- Golden-corpus validation against real in-game copy-text is a post-v0.1 item (v0.1 uses synthetic text synthesized from RePoE data).
+- Grammar/query-shape validation.
+- Length enforcement and overflow behavior.
+- Exact table coverage, recall, zero foreign matches, and safety fixtures.
+- Exact solver known-form and differential tests.
+- Compiler/paste determinism, thresholds, exclusions, and explain
+  reversibility.
+- Web service and item-import/matching tests.
+- CI also re-runs the exact matrix proof.
 
-## 9. Non-blocking "verify during implementation" items
+## 9. Future Profiles
 
-- PoE 1 advanced copy including mod names on mod lines (gates `SupportsModNameAnchors`).
-- PoE 1 multi-quoted-block AND behavior (to be verified against the game itself).
-- Exact `stat_value_handlers` formatting edge cases (percent, fractions, rounding) — covered by fixture tests.
-- PoE 2 `ilvl:`/`str:` spacing rules (to be verified against the game itself).
+PoE1 is out of scope for now. If it returns, it is a separate grammar/query
+profile with its own catalog, table, proof, and status. The fragment solver
+stays game-agnostic; only the profile and query composer change. PoE1 does not
+reuse the old heuristic selector.

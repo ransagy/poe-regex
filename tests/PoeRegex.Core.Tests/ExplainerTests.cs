@@ -9,7 +9,7 @@ public class ExplainerTests
 {
     private static (EngineCorpus Corpus, Explainer Explainer) Create()
     {
-        var corpus = new EngineCorpus(TestCatalog.Build());
+        var corpus = TestCatalog.Corpus();
         return (corpus, new Explainer(corpus));
     }
 

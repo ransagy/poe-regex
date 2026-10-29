@@ -165,6 +165,10 @@
                 title="Destructive: clears every slot's class and mods plus the backpack lab"
                 @onclick="ResetWorkbench">reset workbench</button>
         <div class="adv-meta">
+            <span class="hint" id="data-stamp"
+                  title="catalog data version and exact table status">
+                data: @Engine.DataVersion @(Engine.DataReady ? "· exact table" : "· table missing")
+            </span>
             <BuildStamp />
             <span class="legal-links">
                 <a href="license.txt" target="_blank" rel="noopener noreferrer">license</a>

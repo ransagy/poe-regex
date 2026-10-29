@@ -1,36 +1,32 @@
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 
 namespace PoeRegex.Data.Build;
 
 /// <summary>
-/// Read-only status report for the reviewed matrix artifact and the shipped
-/// table. It makes build provenance and bound-limited scopes visible without
-/// changing either artifact.
+/// Read-only status report for the exact matrix, proof, and shipped table.
 /// </summary>
 public static class BuildStatus
 {
     public static int Run(string[] args)
     {
         var opts = ParseOptions(args);
-        var gameName = GetValue(opts, "--game", "poe2");
-        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
-        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
-        var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
-        var tablePath = GetValue(opts, "--table", $"data/catalogs/{gameName}.fragments.json");
+        var catalogPath = GetValue(opts, "--catalog", "data/catalogs/poe2.catalog.json");
+        var matrixPath = GetValue(opts, "--matrix", "docs/CANDIDATE-MATRIX-poe2.html");
+        var tablePath = GetValue(opts, "--table", "data/catalogs/poe2.fragments.json");
         var outPath = GetValue(opts, "--out", "");
-        var proofPath = GetValue(opts, "--proof", $"docs/CANDIDATE-PROOF-{gameName}.json");
+        var proofPath = GetValue(opts, "--proof", "docs/CANDIDATE-PROOF-poe2.json");
         var check = opts.ContainsKey("--check");
 
-        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var catalog = new FileCatalogSource(catalogPath).Load();
         var table = JsonSerializer.Deserialize<FragmentTable>(
             File.ReadAllText(tablePath),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException($"could not read table {tablePath}");
+        var matrixHash = Hash(matrixPath);
         var html = File.ReadAllText(matrixPath);
         const string marker = "window.MATRIX = ";
         var start = html.IndexOf(marker, StringComparison.Ordinal);
@@ -64,7 +60,7 @@ public static class BuildStatus
                     coverage[key] = coverage.GetValueOrDefault(key) + 1;
                     var bound = scope.TryGetProperty("bound", out var boundNode)
                         ? boundNode.GetInt32()
-                        : 10;
+                        : 250;
                     bounds[bound] = bounds.GetValueOrDefault(bound) + 1;
                     if (!string.Equals(cov, "current-only", StringComparison.Ordinal)) continue;
 
@@ -78,7 +74,7 @@ public static class BuildStatus
                     longCurrentOnly.Add(new
                     {
                         family = familyKey,
-                        pattern = pattern.Replace('\u0001', '#'),
+                        pattern = pattern.Replace('#', '\u0001').Replace('\u0001', '#'),
                         kind,
                         classes = scope.GetProperty("classes")
                             .EnumerateArray().Select(x => x.GetString()).ToArray(),
@@ -108,12 +104,17 @@ public static class BuildStatus
             var proofGrammar = root.TryGetProperty("grammarVersion", out var proofGrammarNode)
                 ? proofGrammarNode.GetString()
                 : null;
+            var proofHash = root.TryGetProperty("matrixSha256", out var proofHashNode)
+                ? proofHashNode.GetString()
+                : null;
             proven = failed == 0 && checkedScopes == workScopes && workScopes > 0 &&
-                      string.Equals(proofGrammar, "quoted-shortest-v1", StringComparison.Ordinal);
+                      string.Equals(proofGrammar, "quoted-shortest-v1", StringComparison.Ordinal) &&
+                      string.Equals(proofHash, matrixHash, StringComparison.Ordinal);
             proof = new
             {
                 path = proofPath,
                 grammarVersion = proofGrammar,
+                matrixSha256 = proofHash,
                 checkedScopes,
                 workScopes,
                 failed,
@@ -133,10 +134,10 @@ public static class BuildStatus
 
         var report = new
         {
-            game = catalog.Game,
+            game = "poe2",
             dataVersion = catalog.DataVersion,
             grammarVersion = "quoted-shortest-v1",
-            oracleVersion = "indexed-term-v1",
+            oracleVersion = "exact-term-v1",
             generatedAt = DateTimeOffset.UtcNow.ToString("u"),
             matrixGenerated = matrix.RootElement.TryGetProperty("generated", out var generated)
                 ? generated.GetString()
@@ -211,6 +212,11 @@ public static class BuildStatus
                 $"matrix-status: {longCurrentOnly.Count} bound-limited current-only scope(s)");
             return 1;
         }
+        if (opts.ContainsKey("--check-shortest") && !proven)
+        {
+            Console.Error.WriteLine("matrix-status: proof is missing, stale, or not proven");
+            return 1;
+        }
         return 0;
     }
 
@@ -224,6 +230,9 @@ public static class BuildStatus
             sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
         };
     }
+
+    private static string Hash(string path) =>
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
     private static Dictionary<string, string> ParseOptions(string[] args)
     {

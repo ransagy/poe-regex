@@ -25,8 +25,7 @@ public static class SafetyItemCorpus
     private static readonly Lazy<IReadOnlyList<SafetyItem>> Poe2 =
         new(() => Load("PoeRegex.Core.catalogs.poe2.safety-items.txt"));
 
-    public static IReadOnlyList<SafetyItem> For(string game) =>
-        game == "poe2" ? Poe2.Value : [];
+    public static IReadOnlyList<SafetyItem> ForCurrentGame => Poe2.Value;
 
     /// <summary>Parses item blocks; the class display name is resolved by the caller's catalog.</summary>
     public static IReadOnlyList<RawSafetyItem> Parse(string text)

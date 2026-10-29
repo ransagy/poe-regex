@@ -28,18 +28,20 @@ result to a fixed point.
 ## Artifact coverage
 
 ```text
-182 families · 606 scopes · 0 unresolved
-bounds: 250 (606)
+182 families · 600 scopes · 0 unresolved
+bounds: 250 (600)
 ```
 
 | Scope | Strict | Minion | Current-only |
 |---|---:|---:|---:|
-| Global | 104 | 0 | 117 |
-| Class | 75 | 0 | 185 |
-| Per-class | 29 | 0 | 96 |
+| Global | 0 | 0 | 221 |
+| Class | 0 | 0 | 253 |
+| Per-class | 0 | 0 | 126 |
 
-There are **0 bound-limited scopes**. The 398 `current-only` scopes are
-within the exact search bound.
+There are **0 bound-limited scopes**. All 600 rows are the exact current
+table; the seeded matrix keeps an already-proven equal-length form, so every
+row is marked `current-only`. The proof independently checks every expanded
+scope for a shorter candidate.
 
 ## Applied table
 
@@ -106,11 +108,11 @@ unique/socketable/base text.
 The post-patch independence run used the exact solver with no table seed:
 
 ```bash
-dotnet ... matrix-solve --game poe2 --from-scratch --jobs 4
+dotnet ... matrix-solve --from-scratch --jobs 4
 ```
 
 ```text
-runtime: 101s
+runtime: 95s
 matrix:  182 families · 607 rows · 892 expanded scopes
 table:   136 global · 21 classes · 525 class fragments
 proof:   892 / 892 · 0 failures
@@ -123,7 +125,7 @@ Compared with the shipped artifacts:
 - Table: 136/21/525 in both.
 - 376 table entries differ only at equal length: 201 case-only and 175
   same-length shape ties.
-- The seeded matrix has 606 rows; the from-scratch matrix has 607. The
+- The seeded matrix has 600 rows; the from-scratch matrix has 607. The
   difference is row grouping; both expand to the same 892 scopes.
 
 The differences are tie-breaks, not coverage or length regressions. The
@@ -247,16 +249,9 @@ policy exception can reintroduce them without changing the basis.
 
 ## Optional changed-form checks
 
-The data and exact grammar proof are authoritative. Optional confidence
-sheets can be generated from the table:
-
-```bash
-dotnet ... matrix-tests --game poe2 --out tests.md
-```
-
-No random in-game item sampling is required for the guarantee. A future
-grammar profile that adds a new regex construct needs a one-time conformance
-test for that construct.
+The data and exact grammar proof are authoritative. No random in-game item
+sampling is required for the guarantee. A future grammar profile that adds a
+new regex construct needs a one-time conformance test for that construct.
 
 ## Import search
 
@@ -269,10 +264,10 @@ and broad stat words, so importer semantics remain a separate follow-up.
 The current pipeline is one command with `--jobs 4`:
 
 ```text
-matrix-solve (seeded):        ~72s
-matrix-solve (from scratch):  ~101s
-exact proof:                  ~41s
+matrix-solve (seeded):        ~66s
+matrix-solve (from scratch):  ~95s
+exact proof:                  ~34s
 ```
 
-The full applier is `matrix-apply`; `matrix-proof` still supports `--shard`
-and `--merge` for manual sharding.
+`matrix-solve` is the one pipeline; `matrix-proof` re-checks the committed
+matrix without writing the table.

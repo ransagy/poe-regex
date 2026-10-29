@@ -1,17 +1,14 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json;
-using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 
 namespace PoeRegex.Data.Build;
 
 /// <summary>
-/// Re-checks every chosen matrix scope against the current candidate grammar
-/// and proves that no shorter Strict/Minion-only candidate exists in that
-/// grammar. This is the build-side proof step; it never writes the shipped
-/// table.
+/// Re-checks every chosen matrix scope against the exact G1 solver and proves
+/// that no shorter legal form exists. This step never writes the shipped table.
 /// </summary>
 public static class MatrixProof
 {
@@ -19,16 +16,13 @@ public static class MatrixProof
         string Family, string Pattern, string? ClassId, string ScopeLabel, string Chosen);
 
     private sealed record Failure(
-        string Family, string Pattern, string Scope, string Chosen, string Shorter,
-        int Length, string Profile, int ForeignMinion, int ForeignOther);
+        string Family, string Pattern, string Scope, string Chosen, string Shorter, int Length);
 
     public static int Run(string[] args)
     {
         var opts = ParseOptions(args);
-        var gameName = GetValue(opts, "--game", "poe2");
-        var game = gameName == "poe1" ? GameTarget.PoE1 : GameTarget.PoE2;
-        var catalogPath = GetValue(opts, "--catalog", $"data/catalogs/{gameName}.catalog.json");
-        var matrixPath = GetValue(opts, "--matrix", $"docs/CANDIDATE-MATRIX-{gameName}.html");
+        var catalogPath = GetValue(opts, "--catalog", "data/catalogs/poe2.catalog.json");
+        var matrixPath = GetValue(opts, "--matrix", "docs/CANDIDATE-MATRIX-poe2.html");
         var outPath = GetValue(opts, "--out", "");
         var familyFilter = GetValue(opts, "--family", "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -37,15 +31,10 @@ public static class MatrixProof
                    requestedJobs > 0
             ? requestedJobs
             : Environment.ProcessorCount;
-        var shard = ParseShard(GetValue(opts, "--shard", ""));
         var minGlobal = int.TryParse(GetValue(opts, "--min-global", "3"), out var mg) ? mg : 3;
         var minClass = int.TryParse(GetValue(opts, "--min-class", "2"), out var mc) ? mc : 2;
-        var exact = opts.ContainsKey("--exact");
-        var mergeFiles = GetValue(opts, "--merge", "");
-        if (mergeFiles.Length > 0)
-            return MergeProofs(mergeFiles, matrixPath, outPath, opts.ContainsKey("--check"));
 
-        var catalog = new FileCatalogSource(catalogPath).Load(game);
+        var catalog = new FileCatalogSource(catalogPath).Load();
         var corpus = new EngineCorpus(catalog);
         var html = File.ReadAllText(matrixPath);
         const string marker = "window.MATRIX = ";
@@ -89,13 +78,8 @@ public static class MatrixProof
             }
         }
 
-        if (shard is { } shardInfo)
-            work = work.Where((_, index) => index % shardInfo.Count == shardInfo.Index).ToList();
-
         var failures = new ConcurrentBag<Failure>();
         var checkedCount = 0;
-        var missing = 0;
-        var policyExcluded = 0;
         var completed = 0;
         Parallel.ForEach(work, new ParallelOptions
         {
@@ -107,48 +91,24 @@ public static class MatrixProof
             if (progress % 50 == 0)
                 Console.Error.WriteLine($"  proof progress {progress}/{work.Count}");
             var scopeCorpus = ScopeCorpus.Build(corpus, item.ClassId);
-            var chosenOption = CandidateEvaluator.EvaluateFragment(
-                scopeCorpus, item.Pattern, item.Chosen);
-            if (chosenOption is null ||
-                (exact ? chosenOption.ForeignLines > 0 : chosenOption.ForeignOtherLines > 0))
+            var chosenOption = ExactOracle.Check(scopeCorpus, item.Pattern, item.Chosen);
+            if (chosenOption is null || chosenOption.ForeignLines > 0)
             {
-                Interlocked.Increment(ref missing);
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
-                    "chosen fragment is not clean", item.Chosen.Length,
-                    "none", 0, 0));
+                    "chosen fragment is not strict", item.Chosen.Length));
                 return;
             }
 
-            CandidateReport.Option? legal;
-            if (exact)
-            {
-                legal = CandidateEvaluator.SolveExact(
-                    scopeCorpus, item.Pattern,
-                    item.ClassId is null ? minGlobal : minClass,
-                    Math.Max(0, item.Chosen.Length - 1));
-            }
-            else
-            {
-                var shorter = CandidateEvaluator.EvaluateTop(
-                    scopeCorpus, item.Pattern, current: null,
-                    maxLength: Math.Max(0, item.Chosen.Length - 1), top: 1,
-                    includeTwoWildcards: true, includeDeepPhrases: true);
-                legal = shorter.Strict.FirstOrDefault() ?? shorter.Minion.FirstOrDefault();
-            }
+            var minimum = item.ClassId is null ? minGlobal : minClass;
+            var legal = ExactOracle.Solve(
+                scopeCorpus, item.Pattern, minimum,
+                Math.Max(0, item.Chosen.Length - 1));
             if (legal is not null)
             {
-                var minimum = item.ClassId is null ? minGlobal : minClass;
-                if (legal.Length < minimum)
-                {
-                    Interlocked.Increment(ref policyExcluded);
-                    return;
-                }
                 failures.Add(new Failure(
                     item.Family, item.Pattern, item.ScopeLabel, item.Chosen,
-                    legal.Fragment, legal.Length,
-                    "strict",
-                    legal.ForeignMinionLines, legal.ForeignOtherLines));
+                    legal.Fragment, legal.Length));
             }
         });
 
@@ -173,8 +133,6 @@ public static class MatrixProof
                 .ToArray(),
             proven = checkedCount - orderedFailures.Count,
             failed = orderedFailures.Count,
-            missingChosen = missing,
-            policyExcluded,
             failures = orderedFailures,
             status = orderedFailures.Count == 0 ? "proven-in-grammar" : "shorter-candidate-found",
         };
@@ -202,109 +160,8 @@ public static class MatrixProof
         return 0;
     }
 
-    private static int MergeProofs(
-        string files, string matrixPath, string outPath, bool check)
-    {
-        var paths = files.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var documents = new List<JsonDocument>();
-        try
-        {
-            var expectedHash = Hash(matrixPath);
-            var grammar = "quoted-shortest-v1";
-            var dataVersion = "";
-            var game = "poe2";
-            var checkedScopes = 0;
-            var workScopes = 0;
-            var failed = 0;
-            var policyExcluded = 0;
-            var failures = new List<JsonElement>();
-            var shards = 0;
-            foreach (var path in paths)
-            {
-                if (!File.Exists(path))
-                    throw new FileNotFoundException("proof shard not found", path);
-                var doc = JsonDocument.Parse(File.ReadAllText(path));
-                documents.Add(doc);
-                var root = doc.RootElement;
-                shards++;
-                var hash = root.GetProperty("matrixSha256").GetString();
-                if (!string.Equals(hash, expectedHash, StringComparison.Ordinal))
-                    throw new InvalidOperationException(
-                        $"proof shard '{path}' was built from a different matrix");
-                var shardGrammar = root.GetProperty("grammarVersion").GetString();
-                if (!string.Equals(grammar, shardGrammar, StringComparison.Ordinal))
-                    throw new InvalidOperationException(
-                        $"proof shard '{path}' uses grammar '{shardGrammar}', expected '{grammar}'");
-                dataVersion = root.GetProperty("dataVersion").GetString() ?? dataVersion;
-                game = root.GetProperty("game").GetString() ?? game;
-                checkedScopes += root.GetProperty("checkedScopes").GetInt32();
-                workScopes += root.GetProperty("workScopes").GetInt32();
-                failed += root.GetProperty("failed").GetInt32();
-                if (root.TryGetProperty("policyExcluded", out var excludedNode))
-                    policyExcluded += excludedNode.GetInt32();
-                foreach (var failure in root.GetProperty("failures").EnumerateArray())
-                    failures.Add(failure.Clone());
-            }
-
-            var proven = failed == 0 && checkedScopes == workScopes && workScopes > 0;
-            var report = new
-            {
-                game,
-                dataVersion,
-                grammarVersion = grammar,
-                generatedAt = DateTimeOffset.UtcNow.ToString("u"),
-                matrix = Path.GetFileName(matrixPath),
-                matrixSha256 = expectedHash,
-                shards,
-                checkedScopes,
-                workScopes,
-                proven = checkedScopes - failed,
-                failed,
-                policyExcluded,
-                failures,
-                status = proven ? "proven-in-grammar" : "shorter-candidate-found",
-            };
-            var json = JsonSerializer.Serialize(report, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            });
-            if (outPath.Length > 0)
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-                File.WriteAllText(outPath, json);
-                Console.WriteLine(
-                    $"matrix-proof: merged {shards} shards, {checkedScopes}/{workScopes} checked, " +
-                    $"{failed} failure(s) -> {outPath}");
-            }
-            else
-            {
-                Console.WriteLine(json);
-            }
-            if (check && !proven) return 1;
-            return 0;
-        }
-        finally
-        {
-            foreach (var document in documents) document.Dispose();
-        }
-    }
-
     private static string Hash(string path) =>
         Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
-
-    private static (int Index, int Count)? ParseShard(string value)
-    {
-        if (value.Length == 0) return null;
-        var parts = value.Split('/');
-        if (parts.Length != 2 ||
-            !int.TryParse(parts[0], out var index) ||
-            !int.TryParse(parts[1], out var count) ||
-            count <= 0 || index < 0 || index >= count)
-            throw new ArgumentException("--shard must be i/n with 0 <= i < n");
-        return (index, count);
-    }
 
     private static Dictionary<string, string> ParseOptions(string[] args)
     {

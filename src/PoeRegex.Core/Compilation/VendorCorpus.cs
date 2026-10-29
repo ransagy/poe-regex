@@ -32,17 +32,10 @@ public sealed class VendorCorpusFile
 /// </summary>
 public static class VendorCorpus
 {
-    private static readonly Lazy<VendorCorpusFile?> Poe1 =
-        new(() => Load("PoeRegex.Core.catalogs.poe1.vendor-corpus.json"));
-    private static readonly Lazy<VendorCorpusFile?> Poe2 =
+    private static readonly Lazy<VendorCorpusFile?> PoE2 =
         new(() => Load("PoeRegex.Core.catalogs.poe2.vendor-corpus.json"));
 
-    public static VendorCorpusFile? For(string game) => game switch
-    {
-        "poe1" => Poe1.Value,
-        "poe2" => Poe2.Value,
-        _ => null,
-    };
+    public static VendorCorpusFile? ForCurrentGame => PoE2.Value;
 
     private static VendorCorpusFile? Load(string resourceName)
     {

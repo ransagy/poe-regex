@@ -2,9 +2,9 @@
   "game": "poe2",
   "dataVersion": "2026-08-09",
   "grammarVersion": "quoted-shortest-v1",
-  "oracleVersion": "indexed-term-v1",
-  "generatedAt": "2026-10-29 17:12:48Z",
-  "matrixGenerated": "2026-10-29 17:11:26Z",
+  "oracleVersion": "exact-term-v1",
+  "generatedAt": "2026-10-29 19:13:22Z",
+  "matrixGenerated": "2026-10-29 19:12:45Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
@@ -13,8 +13,8 @@
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 757365,
-      "sha256": "c71e32cbd2f53bad1a60261e3e4c8cead1fea9000b5739a314f59b9e624568f0"
+      "bytes": 396969,
+      "sha256": "6befbcbd2f09b8c913c3d2bf11d0f675d735bd58fe97cfdce051a39558e65901"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
@@ -25,19 +25,16 @@
   "matrix": {
     "families": 182,
     "patterns": 221,
-    "scopes": 606,
+    "scopes": 600,
     "coverage": {
-      "class/current-only": 185,
-      "class/strict": 75,
-      "global/current-only": 117,
-      "global/strict": 104,
-      "per-class/current-only": 96,
-      "per-class/strict": 29
+      "class/current-only": 253,
+      "global/current-only": 221,
+      "per-class/current-only": 126
     },
     "bounds": {
-      "250": 606
+      "250": 600
     },
-    "boundCompleteCurrentOnly": 398,
+    "boundCompleteCurrentOnly": 600,
     "longCurrentOnlyCount": 0,
     "longCurrentOnly": []
   },
@@ -81,6 +78,7 @@
     "proof": {
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
+      "matrixSha256": "6befbcbd2f09b8c913c3d2bf11d0f675d735bd58fe97cfdce051a39558e65901",
       "checkedScopes": 892,
       "workScopes": 892,
       "failed": 0,

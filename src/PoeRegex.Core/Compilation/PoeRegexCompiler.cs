@@ -9,18 +9,13 @@ namespace PoeRegex.Core.Compilation;
 public sealed class PoeRegexCompiler
 {
     private readonly EngineCorpus _corpus;
-    private readonly ICompilerStrategy _strategy;
     private readonly CompactionEngine _compaction;
 
-    public PoeRegexCompiler(EngineCorpus corpus, ICompilerStrategy strategy, bool allowFallback = true)
+    public PoeRegexCompiler(EngineCorpus corpus)
     {
         _corpus = corpus;
-        _strategy = strategy;
-        _compaction = new CompactionEngine(corpus, strategy, allowFallback);
+        _compaction = new CompactionEngine(corpus);
     }
-
-    public static ICompilerStrategy StrategyFor(GameTarget target) =>
-        target == GameTarget.PoE1 ? new PathOfExileOneStrategy() : new PathOfExileTwoStrategy();
 
     public CompileResult Compile(QuerySpecification spec)
     {
@@ -37,7 +32,7 @@ public sealed class PoeRegexCompiler
             if (_corpus.FindItemClass(spec.ItemClass) is null)
                 diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
                     $"No fingerprint available for item class '{spec.ItemClass}'."));
-            else blocks.Add(_strategy.Quote(": " + _strategy.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
+            else blocks.Add(Poe2Syntax.Quote(": " + Poe2Syntax.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
         }
 
         // Included modifiers → one quoted block with | alternation.
@@ -52,7 +47,7 @@ public sealed class PoeRegexCompiler
         if (included.Count > 0)
         {
             var factored = CompactionEngine.FactorCommonPrefixes(included);
-            blocks.Add(_strategy.Quote(string.Join("|", factored)));
+            blocks.Add(Poe2Syntax.Quote(string.Join("|", factored)));
         }
 
         // Exclusions → separate quoted blocks.
@@ -61,23 +56,23 @@ public sealed class PoeRegexCompiler
             var mod = _corpus.FindMod(req.Value);
             var term = mod is not null
                 ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
-                : _strategy.EscapeLiteral(req.Value);
-            blocks.Add(_strategy.FormatExclusion(term));
+                : Poe2Syntax.EscapeLiteral(req.Value);
+            blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 
         // Custom keywords.
         foreach (var kw in spec.Keywords)
         {
-            var diag = _strategy.ValidateFragment(kw);
+            var diag = Poe2Syntax.ValidateFragment(kw);
             if (diag is not null) diagnostics.Add(diag);
-            blocks.Add(_strategy.Quote(kw));
+            blocks.Add(Poe2Syntax.Quote(kw));
         }
 
         var query = string.Join(" ", blocks);
         foreach (var shapeError in QueryShape.Validate(query))
             diagnostics.Add(new CompilerDiagnostic(
                 DiagnosticLevel.Warning, "query-shape", shapeError));
-        var limit = _strategy.GameRules.MaxCharacterLimit;
+        var limit = Poe2Syntax.MaxCharacterLimit;
         if (query.Length > limit && !spec.AllowOverflow)
         {
             throw new RegexLengthOverflowException(query.Length, limit);
@@ -101,8 +96,8 @@ public sealed class PoeRegexCompiler
         }
 
         // Free text: validate then escape for literal matching.
-        var diag = _strategy.ValidateFragment(req.Value);
+        var diag = Poe2Syntax.ValidateFragment(req.Value);
         if (diag is not null) diagnostics.Add(diag);
-        return _strategy.EscapeLiteral(req.Value);
+        return Poe2Syntax.EscapeLiteral(req.Value);
     }
 }

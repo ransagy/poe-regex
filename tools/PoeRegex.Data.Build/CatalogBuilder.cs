@@ -14,14 +14,14 @@ public static class CatalogBuilder
 {
     private static readonly string[] ItemGenerationTypes = ["explicit", "prefix", "suffix"];
 
-    public static Catalog Build(string game, string rawDir)
+    public static Catalog Build(string rawDir)
     {
         var mods = RePoEJson.LoadMods(Path.Combine(rawDir, "mods.min.json"));
         var itemClasses = RePoEJson.LoadItemClasses(Path.Combine(rawDir, "item_classes.min.json"));
         var baseItems = RePoEJson.LoadBaseItems(Path.Combine(rawDir, "base_items.min.json"));
         var handlers = RePoEJson.LoadValueHandlers(Path.Combine(rawDir, "stat_value_handlers.min.json"));
 
-        var translations = LoadAllTranslations(game, rawDir);
+        var translations = LoadAllTranslations(rawDir);
         var renderer = new StatTextRenderer(handlers, translations);
 
         // mod -> item class ids it can spawn on
@@ -136,26 +136,16 @@ public static class CatalogBuilder
 
         return new Catalog
         {
-            Game = game,
+            Game = "poe2",
             DataVersion = dataVersion,
             ItemClasses = itemClassEntries,
             Mods = modEntries,
         };
     }
 
-    internal static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string game, string rawDir)
+    internal static List<RePoESchema.StatTranslationEntry> LoadAllTranslations(string rawDir)
     {
         var result = new List<RePoESchema.StatTranslationEntry>();
-        if (game == "poe1")
-        {
-            var path = Path.Combine(rawDir, "stat_translations.min.json");
-            if (File.Exists(path))
-            {
-                result.AddRange(RePoEJson.LoadTranslations(path));
-            }
-            return result;
-        }
-
         // PoE 2: translations are a main stat_descriptions list plus split
         // *_stat_descriptions.json files in the stat_translations directory
         // (or alongside the raw files).

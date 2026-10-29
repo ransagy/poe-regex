@@ -1,21 +1,20 @@
-using System.Reflection;
 using System.Text.Json;
 
 namespace PoeRegex.Core.Data;
 
 /// <summary>
-/// Loads a catalog from an embedded resource, keeping published (Native AOT)
-/// binaries self-contained. Logical names are pinned in PoeRegex.Core.csproj.
+/// Loads the embedded PoE2 catalog, keeping published binaries self-contained.
 /// </summary>
 public sealed class EmbeddedCatalogSource : ICatalogSource
 {
-    public Catalog Load(GameTarget game)
+    private const string ResourceName = "PoeRegex.Core.catalogs.poe2.catalog.json";
+
+    public Catalog Load()
     {
-        var name = $"PoeRegex.Core.catalogs.{game.ToRuleKey()}.catalog.json";
         var assembly = typeof(EmbeddedCatalogSource).Assembly;
-        using var stream = assembly.GetManifestResourceStream(name)
-                           ?? throw new InvalidOperationException($"Embedded catalog not found: {name}");
+        using var stream = assembly.GetManifestResourceStream(ResourceName)
+                           ?? throw new InvalidOperationException($"Embedded catalog not found: {ResourceName}");
         return JsonSerializer.Deserialize(stream, CatalogJsonContext.Default.Catalog)
-               ?? throw new InvalidDataException($"Embedded catalog '{name}' is empty.");
+               ?? throw new InvalidDataException($"Embedded catalog '{ResourceName}' is empty.");
     }
 }

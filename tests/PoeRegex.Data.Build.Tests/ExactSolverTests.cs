@@ -13,7 +13,7 @@ public class ExactSolverTests
     {
         var root = RepoRoot();
         var catalog = new FileCatalogSource(
-            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load(GameTarget.PoE2);
+            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load();
         var corpus = new EngineCorpus(catalog);
         var scope = ScopeCorpus.Build(corpus, null);
 

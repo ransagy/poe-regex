@@ -14,7 +14,7 @@ public static class ClassAlternation
 
     private sealed record Term(string Text, IReadOnlyList<string> Classes, bool Plain);
 
-    public static string Build(EngineCorpus corpus, ICompilerStrategy strategy, IReadOnlyList<string> classIds)
+    public static string Build(EngineCorpus corpus, IReadOnlyList<string> classIds)
     {
         var terms = classIds
             .Distinct(StringComparer.Ordinal)
@@ -32,7 +32,7 @@ public static class ClassAlternation
                     if (!terms[i].Plain || !terms[j].Plain) continue;
                     var suffix = CommonSuffix(terms[i].Text, terms[j].Text).Trim();
                     if (suffix.Length < MinSuffix) continue;
-                    var candidate = ".*" + strategy.EscapeLiteral(suffix);
+                    var candidate = ".*" + Poe2Syntax.EscapeLiteral(suffix);
                     var score = terms[i].Text.Length + terms[j].Text.Length + 1 - candidate.Length;
                     if (score <= bestScore) continue;
                     var classes = terms[i].Classes.Concat(terms[j].Classes).ToList();
@@ -47,7 +47,7 @@ public static class ClassAlternation
             terms[bestI] = new Term(bestTerm, terms[bestI].Classes.Concat(terms[bestJ].Classes).ToList(), Plain: false);
             terms.RemoveAt(bestJ);
         }
-        return string.Join("|", terms.Select(t => t.Plain ? strategy.EscapeLiteral(t.Text) : t.Text));
+        return string.Join("|", terms.Select(t => t.Plain ? Poe2Syntax.EscapeLiteral(t.Text) : t.Text));
     }
 
     private static string CommonSuffix(string a, string b)

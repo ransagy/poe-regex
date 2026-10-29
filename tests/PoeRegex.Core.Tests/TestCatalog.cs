@@ -1,4 +1,5 @@
 using PoeRegex.Core.Data;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Search;
 
 namespace PoeRegex.Core.Tests;
@@ -45,6 +46,31 @@ public static class TestCatalog
             },
         };
     }
+
+    public static FragmentTable Fragments()
+    {
+        var p = SuffixIndex.DigitPlaceholder;
+        var global = new Dictionary<string, string>
+        {
+            [$"+{p} to maximum Life"] = "maximum L",
+            [$"+{p} to Strength"] = "St",
+            [$"+{p} to Dexterity"] = "Dex",
+            [$"{p}% increased Rarity of Items found"] = "Rar",
+        };
+        return new FragmentTable
+        {
+            Game = "test",
+            DataVersion = "test",
+            Global = global,
+            ByClass = new Dictionary<string, Dictionary<string, string>>
+            {
+                ["Ring"] = new(global),
+            },
+            ClassAnchors = new Dictionary<string, string> { ["Ring"] = "Ri" },
+        };
+    }
+
+    public static EngineCorpus Corpus() => new(Build(), Fragments());
 
     private static string ShortestFingerprint(string pattern)
     {
