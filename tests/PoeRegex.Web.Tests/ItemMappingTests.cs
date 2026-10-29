@@ -184,4 +184,36 @@ public class ItemMappingTests
         implicitEmpty.Should().Be(unmappedImplicits);
         implicitHit.Should().Be(mappedImplicits);
     }
+
+    [Fact]
+    public void CatalogLines_AllMapBackToTheirSourceMod()
+    {
+        var failures = new List<string>();
+        var checkedCount = 0;
+        var mods = Engine.PlayableMods()
+            .GroupBy(m => m.Id, StringComparer.Ordinal)
+            .Select(g => g.First());
+
+        foreach (var mod in mods)
+        foreach (var classId in mod.Classes.Where(Engine.InGameClasses().Select(c => c.Id).Contains))
+        foreach (var sl in mod.StatLines)
+        {
+            var forms = new[] { sl.Line, sl.RangeLine, AdvancedStatLine.For(sl) }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal);
+            foreach (var form in forms)
+            {
+                var mapping = Engine.MapLineToMods(classId, form, []);
+                checkedCount++;
+                if (!mapping.ModIds.Contains(mod.Id))
+                {
+                    failures.Add($"{classId}/{mod.Id}: '{form}' -> " +
+                                 $"[{string.Join(",", mapping.ModIds)}] approx={mapping.Approximate}");
+                }
+            }
+        }
+
+        failures.Take(50).Should().BeEmpty($"{failures.Count} catalog lines did not map back to their source mod");
+        checkedCount.Should().BeGreaterThan(1_000);
+    }
 }
