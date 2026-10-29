@@ -107,13 +107,21 @@ public static class BuildStatus
             var proofHash = root.TryGetProperty("matrixSha256", out var proofHashNode)
                 ? proofHashNode.GetString()
                 : null;
+            var proofTargetModel = root.TryGetProperty("targetModel", out var proofTargetNode)
+                ? proofTargetNode.GetString()
+                : null;
             proven = failed == 0 && checkedScopes == workScopes && workScopes > 0 &&
                       string.Equals(proofGrammar, "quoted-shortest-v1", StringComparison.Ordinal) &&
-                      string.Equals(proofHash, matrixHash, StringComparison.Ordinal);
+                      string.Equals(proofHash, matrixHash, StringComparison.Ordinal) &&
+                      string.Equals(
+                          proofTargetModel,
+                          table.TargetModel,
+                          StringComparison.Ordinal);
             proof = new
             {
                 path = proofPath,
                 grammarVersion = proofGrammar,
+                targetModel = proofTargetModel,
                 matrixSha256 = proofHash,
                 checkedScopes,
                 workScopes,
@@ -123,6 +131,9 @@ public static class BuildStatus
         }
 
         var staleReasons = new List<string>();
+        if (!string.Equals(table.TargetModel ?? "", FragmentTable.AdvancedRanges, StringComparison.Ordinal))
+            staleReasons.Add(
+                $"table targetModel '{table.TargetModel}' != '{FragmentTable.AdvancedRanges}'");
         if (!string.Equals(table.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
             staleReasons.Add(
                 $"table dataVersion '{table.DataVersion}' != catalog '{catalog.DataVersion}'");
@@ -136,6 +147,7 @@ public static class BuildStatus
         {
             game = "poe2",
             dataVersion = catalog.DataVersion,
+            targetModel = table.TargetModel,
             grammarVersion = "quoted-shortest-v1",
             oracleVersion = "exact-term-v1",
             generatedAt = DateTimeOffset.UtcNow.ToString("u"),
@@ -204,6 +216,11 @@ public static class BuildStatus
         if (staleReasons.Any(x => x.StartsWith("table dataVersion", StringComparison.Ordinal)))
         {
             Console.Error.WriteLine("matrix-status: stale table data version");
+            return 1;
+        }
+        if (staleReasons.Any(x => x.StartsWith("table targetModel", StringComparison.Ordinal)))
+        {
+            Console.Error.WriteLine("matrix-status: stale target model");
             return 1;
         }
         if (opts.ContainsKey("--check-shortest") && longCurrentOnly.Count > 0)

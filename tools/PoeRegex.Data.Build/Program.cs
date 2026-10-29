@@ -253,6 +253,7 @@ public static class Program
         {
             Game = catalog.Game,
             DataVersion = catalog.DataVersion,
+            TargetModel = FragmentTable.AdvancedRanges,
             Global = global,
             ByClass = byClass,
             ClassAnchors = anchors,

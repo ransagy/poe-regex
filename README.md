@@ -6,7 +6,9 @@
 A PoE2 engine that turns modifier requirements into short, in-game-safe regex
 queries. PoE2 search boxes cap regex queries at 250 characters; the project
 precomputes the exact shortest line-safe fragment for every mod line over the
-vendor/stash corpus and assembles deterministic, AND-ed quoted blocks.
+vendor/stash corpus and assembles deterministic, AND-ed quoted blocks. The
+target text is the advanced in-game item-search text; normal display is
+presentation only.
 
 The repository contains the engine, its data pipeline, the CLI, and the web
 reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly

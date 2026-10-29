@@ -25,6 +25,20 @@ result to a fixed point.
 - In-game safety fixtures are part of the oracle; unique, socketable, base,
   and skill text is still not a complete game-text model.
 
+## Target display
+
+The in-game Highlight search always matches the **advanced item text**.
+Ranged stats show `roll(min-max)` (for example,
+`24(19-29)% increased Armour, Evasion and Energy Shield`); fixed stats show
+the plain value. Normal display is presentation only and is not a separate
+target model.
+
+The table records this basis as `targetModel: advanced-ranges-v1`. The engine
+rejects a table whose target model does not match, so a table generated under
+a different display basis cannot be used silently. Fragments may therefore
+use the range hyphen or parentheses as guards, and the web importer already
+works from advanced descriptions.
+
 ## Artifact coverage
 
 ```text

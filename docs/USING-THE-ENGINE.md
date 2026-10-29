@@ -19,6 +19,9 @@ There are two ways to consume it:
 - ANDs quoted blocks, merges included mods into one `|` alternation, factors
   common prefixes, and emits `!"..."` exclusions.
 - Enforces the 250-character PoE2 limit.
+- Targets the advanced item-search text: ranged stats show `roll(min-max)`;
+  normal display is presentation only. The shipped table declares
+  `targetModel: advanced-ranges-v1`.
 - Never searches for fragments at runtime. If the table is missing or stale,
   the affected modifier is reported as unresolved instead of falling back to a
   heuristic.

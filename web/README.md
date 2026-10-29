@@ -174,8 +174,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   slot label inside the card (every other slot is 1:1 with its class).
 - Fragments come from the **exact PoE2 table** (`data/catalogs/poe2.fragments.json`):
   every entry was proven shortest for its scope under G1 by the data-build
-  solver. The runtime performs table lookup only; there is no live fragment
-  search and no heuristic fallback. The oracle is line-scoped over the derived
+  solver. The target text is the advanced item-search text (ranged stats show
+  `roll(min-max)`); normal display is presentation only. The runtime performs
+  table lookup only; there is no live fragment search and no heuristic
+  fallback. The oracle is line-scoped over the derived
   vendor/stash corpus, and the table is strict: zero foreign modeled or
   captured-safety lines. Unique-only text, flavour, and rare names remain
   unmodeled and are reported separately. The exact table has 892 expanded

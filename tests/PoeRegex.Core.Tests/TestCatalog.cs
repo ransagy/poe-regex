@@ -61,6 +61,7 @@ public static class TestCatalog
         {
             Game = "test",
             DataVersion = "test",
+            TargetModel = FragmentTable.AdvancedRanges,
             Global = global,
             ByClass = new Dictionary<string, Dictionary<string, string>>
             {
