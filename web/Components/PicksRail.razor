@@ -21,7 +21,6 @@
                 @if (inc.IsNamePick)
                 {
                     <span class="chip-name">"@inc.Names![0]"</span>
-                    <span class="chip-tag" title="specific affix-name tier pick">tier</span>
                     @if (inc.Names.Count > 1)
                     {
                         <span class="chip-tiers" title="@($"{inc.Names.Count - 1} higher tiers included")">↑@(inc.Names.Count - 1)</span>

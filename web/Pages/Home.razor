@@ -67,7 +67,12 @@
                 {
                     <span class="rb-unresolved" id="rb-unresolved" title="@UnresolvedTitle(unresolved)">@unresolved.Count unresolved</span>
                 }
-                <span class="rb-hint">copy → paste into the game's item search</span>
+                <div class="rb-actions">
+                    <button type="button" class="rb-action" id="query-import-open"
+                            title="Import a compiled search string into the workbench"
+                            @onclick="() => _queryImportOpen = true">import search…</button>
+                    <span class="rb-hint">copy → paste into the game's item search</span>
+                </div>
             </div>
             <div class="result-strip" id="result-strip" aria-label="Compiled search string">
                 @if (barQuery.Length > 0)
@@ -103,9 +108,16 @@
             </div>
         </div>
 
-        <div class="modrow pack-tools">
-            <div class="pack-label">
-                Test items
+        <section class="test-lab" id="test-lab" aria-label="Test items">
+            <div class="test-lab-head">
+                <button type="button" class="test-lab-toggle" id="test-lab-toggle"
+                        aria-expanded="@(_testLabOpen ? "true" : "false")" aria-controls="test-lab-body"
+                        @onclick="ToggleTestLab">
+                    <span class="test-lab-chev" aria-hidden="true">@(_testLabOpen ? "▾" : "▸")</span>
+                    <span class="test-lab-title">Test items</span>
+                    <span class="test-lab-count">@State.TestItems.Count</span>
+                    <span class="test-lab-sub">import, assemble, test matches</span>
+                </button>
                 <HelpTip Title="what test items are for">
                     <ul>
                         <li><b>import item</b> — paste an item copied from the game.</li>
@@ -114,15 +126,21 @@
                     </ul>
                 </HelpTip>
             </div>
-            <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
-            <button id="query-import-open" class="btn" @onclick="() => _queryImportOpen = true">import search</button>
-            <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
-            <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
-                    title="@RemoveTitle()" @onclick="RemoveSelected">remove item</button>
-        </div>
-        <div class="pack-wrap">
-            <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
-        </div>
+            @if (_testLabOpen)
+            {
+                <div class="test-lab-body" id="test-lab-body">
+                    <div class="modrow pack-tools">
+                        <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
+                        <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
+                        <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
+                                title="@RemoveTitle()" @onclick="RemoveSelected">remove item</button>
+                    </div>
+                    <div class="pack-wrap">
+                        <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
+                    </div>
+                </div>
+            }
+        </section>
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
         <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
@@ -201,6 +219,7 @@
     private bool _importOpen;
     private bool _queryImportOpen;
     private bool _builderOpen;
+    private bool _testLabOpen;
     private MultiPasteResult? _paste;
     private double _ttX;
     private double _ttY;
@@ -231,6 +250,12 @@
     private void CloseQueryImport() => _queryImportOpen = false;
 
     private void CloseBuilder() => _builderOpen = false;
+
+    private void ToggleTestLab()
+    {
+        _testLabOpen = !_testLabOpen;
+        if (!_testLabOpen) State.SelectTestItem(null);
+    }
 
     private void OnStateChanged()
     {
