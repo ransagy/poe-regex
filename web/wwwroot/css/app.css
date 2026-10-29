@@ -41,9 +41,17 @@ body { overflow: hidden; }
 }
 .shell-icon { width: 2.5rem; height: 2.5rem; flex: none; align-self: center; }
 .shell-sub { color: var(--dim); font-size: 0.8rem; opacity: 0.75; }
-/* Display scale sits at the far end, before the source link. */
+/* Header actions sit together at the far end. */
+.shell-actions {
+    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 0.9rem;
+}
+.shell-how {
+    border: 0; background: transparent; color: var(--dim); font: inherit;
+    font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0;
+}
+.shell-how:hover { color: var(--accent); }
 .ui-scale {
-    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 0.35rem;
+    flex: none; display: inline-flex; align-items: center; gap: 0.35rem;
     color: var(--dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
 }
 .ui-scale select {
@@ -52,7 +60,6 @@ body { overflow: hidden; }
 }
 /* Source link sits at the far end of the header strip. */
 .shell-repo {
-    margin-left: 0.75rem;
     flex: none;
     white-space: nowrap;
     color: var(--dim);
@@ -409,15 +416,20 @@ select, input {
     color: var(--dim); font-size: 0.78rem; align-self: center;
     padding-left: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.chip { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); cursor: pointer; font-size: 0.8rem; line-height: 1.35; padding: 0.2rem 0.55rem; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--panel-edge); background: var(--slot); color: var(--ink); font-size: 0.8rem; line-height: 1.35; padding: 0.18rem 0.3rem 0.18rem 0.55rem; white-space: nowrap; }
 .chip-name { color: var(--ink); }
 .chip-text { color: var(--ink); }
-.chip-kind { flex: none; min-width: 0.8rem; text-align: center; font-weight: 700; color: var(--ink); opacity: 0.9; }
+.chip-type { flex: none; color: var(--dim); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; border-right: 1px solid var(--panel-edge); padding-right: 0.4rem; }
+.chip-tag { color: var(--dim); font-size: 0.68rem; border: 1px solid var(--panel-edge); padding: 0 0.25rem; line-height: 1.4; }
+.chip-remove { flex: none; border: 0; background: transparent; color: var(--dim); font: inherit; font-size: 0.95rem; line-height: 1; cursor: pointer; padding: 0 0.15rem; }
+.chip-remove:hover, .chip-remove:focus-visible { color: #ffb0b0; }
 .chip-tiers { color: var(--dim); font-size: 0.7rem; margin-left: 0.25rem; padding-left: 0.3rem; border-left: 1px solid var(--panel-edge); }
 .chip-range { color: var(--ink); margin-left: 0.35rem; }
 .chip.inc { border-color: #6f9a5f; border-left: 0.22rem solid #6f9a5f; background: #20251a; }
+.chip.inc .chip-type { color: #a9c97a; }
 .chip.exc { border-color: #b06a6a; border-style: dashed; border-left: 0.22rem solid #b06a6a; background: #2a1c1a; }
-.chip.clear { border-style: dashed; background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; }
+.chip.exc .chip-type { color: #e0a0a0; }
+.chip.clear { cursor: pointer; border-style: dashed; background: #3a1814; color: #ff9b9b; border-color: #8a3f3f; }
 .chip.clear:hover { background: #4a2018; color: #ffb0b0; border-color: #b95555; }
 .chip.clear:disabled {
     background: #1a150f; color: #9d9d9d; border-color: #5b5b5b;
@@ -514,7 +526,7 @@ select, input {
     font-style: italic; color: var(--accent); font-size: 0.82rem;
 }
 .tier-row .suggest-line { font-size: 0.82rem; color: var(--dim); }
-.chip.inc.by-name { border-color: #6f9aa6; border-left-color: #6f9aa6; background: #1b2428; }
+
 /* Quiet glyph controls: no boxes at rest, a surface on hover/focus only. */
 .suggest-row button {
     background: transparent; color: var(--ink); border: 1px solid transparent;
@@ -997,10 +1009,4 @@ body.compact .advanced-reserve { display: none; }
 .intro-steps li { margin: 0.12rem 0; }
 .intro-modes { color: var(--dim); font-size: 0.82rem; }
 .intro-dismiss { flex: none; }
-.intro-link-row { margin: 0.35rem 0 0; }
-.intro-link {
-    border: 0; background: transparent; color: var(--dim); font: inherit;
-    font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0;
-}
-.intro-link:hover { color: var(--ink); }
 .hint.warn { color: #f2c94c; }

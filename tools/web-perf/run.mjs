@@ -210,7 +210,79 @@ function makeActions(sampleText) {
       `!!document.querySelector('#builder-dialog')`],
     ['builder cancel', () => `document.querySelector('#builder-cancel').click()`,
       `!document.querySelector('#builder-dialog')`],
-  ].map(([label, fn, wait, timeout]) => ({ label, fn, wait, timeout }));
+    ['advanced: reset simple picks', () => `document.querySelector('#chips-clear-global').click()`,
+      `!document.querySelector('[id^="chip-inc-"]')`],
+    ['advanced: mode', () => `document.querySelector('#mode-advanced').click()`,
+      `!!document.querySelector('.inv-doll')`],
+    ['advanced: focus helmet', () => `document.querySelector('#slot-helmet').click()`,
+      `!!document.querySelector('#mod-search')`],
+    ['advanced: pick helmet', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
+      `!!document.querySelector('[id^="chip-inc-helmet"]')`],
+    ['advanced: focus body', () => `document.querySelector('#slot-body').click()`,
+      `!!document.querySelector('#mod-search')`],
+    ['advanced: pick body', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
+      `!!document.querySelector('[id^="chip-inc-body"]')`],
+    ['advanced: focus gloves', () => `document.querySelector('#slot-gloves').click()`,
+      `!!document.querySelector('#mod-search')`],
+    ['advanced: pick gloves', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
+      `!!document.querySelector('[id^="chip-inc-gloves"]')`],
+    ['advanced: focus boots', () => `document.querySelector('#slot-boots').click()`,
+      `!!document.querySelector('#mod-search')`],
+    ['advanced: pick boots', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
+      `!!document.querySelector('[id^="chip-inc-boots"]')`],
+    ['advanced: 4-slot paste', () => `true`,
+      `!!document.querySelector('#combined-paste-query') && document.querySelector('#combined-paste-query').textContent.length > 0`],
+    ['advanced: explain helmet cold', () => `document.querySelector('#qcard-helmet-explain').click()`,
+      `!!document.querySelector('#qcard-helmet-explain-panel')`, 15000],
+    ['advanced: focus weapon', () => `document.querySelector('#slot-weapon').click()`,
+      `!!document.querySelector('#modpicker-weapon')`],
+    ['advanced: pick weapon', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-weapon"]')`, 10000],
+    ['advanced: focus offhand', () => `document.querySelector('#slot-offhand').click()`,
+      `!!document.querySelector('#modpicker-offhand')`],
+    ['advanced: pick offhand', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-offhand"]')`, 10000],
+    ['advanced: focus belt', () => `document.querySelector('#slot-belt').click()`,
+      `!!document.querySelector('#modpicker-belt')`],
+    ['advanced: pick belt', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-belt"]')`, 10000],
+    ['advanced: focus amulet', () => `document.querySelector('#slot-amulet').click()`,
+      `!!document.querySelector('#modpicker-amulet')`],
+    ['advanced: pick amulet', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-amulet"]')`, 10000],
+    ['advanced: focus ring1', () => `document.querySelector('#slot-ring1').click()`,
+      `!!document.querySelector('#modpicker-ring1')`],
+    ['advanced: pick ring1', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-ring1"]')`, 10000],
+    ['advanced: focus ring2', () => `document.querySelector('#slot-ring2').click()`,
+      `!!document.querySelector('#modpicker-ring2')`],
+    ['advanced: pick ring2', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
+      `!!document.querySelector('[id^="chip-inc-ring2"]')`, 10000],
+    ['advanced: 10-slot paste', () => `true`,
+      `!!document.querySelector('#combined-paste-query') && document.querySelector('#combined-paste-query').textContent.length > 0`],
+    ['advanced: 10-slot paste update', () => `(async () => {
+        const wait=async(fn,ms=3000)=>{const t=Date.now();while(Date.now()-t<ms){if(fn())return true;await new Promise(r=>setTimeout(r,40));}return false;};
+        document.querySelector('#slot-weapon')?.click();
+        await wait(()=>!!document.querySelector('#modpicker-weapon'));
+        const input=document.querySelector('#mod-search');
+        if (input) { input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); }
+        await wait(()=>[...document.querySelectorAll('.fam-row button[id^="pick-exc-"]')].some(b=>!b.disabled));
+        window.__pasteBefore=document.querySelector('#combined-paste-query')?.textContent||'';
+        [...document.querySelectorAll('.fam-row button[id^="pick-exc-"]')].find(b=>!b.disabled)?.click();
+        return true;
+      })()`,
+      `(document.querySelector('#combined-paste-query')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
+    ['advanced: class change', () => `(async () => {
+        const wait=async(fn,ms=3000)=>{const t=Date.now();while(Date.now()-t<ms){if(fn())return true;await new Promise(r=>setTimeout(r,40));}return false;};
+        document.querySelector('#slot-weapon')?.click();
+        await wait(()=>!!document.querySelector('#modpicker-weapon'));
+        window.__pasteBefore=document.querySelector('#combined-paste-query')?.textContent||'';
+        const sel=document.querySelector('#slot-weapon')?.closest('.gear-slot')?.querySelector('select.gear-class');
+        if (sel && sel.options.length>1) { sel.selectedIndex=1; sel.dispatchEvent(new Event('change',{bubbles:true})); }
+        return true;
+      })()`,
+      `(document.querySelector('#combined-paste-query')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
+  ].map(([label, fn, wait, timeout, debug]) => ({ label, fn, wait, timeout, debug }));
 }
 
 async function main() {
@@ -267,7 +339,9 @@ async function main() {
           samples.get(item.label).push(Number(ms.toFixed(1)));
         } catch (error) {
           if (!samples.has(item.label)) samples.set(item.label, []);
-          samples.get(item.label).push({ error: String(error.message ?? error) });
+          let debug = null;
+          if (item.debug) { try { debug = await evalValue(item.debug); } catch {} }
+          samples.get(item.label).push({ error: String(error.message ?? error), debug });
         }
       }
       longTasks.push(...await evalValue('window.__longTasks'));

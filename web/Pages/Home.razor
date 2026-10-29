@@ -6,6 +6,7 @@
 @inject EngineService Engine
 @inject WorkbenchState State
 @inject web.Services.PersistenceService Persistence
+@inject web.Services.IntroState Intro
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -17,15 +18,9 @@
             var barQuery = BarQuery();
             var scopeText = ScopeText();
         }
-        @if (_showIntro == true)
+        @if (Intro.Visible == true)
         {
             <IntroPanel OnDismiss="DismissIntro" />
-        }
-        else if (_showIntro == false)
-        {
-            <div class="intro-link-row">
-                <button type="button" class="intro-link" id="intro-open" @onclick="ShowIntro">how it works</button>
-            </div>
         }
 
         <div class="mode-bar">
@@ -198,7 +193,6 @@
         string CardId, string Title, string? ItemClass, CompileResult Result);
 
     private string _engineStatus = "booting...";
-    private bool? _showIntro;
     private List<TaskView> _tasks = [];
     private List<TaskView> _barTasks = [];
     private List<(string Label, string? Query)> _labelledQueries = [];
@@ -214,8 +208,9 @@
     protected override async Task OnInitializedAsync()
     {
         State.Changed += OnStateChanged;
+        Intro.Changed += OnIntroChanged;
+        await Intro.InitializeAsync();
         _engineStatus = $"engine ok ({Engine.InGameClasses().Count()} classes with mods)";
-        _showIntro = !await Persistence.LoadIntroDismissedAsync();
         var saved = await Persistence.LoadAsync();
         if (saved is not null)
             WorkbenchSnapshot.Restore(State, saved);
@@ -228,13 +223,9 @@
         Recompute();
     }
 
-    private async Task DismissIntro()
-    {
-        _showIntro = false;
-        await Persistence.SaveIntroDismissedAsync();
-    }
+    private Task DismissIntro() => Intro.DismissAsync();
 
-    private void ShowIntro() => _showIntro = true;
+    private void OnIntroChanged() => InvokeAsync(StateHasChanged);
 
     private void CloseImport() => _importOpen = false;
     private void CloseQueryImport() => _queryImportOpen = false;
@@ -413,5 +404,9 @@
         State.Reset(); // notifies -> recompute + save of defaults
     }
 
-    public void Dispose() => State.Changed -= OnStateChanged;
+    public void Dispose()
+    {
+        State.Changed -= OnStateChanged;
+        Intro.Changed -= OnIntroChanged;
+    }
 }

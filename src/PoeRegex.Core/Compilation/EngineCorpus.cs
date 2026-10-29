@@ -30,6 +30,8 @@ public sealed class EngineCorpus
     private readonly Lazy<UnionIndex> _fullUnion;
     private readonly Lazy<Dictionary<string, List<ModEntry>>> _modsByPattern;
     private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
+    private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
 
     private sealed class ClassIndex
     {
@@ -179,19 +181,20 @@ public sealed class EngineCorpus
     /// are excluded — the class-set check is <see cref="ClassTermExact"/>).
     /// The acceptance test for merged alternation terms like `.*Hand M`.
     /// </summary>
-    public bool ClassTermQuiet(string innerTerm)
-    {
-        var test = ": " + innerTerm;
-        // Anchor generation stays conservative across every catalog class,
-        // including classes with no released bases, so pruning the in-game
-        // scope cannot silently shorten an anchor that was verified in game.
-        foreach (var (_, real) in _fullUnion.Value.RealLines)
+    public bool ClassTermQuiet(string innerTerm) =>
+        _classTermQuiet.GetOrAdd(innerTerm, term =>
         {
-            if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
-            if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
-        }
-        return true;
-    }
+            var test = ": " + term;
+            // Anchor generation stays conservative across every catalog class,
+            // including classes with no released bases, so pruning the in-game
+            // scope cannot silently shorten an anchor that was verified in game.
+            foreach (var (_, real) in _fullUnion.Value.RealLines)
+            {
+                if (real.StartsWith("Item Class:", StringComparison.Ordinal)) continue;
+                if (System.Text.RegularExpressions.Regex.IsMatch(real, test, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
+            }
+            return true;
+        });
 
     /// <summary>
     /// True when `: innerTerm` matches the `Item Class:` line of every class
@@ -199,15 +202,19 @@ public sealed class EngineCorpus
     /// </summary>
     public bool ClassTermExact(string innerTerm, IReadOnlyCollection<string> classIds)
     {
-        var test = ": " + innerTerm;
-        var wanted = new HashSet<string>(classIds, StringComparer.Ordinal);
-        foreach (var cls in _catalog.ItemClasses)
+        var key = innerTerm + "\u0001" + string.Join("\u0001", classIds.OrderBy(x => x, StringComparer.Ordinal));
+        return _classTermExact.GetOrAdd(key, _ =>
         {
-            var hit = System.Text.RegularExpressions.Regex.IsMatch(
-                $"Item Class: {cls.Name}", test, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (wanted.Contains(cls.Id) != hit) return false;
-        }
-        return true;
+            var test = ": " + innerTerm;
+            var wanted = new HashSet<string>(classIds, StringComparer.Ordinal);
+            foreach (var cls in _catalog.ItemClasses)
+            {
+                var hit = System.Text.RegularExpressions.Regex.IsMatch(
+                    $"Item Class: {cls.Name}", test, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (wanted.Contains(cls.Id) != hit) return false;
+            }
+            return true;
+        });
     }
 
     public EngineCorpus(Catalog catalog)

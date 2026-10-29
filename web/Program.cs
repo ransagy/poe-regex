@@ -11,5 +11,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<EngineService>();
 builder.Services.AddScoped<WorkbenchState>();
 builder.Services.AddScoped<web.Services.PersistenceService>();
+builder.Services.AddScoped<web.Services.IntroState>();
 
 await builder.Build().RunAsync();

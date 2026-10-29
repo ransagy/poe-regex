@@ -2,7 +2,7 @@
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 
-<div class="modpicker">
+<div class="modpicker" id="modpicker-@(Scope ?? "global")">
     @{
         var crit = ScopeCriteria();
     }

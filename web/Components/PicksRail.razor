@@ -16,13 +16,12 @@
     <div class="chips" aria-label="Wanted mods">
         @foreach (var inc in crit.Included)
         {
-            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@ScopeKey-@ChipKey(inc)"
-                    title="@ChipTitle(inc)" aria-label="@($"remove include {ChipLabel(inc)}")"
-                    @onclick="() => State.RemoveInclude(Scope, inc)">
-                <span class="chip-kind" aria-hidden="true">+</span>
+            <span class="chip inc" id="chip-inc-@ScopeKey-@ChipKey(inc)">
+                <span class="chip-type">include</span>
                 @if (inc.IsNamePick)
                 {
                     <span class="chip-name">"@inc.Names![0]"</span>
+                    <span class="chip-tag" title="specific affix-name tier pick">tier</span>
                     @if (inc.Names.Count > 1)
                     {
                         <span class="chip-tiers" title="@($"{inc.Names.Count - 1} higher tiers included")">↑@(inc.Names.Count - 1)</span>
@@ -36,16 +35,20 @@
                 {
                     <span class="chip-text">@ChipLabel(inc)</span>
                 }
-            </button>
+                <button type="button" class="chip-remove" id="chip-remove-inc-@ScopeKey-@ChipKey(inc)"
+                        title="@ChipTitle(inc)" aria-label="@($"remove include {ChipLabel(inc)}")"
+                        @onclick="() => State.RemoveInclude(Scope, inc)">×</button>
+            </span>
         }
         @foreach (var exc in crit.Excluded)
         {
-            <button class="chip exc" id="chip-exc-@ScopeKey-@exc" title="remove"
-                    aria-label="@($"remove exclude {DisplayFor(exc)}")"
-                    @onclick="() => State.RemoveExclude(Scope, exc)">
-                <span class="chip-kind" aria-hidden="true">!</span>
+            <span class="chip exc" id="chip-exc-@ScopeKey-@exc">
+                <span class="chip-type">exclude</span>
                 <span class="chip-text">@DisplayFor(exc)</span>
-            </button>
+                <button type="button" class="chip-remove" id="chip-remove-exc-@ScopeKey-@exc"
+                        title="remove exclude" aria-label="@($"remove exclude {DisplayFor(exc)}")"
+                        @onclick="() => State.RemoveExclude(Scope, exc)">×</button>
+            </span>
         }
         @if (ShowHint && crit.Included.Count + crit.Excluded.Count == 0)
         {
@@ -131,7 +134,7 @@
     private string ChipRange(WantedMod pick)
     {
         var tier = TierFor(pick);
-        return tier is null ? "" : "— " + string.Join(" / ", tier.DisplayLines);
+        return tier is null ? "" : string.Join(" / ", tier.DisplayLines);
     }
 
     private string ChipTitle(WantedMod pick)
