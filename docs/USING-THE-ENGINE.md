@@ -224,8 +224,8 @@ poe-regex generate --class Ring --include "to maximum Life" --json
 
 ```json
 {
-  "query": "\": Ri\" \"\\\\+.*fe\"",
-  "length": 18,
+  "query": "\u0022: Ri\u0022 \u0022to maximum Life\u0022",
+  "length": 24,
   "limit": 250,
   "exceeded": false,
   "diagnostics": []
