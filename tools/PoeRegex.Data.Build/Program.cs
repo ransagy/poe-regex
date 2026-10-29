@@ -241,13 +241,20 @@ public static class Program
             return 3;
         }
 
-        var anchors = catalog.ItemClasses
+        var inGameWithMods = catalog.ItemClasses
             .Where(c => corpus.IsInGameClass(c.Id) &&
                         catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
-            .ToDictionary(
-                c => c.Id,
-                c => corpus.ClassNamePrefix(c.Id, usePrecomputed: false),
-                StringComparer.Ordinal);
+            .ToList();
+        var anchors = inGameWithMods.ToDictionary(
+            c => c.Id,
+            c => corpus.ComputeClassNameAnchor(c.Id),
+            StringComparer.Ordinal);
+        var prefixes = inGameWithMods.ToDictionary(
+            c => c.Id,
+            c => corpus.ComputeClassNamePrefix(c.Id),
+            StringComparer.Ordinal);
+        var groups = ClassGroupOptimizer.Build(
+            corpus, inGameWithMods.Select(c => c.Id).ToList());
 
         var table = new FragmentTable
         {
@@ -257,6 +264,8 @@ public static class Program
             Global = global,
             ByClass = byClass,
             ClassAnchors = anchors,
+            ClassPrefixes = prefixes,
+            ClassGroups = groups,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, JsonSerializer.Serialize(table, new JsonSerializerOptions

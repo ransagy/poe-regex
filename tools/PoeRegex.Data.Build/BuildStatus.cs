@@ -139,6 +139,10 @@ public static class BuildStatus
                 $"table dataVersion '{table.DataVersion}' != catalog '{catalog.DataVersion}'");
         if (table.ClassAnchors.Count == 0)
             staleReasons.Add("table has no class anchors");
+        if (table.ClassPrefixes.Count == 0)
+            staleReasons.Add("table has no class prefixes");
+        if (table.ClassGroups.Count == 0)
+            staleReasons.Add("table has no class groups");
         if (longCurrentOnly.Count > 0)
             staleReasons.Add(
                 $"{longCurrentOnly.Count} current-only scope(s) are longer than their search bound");
@@ -182,6 +186,7 @@ public static class BuildStatus
                 unresolvedGlobal = table.GlobalUnresolved.Count,
                 unresolvedClass = table.ByClassUnresolved.Values.Sum(x => x.Count),
                 classAnchors = table.ClassAnchors.Count,
+                classGroups = table.ClassGroups.Count,
             },
             status = new
             {

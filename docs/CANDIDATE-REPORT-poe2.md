@@ -186,8 +186,16 @@ display shapes.
 
 These are the actual anchors emitted in Advanced mode. The anchor is always
 the first quoted block; colloquial class names such as "Staff" or "Focus" are
-not the class-line text. Non-game classes are pruned from the in-game
-matrix, table, and proof; their catalog entries remain for data fidelity.
+not the class-line text. Each anchor is the shortest legal selector found by
+a data-time search over literal substrings and `.` / `.+` wildcards, verified
+against every class line and every modeled non-class line. Wildcard anchors
+are emitted as regex, not escaped as literals. The table also carries each
+class's literal prefix for importing older queries and every verified
+multi-class paste term, so the browser never rebuilds the vendor-derived
+class corpus to compose a multi-slot query.
+
+Non-game classes are pruned from the in-game matrix, table, and proof; their
+catalog entries remain for data fidelity.
 
 | Class | Anchor |
 |---|---|
@@ -201,15 +209,15 @@ matrix, table, and proof; their catalog entries remain for data fidelity.
 | Focus | `": Fo"` |
 | Gloves | `": Gl"` |
 | Helmet | `": Hel"` |
-| One Hand Mace | `": One Hand M"` |
+| One Hand Mace | `": On.+M"` |
 | Quiver | `": Qui"` |
 | Ring | `": Ri"` |
 | Sceptre | `": Sce"` |
-| Shield | `": Shields"` |
+| Shield | `": Shi.+s"` |
 | Spear | `": Spea"` |
 | Staff | `": Stav"` |
 | Talisman | `": Tal"` |
-| Two Hand Mace | `": Two Hand M"` |
+| Two Hand Mace | `": Tw.+M"` |
 | Wand | `": Wan"` |
 | Warstaff | `": Qua"` |
 
@@ -220,6 +228,17 @@ For query examples use the anchor column verbatim:
 ": Fo" "m M"
 ```
 
+Paste class groups use the same data-time search. The shipped table includes
+the shortest verified multi-class terms, so composition never runs the
+oracle in the browser:
+
+| Classes | Term |
+|---|---|
+| Bow, Crossbow | `.*Bow` |
+| Gloves, Staff, Warstaff | `.*ves` |
+| One Hand Mace, Two Hand Mace | `.*Mac` |
+| Staff, Warstaff | `.*tav` |
+
 ## Class-scoped two-character forms
 
 `xt`, `hr`, and the other two-character class forms are valid only with their
@@ -227,7 +246,7 @@ class anchor first:
 
 ```text
 ": Am" "xt"
-": Shields" "hr"
+": Shi.+s" "hr"
 ```
 
 The global forms fail because they can hit extra-damage lines, `Shrine

@@ -44,16 +44,26 @@ public sealed class QueryImportService
         }
         foreach (var itemClass in engine.Classes)
         {
-            var anchor = engine.ClassNamePrefix(itemClass.Id);
-            if (anchor.Length == 0) continue;
             _classNames[itemClass.Id] = itemClass.Name;
-            var phrase = ": " + anchor;
-            if (!_classByAnchor.TryGetValue(phrase, out var classes))
+            // The optimized anchor is what this build emits; also accept the
+            // literal prefix so queries compiled before the anchor change
+            // still import cleanly.
+            foreach (var anchor in new[]
+                     {
+                         engine.ClassNameAnchor(itemClass.Id),
+                         Poe2Syntax.EscapeLiteral(engine.ClassNamePrefix(itemClass.Id)),
+                     }.Distinct(StringComparer.Ordinal))
             {
-                classes = [];
-                _classByAnchor[phrase] = classes;
+                if (anchor.Length == 0) continue;
+                var phrase = ": " + anchor;
+                if (!_classByAnchor.TryGetValue(phrase, out var classes))
+                {
+                    classes = [];
+                    _classByAnchor[phrase] = classes;
+                }
+                if (!classes.Contains(itemClass.Id, StringComparer.Ordinal))
+                    classes.Add(itemClass.Id);
             }
-            classes.Add(itemClass.Id);
         }
     }
 

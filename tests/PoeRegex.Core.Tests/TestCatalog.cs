@@ -68,6 +68,7 @@ public static class TestCatalog
                 ["Ring"] = new(global),
             },
             ClassAnchors = new Dictionary<string, string> { ["Ring"] = "Ri" },
+            ClassPrefixes = new Dictionary<string, string> { ["Ring"] = "Ri" },
         };
     }
 

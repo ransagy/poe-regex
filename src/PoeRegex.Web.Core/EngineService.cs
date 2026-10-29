@@ -61,6 +61,9 @@ public sealed class EngineService
 
     public string ClassNamePrefix(string classId) => _corpus.ClassNamePrefix(classId);
 
+    /// <summary>Regex fragment for a single-class query anchor (may use wildcards).</summary>
+    public string ClassNameAnchor(string classId) => _corpus.ClassNameAnchor(classId);
+
     public IEnumerable<(string Pattern, string Fragment, string? Class)> PrecomputedFragments() =>
         _corpus.PrecomputedFragments();
 

@@ -184,6 +184,44 @@ public class WebDataServiceTests
     }
 
     [Fact]
+    public void QueryImport_ResolvesAWildcardClassAnchor()
+    {
+        var result = Engine.Compile([], [], itemClass: "One Hand Mace");
+        result.Query.Should().Be("\": On.+M\"");
+
+        var imported = new QueryImportService(Engine).Import(result.Query);
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("One Hand Mace");
+        imported.Includes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QueryImport_AcceptsTheLiteralPrefixFromOlderQueries()
+    {
+        var imported = new QueryImportService(Engine).Import("\": One Hand M\"");
+
+        imported.Mode.Should().Be("advanced");
+        imported.Classes.Should().Contain("One Hand Mace");
+        imported.Includes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QueryImport_ResolvesPrecomputedPasteGroups()
+    {
+        var combined = Engine.Combine(
+        [
+            ("weapon", "One Hand Mace", (IEnumerable<WantedMod>)Array.Empty<WantedMod>()),
+            ("offhand", "Two Hand Mace", Array.Empty<WantedMod>()),
+        ], []);
+
+        combined.Anchor.Should().Be(": (.*Mac)");
+        var imported = new QueryImportService(Engine).Import(combined.Query);
+        imported.Mode.Should().Be("multi-class");
+        imported.Classes.Should().Contain(["One Hand Mace", "Two Hand Mace"]);
+        imported.Includes.Should().BeEmpty();
+    }
+
+    [Fact]
     public void QueryImport_PreservesUnknownTokens()
     {
         var imported = new QueryImportService(Engine).Import("\"life\" \"zzzz\"");

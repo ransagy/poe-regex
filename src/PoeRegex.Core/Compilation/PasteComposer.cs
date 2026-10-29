@@ -85,7 +85,11 @@ public sealed class PasteComposer
 
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
 
-        var anchorInner = ": (" + ClassAlternation.Build(_corpus, scope) + ")";
+        // A single class needs no grouping, so keep the same compact
+        // `": <anchor>"` form as the single-slot compiler.
+        var anchorInner = scope.Count == 1
+            ? ": " + ClassAlternation.Build(_corpus, scope)
+            : ": (" + ClassAlternation.Build(_corpus, scope) + ")";
         var anchorDiag = Poe2Syntax.ValidateFragment(anchorInner);
         if (anchorDiag is not null) diagnostics.Add(anchorDiag);
         ValidateAnchor(anchorInner, scope, diagnostics);

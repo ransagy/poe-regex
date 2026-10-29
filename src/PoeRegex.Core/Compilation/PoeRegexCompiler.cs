@@ -32,7 +32,7 @@ public sealed class PoeRegexCompiler
             if (_corpus.FindItemClass(spec.ItemClass) is null)
                 diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
                     $"No fingerprint available for item class '{spec.ItemClass}'."));
-            else blocks.Add(Poe2Syntax.Quote(": " + Poe2Syntax.EscapeLiteral(_corpus.ClassNamePrefix(spec.ItemClass))));
+            else blocks.Add(Poe2Syntax.Quote(": " + _corpus.ClassNameAnchor(spec.ItemClass)));
         }
 
         // Included modifiers → one quoted block with | alternation.
