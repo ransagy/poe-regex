@@ -121,6 +121,7 @@ public static class MatrixProof
         {
             game = catalog.Game,
             dataVersion = catalog.DataVersion,
+            targetModel = FragmentTable.AdvancedRanges,
             grammarVersion = "quoted-shortest-v1",
             generatedAt = DateTimeOffset.UtcNow.ToString("u"),
             matrix = Path.GetFileName(matrixPath),

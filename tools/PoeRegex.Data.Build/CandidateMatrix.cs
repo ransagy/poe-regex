@@ -207,6 +207,7 @@ public static class CandidateMatrix
         var data = new
         {
             Game = "poe2",
+            TargetModel = FragmentTable.AdvancedRanges,
             Generated = DateTimeOffset.UtcNow.ToString("u"),
             Families = families,
         };

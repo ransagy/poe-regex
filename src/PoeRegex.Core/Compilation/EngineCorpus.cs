@@ -244,10 +244,23 @@ public sealed class EngineCorpus
         _fullUnion = new(() => BuildUnionIndex(includeNotInGame: true), LazyThreadSafetyMode.ExecutionAndPublication);
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _fragments = fragments ?? FragmentTables.ForCurrentGame;
-        if (fragments is null &&
-            _fragments is not null &&
-            !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
-            _fragments = null;
+        if (_fragments is not null)
+        {
+            // A table without a target model is the legacy table generated
+            // before the basis was recorded; it was advanced-ranges only.
+            if (!string.IsNullOrEmpty(_fragments.TargetModel) &&
+                !string.Equals(
+                    _fragments.TargetModel,
+                    FragmentTable.AdvancedRanges,
+                    StringComparison.Ordinal))
+                _fragments = null;
+            else if (fragments is null &&
+                     !string.Equals(
+                         _fragments.DataVersion,
+                         catalog.DataVersion,
+                         StringComparison.Ordinal))
+                _fragments = null;
+        }
     }
 
     public Catalog Catalog => _catalog;
@@ -324,6 +337,9 @@ public sealed class EngineCorpus
 
     /// <summary>Data version of the loaded fragment table (for audit/diagnostics).</summary>
     public string? PrecomputedDataVersion => _fragments?.DataVersion;
+
+    /// <summary>Display basis of the loaded fragment table.</summary>
+    public string? PrecomputedTargetModel => _fragments?.TargetModel;
 
     /// <summary>Global precomputed map (empty when the table is absent/stale).</summary>
     public IReadOnlyDictionary<string, string> PrecomputedGlobal =>

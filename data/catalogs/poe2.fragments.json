@@ -1,6 +1,7 @@
 {
   "Game": "poe2",
   "DataVersion": "2026-08-09",
+  "TargetModel": "advanced-ranges-v1",
   "Global": {
     "Loads \u0001 additional bolts": "ad. 2",
     "Loads an additional bolt": "s an",

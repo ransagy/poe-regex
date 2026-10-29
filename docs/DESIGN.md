@@ -99,6 +99,10 @@ outer loop. It runs at data-build time, never in the browser.
   wildcards (`.`, `.*`, `.+`), optional `^`/`$`, and optional leading
   `\d`/`\d+`. No lookahead, character classes, alternation, or backreferences.
 - **Semantics:** one quoted term is line-local; matching is case-insensitive.
+- **Target text:** the in-game search matches the advanced item text.
+  Ranged stats show `roll(min-max)`, fixed stats show the plain value; normal
+  display is presentation only. The table declares
+  `targetModel: advanced-ranges-v1`, and the engine rejects a mismatched table.
 - **Assembly:** class anchor first (when present), one quoted block with `|`
   alternation over included fragments, separate `!"term"` exclusion blocks,
   and quoted keyword blocks, joined by spaces. Spaces inside a quote are

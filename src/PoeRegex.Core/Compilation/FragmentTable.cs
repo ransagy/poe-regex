@@ -12,6 +12,16 @@ public sealed class FragmentTable
 {
     public string Game { get; init; } = "";
     public string DataVersion { get; init; } = "";
+
+    /// <summary>
+    /// The display basis the fragments were proven against. The current basis
+    /// is the advanced item-search text, where ranged stats show
+    /// <c>roll(min-max)</c>. An empty value is treated as the legacy table
+    /// that predates this field.
+    /// </summary>
+    public string TargetModel { get; init; } = "";
+
+    public const string AdvancedRanges = "advanced-ranges-v1";
     public Dictionary<string, string> Global { get; init; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, string>> ByClass { get; init; } = new(StringComparer.Ordinal);
 
