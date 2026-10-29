@@ -1,25 +1,20 @@
 name: matrix-proof
 
-# Manual proof runner. It checks chosen matrix scopes against the current
-# candidate grammar and fails if a shorter Strict/Minion-only candidate exists.
+# Manual exact proof runner. It checks every chosen matrix scope against the
+# exact G1 solver and fails if a shorter legal candidate exists.
 on:
   workflow_dispatch:
     inputs:
       family:
-        description: 'Comma-separated family keys (default: repaired deep families)'
+        description: 'Comma-separated family keys (empty = all families)'
         required: false
         type: string
-        default: 'CriticalStrikeMultiplier,DamageGainedAsFire,DamageGainedAsCold'
+        default: ''
       jobs:
         description: 'Internal worker count'
         required: true
         type: string
         default: '2'
-      shard:
-        description: 'Optional proof shard i/n'
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: read
@@ -43,16 +38,12 @@ jobs:
         env:
           FAMILY: ${{ inputs.family }}
           JOBS: ${{ inputs.jobs }}
-          SHARD: ${{ inputs.shard }}
         run: |
           set -euo pipefail
-          args=(matrix-proof --game poe2 --matrix docs/CANDIDATE-MATRIX-poe2.html
+          args=(matrix-proof --matrix docs/CANDIDATE-MATRIX-poe2.html
                 --jobs "$JOBS" --check --out matrix-proof.json)
           if [ -n "$FAMILY" ]; then
             args+=(--family "$FAMILY")
-          fi
-          if [ -n "$SHARD" ]; then
-            args+=(--shard "$SHARD")
           fi
           dotnet run --project tools/PoeRegex.Data.Build --configuration Release -- "${args[@]}"
 

@@ -20,18 +20,10 @@ public class CatalogPropertyTests
         return dir ?? throw new DirectoryNotFoundException("repo root not found");
     }
 
-    public static IEnumerable<object[]> Catalogs()
+    [Fact]
+    public void EveryCatalogFingerprint_IsSafeOnItsClass()
     {
-        yield return new object[] { GameTarget.PoE1 };
-        yield return new object[] { GameTarget.PoE2 };
-    }
-
-    [Theory]
-    [MemberData(nameof(Catalogs))]
-    public void EveryCatalogFingerprint_IsSafeOnItsClass(GameTarget game)
-    {
-        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
+        var corpus = RealCatalog.Corpus();
 
         var checkedCount = 0;
         foreach (var mod in corpus.Mods)
@@ -51,12 +43,10 @@ public class CatalogPropertyTests
         checkedCount.Should().BeGreaterThan(1000, "expected a meaningful number of fingerprints to validate");
     }
 
-    [Theory]
-    [MemberData(nameof(Catalogs))]
-    public void EveryClassWithMods_HasBaseFingerprint(GameTarget game)
+    [Fact]
+    public void EveryClassWithMods_HasBaseFingerprint()
     {
-        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
+        var corpus = RealCatalog.Corpus();
         var withMods = corpus.InGameClasses.ToList();
         foreach (var cls in withMods)
         {
@@ -74,13 +64,11 @@ public class CatalogPropertyTests
     /// control character, and it matches one of the mod's real copy-text lines.
     /// The fragment audit separately proves recall and false-positive safety.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Catalogs))]
-    public void EveryGeneratedSingleModQuery_ResolvesAndAvoidsPlaceholder(GameTarget game)
+    [Fact]
+    public void EveryGeneratedSingleModQuery_ResolvesAndAvoidsPlaceholder()
     {
-        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
-        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
+        var corpus = RealCatalog.Corpus();
+        var compiler = new PoeRegexCompiler(corpus);
         var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
         var quoted = new System.Text.RegularExpressions.Regex("\"([^\"]*)\"");
 
@@ -90,7 +78,7 @@ public class CatalogPropertyTests
         {
             foreach (var cls in mod.Classes.Where(corpus.IsInGameClass))
             {
-                var result = compiler.Compile(QuerySpecification.For(game) with
+                var result = compiler.Compile(new QuerySpecification
                 {
                     ItemClass = cls,
                     IncludedModifiers = [new ModifierRequirement(mod.Id)],
@@ -128,20 +116,18 @@ public class CatalogPropertyTests
     /// Global (no class) queries resolve every catalog mod to a fragment with
     /// no control char; the audit proves recall/safety over the whole corpus.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Catalogs))]
-    public void EveryGlobalQuery_ResolvesToAMatchingFragment(GameTarget game)
+    [Fact]
+    public void EveryGlobalQuery_ResolvesToAMatchingFragment()
     {
-        var path = Path.Combine(RepoRoot(), "data", "catalogs", $"{game.ToRuleKey()}.catalog.json");
-        var corpus = new EngineCorpus(new FileCatalogSource(path).Load(game));
-        var compiler = new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(game));
+        var corpus = RealCatalog.Corpus();
+        var compiler = new PoeRegexCompiler(corpus);
         var placeholder = new string(SuffixIndex.DigitPlaceholder, 1);
 
         var checkedCount = 0;
         var unresolvedCount = 0;
         foreach (var mod in corpus.InGameMods)
         {
-            var result = compiler.Compile(QuerySpecification.For(game) with
+            var result = compiler.Compile(new QuerySpecification
             {
                 IncludedModifiers = [new ModifierRequirement(mod.Id)],
             });
@@ -180,7 +166,7 @@ public class CatalogPropertyTests
     public void PoE2Catalog_RendersDisplayTextNotSchemaKeys()
     {
         var path = Path.Combine(RepoRoot(), "data", "catalogs", "poe2.catalog.json");
-        var catalog = new FileCatalogSource(path).Load(GameTarget.PoE2);
+        var catalog = RealCatalog.Corpus().Catalog;
 
         // The local "% increased Physical Damage" family (Heavy … Merciless).
         catalog.Mods

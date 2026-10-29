@@ -12,6 +12,5 @@ namespace PoeRegex.Core.Data;
 [JsonSerializable(typeof(ItemClassEntry))]
 [JsonSerializable(typeof(ModEntry))]
 [JsonSerializable(typeof(StatLineEntry))]
-[JsonSerializable(typeof(GameRules))]
 [JsonSerializable(typeof(VendorCorpusFile))]
 public sealed partial class CatalogJsonContext : JsonSerializerContext;

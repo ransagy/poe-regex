@@ -23,8 +23,6 @@ public sealed class EngineCorpus
     private readonly Lazy<IReadOnlyList<VendorLine>> _vendorLines;
     private readonly Lazy<HashSet<string>> _vendorNormalized;
     private readonly Lazy<HashSet<string>> _vendorPatterns;
-    private readonly Lazy<Dictionary<string, IReadOnlyList<SearchSection>>> _sectionsByClass;
-    private readonly ConcurrentDictionary<(string Scope, string Fragment), bool> _crossLineCache = new();
     private readonly FragmentTable? _fragments;
     private HashSet<string>? _knownPatterns;
     private readonly object _knownLock = new();
@@ -50,14 +48,6 @@ public sealed class EngineCorpus
         /// </summary>
         public required List<(string Pattern, string Real)> AllRealLines { get; init; }
     }
-
-    /// <summary>
-    /// One search section of an item: base/name/property lines, implicit mods,
-    /// or explicit mods. The game's search treats each section as a contiguous
-    /// text; <c>.</c> may cross line breaks inside a section but not between
-    /// sections (the observed `Charm.+Thorns` boundary).
-    /// </summary>
-    private sealed record SearchSection(string Kind, string Text, string ReverseText, IReadOnlySet<string> Patterns);
 
     /// <summary>Union corpus over every class's mod lines, for global (no-class) fingerprints.</summary>
     private sealed class UnionIndex
@@ -215,6 +205,16 @@ public sealed class EngineCorpus
     }
 
     public EngineCorpus(Catalog catalog)
+        : this(catalog, null)
+    {
+    }
+
+    /// <summary>
+    /// Builds a corpus with an explicit fragment table. The parameter exists
+    /// so tests and custom catalog sources can provide their own validated
+    /// table; the embedded table is used when it is null.
+    /// </summary>
+    public EngineCorpus(Catalog catalog, FragmentTable? fragments)
     {
         _catalog = catalog;
         _inGameCatalogClasses = GameItemClasses.InGame(catalog);
@@ -231,8 +231,8 @@ public sealed class EngineCorpus
         // per-class suffix indexes. The normal browser compile path uses the
         // precomputed table; the oracle is materialized only when a fallback,
         // import, or audit actually asks for it.
-        _safetyItems = new(() => SafetyItemCorpus.For(catalog.Game));
-        _vendorLines = new(() => VendorCorpus.For(catalog.Game)?.Lines ?? []);
+        _safetyItems = new(() => SafetyItemCorpus.ForCurrentGame);
+        _vendorLines = new(() => VendorCorpus.ForCurrentGame?.Lines ?? []);
         _vendorNormalized = new(() => InGameVendorLines()
             .Select(l => CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
@@ -240,12 +240,12 @@ public sealed class EngineCorpus
             .Select(l => l.Pattern ?? CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
         _byClass = new(() => BuildClassIndexes(catalog, _vendorLines.Value));
-        _sectionsByClass = new(() => BuildSearchSections(catalog, _vendorLines.Value));
         _union = new(() => BuildUnionIndex(includeNotInGame: false), LazyThreadSafetyMode.ExecutionAndPublication);
         _fullUnion = new(() => BuildUnionIndex(includeNotInGame: true), LazyThreadSafetyMode.ExecutionAndPublication);
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
-        _fragments = FragmentTables.For(catalog.Game);
-        if (_fragments is not null &&
+        _fragments = fragments ?? FragmentTables.ForCurrentGame;
+        if (fragments is null &&
+            _fragments is not null &&
             !string.Equals(_fragments.DataVersion, catalog.DataVersion, StringComparison.Ordinal))
             _fragments = null;
     }
@@ -398,197 +398,6 @@ public sealed class EngineCorpus
             .Where(x => !string.Equals(x, pattern, StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .ToList();
-    }
-
-    /// <summary>
-    /// Search sections for a class (base/name/properties, implicit mods, and
-    /// explicit mods). A section is the unit within which the game's `.` may
-    /// cross a line break; the observed implicit→explicit boundary does not.
-    /// </summary>
-    public IReadOnlyList<(string Kind, string Text)> SearchSectionsForClass(string itemClass) =>
-        _sectionsByClass.Value.TryGetValue(itemClass, out var sections)
-            ? sections.Select(s => (s.Kind, s.Text)).ToList()
-            : [];
-
-    /// <summary>
-    /// True when a fragment has no match spanning a line break in any search
-    /// section of the scope. Line-local matches are handled by the ordinary
-    /// per-line oracle; this check rejects candidates that only work by
-    /// bridging two lines of one item (e.g. a prefix caption and an unrelated
-    /// resistance line). The check is conservative: a fragment must also not
-    /// bridge two lines that happen to both be modeled.
-    /// </summary>
-    public bool CrossLineSafe(string? itemClass, string fragment)
-    {
-        // Only an unescaped `.` (including `.*`/`.+`) can consume a line
-        // break. Anchors, digits, escaped dots, and literals cannot.
-        if (!HasUnescapedDot(fragment)) return true;
-        var key = (itemClass ?? "\0", fragment);
-        if (_crossLineCache.TryGetValue(key, out var cached)) return cached;
-        if ((Interlocked.Increment(ref _crossLineAdds) & 0x3FF) == 0 &&
-            _crossLineCache.Count > CrossLineCacheLimit)
-            _crossLineCache.Clear();
-
-        // A wildcard with no 3+ character literal guard is too broad to prove
-        // cross-line safe; this rejects e.g. `Co.+ge$` before scanning the
-        // whole item corpus.
-        var hint = FragmentSelector.LiteralHint(fragment);
-        if (hint is null)
-        {
-            _crossLineCache[key] = false;
-            return false;
-        }
-        var result = CrossLineSafeCore(itemClass, fragment, hint);
-        _crossLineCache[key] = result;
-        return result;
-    }
-
-    private static bool HasUnescapedDot(string fragment)
-    {
-        for (var i = 0; i < fragment.Length; i++)
-        {
-            if (fragment[i] != '.') continue;
-            if (i == 0 || fragment[i - 1] != '\\') return true;
-        }
-        return false;
-    }
-
-    private const int CrossVariantCacheLimit = 50;
-    private const int CrossSectionCacheLimit = 5_000;
-    private const int CrossLineCacheLimit = 50_000;
-    private static readonly ConcurrentDictionary<string, System.Text.RegularExpressions.Regex[]> CrossVariantCache = new();
-    private static int _crossVariantAdds;
-    private int _crossLineAdds;
-    private readonly ConcurrentDictionary<string, SearchSection[]> _crossSectionCache = new(StringComparer.Ordinal);
-
-    private bool CrossLineSafeCore(string? itemClass, string fragment, string hint)
-    {
-        // Instead of enumerating every match and testing whether any of them
-        // consumed a newline, build variants of the fragment that can only
-        // match when a wildcard spans a newline. IsMatch then stops at the
-        // first hit. This is exact for the fragment grammar (literal pieces
-        // separated by `.`, `.*`, `.+`, or fixed dot runs).
-        if ((Interlocked.Increment(ref _crossVariantAdds) & 0xFF) == 0 &&
-            CrossVariantCache.Count > CrossVariantCacheLimit)
-            CrossVariantCache.Clear();
-        var variants = CrossVariantCache.GetOrAdd(fragment, BuildCrossVariants);
-        if (variants.Length == 0) return true;
-
-        // Hint lookup is cached per scope: many candidates share a three-letter
-        // guard, and scanning every section text per candidate is the dominant
-        // cost otherwise. The cached list is exactly the sections that can
-        // contain a cross-line match for that hint.
-        var cacheKey = (itemClass ?? "\0") + "\0" + hint.ToLowerInvariant();
-        if (_crossSectionCache.Count > CrossSectionCacheLimit) _crossSectionCache.Clear();
-        var candidateSections = _crossSectionCache.GetOrAdd(
-            cacheKey, _ => FindCrossSections(itemClass, hint));
-        foreach (var section in candidateSections)
-        {
-            if (HasCrossLineMatch(variants, section.Text) ||
-                HasCrossLineMatch(variants, section.ReverseText))
-                return false;
-        }
-        return true;
-    }
-
-    private SearchSection[] FindCrossSections(string? itemClass, string hint)
-    {
-        IEnumerable<string> classes = itemClass is null
-            ? _sectionsByClass.Value.Keys.Where(_inGameClassIds.Contains)
-            : new[] { itemClass };
-        var result = new List<SearchSection>();
-        foreach (var cls in classes)
-        {
-            if (!_sectionsByClass.Value.TryGetValue(cls, out var sections)) continue;
-            foreach (var section in sections)
-            {
-                if (section.Text.IndexOf(hint, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                if (section.Text.IndexOf('\n') < 0) continue;
-                result.Add(section);
-            }
-        }
-        return result.ToArray();
-    }
-
-    private static System.Text.RegularExpressions.Regex[] BuildCrossVariants(string fragment)
-    {
-        var variants = new List<string>();
-        for (var i = 0; i < fragment.Length;)
-        {
-            var c = fragment[i];
-            if (c == '\\' && i + 1 < fragment.Length)
-            {
-                i += 2;
-                continue;
-            }
-            if (c != '.')
-            {
-                i++;
-                continue;
-            }
-            if (i + 1 < fragment.Length && (fragment[i + 1] == '*' || fragment[i + 1] == '+'))
-            {
-                variants.Add(fragment[..i] + ".*\n.*" + fragment[(i + 2)..]);
-                i += 2;
-                continue;
-            }
-
-            var start = i;
-            while (i < fragment.Length && fragment[i] == '.') i++;
-            for (var dot = start; dot < i; dot++)
-                variants.Add(fragment[..dot] + "\n" + fragment[(dot + 1)..]);
-        }
-
-        var result = new List<System.Text.RegularExpressions.Regex>();
-        foreach (var variant in variants.Distinct(StringComparer.Ordinal))
-        {
-            try
-            {
-                var options =
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase |
-                    System.Text.RegularExpressions.RegexOptions.CultureInvariant |
-                    System.Text.RegularExpressions.RegexOptions.Multiline |
-                    System.Text.RegularExpressions.RegexOptions.Singleline;
-                try
-                {
-                    result.Add(new System.Text.RegularExpressions.Regex(
-                        variant,
-                        options | System.Text.RegularExpressions.RegexOptions.NonBacktracking,
-                        TimeSpan.FromMilliseconds(250)));
-                }
-                catch (ArgumentException)
-                {
-                    // Fall back to the backtracking engine for constructs the
-                    // non-backtracking engine does not support.
-                    result.Add(new System.Text.RegularExpressions.Regex(
-                        variant, options, TimeSpan.FromMilliseconds(250)));
-                }
-            }
-            catch (ArgumentException)
-            {
-                // An invalid variant is not evidence of safety; the caller
-                // already rejects unparseable originals.
-            }
-        }
-        return result.ToArray();
-    }
-
-    private static bool HasCrossLineMatch(
-        System.Text.RegularExpressions.Regex[] variants, string text)
-    {
-        foreach (var regex in variants)
-        {
-            try
-            {
-                if (regex.IsMatch(text)) return true;
-            }
-            catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
-            {
-                // A runaway candidate is not proven safe.
-                return true;
-            }
-        }
-        return false;
     }
 
     /// <summary>
@@ -827,78 +636,6 @@ public sealed class EngineCorpus
         "base-name" or "base-property" or "magic-name" or "usage" or "universal" or "class" => "base",
         _ => "explicit",
     };
-
-    private static Dictionary<string, IReadOnlyList<SearchSection>> BuildSearchSections(
-        Catalog catalog, IReadOnlyList<VendorLine> vendorLines)
-    {
-        var linesByClass = new Dictionary<string, Dictionary<string, HashSet<string>>>(StringComparer.Ordinal);
-        void Add(string cls, string section, string line)
-        {
-            if (string.IsNullOrWhiteSpace(line)) return;
-            if (!linesByClass.TryGetValue(cls, out var sections))
-            {
-                sections = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-                linesByClass[cls] = sections;
-            }
-            if (!sections.TryGetValue(section, out var lines))
-            {
-                lines = new HashSet<string>(StringComparer.Ordinal);
-                sections[section] = lines;
-            }
-            lines.Add(line.Trim());
-        }
-
-        foreach (var cls in catalog.ItemClasses)
-        {
-            foreach (var u in UniversalLines) Add(cls.Id, "base", u);
-            Add(cls.Id, "base", $"Item Class: {cls.Name}");
-        }
-        var vendorPatternsByClass = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var line in vendorLines)
-        {
-            if (line.ClassId is null) continue;
-            Add(line.ClassId, SectionForVendorKind(line.Kind), line.Line);
-            if (!string.IsNullOrWhiteSpace(line.Pattern))
-            {
-                if (!vendorPatternsByClass.TryGetValue(line.ClassId, out var set))
-                {
-                    set = new HashSet<string>(StringComparer.Ordinal);
-                    vendorPatternsByClass[line.ClassId] = set;
-                }
-                set.Add(line.Pattern);
-            }
-        }
-        // Same fallback as the line corpus: only add the representative line
-        // for a catalog pattern with no actual display form in the vendor data.
-        foreach (var mod in catalog.Mods)
-        {
-            var section = SectionKindForGeneration(mod.GenerationType);
-            foreach (var cls in mod.Classes)
-            {
-                var seen = vendorPatternsByClass.GetValueOrDefault(cls);
-                foreach (var sl in mod.StatLines)
-                    if (seen is null || !seen.Contains(sl.Pattern)) Add(cls, section, sl.Line);
-            }
-        }
-
-        var result = new Dictionary<string, IReadOnlyList<SearchSection>>(StringComparer.Ordinal);
-        foreach (var cls in catalog.ItemClasses)
-        {
-            if (!linesByClass.TryGetValue(cls.Id, out var sections)) continue;
-            var list = new List<SearchSection>();
-            foreach (var kind in new[] { "base", "implicit", "explicit" })
-            {
-                if (!sections.TryGetValue(kind, out var lines) || lines.Count == 0) continue;
-                var ordered = lines.OrderBy(x => x, StringComparer.Ordinal).ToList();
-                var text = string.Join("\n", ordered);
-                var reverse = string.Join("\n", Enumerable.Reverse(ordered));
-                list.Add(new SearchSection(kind, text, reverse,
-                    lines.Select(CatalogLineNormalizer.Normalize).ToHashSet(StringComparer.Ordinal)));
-            }
-            result[cls.Id] = list;
-        }
-        return result;
-    }
 
     /// <summary>Normalized pattern used for a real item line by the oracle.</summary>
     public string PatternForSafetyLine(string line) => VendorPattern(line, KnownPatterns());

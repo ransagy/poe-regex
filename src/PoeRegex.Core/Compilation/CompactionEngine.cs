@@ -10,15 +10,10 @@ namespace PoeRegex.Core.Compilation;
 public sealed class CompactionEngine
 {
     private readonly EngineCorpus _corpus;
-    private readonly ICompilerStrategy _strategy;
-    private readonly FragmentSelector _selector;
 
-    public CompactionEngine(EngineCorpus corpus, ICompilerStrategy strategy, bool allowFallback = true)
+    public CompactionEngine(EngineCorpus corpus)
     {
         _corpus = corpus;
-        _strategy = strategy;
-        _selector = new FragmentSelector(
-            corpus, strategy, policy: FragmentPolicy.Shortest, allowFallback: allowFallback);
     }
 
     /// <summary>
@@ -32,18 +27,18 @@ public sealed class CompactionEngine
         if (mod is null) return null;
         if (mod.StatLines.Count == 0) return null;
 
-        // Hybrid mods have more than one line. The selector is scope-aware and
-        // validates each line against the real copy text; keep the shortest.
+        // Hybrid mods have more than one line. The table is already proven
+        // per scope; keep the shortest table form across the lines.
         string? best = null;
         StatLineEntry? bestLine = null;
         foreach (var line in mod.StatLines)
         {
-            var fragment = _selector.SelectWithMinionFallback(line.Pattern, itemClass);
+            var fragment = Lookup(line.Pattern, itemClass);
             // The class anchor is already present in a class-scoped query, so
             // the global fragment is free to use when it is shorter.
             if (itemClass is not null)
             {
-                var global = _selector.SelectWithMinionFallback(line.Pattern, null);
+                var global = Lookup(line.Pattern, null);
                 if (global is not null && (fragment is null || global.Length < fragment.Length))
                     fragment = global;
             }
@@ -60,6 +55,11 @@ public sealed class CompactionEngine
             return BuildThresholdFragment(bestLine, requirement.MinValue.Value, itemClass, best);
         return best;
     }
+
+    private string? Lookup(string pattern, string? itemClass) =>
+        _corpus.TryPrecomputedFragment(pattern, itemClass, out var fragment)
+            ? fragment
+            : null;
 
     private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
     {

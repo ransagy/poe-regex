@@ -33,18 +33,14 @@ public sealed record MultiPasteResult
 public sealed class PasteComposer
 {
     private readonly EngineCorpus _corpus;
-    private readonly ICompilerStrategy _strategy;
     private readonly CompactionEngine _compaction;
     private readonly Explainer _explainer;
     private readonly bool _validateRecall;
 
-    public PasteComposer(
-        EngineCorpus corpus, ICompilerStrategy strategy,
-        bool allowFallback = true, bool validateRecall = true)
+    public PasteComposer(EngineCorpus corpus, bool validateRecall = true)
     {
         _corpus = corpus;
-        _strategy = strategy;
-        _compaction = new CompactionEngine(corpus, strategy, allowFallback);
+        _compaction = new CompactionEngine(corpus);
         _explainer = new Explainer(corpus);
         _validateRecall = validateRecall;
     }
@@ -89,13 +85,13 @@ public sealed class PasteComposer
 
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
 
-        var anchorInner = ": (" + ClassAlternation.Build(_corpus, _strategy, scope) + ")";
-        var anchorDiag = _strategy.ValidateFragment(anchorInner);
+        var anchorInner = ": (" + ClassAlternation.Build(_corpus, scope) + ")";
+        var anchorDiag = Poe2Syntax.ValidateFragment(anchorInner);
         if (anchorDiag is not null) diagnostics.Add(anchorDiag);
         ValidateAnchor(anchorInner, scope, diagnostics);
 
         var groups = new List<PasteGroup>();
-        var blocks = new List<string> { _strategy.Quote(anchorInner) };
+        var blocks = new List<string> { Poe2Syntax.Quote(anchorInner) };
         // Group identical criteria (different classes, same mods) into one line.
         foreach (var bucket in merged.Where(s => s.Includes.Count > 0)
                      .GroupBy(s => string.Join("\n", s.Includes.Select(i => i.Value + "\u0001" + i.MinValue)),
@@ -121,12 +117,12 @@ public sealed class PasteComposer
             var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal)).ToList();
             var factored = CompactionEngine.FactorCommonPrefixes(frags);
             var token = others.Count > 0
-                ? ": (" + ClassAlternation.Build(_corpus, _strategy, others) + ")|" + string.Join("|", factored)
+                ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", factored)
                 : string.Join("|", factored);
-            var tokenDiag = _strategy.ValidateFragment(token);
+            var tokenDiag = Poe2Syntax.ValidateFragment(token);
             if (tokenDiag is not null) diagnostics.Add(tokenDiag);
             groups.Add(new PasteGroup(label, targets, token));
-            blocks.Add(_strategy.Quote(token));
+            blocks.Add(Poe2Syntax.Quote(token));
             if (_validateRecall)
                 ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
         }
@@ -137,15 +133,15 @@ public sealed class PasteComposer
             var mod = _corpus.FindMod(req.Value);
             var term = mod is not null
                 ? _compaction.SelectFragment(req, null) ?? req.Value
-                : _strategy.EscapeLiteral(req.Value);
-            blocks.Add(_strategy.FormatExclusion(term));
+                : Poe2Syntax.EscapeLiteral(req.Value);
+            blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 
         var query = string.Join(" ", blocks);
         foreach (var shapeError in QueryShape.Validate(query))
             diagnostics.Add(new CompilerDiagnostic(
                 DiagnosticLevel.Warning, "query-shape", shapeError));
-        var limit = _strategy.GameRules.MaxCharacterLimit;
+        var limit = Poe2Syntax.MaxCharacterLimit;
         if (query.Length > limit && !allowOverflow)
             throw new RegexLengthOverflowException(query.Length, limit);
         return new MultiPasteResult
@@ -163,9 +159,9 @@ public sealed class PasteComposer
     {
         var mod = _corpus.FindMod(req.Value);
         if (mod is not null) return _compaction.SelectFragment(req, itemClass);
-        var diag = _strategy.ValidateFragment(req.Value);
+        var diag = Poe2Syntax.ValidateFragment(req.Value);
         if (diag is not null) diagnostics.Add(diag);
-        return _strategy.EscapeLiteral(req.Value);
+        return Poe2Syntax.EscapeLiteral(req.Value);
     }
 
     private void ValidateAnchor(string anchorInner, IReadOnlyList<string> scope, List<CompilerDiagnostic> diagnostics)
@@ -193,7 +189,7 @@ public sealed class PasteComposer
         string label, List<CompilerDiagnostic> diagnostics)
     {
         // Quote the group: spaces inside fragments must not split tokens.
-        var quoted = _strategy.Quote(token);
+        var quoted = Poe2Syntax.Quote(token);
         foreach (var target in targets)
         {
             var candidates = _explainer.Explain(quoted, target).Mods.Select(m => m.Id)

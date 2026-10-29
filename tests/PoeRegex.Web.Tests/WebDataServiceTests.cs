@@ -123,7 +123,7 @@ public class WebDataServiceTests
         var first = Engine.Compile(includes, excludes, itemClass: "Ring");
         var second = Engine.Compile(includes, excludes, itemClass: "Ring");
         second.Query.Should().Be(first.Query);
-        // Byte parity with `poe-regex generate --game poe2 --class Ring
+        // Byte parity with `poe-regex generate --class Ring
         // --min IncreasedLife6:80 --exclude reflect`.
         first.Query.Should().Be("\": Ri\" \"\\+(\\d{3,}|[9-9]\\d|8[0-9])\\(\\d+-\\d+\\) to maximum Life\" !\"reflect\"");
         first.Limit.Should().Be(250);

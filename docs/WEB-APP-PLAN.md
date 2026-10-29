@@ -1,4 +1,9 @@
-# poe-regex Web App Plan (locked)
+# poe-regex Web App Plan (historical)
+
+> Historical work log. The current architecture is the exact PoE2 table and a
+> table-only runtime; see `CANDIDATE-REPORT-poe2.md` and `DESIGN.md`. PoE1 is
+> not part of the current product. Entries below are kept as a record of the
+> design rounds.
 
 Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
 look-and-feel, editable gear slots, per-slot and global regex compilation
@@ -13,7 +18,6 @@ runs on Cloudflare Pages (see [`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
   source-generated JSON (`CatalogJsonContext`), no file/threading use, and the
   poe2 catalog ships embedded (~730 KiB).
 - **Game scope**: PoE2 only (multi-quoted-group AND, `!` negation, lookahead).
-  PoE1 stays in the catalog but is not loaded.
 - **Gear slots (10)**: weapon + offhand (single concept; swaps irrelevant) /
   helmet / body armour / gloves / boots / belt / amulet / ring x2. Out of
   scope: charms, flasks, skill bar, currency, stash panel, weapon-swap

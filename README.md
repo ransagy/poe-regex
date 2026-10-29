@@ -3,10 +3,10 @@
 [![ci](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-c9a227.svg)](LICENSE)
 
-An engine that turns Path of Exile 1 & 2 modifier requirements into short,
-in-game-safe regex queries. PoE 2 search boxes cap regex queries at 250
-characters; this tool targets that budget by precomputing the absolute shortest
-line-safe fragment for every mod line over the vendor/stash corpus and assembling deterministic, AND-ed quoted blocks.
+A PoE2 engine that turns modifier requirements into short, in-game-safe regex
+queries. PoE2 search boxes cap regex queries at 250 characters; the project
+precomputes the exact shortest line-safe fragment for every mod line over the
+vendor/stash corpus and assembles deterministic, AND-ed quoted blocks.
 
 The repository contains the engine, its data pipeline, the CLI, and the web
 reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly
@@ -18,16 +18,15 @@ excluded from search engines).
 
 - **Data pipeline** (`tools/PoeRegex.Data.Build`): fetches RePoE's hosted
   exports (the fetch date is recorded as the catalog's `dataVersion`), renders
-  each mod's stat text, fingerprints every line via a suffix-array index, and
-  emits a compact derived catalog (`data/catalogs/*.json`). Raw RePoE JSON is
-  dev-only and gitignored; only derived catalogs ship. See
-  [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
-- **Engine** (`src/PoeRegex.Core`): consumes a catalog through `ICatalogSource`,
-  validates fragments against per-game grammar, selects the absolute shortest
-  fragment over the derived vendor/stash line corpus (or a value-threshold
-  digit-range pattern), factors common prefixes
-  across included mods, and enforces the game's character limit. Output is
-  deterministic.
+  each mod's stat text, builds the vendor/stash corpus, solves every scope
+  exactly, and emits the derived catalog plus the exact fragment table
+  (`data/catalogs/*.json`). Raw RePoE JSON is dev-only and gitignored; only
+  derived data ships. See [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
+- **Engine** (`src/PoeRegex.Core`): consumes the PoE2 catalog and its exact
+  fragment table through `ICatalogSource`, performs table lookup only (no
+  runtime fragment search), composes value-threshold digit-range patterns,
+  factors common prefixes across included mods, and enforces the 250-character
+  limit. Output is deterministic.
 - **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.
 - **Web workbench** (`web/`, "Renly's Recipes"): Blazor WebAssembly running
   `PoeRegex.Core` in the browser — gear slots, live queries for the in-game
@@ -35,11 +34,11 @@ excluded from search engines).
   no backend; the app makes no network calls of its own (the Cloudflare-hosted
   build includes cookieless Cloudflare Web Analytics — see
   [`web/README.md`](web/README.md)).
-- **Tests** (`tests/`): engine unit tests plus no-false-positive property tests
-  over both shipped catalogs.
+- **Tests** (`tests/`): engine unit tests, exact-table audits, and web
+  no-false-positive property tests over the shipped PoE2 catalog.
 
 See `docs/DESIGN.md` for the full specification. Integrating `PoeRegex.Core`
-into your own app (references, pipeline, custom strategies/catalogs, AOT)?
+into your own app (references, pipeline, custom catalog sources, AOT)?
 See [`docs/USING-THE-ENGINE.md`](docs/USING-THE-ENGINE.md). Contributions are
 welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for adding or correcting test
 cases.
@@ -64,19 +63,19 @@ dotnet run --project src/PoeRegex.Cli
 
 # batch: life on rings with a floor, exclude reflect, require item level 60+
 dotnet run --project src/PoeRegex.Cli -- generate \
-  --game poe1 --class Ring \
+  --class Ring \
   --include "to maximum Life" --min "increased rarity:30" \
   --exclude reflect --ilvl 60 --clipboard
 
 # list classes / mods
-dotnet run --project src/PoeRegex.Cli -- list-classes --game poe2
-dotnet run --project src/PoeRegex.Cli -- list-mods --game poe2 --class Ring --search life
+dotnet run --project src/PoeRegex.Cli -- list-classes
+dotnet run --project src/PoeRegex.Cli -- list-mods --class Ring --search life
 
 # validate a query
-dotnet run --project src/PoeRegex.Cli -- validate --game poe1 --query '"to maximum Life"'
+dotnet run --project src/PoeRegex.Cli -- validate --query '"to maximum Life"'
 
 # explain a query: decompose it back into the catalog mods it matches
-dotnet run --project src/PoeRegex.Cli -- explain --game poe1 --class Ring --query '"life" "I"'
+dotnet run --project src/PoeRegex.Cli -- explain --class Ring --query '"life" "I"'
 ```
 
 Every command also supports `--json` for machine-readable stdout — that's the
@@ -91,16 +90,19 @@ at <https://renlys-recipes.pages.dev>; deployment notes are in
 Exit codes: `0` ok, `1` error (including a query over the character limit),
 `2` usage error.
 
-## Data pipeline (reproducing the catalogs)
+## Data pipeline (reproducing the catalog)
 
 ```sh
-dotnet run --project tools/PoeRegex.Data.Build -- fetch --game poe1 --out data/raw/poe1
-dotnet run --project tools/PoeRegex.Data.Build -- build --game poe1 --raw data/raw/poe1 --catalog data/catalogs/poe1.catalog.json
+dotnet run --project tools/PoeRegex.Data.Build -- fetch
+dotnet run --project tools/PoeRegex.Data.Build -- build
+dotnet run --project tools/PoeRegex.Data.Build -- corpus
+dotnet run --project tools/PoeRegex.Data.Build -- matrix-solve --from-scratch
 ```
 
-Re-running after a league patch re-sources the latest exports. The catalogs
-record the fetch date and contain only the derived subset described in
-[`docs/PROVENANCE.md`](docs/PROVENANCE.md).
+`matrix-solve` runs the exact solver, writes the matrix/table/proof/status,
+and verifies that no shorter legal form exists. Re-running after a league
+patch re-sources the latest exports. The catalog records the fetch date and
+contains only the derived subset described in `docs/PROVENANCE.md`.
 
 ## Acknowledgements
 

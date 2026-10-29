@@ -42,13 +42,13 @@ public static class VendorCorpusBuilder
         @"([+-]?\d+(?:\.\d+)?)\s*[-\u2013\u2014]\s*([+-]?\d+(?:\.\d+)?)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public static VendorCorpusFile Build(string game, string rawDir)
+    public static VendorCorpusFile Build(string rawDir)
     {
         var mods = RePoEJson.LoadMods(Path.Combine(rawDir, "mods.min.json"));
         var itemClasses = RePoEJson.LoadItemClasses(Path.Combine(rawDir, "item_classes.min.json"));
         var baseItems = RePoEJson.LoadBaseItems(Path.Combine(rawDir, "base_items.min.json"));
         var handlers = RePoEJson.LoadValueHandlers(Path.Combine(rawDir, "stat_value_handlers.min.json"));
-        var translations = CatalogBuilder.LoadAllTranslations(game, rawDir);
+        var translations = CatalogBuilder.LoadAllTranslations(rawDir);
         var renderer = new StatTextRenderer(handlers, translations);
         var classByMod = CatalogBuilder.MapModsToClasses(rawDir, itemClasses);
 
@@ -278,7 +278,7 @@ public static class VendorCorpusBuilder
         var dataVersion = CatalogBuilder.ReadVersionFile(rawDir);
         return new VendorCorpusFile
         {
-            Game = game,
+            Game = "poe2",
             DataVersion = dataVersion,
             Lines = lines
                 .OrderBy(x => x.ClassId ?? "", StringComparer.Ordinal)

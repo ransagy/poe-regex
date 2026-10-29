@@ -18,16 +18,14 @@ public sealed class EngineService
     private readonly EngineCorpus _corpus;
     private readonly PoeRegexCompiler _compiler;
     private readonly Explainer _explainer;
-    private readonly ICompilerStrategy _strategy;
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
 
     public EngineService()
     {
-        var catalog = new EmbeddedCatalogSource().Load(GameTarget.PoE2);
+        var catalog = new EmbeddedCatalogSource().Load();
         _corpus = new EngineCorpus(catalog);
-        _strategy = PoeRegexCompiler.StrategyFor(GameTarget.PoE2);
-        _compiler = new PoeRegexCompiler(_corpus, _strategy, allowFallback: false);
+        _compiler = new PoeRegexCompiler(_corpus);
         _explainer = new Explainer(_corpus);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
@@ -40,6 +38,10 @@ public sealed class EngineService
     }
 
     public string DataVersion => _corpus.Catalog.DataVersion;
+
+    public bool DataReady => _corpus.HasPrecomputedFragments;
+
+    public string? FragmentDataVersion => _corpus.PrecomputedDataVersion;
 
     /// <summary>Documented global unresolved reason for a catalog pattern.</summary>
     public string? GlobalUnresolvedReason(string pattern) =>
@@ -249,7 +251,7 @@ public sealed class EngineService
         string? itemClass = null,
         IEnumerable<string>? keywords = null,
         bool allowOverflow = false) =>
-        _compiler.Compile(QuerySpecification.For(GameTarget.PoE2) with
+        _compiler.Compile(new QuerySpecification
         {
             ItemClass = itemClass,
             IncludedModifiers = includes.ToList(),
@@ -266,7 +268,7 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false) =>
-        new PasteComposer(_corpus, _strategy, allowFallback: false, validateRecall: false).Compose(
+        new PasteComposer(_corpus, validateRecall: false).Compose(
             slots.Select(s => new PasteSlotCriterion(
                 s.ClassId,
                 s.Includes.SelectMany(m => m.Requirements()).ToList(),
@@ -305,5 +307,5 @@ public sealed class EngineService
     }
 
     /// <summary>Null when the query is grammatically valid for PoE2.</summary>
-    public CompilerDiagnostic? Validate(string query) => _strategy.ValidateFragment(query);
+    public CompilerDiagnostic? Validate(string query) => Poe2Syntax.ValidateFragment(query);
 }

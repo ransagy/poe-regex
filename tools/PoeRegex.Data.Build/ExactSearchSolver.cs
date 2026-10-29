@@ -10,7 +10,7 @@ namespace PoeRegex.Data.Build;
 /// form. A counterexample-guided outer loop adds every foreign line matched by
 /// a candidate until the candidate is globally clean.
 ///
-/// This is the experimental exact search behind solve-exact.
+/// This is the exact search behind matrix-solve and solve-exact.
 /// </summary>
 internal static class ExactSearchSolver
 {

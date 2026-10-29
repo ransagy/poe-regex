@@ -8,15 +8,15 @@ public class CompilerTests
 {
     private static PoeRegexCompiler CreateCompiler()
     {
-        var corpus = new EngineCorpus(TestCatalog.Build());
-        return new PoeRegexCompiler(corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE1));
+        var corpus = TestCatalog.Corpus();
+        return new PoeRegexCompiler(corpus);
     }
 
     [Fact]
     public void SingleMod_ProducesQuotedBlockAndClassAnchor()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -28,7 +28,7 @@ public class CompilerTests
         result.Length.Should().BeLessThan(result.Limit);
 
         // The generated query must reverse back to the source mod (reversibility).
-        var explainer = new Explainer(new EngineCorpus(TestCatalog.Build()));
+        var explainer = new Explainer(TestCatalog.Corpus());
         var explained = explainer.Explain(result.Query, "Ring");
         explained.Mods.Select(m => m.Id).Should().Contain("IncreasedLife1");
     }
@@ -37,7 +37,7 @@ public class CompilerTests
     public void ClassAnchor_IsTheFirstQuotedBlock()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -53,7 +53,7 @@ public class CompilerTests
     public void MultipleMods_UseAlternation()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers =
@@ -67,7 +67,7 @@ public class CompilerTests
         result.Query.Should().Contain("\": Ri\""); // class anchor block (distinctive, never bare ":")
         result.Query.Should().Contain("\"");
 
-        var explainer = new Explainer(new EngineCorpus(TestCatalog.Build()));
+        var explainer = new Explainer(TestCatalog.Corpus());
         var explained = explainer.Explain(result.Query, "Ring");
         var ids = explained.Mods.Select(m => m.Id).ToList();
         ids.Should().Contain("IncreasedLife1");
@@ -78,7 +78,7 @@ public class CompilerTests
     public void Exclusions_BecomeNegatedQuotedBlocks()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -92,7 +92,7 @@ public class CompilerTests
     public void Keywords_AreQuoted()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -106,7 +106,7 @@ public class CompilerTests
     public void FreeText_IsEscapedForLiteralMatch()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("to +maximum Life")],
@@ -120,7 +120,7 @@ public class CompilerTests
     public void Threshold_EmitsDigitRangePattern()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1", 20)],
@@ -134,7 +134,7 @@ public class CompilerTests
     public void Overflow_ThrowsUnlessAllowed()
     {
         var compiler = CreateCompiler();
-        var spec = QuerySpecification.For(GameTarget.PoE1) with
+        var spec = new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -152,7 +152,7 @@ public class CompilerTests
     public void DeterministicOutput_ForSameInput()
     {
         var compiler = CreateCompiler();
-        var spec = QuerySpecification.For(GameTarget.PoE1) with
+        var spec = new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1"), new ModifierRequirement("Strength1")],
@@ -167,7 +167,7 @@ public class CompilerTests
     public void ModWithNoStatLines_ProducesWarning()
     {
         var compiler = CreateCompiler();
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("EmptyStatMod1")],
@@ -175,4 +175,27 @@ public class CompilerTests
 
         result.Diagnostics.Should().Contain(d => d.Code == "unresolved-modifier");
     }
+
+    [Fact]
+    public void MissingTable_FailsClosed()
+    {
+        // The synthetic catalog's dataVersion does not match the embedded
+        // PoE2 table, so the corpus deliberately has no usable fragments.
+        var compiler = new PoeRegexCompiler(new EngineCorpus(TestCatalog.Build()));
+        var result = compiler.Compile(new QuerySpecification
+        {
+            ItemClass = "Ring",
+            IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
+        });
+
+        result.Diagnostics.Should().Contain(d => d.Code == "unresolved-modifier");
+        result.Query.Should().NotContain("maximum");
+    }
+
+    [Fact]
+    public void WordBoundary_IsWarned()
+    {
+        Poe2Syntax.ValidateFragment(@"\bfoo").Should().NotBeNull();
+    }
+
 }

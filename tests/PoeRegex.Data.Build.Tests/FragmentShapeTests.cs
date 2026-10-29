@@ -49,10 +49,6 @@ public class FragmentShapeTests
                     var kind = scope.GetProperty("kind").GetString() ?? "";
                     CheckOption($"{key}/{stat}/{kind}/current", scope, "currentOption", failures);
                     CheckOption($"{key}/{stat}/{kind}/chosen", scope, "chosen", failures);
-                    CheckOption($"{key}/{stat}/{kind}/floor", scope, "floor", failures);
-                    foreach (var list in new[] { "known", "strict", "minion", "floors" })
-                        foreach (var option in scope.GetProperty(list).EnumerateArray())
-                            CheckFragment($"{key}/{stat}/{kind}/{list}", option, failures);
                 }
             }
         }
@@ -125,7 +121,7 @@ public class FragmentShapeTests
             File.ReadAllText(Path.Combine(root, "data", "catalogs", "poe2.fragments.json")),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         var catalog = new FileCatalogSource(
-            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load(GameTarget.PoE2);
+            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load();
         var corpus = new EngineCorpus(catalog);
         var failures = new List<string>();
         foreach (var (classId, anchor) in table.ClassAnchors)
@@ -158,14 +154,11 @@ public class FragmentShapeTests
             var key = family.GetProperty("key").GetString() ?? "";
             var patterns = family.GetProperty("patterns");
             var first = patterns.EnumerateArray().First();
-            var global = first.GetProperty("scopes").EnumerateArray()
-                .FirstOrDefault(scope =>
-                    scope.GetProperty("kind").GetString() == "global");
-            if (global.ValueKind != JsonValueKind.Object ||
-                !global.TryGetProperty("chosen", out var chosen) ||
-                chosen.ValueKind != JsonValueKind.Object ||
-                string.IsNullOrEmpty(chosen.GetProperty("fragment").GetString()))
-                missing.Add(key);
+            var hasChosen = first.GetProperty("scopes").EnumerateArray().Any(scope =>
+                scope.TryGetProperty("chosen", out var chosen) &&
+                chosen.ValueKind == JsonValueKind.Object &&
+                !string.IsNullOrEmpty(chosen.GetProperty("fragment").GetString()));
+            if (!hasChosen) missing.Add(key);
         }
 
         missing.Should().BeEmpty(

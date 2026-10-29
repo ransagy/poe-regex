@@ -50,10 +50,9 @@ public class QueryShapeTests
     [Fact]
     public void Compiler_SingleMod_IsOneQuotedBlockPlusAnchor()
     {
-        var corpus = new EngineCorpus(TestCatalog.Build());
-        var compiler = new PoeRegexCompiler(
-            corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE1));
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var corpus = TestCatalog.Corpus();
+        var compiler = new PoeRegexCompiler(corpus);
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1")],
@@ -69,10 +68,9 @@ public class QueryShapeTests
     [Fact]
     public void Compiler_MultipleMods_StayInsideOneQuotedBlock()
     {
-        var corpus = new EngineCorpus(TestCatalog.Build());
-        var compiler = new PoeRegexCompiler(
-            corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE1));
-        var result = compiler.Compile(QuerySpecification.For(GameTarget.PoE1) with
+        var corpus = TestCatalog.Corpus();
+        var compiler = new PoeRegexCompiler(corpus);
+        var result = compiler.Compile(new QuerySpecification
         {
             ItemClass = "Ring",
             IncludedModifiers =
@@ -95,8 +93,7 @@ public class QueryShapeTests
     public void PasteComposer_QuotesEachGroup()
     {
         var corpus = RealCatalog.Corpus();
-        var composer = new PasteComposer(
-            corpus, PoeRegexCompiler.StrategyFor(GameTarget.PoE2));
+        var composer = new PasteComposer(corpus);
         var result = composer.Compose(
         [
             new PasteSlotCriterion("Ring", [new ModifierRequirement("IncreasedLife6")], "ring"),

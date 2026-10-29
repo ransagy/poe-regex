@@ -25,8 +25,9 @@ dotnet run --project web/web.csproj
 # open the printed http://localhost:PORT/ URL
 ```
 
-The app loads the embedded poe2 catalog, builds the suffix-index corpus once
-(~5 ms warm, ~165 ms cold in the interpreter build), and compiles locally.
+The app loads the embedded PoE2 catalog and exact fragment table and compiles
+locally by table lookup. Suffix indexes for explain are built lazily on first
+use (~5 ms warm, ~165 ms cold in the interpreter build).
 
 ## Build for deployment
 
@@ -61,7 +62,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 134 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 140 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 
@@ -171,32 +172,22 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   clear disabled). There is no separate base-class row: simple is classless,
   and in advanced weapon/offhand always carry their class select above the
   slot label inside the card (every other slot is 1:1 with its class).
-- Fragments are chosen by `FragmentSelector` (Core) with the absolute
-  shortest search: every contiguous substring, anchored prefix/suffix, 0-2
-  wildcard bridges, and `\d`/`\d+`/`.` placeholder rendering is tried in the
-  scope, and the shortest candidate that recalls all of the stat's real lines
-  and matches no foreign line wins. There is no word or start-anchor rule.
-  The oracle is line-scoped. The model is the derived **vendor/stash corpus**
-  (`data/catalogs/poe*.vendor-corpus.json`): regular/corrupted/essence/
-  crafted/implicit item mods, base item names/properties/implicits/
-  requirements/grants, regular affix captions/tags, and universal usage.
-  Unique-only mods/names/captions, flavour text, and rare item names are
-  deliberately excluded. They remain **unmodeled**, not silently accepted;
-  the captured-item audit reports matches in that category separately.
-  The 867 per-scope results are precomputed into versioned tables
-  (`data/catalogs/poe*.fragments.json`, regenerated with
-  `dotnet run --project tools/PoeRegex.Data.Build -- corpus --game poe2`
-  followed by `... -- fragments --game poe2`); a version match makes the
-  browser lookup instant, and a stale table fails the audit. Current examples:
-  `Adds # to # Cold Damage` → `\d Co.+ge$` (10), the attacks variant →
-  `ld.+ks` (6), `#% increased Armour` → `^\d.+d Armour$` (14),
-  `#% increased maximum Life` → `^\d.+m Life$` (12), and the Allies
-  resistances line → `P.+l E` (6). The catalog audit
-  (`FragmentAuditTests` + `FragmentFlowAuditTests`) checks all 867
-  scope/pattern fragments with .NET Regex, 1,029 captured-item modeled
-  checks, 2,104 simple/slot compiles, 788 family flows, and 210 class-pair
-  pastes; the in-game rare-name/unique check remains manual and is reported
-  as unmodeled.
+- Fragments come from the **exact PoE2 table** (`data/catalogs/poe2.fragments.json`):
+  every entry was proven shortest for its scope under G1 by the data-build
+  solver. The runtime performs table lookup only; there is no live fragment
+  search and no heuristic fallback. The oracle is line-scoped over the derived
+  vendor/stash corpus, and the table is strict: zero foreign modeled or
+  captured-safety lines. Unique-only text, flavour, and rare names remain
+  unmodeled and are reported separately. The exact table has 892 expanded
+  scopes (136 global patterns, 21 classes, 525 class fragments, 0 unresolved).
+  Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
+  `#% increased maximum Life` → `^\d.+um.+e$` (9), `#% increased Critical
+  Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
+  Damage` → `^g.*-.*ir.+e$` (16), `#% of Damage taken Recouped as Life` →
+  `f d.*n r.*e$` (12), and `#% increased Armour, Evasion and Energy Shield` →
+  `-.*d a.+,` (9). The catalog/table audits check all scope entries with .NET
+  Regex, captured-item modeled lines, simple/slot compiles, family flows, and
+  class-pair pastes; the in-game rare-name/unique check remains manual.
 - Picks live in a one-line rail that never wraps or grows, so a large pick
   set can't push the picker out of the panel. Directional SVG-chevron pagers
   sit in reserved gutters and always show the true count — gold-accented and
@@ -285,5 +276,5 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
   whole-line text (~4-5x the length of the normal fingerprint fragment) and
   the click-time interaction never made it live or editable. Roll limiting
   comes from tier picks instead (a tier's affix name implies its range).
-- Publish is the unoptimized interpreter build (29 MB `wwwroot`); browser AOT
+- Publish is the unoptimized interpreter build (25 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).

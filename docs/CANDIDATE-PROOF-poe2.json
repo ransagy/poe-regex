@@ -2,9 +2,9 @@
   "game": "poe2",
   "dataVersion": "2026-08-09",
   "grammarVersion": "quoted-shortest-v1",
-  "generatedAt": "2026-10-29 17:12:41Z",
-  "matrix": "matrix-exact2.html",
-  "matrixSha256": "c71e32cbd2f53bad1a60261e3e4c8cead1fea9000b5739a314f59b9e624568f0",
+  "generatedAt": "2026-10-29 19:13:22Z",
+  "matrix": "CANDIDATE-MATRIX-poe2.html",
+  "matrixSha256": "6befbcbd2f09b8c913c3d2bf11d0f675d735bd58fe97cfdce051a39558e65901",
   "checkedScopes": 892,
   "workScopes": 892,
   "coveredKeys": [
@@ -903,8 +903,6 @@
   ],
   "proven": 892,
   "failed": 0,
-  "missingChosen": 0,
-  "policyExcluded": 0,
   "failures": [],
   "status": "proven-in-grammar"
 }

@@ -10,12 +10,10 @@ namespace PoeRegex.Core.Tests;
 /// </summary>
 public class ClassAlternationTests
 {
-    private static ICompilerStrategy Strategy => PoeRegexCompiler.StrategyFor(GameTarget.PoE2);
-
     [Fact]
     public void Merges_SharedSuffix_IntoWildcardTerm()
     {
-        var merged = ClassAlternation.Build(RealCatalog.Corpus(), Strategy, ["One Hand Mace", "Two Hand Mace"]);
+        var merged = ClassAlternation.Build(RealCatalog.Corpus(), ["One Hand Mace", "Two Hand Mace"]);
         merged.Should().Be(".*Hand M");
         merged.Length.Should().BeLessThan("One Hand M|Two Hand M".Length);
     }
@@ -23,13 +21,13 @@ public class ClassAlternationTests
     [Fact]
     public void SingleClass_KeepsItsPrefix()
     {
-        ClassAlternation.Build(RealCatalog.Corpus(), Strategy, ["One Hand Mace"]).Should().Be("One Hand M");
+        ClassAlternation.Build(RealCatalog.Corpus(), ["One Hand Mace"]).Should().Be("One Hand M");
     }
 
     [Fact]
     public void NoWildcard_WhenTermsShareNothing()
     {
-        var alt = ClassAlternation.Build(RealCatalog.Corpus(), Strategy, ["One Hand Mace", "Shield"]);
+        var alt = ClassAlternation.Build(RealCatalog.Corpus(), ["One Hand Mace", "Shield"]);
         alt.Should().NotContain(".*");
         alt.Should().Contain("One Hand M");
         alt.Should().Contain("|");
