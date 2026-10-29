@@ -16,8 +16,10 @@
     <div class="chips" aria-label="Wanted mods">
         @foreach (var inc in crit.Included)
         {
-            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@Scope-@ChipKey(inc)"
-                    title="@ChipTitle(inc)" @onclick="() => State.RemoveInclude(Scope, inc)">
+            <button class="chip inc @(inc.IsNamePick ? "by-name" : "")" id="chip-inc-@ScopeKey-@ChipKey(inc)"
+                    title="@ChipTitle(inc)" aria-label="@($"remove include {ChipLabel(inc)}")"
+                    @onclick="() => State.RemoveInclude(Scope, inc)">
+                <span class="chip-kind" aria-hidden="true">+</span>
                 @if (inc.IsNamePick)
                 {
                     <span class="chip-name">"@inc.Names![0]"</span>
@@ -32,15 +34,17 @@
                 }
                 else
                 {
-                    @ChipLabel(inc)
+                    <span class="chip-text">@ChipLabel(inc)</span>
                 }
             </button>
         }
         @foreach (var exc in crit.Excluded)
         {
-            <button class="chip exc" id="chip-exc-@Scope-@exc" title="remove"
+            <button class="chip exc" id="chip-exc-@ScopeKey-@exc" title="remove"
+                    aria-label="@($"remove exclude {DisplayFor(exc)}")"
                     @onclick="() => State.RemoveExclude(Scope, exc)">
-                !@DisplayFor(exc)
+                <span class="chip-kind" aria-hidden="true">!</span>
+                <span class="chip-text">@DisplayFor(exc)</span>
             </button>
         }
         @if (ShowHint && crit.Included.Count + crit.Excluded.Count == 0)
@@ -51,7 +55,7 @@
     <button type="button" class="chips-more end" data-dir="1" aria-label="show later picks" disabled>
         <span class="n">+0</span><svg class="dir" viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1.5 1.5L6 6l-4.5 4.5" /></svg>
     </button>
-    <button class="chip clear" id="chips-clear-@Scope"
+    <button class="chip clear" id="chips-clear-@ScopeKey"
             disabled="@(crit.Included.Count + crit.Excluded.Count == 0)"
             @onclick="() => State.ClearChips(Scope)">clear</button>
 </div>
@@ -76,13 +80,20 @@
     [Parameter]
     public string? Label { get; set; }
 
-    private string RailRowId => $"chips-row-{Scope ?? "global"}";
+    private string ScopeKey => Scope ?? "global";
+    private string RailRowId => $"chips-row-{ScopeKey}";
 
     private SlotCriteria crit => State.CriteriaFor(Scope);
 
     private IReadOnlyList<ModFamily> _families = [];
+    private IReadOnlyList<ModEntry>? _groupedMods;
 
-    protected override void OnParametersSet() => _families = ModFamilies.Group(Mods);
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_groupedMods, Mods)) return;
+        _groupedMods = Mods;
+        _families = ModFamilies.CachedGroup(Mods);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -1,0 +1,20 @@
+@* First-run explanation. Inline, dismissible, and deliberately small: the
+   workbench is dense enough without a modal on arrival. *@
+<div class="intro-card" id="intro-card" role="region" aria-label="How this works">
+    <div class="intro-copy">
+        <div class="intro-title">Build a search string, then paste it into the game</div>
+        <ol class="intro-steps">
+            <li><b>Pick mods</b> in Simple or Advanced mode.</li>
+            <li><b>Copy</b> the quoted string from “your search string”.</li>
+            <li><b>Paste</b> it into the in-game Highlight item search.</li>
+        </ol>
+        <div class="intro-modes">Simple: one set for every item. Advanced: different mods per slot.</div>
+    </div>
+    <button type="button" class="btn intro-dismiss" id="intro-dismiss" @onclick="Dismiss">got it</button>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    private Task Dismiss() => OnDismiss.InvokeAsync();
+}

@@ -29,6 +29,7 @@ public sealed class EngineCorpus
     private readonly Lazy<UnionIndex> _union;
     private readonly Lazy<UnionIndex> _fullUnion;
     private readonly Lazy<Dictionary<string, List<ModEntry>>> _modsByPattern;
+    private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
 
     private sealed class ClassIndex
     {
@@ -52,11 +53,16 @@ public sealed class EngineCorpus
     /// <summary>Union corpus over every class's mod lines, for global (no-class) fingerprints.</summary>
     private sealed class UnionIndex
     {
-        public required SuffixIndex Index { get; init; }
-        public required SuffixIndex FoldIndex { get; init; }
-        /// <summary>pattern -> corpus line index.</summary>
+        private SuffixIndex? _index;
+        private SuffixIndex? _foldIndex;
+
+        public required IReadOnlyList<string> Patterns { get; init; }
         public required Dictionary<string, int> PatternToIndex { get; init; }
         public required List<(string Pattern, string Real)> RealLines { get; init; }
+
+        public SuffixIndex Index => _index ??= SuffixIndex.Build(Patterns);
+        public SuffixIndex FoldIndex =>
+            _foldIndex ??= SuffixIndex.Build(Patterns, caseInsensitive: true);
     }
 
     /// <summary>
@@ -427,7 +433,68 @@ public sealed class EngineCorpus
 
     /// <summary>Union corpus over released classes only (global scope).</summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
-        _union.Value.RealLines;
+        _globalLines ??= BuildGlobalLines();
+
+    /// <summary>Global explain lines, excluding universal non-mod text.</summary>
+    public IReadOnlyList<(string Pattern, string Real)> MatchableLinesGlobal() =>
+        RealLinesGlobal()
+            .Where(x => !UniversalPatterns.Contains(x.Pattern))
+            .ToList();
+
+    /// <summary>
+    /// Catalog-backed explain corpus. Explain only needs the lines that can
+    /// map to a catalog mod; the full vendor/stash corpus is much larger and
+    /// belongs to the safety oracle, not the reverse lookup.
+    /// </summary>
+    public IReadOnlyList<(string Pattern, string Real)> ExplainLines(string? itemClass)
+    {
+        var mods = itemClass is null
+            ? _inGameMods
+            : _inGameMods.Where(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)).ToList();
+        var lines = new List<(string Pattern, string Real)>();
+        foreach (var mod in mods)
+            foreach (var sl in mod.StatLines)
+            {
+                lines.Add((sl.Pattern, sl.Line));
+                var advanced = AdvancedStatLine.For(sl);
+                if (!string.Equals(advanced, sl.Line, StringComparison.Ordinal))
+                    lines.Add((sl.Pattern, advanced));
+            }
+        lines.AddRange(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)));
+        if (itemClass is null)
+            lines.AddRange(_inGameCatalogClasses.Select(c =>
+                (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")));
+        else
+        {
+            var cls = FindItemClass(itemClass);
+            if (cls is not null)
+                lines.Add((CatalogLineNormalizer.Normalize($"Item Class: {cls.Name}"), $"Item Class: {cls.Name}"));
+        }
+        return lines
+            .Distinct()
+            .OrderBy(x => x.Pattern, StringComparer.Ordinal)
+            .ThenBy(x => x.Real, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private IReadOnlyList<(string Pattern, string Real)> BuildGlobalLines()
+    {
+        var vendor = InGameVendorLines().ToList();
+        var vendorPatterns = vendor
+            .Where(l => !string.IsNullOrWhiteSpace(l.Pattern))
+            .Select(l => l.Pattern!)
+            .ToHashSet(StringComparer.Ordinal);
+        return _inGameMods
+            .SelectMany(m => m.StatLines)
+            .Where(sl => !vendorPatterns.Contains(sl.Pattern))
+            .Select(sl => (sl.Pattern, sl.Line))
+            .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
+            .Concat(_inGameCatalogClasses.Select(c =>
+                (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
+            .Concat(vendor.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
+            .Distinct()
+            .ToList();
+    }
 
     /// <summary>
     /// All distinct mods that have a stat line with the given (normalized) pattern.
@@ -574,9 +641,8 @@ public sealed class EngineCorpus
     /// </summary>
     public bool GlobalRegexSafe(string regexFragment, IReadOnlyCollection<string> allowedPatterns)
     {
-        var union = _union.Value;
         var matchedAny = false;
-        foreach (var (pattern, real) in union.RealLines)
+        foreach (var (pattern, real) in RealLinesGlobal())
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
             matchedAny = true;
@@ -633,8 +699,7 @@ public sealed class EngineCorpus
 
         return new UnionIndex
         {
-            Index = SuffixIndex.Build(patterns),
-            FoldIndex = SuffixIndex.Build(patterns, caseInsensitive: true),
+            Patterns = patterns,
             PatternToIndex = patternToIndex,
             RealLines = realLines,
         };

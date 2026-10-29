@@ -138,6 +138,7 @@
     public required IReadOnlyList<ModEntry> Mods { get; set; }
 
     private string _search = "";
+    private IReadOnlyList<ModEntry>? _groupedMods;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
@@ -157,8 +158,14 @@
 
     protected override void OnParametersSet()
     {
-        // Group once per scope change; typing only filters this snapshot.
-        _allFamilies = ModFamilies.Group(Mods);
+        // Group once per scope change; typing and pick changes only filter
+        // this snapshot. The parent re-renders on every pick, so the
+        // reference guard matters.
+        if (!ReferenceEquals(_groupedMods, Mods))
+        {
+            _groupedMods = Mods;
+            _allFamilies = ModFamilies.CachedGroup(Mods);
+        }
         Refresh();
     }
 
@@ -171,12 +178,18 @@
         _families = filter.Length == 0
             ? _allFamilies.Where(ModFamilies.IsCommon).ToList()
             : _allFamilies
-                .Select(f => f with
+                .Select(f =>
                 {
-                    Tiers = f.Tiers
-                        .Where(t => ModSearch.FilterMods(t.Members, filter).Count > 0).ToList(),
+                    var familyHit = f.DisplayText.Contains(filter, StringComparison.OrdinalIgnoreCase);
+                    var tiers = familyHit
+                        ? f.Tiers
+                        : f.Tiers
+                            .Where(t => t.SearchText.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                    return tiers.Count == 0 ? null : f with { Tiers = tiers };
                 })
-                .Where(f => f.Tiers.Count > 0)
+                .Where(f => f is not null)
+                .Select(f => f!)
                 .ToList();
         var shown = _families.Take(MaxShown).ToList();
         _prefixes = shown.Where(f => f.IsPrefix).ToList();

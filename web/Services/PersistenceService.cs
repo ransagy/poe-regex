@@ -8,6 +8,7 @@ namespace web.Services;
 public sealed class PersistenceService(IJSRuntime js)
 {
     public const string StorageKey = "poe-regex.workbench.v1";
+    private const string IntroKey = "poe-regex.intro.v1";
 
     public async Task<WorkbenchSnapshot?> LoadAsync()
     {
@@ -33,6 +34,29 @@ public sealed class PersistenceService(IJSRuntime js)
         catch
         {
             // best-effort: private mode / quota / unavailable JS
+        }
+    }
+
+    public async Task<bool> LoadIntroDismissedAsync()
+    {
+        try
+        {
+            return await js.InvokeAsync<string?>("localStorage.getItem", IntroKey) == "1";
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task SaveIntroDismissedAsync()
+    {
+        try
+        {
+            await js.InvokeVoidAsync("localStorage.setItem", IntroKey, "1");
+        }
+        catch
+        {
         }
     }
 

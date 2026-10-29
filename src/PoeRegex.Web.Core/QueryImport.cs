@@ -85,6 +85,28 @@ public sealed class QueryImportService
             }
 
             var matches = Lookup(phrase, classes);
+            if (matches.Count == 0 && LooksSynthetic(phrase))
+            {
+                var recovered = RecoverViaExplain(phrase, classes, excluded);
+                if (recovered.Count > 0)
+                {
+                    foreach (var (recoveredPattern, recoveredMod) in recovered)
+                    {
+                        var recoveredRequirement = new ModifierRequirement(recoveredMod);
+                        if (excluded) excludes.Add(recoveredRequirement);
+                        else includes.Add(recoveredRequirement);
+                    }
+                    var first = recovered[0];
+                    var firstMod = _engine.FindMod(first.Mod);
+                    tokens.Add(new ImportedToken(
+                        phrase, excluded, excluded ? "exclusion" : "mod",
+                        first.Pattern, first.Mod,
+                        firstMod?.Classes ?? [], "recovered"));
+                    diagnostics.Add(
+                        $"fragment '{phrase}' recovered {recovered.Count} catalog mod(s) via explain");
+                    continue;
+                }
+            }
             if (matches.Count == 0)
             {
                 if (excluded) keywords.Add("!" + phrase);
@@ -143,6 +165,38 @@ public sealed class QueryImportService
 
         return new QueryImportResult(
             query, mode, orderedClasses, includes, excludes, keywords, tokens, diagnostics);
+    }
+
+    private static bool LooksSynthetic(string phrase) =>
+        phrase.Any(c => c is '|' or '(' or ')' or '[' or ']' or '{' or '}' or
+            '\\' or '^' or '$' or '*' or '+' or '?' or '.');
+
+    private List<(string Pattern, string Mod)> RecoverViaExplain(
+        string phrase, IReadOnlySet<string> classes, bool excluded)
+    {
+        try
+        {
+            var classId = classes.Count == 1 ? classes.First() : null;
+            var explanation = _engine.Explain(Poe2Syntax.Quote(phrase), classId);
+            var result = new List<(string Pattern, string Mod)>();
+            foreach (var match in explanation.Tokens.SelectMany(t => t.Matches))
+            {
+                foreach (var modId in match.ModIds)
+                {
+                    var mod = _engine.FindMod(modId);
+                    if (mod is null) continue;
+                    if (classes.Count > 0 &&
+                        !mod.Classes.Any(classes.Contains)) continue;
+                    if (result.Any(x => x.Mod == modId)) continue;
+                    result.Add((match.Pattern, modId));
+                }
+            }
+            return result;
+        }
+        catch (ArgumentException)
+        {
+            return [];
+        }
     }
 
     private List<(string Pattern, string? Class)> Lookup(

@@ -1,4 +1,5 @@
 using PoeRegex.Core;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
@@ -199,5 +200,38 @@ public class WebDataServiceTests
             [new ModifierRequirement("IncreasedLife6", 80)], [],
             itemClass: "Ring");
         Engine.Validate(result.Query).Should().BeNull();
+    }
+
+    [Fact]
+    public void DataStatus_ReportsAdvancedTargetModel()
+    {
+        Engine.DataReady.Should().BeTrue();
+        Engine.TargetModel.Should().Be(FragmentTable.AdvancedRanges);
+        Engine.FragmentDataVersion.Should().Be(Engine.DataVersion);
+    }
+
+    [Fact]
+    public void QueryImport_HandlesAlternationAndThreshold()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6", 80), new ModifierRequirement("Strength1")],
+            [], itemClass: "Ring");
+        var imported = new QueryImportService(Engine).Import(result.Query);
+
+        imported.Keywords.Should().BeEmpty();
+        imported.Includes.Should().Contain(x => x.Value.StartsWith("IncreasedLife"));
+        imported.Includes.Should().Contain(x => x.Value == "Strength1");
+    }
+
+    [Fact]
+    public void QueryImport_RecoversThresholdOnly()
+    {
+        var result = Engine.Compile(
+            [new ModifierRequirement("IncreasedLife6", 80)], [],
+            itemClass: "Ring");
+        var imported = new QueryImportService(Engine).Import(result.Query);
+
+        imported.Keywords.Should().BeEmpty();
+        imported.Includes.Should().Contain(x => x.Value.StartsWith("IncreasedLife"));
     }
 }

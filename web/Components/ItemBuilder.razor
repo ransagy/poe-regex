@@ -143,7 +143,7 @@
     {
         // Chosen mods stay in the list (their + disables via CanAdd) so the
         // families and tiers never shift while assembling.
-        var all = ModFamilies.Group(Engine.ModsForClass(_classId));
+        var all = ModFamilies.CachedGroup(Engine.ModsForClass(_classId));
         var filter = _search.Trim();
         _families = filter.Length == 0
             ? all
