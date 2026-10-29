@@ -11,10 +11,19 @@ namespace PoeRegex.Core.Compilation;
 public static class ClassAlternation
 {
     private const int MinSuffix = 3;
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<EngineCorpus, System.Collections.Concurrent.ConcurrentDictionary<string, string>> Cache = new();
 
     private sealed record Term(string Text, IReadOnlyList<string> Classes, bool Plain);
 
     public static string Build(EngineCorpus corpus, IReadOnlyList<string> classIds)
+    {
+        var key = string.Join("\u0001",
+            classIds.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal));
+        var cache = Cache.GetOrCreateValue(corpus);
+        return cache.GetOrAdd(key, _ => BuildCore(corpus, classIds));
+    }
+
+    private static string BuildCore(EngineCorpus corpus, IReadOnlyList<string> classIds)
     {
         var terms = classIds
             .Distinct(StringComparer.Ordinal)
