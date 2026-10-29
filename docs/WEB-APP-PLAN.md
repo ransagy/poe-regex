@@ -4,6 +4,11 @@
 > table-only runtime; see `CANDIDATE-REPORT-poe2.md` and `DESIGN.md`. PoE1 is
 > not part of the current product. Entries below are kept as a record of the
 > design rounds.
+>
+> **Current status (2026-10-30):** all phases P0–P7 are implemented. Pass 2
+> (PWA, URL-share, custom domain, accounts) remains deferred. The phase ledger
+> and remaining backlog live in the active shortest-form plan; this file stays
+> a historical design/work log.
 
 Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
 look-and-feel, editable gear slots, per-slot and global regex compilation
@@ -98,6 +103,9 @@ runs on Cloudflare Pages (see [`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)).
 - Golden tests from all 5 fixtures.
 
 ## 6. Phases and exit criteria
+
+All P0–P7 exit criteria are complete as of 2026-10-30; the status block above
+and the active phase ledger supersede the historical “pending” notes below.
 
 - **P0 Inputs** — DONE (locked above). Exit: this plan signed off.
 - **P1 WASM spike** — Scaffold `web/`, boot Core in the browser, build the
@@ -256,15 +264,17 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   `EngineService` via DI; CDP-verified in headless Chromium with the same
   byte-identical query (corpus warm 5 ms, compile 16 ms). `PoeRegex.slnx`
   gains `/src/PoeRegex.Web.Core`, `/tests/PoeRegex.Web.Tests`, `/web/web`.
-- **P3 Shell UI — implemented, visual QA pending.** Template chrome stripped
+- **P3 Shell UI — DONE.** Template chrome stripped
   (Counter/Weather/NavMenu/bootstrap removed); hand-drawn dark CSS;
   `Components/ModeSwitch`, `PaperDoll` (9 slots on a 6x5 unit grid,
   data-driven placement), `BackpackGrid` (12x5). `WorkbenchState` implements
   the workbench mode semantics + 7 unit tests. CDP-verified in headless Chromium: 9 slots,
   60 cells, single default weapon, multi toggle (`body, helmet`), global dims
   the doll and yields no active slots, engine strip still byte-identical.
-    Screenshot self-reviewed (layout coherent). OPEN for maintainer QA:
-    slot footprints/arrangement, backpack dims, overall look.
+  Screenshot self-reviewed (layout coherent). The historical “visual QA
+  pending” note was superseded by the feedback rounds in PRs #19–#21:
+  chips, intro/help, header, layout, and the collapsible test lab were
+  revised against maintainer review.
 - **P4 Slot editing + compile — DONE.** `ClassPicker` (playable-class select
   per slot; defaults: Crossbow/Helmet/Body Armour/Gloves/Boots/Belt/Amulet/
   Ring/Ring — all ids verified against the poe2 catalog),
@@ -289,9 +299,10 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   `TestItems` badges + grid markers + per-view highlight. CDP-verified:
   talisman import → save → Talisman query `"o I" ":"` (byte-identical to CLI)
   → badge `match` + highlighted cell. Screenshot self-reviewed.
-  35/35 web tests; full slnx 6+35+60 green. OPEN for maintainer QA:
-  item dimension table (grid is 1x1 markers until then), affix-cap rules,
-  visual look.
+  35/35 web tests; full slnx 6+35+60 green. The historical open QA items were
+  resolved later: item footprints (`ItemFootprints`), affix-cap rules
+  (`ItemRules`), and the visual rounds in PRs #19–#21. Known limitations
+  remain documented in `web/README.md`.
 - **P6 Hardening + P7 Docs — DONE.** localStorage persistence
   (`WorkbenchSnapshot` + source-gen `WebJsonContext`, `PersistenceService`
   seam, load-on-boot, save-on-change, reset button; corrupt storage never
