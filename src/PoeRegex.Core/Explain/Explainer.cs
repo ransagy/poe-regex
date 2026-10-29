@@ -22,9 +22,8 @@ public sealed class Explainer
     {
         var raw = Tokenize(query);
 
-        // Scope: an explicit class is authoritative; otherwise every class
-        // participates (a generated class anchor is a class-corpus fingerprint
-        // and is typically ambiguous, so it cannot narrow the scope on its own).
+        // Scope: an explicit class is authoritative; otherwise explain over
+        // the distinct global union instead of scanning every class twice.
         var scope = itemClass is not null
             ? new List<string> { itemClass }
             : _corpus.InGameClasses.Select(c => c.Id).OrderBy(x => x, StringComparer.Ordinal).ToList();
@@ -38,7 +37,7 @@ public sealed class Explainer
         for (var i = 0; i < raw.Count; i++)
         {
             var (phrase, excluded) = raw[i];
-            var matches = MatchLines(phrase, scope);
+            var matches = MatchLines(phrase, itemClass);
             matchesByIndex[i] = matches;
             if (excluded)
             {
@@ -130,26 +129,45 @@ public sealed class Explainer
         };
     }
 
-    private List<ExplainMatch> MatchLines(string phrase, IReadOnlyList<string> scope)
+    private List<ExplainMatch> MatchLines(string phrase, string? itemClass)
     {
-        var regex = PhraseToRegex(phrase);
-        var matches = new List<ExplainMatch>();
-        foreach (var cls in scope)
+        var pattern = PhraseToRegex(phrase);
+        System.Text.RegularExpressions.Regex regex;
+        try
         {
-            foreach (var (pattern, real) in _corpus.MatchableLinesForClass(cls))
+            regex = new System.Text.RegularExpressions.Regex(
+                pattern,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(1));
+        }
+        catch (ArgumentException)
+        {
+            return [];
+        }
+
+        var hint = LiteralHint(phrase);
+        var lines = _corpus.ExplainLines(itemClass);
+        var matches = new List<ExplainMatch>();
+        foreach (var (linePattern, real) in lines)
+        {
+            if (hint is not null &&
+                real.IndexOf(hint, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            if (!regex.IsMatch(real)) continue;
+            var modIds = _corpus.ModsWithPattern(linePattern)
+                .Where(m => itemClass is null || m.Classes.Contains(itemClass))
+                .Select(m => m.Id)
+                .Distinct()
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToList();
+            matches.Add(new ExplainMatch
             {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(real, regex, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                {
-                    continue;
-                }
-                var modIds = _corpus.ModsWithPattern(pattern)
-                    .Where(m => m.Classes.Contains(cls))
-                    .Select(m => m.Id)
-                    .Distinct()
-                    .OrderBy(x => x, StringComparer.Ordinal)
-                    .ToList();
-                matches.Add(new ExplainMatch { Class = cls, Line = real, Pattern = pattern, ModIds = modIds });
-            }
+                Class = itemClass ?? "",
+                Line = real,
+                Pattern = linePattern,
+                ModIds = modIds,
+            });
         }
         matches.Sort(static (a, b) =>
         {
@@ -159,6 +177,56 @@ public sealed class Explainer
             return c != 0 ? c : string.CompareOrdinal(a.Line, b.Line);
         });
         return matches;
+    }
+
+    /// <summary>
+    /// Longest literal run in a query phrase. Used as a safe pre-filter before
+    /// the regex scan; a line that does not contain the run cannot match.
+    /// </summary>
+    private static string? LiteralHint(string phrase)
+    {
+        // These constructs can make a literal optional or alternative; a
+        // single-substring pre-filter would then reject valid lines.
+        for (var i = 0; i < phrase.Length; i++)
+        {
+            if (phrase[i] == '\\' && i + 1 < phrase.Length) { i++; continue; }
+            if (phrase[i] is '?' or '{' or '[' or '(' or ')' or '|') return null;
+        }
+        var best = "";
+        var current = new System.Text.StringBuilder();
+        void Flush()
+        {
+            if (current.Length > best.Length &&
+                current.ToString().Any(char.IsLetterOrDigit))
+                best = current.ToString();
+            current.Clear();
+        }
+        for (var i = 0; i < phrase.Length; i++)
+        {
+            var c = phrase[i];
+            if (c == '\\' && i + 1 < phrase.Length)
+            {
+                var n = phrase[i + 1];
+                if (n is 'd' or 'D' or 'w' or 'W' or 's' or 'S')
+                {
+                    Flush();
+                    i++;
+                    continue;
+                }
+                current.Append(n);
+                i++;
+                continue;
+            }
+            if (c is '.' or '^' or '$' or '*' or '+' or '?' or '(' or ')' or
+                '[' or ']' or '{' or '}' or '|')
+            {
+                Flush();
+                continue;
+            }
+            current.Append(c);
+        }
+        Flush();
+        return best.Length >= 2 ? best.Trim() : null;
     }
 
     private HashSet<string> MatchedClasses(string phrase)

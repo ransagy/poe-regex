@@ -11,6 +11,8 @@ not part of the app source ([Cloudflare's description](https://developers.cloudf
 
 Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
 Deployment: [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
+Performance: [`docs/WEB-PERF-poe2.md`](../docs/WEB-PERF-poe2.md).
+Import audit: [`docs/IMPORT-AUDIT-poe2.md`](../docs/IMPORT-AUDIT-poe2.md).
 Data/asset provenance: [`docs/PROVENANCE.md`](../docs/PROVENANCE.md).
 
 ## Prerequisites
@@ -62,7 +64,7 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
 ## Test
 
 ```sh
-dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 140 unit tests
+dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj  # 144 unit tests
 dotnet test PoeRegex.slnx                                       # whole repo
 ```
 

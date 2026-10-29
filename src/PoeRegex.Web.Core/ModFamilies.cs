@@ -11,6 +11,11 @@ namespace PoeRegex.Web.Core;
 /// </summary>
 public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int RequiredLevel)
 {
+    /// <summary>Cached case-insensitive search text: name plus every rendered
+    /// line/range form. Built once per grouping instead of filtering members
+    /// on every keystroke.</summary>
+    public string SearchText { get; init; } = "";
+
     /// <summary>Representative member: chip identity and name-set anchor.</summary>
     public ModEntry Anchor => Members[0];
 
@@ -100,6 +105,16 @@ public static class ModFamilies
     /// <summary>True when the family is in the pre-typing shortlist.</summary>
     public static bool IsCommon(ModFamily family) => CommonKeys.Contains(family.Key);
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
+
+    /// <summary>
+    /// Shared grouping cache keyed by the stable mod-list instance from
+    /// <see cref="EngineService"/>. Mode and slot switches reuse the same
+    /// grouping instead of rebuilding every tier's search text.
+    /// </summary>
+    public static IReadOnlyList<ModFamily> CachedGroup(object mods) =>
+        GroupCache.GetValue(mods, key => Group((IEnumerable<ModEntry>)key));
+
     public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods)
     {
         var families = new List<ModFamily>();
@@ -112,10 +127,17 @@ public static class ModFamilies
             var members = famGroup.ToList();
             var tiers = members
                 .GroupBy(m => m.Name ?? "")
-                .Select(g => new ModTier(
-                    g.Key,
-                    g.OrderBy(m => m.RequiredLevel).ThenBy(m => m.Id, StringComparer.Ordinal).ToList(),
-                    g.Min(m => m.RequiredLevel)))
+                .Select(g =>
+                {
+                    var tierMembers = g
+                        .OrderBy(m => m.RequiredLevel)
+                        .ThenBy(m => m.Id, StringComparer.Ordinal)
+                        .ToList();
+                    return new ModTier(tierMembers[0].Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
+                    {
+                        SearchText = SearchTextOf(tierMembers),
+                    };
+                })
                 .OrderBy(t => t.RequiredLevel)
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
@@ -126,6 +148,20 @@ public static class ModFamilies
             });
         }
         return families;
+    }
+
+    private static string SearchTextOf(IReadOnlyList<ModEntry> members)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (var member in members)
+        {
+            if (!string.IsNullOrEmpty(member.Name)) text.Append(member.Name).Append('\n');
+            foreach (var line in member.StatLines)
+                text.Append(line.Line).Append('\n')
+                    .Append(line.RangeLine).Append('\n')
+                    .Append(AdvancedStatLine.For(line)).Append('\n');
+        }
+        return text.ToString();
     }
 
     /// <summary>Family-level text lines: the anchor member's stat shape with

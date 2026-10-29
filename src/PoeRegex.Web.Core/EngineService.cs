@@ -20,6 +20,11 @@ public sealed class EngineService
     private readonly Explainer _explainer;
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
+    private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
+    private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
+    private volatile IReadOnlyList<ItemClassEntry>? _inGameClasses;
+    private volatile IReadOnlyList<ModEntry>? _playableMods;
 
     public EngineService()
     {
@@ -43,6 +48,8 @@ public sealed class EngineService
 
     public string? FragmentDataVersion => _corpus.PrecomputedDataVersion;
 
+    public string TargetModel => _corpus.PrecomputedTargetModel ?? FragmentTable.AdvancedRanges;
+
     /// <summary>Documented global unresolved reason for a catalog pattern.</summary>
     public string? GlobalUnresolvedReason(string pattern) =>
         _corpus.PrecomputedUnresolvedReason(pattern, null);
@@ -58,8 +65,10 @@ public sealed class EngineService
         _corpus.PrecomputedFragments();
 
     /// <summary>Classes referenced by at least one mod (hides flasks, currency, gems...).</summary>
-    public IEnumerable<ItemClassEntry> PlayableClasses() =>
-        Classes.Where(c => _playableClassIds.Value.Contains(c.Id));
+    public IReadOnlyList<ItemClassEntry> PlayableClasses() =>
+        _playableClasses ??= Classes
+            .Where(c => _playableClassIds.Value.Contains(c.Id))
+            .ToList();
 
     /// <summary>
     /// Base types with no in-game presence yet (maintainer-confirmed), plus
@@ -70,22 +79,35 @@ public sealed class EngineService
     public static IReadOnlySet<string> NotInGameClassIds => GameItemClasses.NotInGame;
 
     /// <summary>Playable classes actually in the game (picker scope).</summary>
-    public IEnumerable<ItemClassEntry> InGameClasses() =>
-        PlayableClasses().Where(c => _corpus.IsInGameClass(c.Id));
+    public IReadOnlyList<ItemClassEntry> InGameClasses() =>
+        _inGameClasses ??= PlayableClasses()
+            .Where(c => _corpus.IsInGameClass(c.Id))
+            .ToList();
 
     /// <summary>Mods for one class, or the union across several (deduped by id, first wins).</summary>
     public IReadOnlyList<ModEntry> ModsForClasses(IEnumerable<string> classIds)
     {
-        var lists = classIds.Select(ModsForClass).ToList();
-        return lists.Count == 1 ? lists[0] : ModSearch.MergeMods(lists);
+        var ids = classIds.Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0) return [];
+        if (ids.Count == 1) return ModsForClass(ids[0]);
+        return _modsByClassSet.GetOrAdd(
+            string.Join('\u0001', ids),
+            _ => ModSearch.MergeMods(ids.Select(ModsForClass).ToList()));
     }
 
     public IReadOnlyList<ModEntry> ModsForClass(string classId) =>
-        _corpus.Mods.Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();
+        _modsByClass.GetOrAdd(
+            classId,
+            id => _corpus.Mods
+                .Where(m => m.Classes.Contains(id, StringComparer.Ordinal))
+                .ToList());
 
     /// <summary>Union of mods across every in-game class (global scope).</summary>
     public IReadOnlyList<ModEntry> PlayableMods() =>
-        ModSearch.MergeMods(InGameClasses().Select(c => ModsForClass(c.Id)));
+        _playableMods ??= ModSearch.MergeMods(
+            InGameClasses().Select(c => ModsForClass(c.Id)));
 
     /// <summary>
     /// Resolve a pasted `Item Class:` value to a catalog class id, matching
@@ -297,13 +319,7 @@ public sealed class EngineService
     /// </summary>
     public void PrewarmExplain(string? itemClass = null)
     {
-        if (itemClass is not null)
-        {
-            _corpus.MatchableLinesForClass(itemClass);
-            return;
-        }
-        foreach (var cls in _corpus.InGameClasses)
-            _corpus.MatchableLinesForClass(cls.Id);
+        _corpus.ExplainLines(itemClass);
     }
 
     /// <summary>Null when the query is grammatically valid for PoE2.</summary>

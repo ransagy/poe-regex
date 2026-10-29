@@ -17,6 +17,17 @@
             var barQuery = BarQuery();
             var scopeText = ScopeText();
         }
+        @if (_showIntro == true)
+        {
+            <IntroPanel OnDismiss="DismissIntro" />
+        }
+        else if (_showIntro == false)
+        {
+            <div class="intro-link-row">
+                <button type="button" class="intro-link" id="intro-open" @onclick="ShowIntro">how it works</button>
+            </div>
+        }
+
         <div class="mode-bar">
             <span class="section-label">search mode</span>
             <ModeSwitch State="State" />
@@ -165,9 +176,10 @@
                 title="Destructive: clears every slot's class and mods plus the backpack lab"
                 @onclick="ResetWorkbench">reset workbench</button>
         <div class="adv-meta">
-            <span class="hint" id="data-stamp"
-                  title="catalog data version and exact table status">
-                data: @Engine.DataVersion @(Engine.DataReady ? "· exact table" : "· table missing")
+            <span class="hint @(Engine.DataReady ? "" : "warn")" id="data-stamp"
+                  title="catalog data version, target model, and exact table status">
+                data: @Engine.DataVersion · @Engine.TargetModel ·
+                @(Engine.DataReady ? "exact table" : "exact table missing")
             </span>
             <BuildStamp />
             <span class="legal-links">
@@ -186,6 +198,7 @@
         string CardId, string Title, string? ItemClass, CompileResult Result);
 
     private string _engineStatus = "booting...";
+    private bool? _showIntro;
     private List<TaskView> _tasks = [];
     private List<TaskView> _barTasks = [];
     private List<(string Label, string? Query)> _labelledQueries = [];
@@ -202,6 +215,7 @@
     {
         State.Changed += OnStateChanged;
         _engineStatus = $"engine ok ({Engine.InGameClasses().Count()} classes with mods)";
+        _showIntro = !await Persistence.LoadIntroDismissedAsync();
         var saved = await Persistence.LoadAsync();
         if (saved is not null)
             WorkbenchSnapshot.Restore(State, saved);
@@ -213,6 +227,14 @@
         if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
         Recompute();
     }
+
+    private async Task DismissIntro()
+    {
+        _showIntro = false;
+        await Persistence.SaveIntroDismissedAsync();
+    }
+
+    private void ShowIntro() => _showIntro = true;
 
     private void CloseImport() => _importOpen = false;
     private void CloseQueryImport() => _queryImportOpen = false;
