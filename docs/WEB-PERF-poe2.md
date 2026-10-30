@@ -17,60 +17,60 @@ artifact:       published Release wwwroot
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---|
-| boot to interactive (test area collapsed) | 931 ms | 943 ms | < 2500 ms |
-| mode: advanced | 36 ms | 39 ms | < 50 ms |
-| slot focus | 38 ms | 38 ms | < 50 ms |
-| mode: simple | 11 ms | 12 ms | < 50 ms |
-| picker expand | 10 ms | 11 ms | < 50 ms |
-| picker collapse | 9 ms | 11 ms | < 50 ms |
-| picker filter | 34 ms | 35 ms | < 50 ms |
-| family pick | 27 ms | 30 ms | < 50 ms |
-| exclusion pick | 30 ms | 31 ms | < 50 ms |
-| copy result | 7 ms | 20 ms | < 50 ms |
+| boot to interactive (test area collapsed) | 949 ms | 960 ms | < 2500 ms |
+| mode: advanced | 38 ms | 43 ms | < 50 ms |
+| slot focus | 41 ms | 44 ms | < 50 ms |
+| mode: simple | 12 ms | 14 ms | < 50 ms |
+| picker expand | 13 ms | 17 ms | < 50 ms |
+| picker collapse | 9 ms | 9 ms | < 50 ms |
+| picker filter | 35 ms | 36 ms | < 50 ms |
+| family pick | 34 ms | 43 ms | < 50 ms |
+| exclusion pick | 28 ms | 29 ms | < 50 ms |
+| copy result | 7 ms | 8 ms | < 50 ms |
 | details open | 24 ms | 24 ms | < 50 ms |
-| explain cold | 148 ms | 151 ms | < 500 ms |
-| explain close | 2 ms | 2 ms | < 50 ms |
+| explain cold | 149 ms | 156 ms | < 500 ms |
+| explain close | 1 ms | 2 ms | < 50 ms |
 | explain warm | 2 ms | 2 ms | < 50 ms |
-| details close | 20 ms | 20 ms | < 50 ms |
-| clear picks | 17 ms | 18 ms | < 50 ms |
-| bulk add `++` | 45 ms | 46 ms | < 50 ms |
-| query import open | 17 ms | 18 ms | < 50 ms |
-| query import close | 16 ms | 16 ms | < 50 ms |
-| import open | 18 ms | 18 ms | < 50 ms |
-| import parse 5 items | 63 ms | 65 ms | < 100 ms |
-| import cancel | 18 ms | 18 ms | < 50 ms |
-| builder open | 42 ms | 42 ms | < 50 ms |
-| builder cancel | 20 ms | 21 ms | < 50 ms |
-| test area open | 23 ms | 23 ms | < 50 ms |
-| test area close | 22 ms | 22 ms | < 50 ms |
+| details close | 24 ms | 25 ms | < 50 ms |
+| clear picks | 15 ms | 16 ms | < 50 ms |
+| bulk add `++` | 50 ms | 52 ms | < 50 ms |
+| query import open | 18 ms | 19 ms | < 50 ms |
+| query import close | 16 ms | 18 ms | < 50 ms |
+| import open | 17 ms | 18 ms | < 50 ms |
+| import parse 5 items | 61 ms | 67 ms | < 100 ms |
+| import cancel | 17 ms | 19 ms | < 50 ms |
+| builder open | 39 ms | 43 ms | < 50 ms |
+| builder cancel | 17 ms | 18 ms | < 50 ms |
+| test area open | 23 ms | 28 ms | < 50 ms |
+| test area close | 21 ms | 24 ms | < 50 ms |
 
 ### Advanced mode, 1–10 slots
 
 | Action | p50 | p95 |
 |---|---:|---:|
-| advanced switch | 11 ms | 11 ms |
-| focus helmet | 7 ms | 9 ms |
-| pick helmet | 50 ms | 51 ms |
-| pick body | 27 ms | 28 ms |
-| pick gloves | 26 ms | 32 ms |
-| pick boots | 19 ms | 20 ms |
+| advanced switch | 9 ms | 9 ms |
+| focus helmet | 10 ms | 10 ms |
+| pick helmet | 51 ms | 52 ms |
+| pick body | 25 ms | 26 ms |
+| pick gloves | 24 ms | 27 ms |
+| pick boots | 20 ms | 21 ms |
 | pick weapon (10-slot state) | 58 ms | 59 ms |
-| pick offhand / belt / amulet / ring | 58–60 ms | 59–64 ms |
-| details open (advanced) | 17 ms | 19 ms |
-| explain helmet cold | 47 ms | 49 ms |
+| pick offhand / belt / amulet / ring | 57 ms | 67 ms |
+| details open (advanced) | 18 ms | 18 ms |
+| explain helmet cold | 46 ms | 47 ms |
 | details close (advanced) | 14 ms | 15 ms |
-| 10-slot paste update | 36 ms | 37 ms |
-| class change (10 slots) | 40 ms | 40 ms |
+| 10-slot paste update | 40 ms | 46 ms |
+| class change (10 slots) | 40 ms | 43 ms |
 
-Long tasks: 6 over 50 ms, max 142 ms, **0 over 200 ms** after boot.
+Long tasks: 6 over 50 ms, max 147 ms, **0 over 200 ms** after boot. Bulk-add p95 is 52 ms, just over the 50 ms target.
 
 ## Narrow viewport — 900×1200
 
 The same action set is effectively unchanged:
 
 ```text
-boot 919 ms · filter 35 ms · family pick 33 ms · explain cold 148 ms
-details open 22 ms · import parse 5 items 65 ms · builder open 38 ms
+boot 933 ms · filter 37 ms · family pick 31 ms · explain cold 151 ms
+details open 23 ms · import parse 5 items 62 ms · builder open 38 ms
 no long task > 200 ms
 ```
 
@@ -79,11 +79,11 @@ no long task > 200 ms
 This is a deliberately harsh low-end pass:
 
 ```text
-boot 3.9 s · picker filter 147 ms · family pick 155 ms
-explain cold 634 ms · import parse 5 items 272 ms
-builder open 171 ms · advanced helmet pick 237 ms
-10-slot paste update 154 ms · class change 177 ms
-max long task 586 ms (two over 200 ms)
+boot 4.0 s · picker filter 158 ms · family pick 156 ms
+explain cold 637 ms · import parse 5 items 305 ms
+builder open 171 ms · advanced helmet pick 208 ms
+10-slot paste update 158 ms · class change 169 ms
+max long task 584 ms (two over 200 ms)
 ```
 
 Normal actions remain usable; cold explain and import are the expected
@@ -106,9 +106,10 @@ low-end costs. The 4× pass is a diagnostic, not the primary budget.
 - Literal class prefixes and verified multi-class groups ship in the table,
   so paste composition never rebuilds the vendor-derived class corpus at
   runtime.
-- The post-#24 layout keeps boot and normal actions within budget. The harness
-  now targets the current search bar, pick breakdown, drawers, query cards,
-  and class selector, and adds details open/close and query-import actions.
+- The post-#24/P3 layout keeps boot within budget; most normal actions stay
+  under 50 ms, with bulk-add p95 just over. The harness now targets the current
+  search bar, pick breakdown, drawers, query cards, and class selector, and
+  adds details open/close and query-import actions.
 - Chip/modal rendering benefits from the same state/grouping caches.
 
 ## Reproduce
