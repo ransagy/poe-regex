@@ -66,6 +66,8 @@ h1:focus { outline: none; }
     color: var(--muted); text-decoration: none; cursor: pointer;
 }
 .shell-link:hover { color: var(--text); }
+.shell-link:disabled { color: var(--faint); opacity: 0.45; cursor: default; text-decoration: none; }
+.shell-link:disabled:hover { color: var(--faint); }
 .ui-scale { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.86rem; }
 .ui-scale select { height: 1.75rem; padding: 0 0.3rem; font-size: 0.82rem; }
 
@@ -465,10 +467,13 @@ input:disabled { opacity: 0.5; }
 }
 .intro-head { display: flex; align-items: baseline; justify-content: space-between; }
 .intro-title { font-weight: 600; font-size: 0.95rem; color: var(--ember-hi); }
-.intro-steps { margin: 0.45rem 0 0; padding-left: 1.2rem; font-size: 0.88rem; }
-.intro-steps li { margin: 0.2rem 0; }
-.intro-steps li::marker { color: var(--ember); font-weight: 600; }
-.intro-steps b { font-weight: 600; }
+.intro-lead { margin: 0.45rem 0 0.3rem; font-size: 0.88rem; }
+.intro-goals { margin: 0.1rem 0 0.3rem; padding-left: 1.2rem; font-size: 0.88rem; }
+.intro-goals li { margin: 0.2rem 0; }
+.intro-goals li::marker { color: var(--ember); }
+.intro-goals b { font-weight: 600; }
+.intro-flow { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.intro-flow b { font-weight: 600; color: var(--text); }
 
 /* ---------- Test items ---------- */
 
