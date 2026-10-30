@@ -67,8 +67,10 @@ by commenting:
 5. comments the preview URL:
    `https://contrib-pr-<number>.renlys-recipes.pages.dev`.
 
-Cloudflare Pages builds that branch like any other preview. Re-comment
-`/preview` after new commits to refresh it.
+Cloudflare Pages builds that branch like any other preview. Once the preview
+branch exists, new commits on the PR refresh it automatically; `/preview` still
+creates or re-creates it. The workflow edits its existing preview comment with
+the latest commit instead of posting a new one.
 
 Cleanup happens automatically when the PR closes. A maintainer can also
 comment:

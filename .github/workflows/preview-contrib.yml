@@ -2,7 +2,8 @@ name: preview-contrib
 
 # Fork PR previews are opt-in. A maintainer comments `/preview` on the PR; the
 # workflow pushes a temporary in-repo branch from the PR merge ref. Cloudflare
-# Pages then builds that branch with the normal preview pipeline. `/preview-cleanup`
+# Pages then builds that branch with the normal preview pipeline. Once that
+# branch exists, new commits on the PR refresh it automatically. `/preview-cleanup`
 # removes it; closing the PR also triggers cleanup.
 #
 # Security boundary: this workflow never checks out or executes contributor
@@ -15,7 +16,7 @@ on:
   issue_comment:
     types: [created]
   pull_request_target:
-    types: [closed]
+    types: [closed, synchronize]
   workflow_dispatch:
     inputs:
       pr:
@@ -57,6 +58,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action || '' }}
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           COMMENT_ACTOR: ${{ github.event.comment.user.login || '' }}
           EVENT_PR: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
@@ -86,7 +88,11 @@ jobs:
             esac
             pr="$EVENT_PR"
           elif [ "$EVENT_NAME" = "pull_request_target" ]; then
-            action="cleanup"
+            case "$EVENT_ACTION" in
+              closed) action="cleanup" ;;
+              synchronize) action="preview" ;;
+              *) echo "unsupported pull_request_target action '$EVENT_ACTION'"; exit 0 ;;
+            esac
             pr="$EVENT_PR"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             action="$INPUT_ACTION"
@@ -107,6 +113,16 @@ jobs:
           if [ "$action" != "preview" ] && [ "$action" != "cleanup" ]; then
             echo "unknown action '$action'"
             exit 0
+          fi
+
+          branch="contrib-pr-$pr"
+          if [ "$EVENT_NAME" = "pull_request_target" ] && [ "$EVENT_ACTION" = "synchronize" ]; then
+            # Auto-refresh only opted-in PRs. The initial /preview creates this
+            # branch; /preview-cleanup and PR close remove it.
+            if ! gh api "repos/$REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
+              echo "no existing preview branch for PR #$pr; skipping auto-refresh"
+              exit 0
+            fi
           fi
 
           state=$(gh api "repos/$REPO/pulls/$pr" --jq .state 2>/dev/null || true)
@@ -135,7 +151,6 @@ jobs:
             action="none"
           fi
 
-          branch="contrib-pr-$pr"
           {
             echo "action=$action"
             echo "pr=$pr"
@@ -181,16 +196,33 @@ jobs:
           git push --force origin "refs/remotes/origin/$BRANCH:refs/heads/$BRANCH"
           echo "Preview branch '$BRANCH' updated from $src"
 
-      - name: Comment preview link
+      - name: Upsert preview comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           PR: ${{ needs.plan.outputs.pr }}
           BRANCH: ${{ needs.plan.outputs.branch }}
         run: |
           set -euo pipefail
-          gh pr comment "$PR" --body "Preview branch created: https://$BRANCH.renlys-recipes.pages.dev
+          sha=$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}' | cut -c1-12)
+          body=$(cat <<EOF
+          <!-- preview-contrib -->
+          Preview branch: https://$BRANCH.renlys-recipes.pages.dev
 
-          Cloudflare Pages usually finishes in about 90 seconds. Re-comment \`/preview\` after new commits; comment \`/preview-cleanup\` to remove it. Closing the PR also cleans it up."
+          Commit: $sha
+
+          Cloudflare Pages usually finishes in about 90 seconds. New commits on this PR refresh this preview automatically. Comment /preview-cleanup to remove it; closing the PR also cleans it up.
+          EOF
+          )
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- preview-contrib -->"))) | .id' \
+            | sed -n '1p')
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" >/dev/null
+            echo "Updated preview comment $existing"
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
 
   cleanup:
     name: cleanup preview
@@ -199,6 +231,7 @@ jobs:
     uses: ./.github/workflows/cleanup-preview.yml
     with:
       branch: ${{ needs.plan.outputs.branch }}
+      force: true
     secrets: inherit
 
   delete-branch:
@@ -250,7 +283,7 @@ jobs:
   notify-refusal:
     name: report refusal
     needs: plan
-    if: needs.plan.outputs.action == 'refuse' && needs.plan.outputs.pr != ''
+    if: needs.plan.outputs.action == 'refuse' && needs.plan.outputs.pr != '' && github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
