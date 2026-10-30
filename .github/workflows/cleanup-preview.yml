@@ -2,7 +2,8 @@ name: cleanup-preview
 
 # Delete a branch's Cloudflare Pages preview deployments once its pull request
 # is closed (merged or not), so preview copies do not linger. Production is
-# never touched. Also runnable manually with a branch name.
+# never touched. Also runnable manually with a branch name, or callable from
+# preview-contrib for fork PR temp branches.
 
 on:
   pull_request:
@@ -13,6 +14,15 @@ on:
         description: 'Branch whose preview deployments to delete'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch whose preview deployments to delete'
+        required: true
+        type: string
+    secrets:
+      CF_API_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -21,14 +31,14 @@ jobs:
   cleanup:
     name: cleanup
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Delete preview deployments for the branch
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           CF_PROJECT: renlys-recipes
-          BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+          BRANCH: ${{ inputs.branch || github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
