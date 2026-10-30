@@ -30,7 +30,10 @@
         <h1 class="shell-title">Renly's Recipes</h1>
         <span class="shell-sub">Highlight search strings for Path of Exile 2</span>
         <div class="shell-actions">
-            <button type="button" class="shell-link" id="intro-open" @onclick="Intro.Show">How it works</button>
+            <button type="button" class="shell-link" id="intro-open"
+                    disabled="@(Intro.Visible == true)"
+                    title="@(Intro.Visible == true ? "The explanation is already open" : "Show the explanation")"
+                    @onclick="Intro.Show">What is this?</button>
             <label class="ui-scale" title="Display scale, saved in this browser">
                 <span>Size</span>
                 <select value="@_scaleText" @onchange="SetScale" aria-label="Display scale">

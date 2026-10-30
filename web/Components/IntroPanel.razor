@@ -1,13 +1,14 @@
-<div class="intro-card" id="intro-card" role="region" aria-label="How this works">
+<div class="intro-card" id="intro-card" role="region" aria-label="What this app does">
     <div class="intro-head">
-        <h2 class="intro-title">How it works</h2>
+        <h2 class="intro-title">What is this?</h2>
         <button type="button" class="link" id="intro-dismiss" @onclick="Dismiss">Hide</button>
     </div>
-    <ol class="intro-steps">
-        <li>Add the mods you want. <b>Per slot</b> gives each gear slot its own list.</li>
-        <li>Copy the search string.</li>
-        <li>Paste it into the Highlight box at your stash or a vendor. Matching items light up.</li>
-    </ol>
+    <p class="intro-lead">It turns the mods you want into one short search string for the game's Highlight box.</p>
+    <ul class="intro-goals">
+        <li><b>Exact matches</b> — only the gear you want, not everything with the same words.</li>
+        <li><b>More mods</b> — the shortest string, so more mods fit within the 250-character limit.</li>
+    </ul>
+    <p class="intro-flow">Pick mods → copy → paste. <b>Per slot</b> gives each gear slot its own list; matching items light up.</p>
 </div>
 
 @code {

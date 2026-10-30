@@ -2,7 +2,7 @@ namespace web.Services;
 
 /// <summary>
 /// Shared first-run intro visibility. The page renders the inline card and the
-/// header owns the "how it works" opener, so both need the same state.
+/// header owns the "What is this?" opener, so both need the same state.
 /// </summary>
 public sealed class IntroState(PersistenceService persistence)
 {

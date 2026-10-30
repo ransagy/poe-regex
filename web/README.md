@@ -173,7 +173,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   instead (1280x800 at 115% fits with both panels closed). In the stacked
   layouts a bar pinned to the bottom keeps the length and a copy button in
   reach. The scale select sits at the right of the header, next to
-  `How it works` and the GitHub link.
+  `What is this?` and the GitHub link.
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).

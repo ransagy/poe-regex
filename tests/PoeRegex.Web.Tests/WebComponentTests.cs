@@ -79,6 +79,20 @@ public class WebComponentTests
     }
 
     [Fact]
+    public void IntroPanel_ExplainsExactAndShortStrings()
+    {
+        using var ctx = Context();
+        var dismissed = false;
+        var cut = ctx.Render<IntroPanel>(p => p
+            .Add(x => x.OnDismiss, () => dismissed = true));
+
+        cut.Find(".intro-title").TextContent.Should().Be("What is this?");
+        cut.FindAll(".intro-goals li").Should().HaveCount(2);
+        cut.Find("#intro-dismiss").Click();
+        dismissed.Should().BeTrue();
+    }
+
+    [Fact]
     public void PaperDoll_HasNoPerSlotClearButtons()
     {
         using var ctx = Context();
