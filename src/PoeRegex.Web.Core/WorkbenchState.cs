@@ -48,6 +48,9 @@ public sealed record WantedMod(
         (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal) &&
         (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal);
 
+    /// <summary>The engine builds digit ranges from an int, and a floor of zero or less filters nothing.</summary>
+    public static bool IsValidMinValue(double value) => value is > 0 and <= int.MaxValue;
+
     public bool Equals(WantedMod? other) =>
         other is not null && SamePick(other) && MinValue == other.MinValue;
 
@@ -85,6 +88,12 @@ public sealed class SlotCriteria
 
     /// <summary>True: an item needs every included pick; false: any one of them.</summary>
     public bool MatchAll { get; set; }
+
+    /// <summary>Below two picks all-of matches like any-of and its switch is hidden, so it must not linger for the next pick.</summary>
+    internal void NormalizeMatchAll()
+    {
+        if (Included.Count < 2) MatchAll = false;
+    }
 }
 
 /// <summary>
@@ -245,10 +254,11 @@ public sealed class WorkbenchState
     /// plain pick on the same anchor are distinct entries.</summary>
     public bool RemoveInclude(string? slot, WantedMod pick)
     {
-        var list = CriteriaFor(slot).Included;
-        var i = list.FindIndex(m => m.SamePick(pick));
+        var crit = CriteriaFor(slot);
+        var i = crit.Included.FindIndex(m => m.SamePick(pick));
         if (i < 0) return false;
-        list.RemoveAt(i);
+        crit.Included.RemoveAt(i);
+        crit.NormalizeMatchAll();
         Notify();
         return true;
     }
@@ -256,14 +266,16 @@ public sealed class WorkbenchState
     public void SetMatchAll(string? slot, bool matchAll)
     {
         var crit = CriteriaFor(slot);
-        if (crit.MatchAll == matchAll) return;
+        var before = crit.MatchAll;
         crit.MatchAll = matchAll;
-        Notify();
+        crit.NormalizeMatchAll();
+        if (crit.MatchAll != before) Notify();
     }
 
     /// <summary>Sets or clears a plain pick's minimum value in place, so the pick keeps its position.</summary>
     public bool SetMinValue(string? slot, WantedMod pick, double? minValue)
     {
+        if (minValue is { } v && !WantedMod.IsValidMinValue(v)) minValue = null;
         var list = CriteriaFor(slot).Included;
         var i = list.FindIndex(m => m.SamePick(pick));
         if (i < 0 || list[i].IsNamePick || list[i].MinValue == minValue) return false;
@@ -293,6 +305,7 @@ public sealed class WorkbenchState
         var c = CriteriaFor(slot);
         c.Included.Clear();
         c.Excluded.Clear();
+        c.MatchAll = false;
         Notify();
     }
 

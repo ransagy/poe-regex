@@ -224,8 +224,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   deflated, base64url JSON (`RecipeCodec`; a few hundred characters).
   Opening a link replaces the picks, keeps the backpack, saves any earlier
   picks as a "Before shared link" recipe first, clears the fragment, and says
-  so in a dismissible notice. Decoding treats the link as untrusted: bad
-  input or more than 64 KB of JSON is rejected.
+  so in a dismissible notice. Links and saved recipes are untrusted:
+  `SnapshotValidator` rejects missing or blank strings, null list entries,
+  out-of-range minimums, unknown slots, unknown versions and implausible
+  counts, and decoding also rejects tokens past the length cap or more than
+  64 KB of JSON. Saved recipes that fail the check are skipped on load.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
   disables the whole mod list and the search (the list dims; Save still
@@ -256,8 +259,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   with an in-game `snowy` search; builder-assembled items get reconstructed
   captions too (without tier/tags, which the catalog does not carry). It
   engages only once the active scope has mods picked.
-- `Services/PersistenceService.cs` — localStorage behind an `IShareStore`-style
-  seam (URL-share and accounts are future work; see the plan doc).
+- `Services/PersistenceService.cs` — localStorage for the workbench and saved
+  recipes, behind an `IShareStore`-style seam. Share links are
+  `RecipeCodec` fragments; short links and accounts are future work (see the
+  plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
 - `wwwroot/js/tooltip.js` — flips/clamps the pinned item tooltip inside the
   viewport after each render.

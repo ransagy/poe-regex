@@ -17,6 +17,8 @@ public static class RecipeCodec
 {
     public const string FragmentPrefix = "r=";
     private const int MaxJsonBytes = 64 * 1024;
+    // Deflate adds only a few bytes per block, so no token within the JSON cap is longer.
+    public const int MaxTokenLength = (MaxJsonBytes + 1024) * 4 / 3;
 
     /// <summary>A deep copy: Capture hands out the live criteria objects.</summary>
     public static WorkbenchSnapshot CaptureCriteria(WorkbenchState state)
@@ -38,6 +40,7 @@ public static class RecipeCodec
     /// <summary>Null for anything that is not a well-formed recipe; shared links are untrusted input.</summary>
     public static WorkbenchSnapshot? Decode(string token)
     {
+        if (token.Length > MaxTokenLength) return null;
         try
         {
             var b64 = token.Replace('-', '+').Replace('_', '/');
@@ -52,11 +55,7 @@ public static class RecipeCodec
                 json.Write(buffer, 0, read);
             }
             var snap = JsonSerializer.Deserialize(json.ToArray(), WebJsonContext.Default.WorkbenchSnapshot);
-            if (snap?.Slots is null || snap.Global is null) return null;
-            if (snap.Slots.Values.Any(c => c is null || c.Included is null || c.Excluded is null)) return null;
-            if (snap.Global.Included is null || snap.Global.Excluded is null) return null;
-            if (snap.Slots.Values.SelectMany(c => c.Included).Concat(snap.Global.Included).Any(m => m?.ModId is null)) return null;
-            return snap with { TestItems = [] };
+            return SnapshotValidator.IsValid(snap) ? snap with { TestItems = [] } : null;
         }
         catch (Exception ex) when (ex is FormatException or InvalidDataException or JsonException or NotSupportedException)
         {

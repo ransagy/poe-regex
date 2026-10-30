@@ -249,8 +249,12 @@
         return Engine.Classes.FirstOrDefault(c => c.Id == id)?.Name ?? id;
     }
 
-    private static string ChipKey(WantedMod pick) =>
-        pick.IsNamePick ? $"{pick.ModId}-n{pick.Names!.Count}" : pick.ModId;
+    private static string ChipKey(WantedMod pick) => pick switch
+    {
+        { IsNamePick: true } => $"{pick.ModId}-n-{string.Join('-', pick.Names!)}".Replace(' ', '_'),
+        { VariantModIds.Count: > 0 } => $"{pick.ModId}-v",
+        _ => pick.ModId,
+    };
 
     private static string RemoveTitle(WantedMod pick, string label) =>
         pick.IsNamePick && pick.Names!.Count > 1

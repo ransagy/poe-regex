@@ -44,7 +44,8 @@ public sealed class PersistenceService(IJSRuntime js)
         {
             var raw = await js.InvokeAsync<string?>("localStorage.getItem", RecipesKey);
             if (string.IsNullOrEmpty(raw)) return [];
-            return JsonSerializer.Deserialize(raw, WebJsonContext.Default.ListSavedRecipe) ?? [];
+            var recipes = JsonSerializer.Deserialize(raw, WebJsonContext.Default.ListSavedRecipe) ?? [];
+            return recipes.Where(SnapshotValidator.IsValid).ToList();
         }
         catch
         {

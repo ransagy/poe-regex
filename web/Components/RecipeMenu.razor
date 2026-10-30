@@ -22,6 +22,7 @@
         <div class="recipes-pop" role="dialog" aria-label="Saved recipes" @onkeydown="OnKeyDown">
             <form class="recipes-save" @onsubmit="Save">
                 <input id="recipe-name" placeholder="Name these picks…" autocomplete="off" aria-label="Recipe name"
+                       maxlength="@SnapshotValidator.MaxRecipeName"
                        value="@_name" @oninput="e => _name = e.Value?.ToString() ?? string.Empty" />
                 <button type="submit" class="btn btn-primary" id="recipe-save" disabled="@(!HasPicks)">Save</button>
             </form>

@@ -72,6 +72,9 @@ public class MatchModeTests
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.AddInclude("helmet", new WantedMod("IncreasedLife6"));
+        state.AddInclude("helmet", new WantedMod("Strength1"));
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddInclude(null, new WantedMod("Strength1"));
         state.SetMinValue("helmet", new WantedMod("IncreasedLife6"), 70);
         state.SetMatchAll("helmet", true);
         state.SetMatchAll(null, true);
@@ -85,6 +88,101 @@ public class MatchModeTests
         restored.CriteriaFor("helmet").MatchAll.Should().BeTrue();
         restored.CriteriaFor("helmet").Included[0].MinValue.Should().Be(70);
         restored.Global.MatchAll.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ClearChips_ResetsMatchAll()
+    {
+        var state = TwoPicksAllOf(null);
+
+        state.ClearChips(null);
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddInclude(null, new WantedMod("Strength1"));
+
+        state.Global.MatchAll.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RemoveInclude_BelowTwoPicks_ResetsMatchAll()
+    {
+        var state = TwoPicksAllOf("boots");
+
+        state.RemoveInclude("boots", new WantedMod("Strength1"));
+
+        state.CriteriaFor("boots").MatchAll.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RemoveInclude_KeepsMatchAllWithTwoPicksLeft()
+    {
+        var state = TwoPicksAllOf("boots");
+        state.AddInclude("boots", new WantedMod("Dexterity1"));
+        state.SetMatchAll("boots", true);
+
+        state.RemoveInclude("boots", new WantedMod("Dexterity1"));
+
+        state.CriteriaFor("boots").MatchAll.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SetMatchAll_NeedsTwoPicks()
+    {
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+
+        state.SetMatchAll(null, true);
+
+        state.Global.MatchAll.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Restore_WithFewerThanTwoPicks_DropsMatchAll(bool criteriaOnly)
+    {
+        var snap = WorkbenchSnapshot.Capture(new WorkbenchState());
+        snap.Slots["boots"] = new SlotCriteria
+        {
+            ClassId = "Boots",
+            Included = [new WantedMod("IncreasedLife6"), new WantedMod("")],
+            MatchAll = true,
+        };
+        snap.Global.Included.Add(new WantedMod("Strength1"));
+        snap.Global.MatchAll = true;
+
+        var restored = new WorkbenchState();
+        if (criteriaOnly) WorkbenchSnapshot.RestoreCriteria(restored, snap);
+        else WorkbenchSnapshot.Restore(restored, snap);
+
+        restored.CriteriaFor("boots").MatchAll.Should().BeFalse();
+        restored.Global.MatchAll.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(3e9)]
+    public void SetMinValue_OutOfRange_ClearsTheFloor(double min)
+    {
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.SetMinValue(null, new WantedMod("IncreasedLife6"), 70);
+
+        state.SetMinValue(null, new WantedMod("IncreasedLife6"), min);
+
+        state.Global.Included[0].MinValue.Should().BeNull();
+    }
+
+    private static WorkbenchState TwoPicksAllOf(string? slot)
+    {
+        var state = new WorkbenchState();
+        state.AddInclude(slot, new WantedMod("IncreasedLife6"));
+        state.AddInclude(slot, new WantedMod("Strength1"));
+        state.SetMatchAll(slot, true);
+        state.CriteriaFor(slot).MatchAll.Should().BeTrue();
+        return state;
     }
 
     [Fact]

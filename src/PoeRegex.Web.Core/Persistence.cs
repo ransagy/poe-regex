@@ -76,12 +76,14 @@ public sealed record WorkbenchSnapshot(
             mine.Excluded.Clear();
             mine.Excluded.AddRange(crit.Excluded.Where(e => e.Length > 0));
             mine.MatchAll = crit.MatchAll;
+            mine.NormalizeMatchAll();
         }
         state.Global.Included.Clear();
         state.Global.Included.AddRange(Picks(snap, snap.Global.Included));
         state.Global.Excluded.Clear();
         state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
         state.Global.MatchAll = snap.Global.MatchAll;
+        state.Global.NormalizeMatchAll();
         if (!items) return;
         state.TestItems.Clear();
         var placed = new List<TestItem>(snap.TestItems.Count);
@@ -113,10 +115,10 @@ public sealed record WorkbenchSnapshot(
         state.TestItems.AddRange(placed);
     }
 
-    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them.</summary>
+    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them, and any floor out of range.</summary>
     private static IEnumerable<WantedMod> Picks(WorkbenchSnapshot snap, IEnumerable<WantedMod> picks) =>
         picks.Where(m => m.ModId.Length > 0)
-            .Select(m => snap.Version < 4 && m.MinValue is not null ? m with { MinValue = null } : m);
+            .Select(m => m.MinValue is { } min && (snap.Version < 4 || !WantedMod.IsValidMinValue(min)) ? m with { MinValue = null } : m);
 
     /// <summary>True when any already-placed item shares a cell with this one.</summary>
     private static bool Overlaps(IReadOnlyList<TestItem> placed, TestItem item)
