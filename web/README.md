@@ -89,8 +89,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   ("Choose a gear slot to see the mods it can roll"); the focused slot's name
   heads the picker, and weapon/offhand put their base-class select there.
 - `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
-  edit it, slots with picks enroll, fill, and show a pick count; X clears
-  the larger slots; weapon/offhand name their base class under the slot label),
+  edit it, slots with picks enroll, fill, and show a pick count; clearing stays
+  in Your picks so every slot follows the same rule; weapon/offhand name their
+  base class under the slot label),
   `SearchBar` and `PickBreakdown` (the string and what it is made of — see
   below; they share a `SearchModel` for blocks and hover), `RecipeMenu`
   (saved recipes and share links — see below),
@@ -128,9 +129,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   exceed the game's 250-character limit; the preview handles up to 64 matches
   and larger sets stay visible but disabled with the budget message; one
   match keeps the row's own `+`); before typing,
-  only a short curated shortlist shows (the placeholder reads "Search all 194
-  mods…"), with `Show all N mods` under it to list every family (classes
-  with no curated picks list everything); a one-letter filter keeps matching families
+  only the curated common shortlist shows under a `Common picks · N shown`
+  line with `Show all N mods` (the filter placeholder is `Search mods…`;
+  typing searches every family; classes with no curated picks list
+  everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk
   preview is capped at 64 matches so a broad first letter never compiles the
   whole catalog; the list stretches/scrolls to fill the editor's height;
@@ -201,7 +203,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   budget bar where each block is a segment of its exact character cost
   (spaces included, so the segments sum to the `k / 250` count). Your picks
   lists them per slot in advanced (or `All gear` in simple), each with the
-  fragment it compiles to on its own and that fragment's length. With two or
+  fragment it compiles to on its own and its character count. With two or
   more picks an `Any of / All of` switch sets how they combine: any of is one
   `|` alternation (an item needs one); all of gives every pick its own block
   (an item needs each; per slot, each block is `": (other classes)|frag"`).
@@ -224,7 +226,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   deflated, base64url JSON (`RecipeCodec`; a few hundred characters).
   Opening a link replaces the picks, keeps the backpack, saves any earlier
   picks as a "Before shared link" recipe first, clears the fragment, and says
-  so in a dismissible notice. Links and saved recipes are untrusted:
+  so in a dismissible notice. A same-tab `#r=` fragment applies without a
+  reload. Any external workbench write freezes the other tabs; a shared link
+  gets a specific handoff dialog, ordinary edits get a generic one. The frozen
+  tab saves its own picks as a recipe, blocks further workbench writes, and
+  offers a hard reload so it cannot overwrite the newer state. Automatic
+  backups are skipped when an identical recipe already exists. Links and saved
+  recipes are untrusted:
   `SnapshotValidator` rejects missing or blank strings, null list entries,
   out-of-range minimums, unknown slots, unknown versions and implausible
   counts, and decoding also rejects tokens past the length cap or more than
@@ -267,6 +275,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   fragments; short links and accounts are future work (see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
 - `wwwroot/js/focus.js` — keeps Tab inside the Recipes dialog.
+- `wwwroot/js/tab-sync.js` — cross-tab workbench freeze and share-link handoff.
 - `wwwroot/js/tooltip.js` — flips/clamps the pinned item tooltip inside the
   viewport after each render.
 

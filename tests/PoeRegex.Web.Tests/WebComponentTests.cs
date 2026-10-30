@@ -59,6 +59,7 @@ public class WebComponentTests
         var ids = cut.FindAll(".bd-row.inc").Select(e => e.Id).ToList();
         ids.Should().HaveCount(2);
         ids.Should().OnlyHaveUniqueItems();
+        cut.Find(".bd-row.inc .bd-n").TextContent.Should().Contain("chars");
         cut.Find("#logic-all-global").Click();
         state.Global.MatchAll.Should().BeTrue();
     }
@@ -75,6 +76,34 @@ public class WebComponentTests
         cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
         cut.Find("#slot-copy-simple").Should().NotBeNull();
         cut.Find("#auto-copy").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PaperDoll_HasNoPerSlotClearButtons()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+        state.AddInclude("helmet", new WantedMod("IncreasedLife6"));
+        var cut = ctx.Render<PaperDoll>(p => p.Add(x => x.State, state));
+
+        cut.FindAll(".slot-clear").Should().BeEmpty("clearing lives in Your picks");
+        cut.Find("#slot-helmet").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ModPicker_HintsAtCommonPicksAndCanShowAll()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Mods, engine.PlayableMods()));
+
+        cut.Find("#mod-search").GetAttribute("placeholder").Should().Be("Search mods…");
+        cut.Find("#mod-show-all").TextContent.Should().Contain("Show all");
+        cut.Find("#mod-show-all").Click();
+        cut.WaitForAssertion(() => cut.Find("#mod-show-all").TextContent.Should().Contain("Show common only"));
     }
 
     [Fact]
