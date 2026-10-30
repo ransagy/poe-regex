@@ -20,6 +20,11 @@ on:
         description: 'Branch whose preview deployments to delete'
         required: true
         type: string
+      force:
+        description: 'Run even when the caller event is not a workflow_dispatch or in-repo PR close'
+        required: false
+        type: boolean
+        default: false
     secrets:
       CF_API_TOKEN:
         required: false
@@ -31,7 +36,7 @@ jobs:
   cleanup:
     name: cleanup
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' || github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ inputs.force || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Delete preview deployments for the branch
         env:
