@@ -185,6 +185,7 @@ alias (`<branch>.<project>.pages.dev`).
       `_framework` immutable caching)
 - [x] build filters: no previews for `dependabot/*`, docs-only pushes skip
       the build (watch paths)
-- [x] manual contributor (fork) previews with `/preview`, automatic cleanup on
-      PR close, and `/preview-cleanup`
+- [x] manual contributor (fork) preview opt-in with `/preview`, automatic
+      refresh on new commits, one upserted preview comment, cleanup on PR
+      close, and `/preview-cleanup`
 - [ ] custom domain (optional, later)
