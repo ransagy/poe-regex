@@ -1042,16 +1042,16 @@ body.compact .advanced-reserve { display: none; }
 
 /* First-run explanation: inline, quiet, dismissible. */
 .intro-card {
-    display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between;
+    display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start;
     margin: 0.55rem 0 0.35rem; padding: 0.65rem 0.8rem;
     border: 1px solid var(--panel-edge); border-left: 0.28rem solid var(--accent);
     background: var(--panel); color: var(--ink); line-height: 1.4;
 }
-.intro-copy { min-width: 0; }
+.intro-copy { min-width: 0; width: 100%; }
 .intro-title { color: var(--accent); font-weight: 600; margin-bottom: 0.25rem; }
 .intro-lead { color: var(--ink); font-size: 0.85rem; margin: 0.1rem 0 0.35rem; }
 .intro-goals { margin: 0.1rem 0 0.2rem 1.1rem; padding: 0; }
 .intro-goals li { margin: 0.12rem 0; }
 .intro-modes { color: var(--dim); font-size: 0.82rem; }
-.intro-dismiss { flex: none; }
+.intro-dismiss { flex: none; align-self: flex-start; margin-top: 0.15rem; }
 .hint.warn { color: #f2c94c; }
