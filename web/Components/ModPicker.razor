@@ -29,6 +29,15 @@
     else
     {
         <div class="mod-list">
+            @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
+            {
+                <div class="mod-scope">
+                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks · {CommonCount} shown")</span>
+                    <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
+                        @(_showAll ? "Show common only" : $"Show all {_allFamilies.Count} mods")
+                    </button>
+                </div>
+            }
             @{
                 (IReadOnlyList<ModFamily> List, string Header)[] sections =
                     [(_prefixes, "Prefixes"), (_suffixes, "Suffixes")];
@@ -114,13 +123,7 @@
                     </section>
                 }
             </div>
-            @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
-            {
-                <button type="button" class="link list-toggle" id="mod-show-all" @onclick="ToggleShowAll">
-                    @(_showAll ? "Show common mods only" : $"Show all {_allFamilies.Count} mods")
-                </button>
-            }
-            else if (_families.Count > MaxShown)
+            @if (_search.Trim().Length > 0 && _families.Count > MaxShown)
             {
                 <div class="more">@(_families.Count - MaxShown) more. Keep typing to narrow the list.</div>
             }
@@ -189,7 +192,6 @@
 
     private void Refresh()
     {
-        _placeholder = $"Search all {_allFamilies.Count} mods…";
         var filter = _search.Trim();
         _families = filter.Length == 0
             ? _showAll || CommonCount == 0 ? _allFamilies : _allFamilies.Where(ModFamilies.IsCommon).ToList()

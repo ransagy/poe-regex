@@ -8,6 +8,7 @@ namespace web.Services;
 public sealed class PersistenceService(IJSRuntime js)
 {
     public const string StorageKey = "poe-regex.workbench.v1";
+    public const string HandoffKey = "poe-regex.handoff.v1";
     private const string IntroKey = "poe-regex.intro.v1";
     private const string RecipesKey = "poe-regex.recipes.v1";
 
@@ -28,14 +29,29 @@ public sealed class PersistenceService(IJSRuntime js)
 
     public async Task SaveAsync(WorkbenchSnapshot snap)
     {
+        var raw = JsonSerializer.Serialize(snap, WebJsonContext.Default.WorkbenchSnapshot);
         try
         {
-            var raw = JsonSerializer.Serialize(snap, WebJsonContext.Default.WorkbenchSnapshot);
-            await js.InvokeVoidAsync("localStorage.setItem", StorageKey, raw);
+            await js.InvokeVoidAsync("poeRegexSetWorkbench", StorageKey, raw);
         }
         catch
         {
-            // best-effort: private mode / quota / unavailable JS
+            // Older cached shell or unavailable helper: fall back to the raw key.
+            try { await js.InvokeVoidAsync("localStorage.setItem", StorageKey, raw); } catch { }
+        }
+    }
+
+    /// <summary>Tell other tabs that a share link replaced the workbench.</summary>
+    public async Task MarkSharedHandoffAsync()
+    {
+        try
+        {
+            var marker = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}:{Guid.NewGuid():N}";
+            await js.InvokeVoidAsync("localStorage.setItem", HandoffKey, marker);
+        }
+        catch
+        {
+            // Cross-tab handoff is best-effort.
         }
     }
 

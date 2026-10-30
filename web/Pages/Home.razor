@@ -190,6 +190,23 @@
 
 <ItemTooltip Item="@SelectedItem()" X="_ttX" Y="_ttY" OnDismiss="DismissTooltip" />
 
+@if (_stale)
+{
+    <div class="dlg-overlay" id="stale-overlay">
+        <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="stale-title">
+            <h2 class="panel-head" id="stale-title">Workbench changed in another tab</h2>
+            <p class="more">A shared recipe was opened in another tab. This tab is frozen so it cannot overwrite the new workbench.</p>
+            @if (_staleBackupSaved)
+            {
+                <p class="more">Your picks from this tab were saved under Recipes.</p>
+            }
+            <div class="modrow">
+                <button type="button" class="btn btn-primary" id="stale-reload" @ref="_staleReload" @onclick="ReloadStale">Reload</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private sealed record TaskView(
         string CardId, string Title, string? ItemClass, CompileResult Result);
@@ -210,8 +227,19 @@
     private double _ttY;
     private string? _notice;
     private int _recipesVersion;
+    private bool _openingShared;
+    private bool _stale;
+    private bool _staleBackupSaved;
+    private bool _staleFocus;
+    private bool _disposed;
+    private ElementReference _staleReload;
+    private DotNetObjectReference<Home>? _tabRef;
 
-    protected override void OnInitialized() => _model = new SearchModel(Engine, State);
+    protected override void OnInitialized()
+    {
+        _model = new SearchModel(Engine, State);
+        Nav.LocationChanged += OnLocationChanged;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -232,34 +260,114 @@
         Recompute();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_stale && _staleFocus)
+        {
+            _staleFocus = false;
+            try { await _staleReload.FocusAsync(); } catch { }
+        }
+        if (!firstRender || _disposed) return;
+        _tabRef = DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("poeRegexWatchHandoff", _tabRef); }
+        catch
+        {
+            // Cross-tab handoff is best-effort.
+            _tabRef.Dispose();
+            _tabRef = null;
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (_disposed || _stale) return;
+        if (RecipeCodec.TokenFromFragment(new Uri(e.Location).Fragment) is not null)
+            _ = OpenSharedRecipeFromNavigationAsync();
+    }
+
+    private async Task OpenSharedRecipeFromNavigationAsync()
+    {
+        try
+        {
+            await OpenSharedRecipeAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            _notice = "That share link could not be read, so your picks are unchanged.";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     /// <summary>A share link replaces the picks; earlier picks are saved as a recipe first so nothing is lost.</summary>
     private async Task OpenSharedRecipeAsync()
     {
         var token = RecipeCodec.TokenFromFragment(new Uri(Nav.Uri).Fragment);
-        if (token is null) return;
-        try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
-        catch { }
-        var shared = RecipeCodec.Decode(token);
-        if (shared is null)
+        if (token is null || _openingShared || _stale) return;
+        _openingShared = true;
+        try
         {
-            _notice = "That share link could not be read, so your picks are unchanged.";
-            return;
+            try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
+            catch { }
+            var shared = RecipeCodec.Decode(token);
+            if (shared is null)
+            {
+                _notice = "That share link could not be read, so your picks are unchanged.";
+                return;
+            }
+            var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+                           State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
+            if (hadPicks)
+            {
+                var recipes = await Persistence.LoadRecipesAsync();
+                recipes.Insert(0, new SavedRecipe(
+                    $"Before shared link, {DateTime.Now:yyyy-MM-dd HH:mm}", DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
+                await Persistence.SaveRecipesAsync(recipes);
+                _recipesVersion++;
+            }
+            WorkbenchSnapshot.RestoreCriteria(State, shared);
+            // Persist before announcing the handoff so another tab cannot
+            // reload into the previous workbench.
+            await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
+            await Persistence.MarkSharedHandoffAsync();
+            _notice = hadPicks
+                ? "Opened a shared recipe. Your earlier picks are saved under Recipes."
+                : "Opened a shared recipe.";
         }
+        finally
+        {
+            _openingShared = false;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSharedRecipeOpenedElsewhere()
+    {
+        if (_disposed || _stale) return;
+        _stale = true;
         var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
                        State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
         if (hadPicks)
         {
-            var recipes = await Persistence.LoadRecipesAsync();
-            recipes.Insert(0, new SavedRecipe(
-                $"Before shared link, {DateTime.Now:yyyy-MM-dd HH:mm}", DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
-            await Persistence.SaveRecipesAsync(recipes);
-            _recipesVersion++;
+            try
+            {
+                var recipes = await Persistence.LoadRecipesAsync();
+                recipes.Insert(0, new SavedRecipe(
+                    $"Before shared link (other tab), {DateTime.Now:yyyy-MM-dd HH:mm}",
+                    DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
+                await Persistence.SaveRecipesAsync(recipes);
+                _staleBackupSaved = true;
+            }
+            catch
+            {
+                // The modal still freezes the tab; the other tab's backup remains.
+            }
         }
-        WorkbenchSnapshot.RestoreCriteria(State, shared);
-        _notice = hadPicks
-            ? "Opened a shared recipe. Your earlier picks are saved under Recipes."
-            : "Opened a shared recipe.";
+        _staleFocus = true;
+        await InvokeAsync(StateHasChanged);
     }
+
+    private void ReloadStale() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
 
     private Task DismissIntro() => Intro.DismissAsync();
 
@@ -279,6 +387,7 @@
 
     private void OnStateChanged()
     {
+        if (_stale || _disposed) return;
         Recompute();
         _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
         InvokeAsync(StateHasChanged);
@@ -424,7 +533,12 @@
 
     public void Dispose()
     {
+        _disposed = true;
         State.Changed -= OnStateChanged;
         Intro.Changed -= OnIntroChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+        try { _ = JS.InvokeVoidAsync("poeRegexUnwatchHandoff"); } catch { }
+        _tabRef?.Dispose();
+        _tabRef = null;
     }
 }

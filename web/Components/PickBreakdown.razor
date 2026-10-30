@@ -175,7 +175,7 @@
                         @if (frag is not null)
                         {
                             <code class="bd-frag" title="@frag">@frag</code>
-                            <span class="bd-n" title="@($"{frag.Length} characters on its own")">@frag.Length</span>
+                            <span class="bd-n" title="@($"{frag.Length} characters on its own")">@frag.Length<span class="bd-unit"> chars</span></span>
                         }
                         else
                         {
@@ -203,7 +203,7 @@
                         <span class="bd-what"><span class="bd-label">@label</span></span>
                         <span></span>
                         <code class="bd-frag" title="@frag">@frag</code>
-                        <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@block?.Cost</span>
+                        <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
                         <button type="button" class="bd-x" id="chip-remove-exc-@scopeKey-@exc"
                                 title="@($"Remove {label}")" aria-label="@($"Remove {label}")"
                                 @onclick="() => State.RemoveExclude(slot, exc)">×</button>
