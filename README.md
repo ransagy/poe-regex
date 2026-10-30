@@ -106,6 +106,10 @@ and verifies that no shorter legal form exists. Re-running after a league
 patch re-sources the latest exports. The catalog records the fetch date and
 contains only the derived subset described in `docs/PROVENANCE.md`.
 
+## Contributors
+
+<a href="https://github.com/juddisjudd" title="juddisjudd"><img src="https://github.com/juddisjudd.png?size=64" width="64" height="64" alt="juddisjudd"></a>
+
 ## Acknowledgements
 
 Sources and prior art from the Path of Exile community this project builds on:
