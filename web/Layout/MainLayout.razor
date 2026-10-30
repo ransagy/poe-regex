@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@using PoeRegex.Web.Core
 @inject IJSRuntime JS
 @inject web.Services.IntroState Intro
+@inject WorkbenchState State
 <div class="shell">
     <header class="shell-bar">
         <svg class="shell-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
@@ -30,7 +32,10 @@
         <span class="shell-title">Renly's Recipes</span>
         <span class="shell-sub">A Path of Exile 2 vendor regex workbench</span>
         <div class="shell-actions">
-            <button type="button" class="shell-how" id="intro-open" @onclick="Intro.Show">how it works</button>
+            <button type="button" class="shell-how" id="intro-open" @onclick="Intro.Show">What is this?</button>
+            <button type="button" class="shell-how" id="query-import-open"
+                    title="Import a compiled search string into the workbench"
+                    @onclick="() => _queryImportOpen = true">import search…</button>
             <label class="ui-scale" title="Display scale; saved in this browser">
             <span>size</span>
             <select value="@_scaleText" @onchange="SetScale" aria-label="Display scale">
@@ -46,13 +51,17 @@
     <main class="shell-body">
         @Body
     </main>
+    <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
 </div>
 
 @implements IDisposable
 
 @code {
     private double _scale = 1.15;
+    private bool _queryImportOpen;
     private string _scaleText => _scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private void CloseQueryImport() => _queryImportOpen = false;
 
     protected override async Task OnInitializedAsync()
     {

@@ -1,13 +1,13 @@
 @* First-run explanation. Inline, dismissible, and deliberately small: the
    workbench is dense enough without a modal on arrival. *@
-<div class="intro-card" id="intro-card" role="region" aria-label="How this works">
+<div class="intro-card" id="intro-card" role="region" aria-label="What this app does">
     <div class="intro-copy">
-        <div class="intro-title">Build a search string, then paste it into the game</div>
-        <ol class="intro-steps">
-            <li><b>Pick mods</b> in Simple or Advanced mode.</li>
-            <li><b>Copy</b> the quoted string from “your search string”.</li>
-            <li><b>Paste</b> it into the in-game Highlight item search.</li>
-        </ol>
+        <div class="intro-title">What is this?</div>
+        <ul class="intro-goals">
+            <li><b>Exact item searches.</b> Build a search that shows exactly the items you want and nothing else — including different mods per gear slot.</li>
+            <li><b>Shortest results.</b> Keep the search string as short as possible, so more mods fit in the game's 250-character box.</li>
+        </ul>
+        <div class="intro-note">Pick mods, copy the quoted string, then paste it into the in-game Highlight item search.</div>
     </div>
     <button type="button" class="btn intro-dismiss" id="intro-dismiss" @onclick="Dismiss">got it</button>
 </div>

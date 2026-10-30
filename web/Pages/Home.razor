@@ -67,12 +67,6 @@
                 {
                     <span class="rb-unresolved" id="rb-unresolved" title="@UnresolvedTitle(unresolved)">@unresolved.Count unresolved</span>
                 }
-                <div class="rb-actions">
-                    <button type="button" class="rb-action" id="query-import-open"
-                            title="Import a compiled search string into the workbench"
-                            @onclick="() => _queryImportOpen = true">import search…</button>
-                    <span class="rb-hint">copy → paste into the game's item search</span>
-                </div>
             </div>
             <div class="result-strip" id="result-strip" aria-label="Compiled search string">
                 @if (barQuery.Length > 0)
@@ -108,17 +102,19 @@
             </div>
         </div>
 
-        <section class="test-lab" id="test-lab" aria-label="Test items">
+        <section class="test-lab @(_testLabOpen ? "open" : "")" id="test-lab" aria-label="Test items">
             <div class="test-lab-head">
                 <button type="button" class="test-lab-toggle" id="test-lab-toggle"
                         aria-expanded="@(_testLabOpen ? "true" : "false")" aria-controls="test-lab-body"
                         @onclick="ToggleTestLab">
                     <span class="test-lab-chev" aria-hidden="true">@(_testLabOpen ? "▾" : "▸")</span>
                     <span class="test-lab-title">Test items</span>
-                    <span class="test-lab-count">@State.TestItems.Count</span>
-                    <span class="test-lab-sub">import, assemble, test matches</span>
+                    @if (State.TestItems.Count > 0)
+                    {
+                        <span class="test-lab-count">@State.TestItems.Count loaded</span>
+                    }
                 </button>
-                <HelpTip Title="what test items are for">
+                <HelpTip Class="help-up" Title="what test items are for">
                     <ul>
                         <li><b>import item</b> — paste an item copied from the game.</li>
                         <li><b>assemble item</b> — build one from catalog mods.</li>
@@ -142,7 +138,6 @@
             }
         </section>
         <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
-        <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
         <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
     </section>
     <div class="advanced-reserve" aria-hidden="true"></div>
@@ -217,7 +212,6 @@
     private HashSet<string> _highlight = [];
     private bool _dimNonMatching;
     private bool _importOpen;
-    private bool _queryImportOpen;
     private bool _builderOpen;
     private bool _testLabOpen;
     private MultiPasteResult? _paste;
@@ -247,7 +241,6 @@
     private void OnIntroChanged() => InvokeAsync(StateHasChanged);
 
     private void CloseImport() => _importOpen = false;
-    private void CloseQueryImport() => _queryImportOpen = false;
 
     private void CloseBuilder() => _builderOpen = false;
 

@@ -85,9 +85,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   criteria (simple: the picker alone; advanced: doll | picker, doll first,
   starting unfocused with "click a slot on the doll to pick its mods"),
   picks rail, search string, collapsible test items, backpack. The search-string bar
-  carries a local "copy → paste into the game's item search" hint, a quiet
-  `import search…` action, the regex with the k/N meter (red `OVER`) and copy;
-  the scope is silent in simple and
+  carries the regex with the k/N meter (red `OVER`) and copy; the scope is
+  silent in simple and
   names the slots in advanced (`Helmet + Boots`, `4 slots`). Before the first
   pick it says "nothing to show yet — pick mods to build the string". Per-slot
   queries for More info live below.
@@ -157,17 +156,19 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   because a height-constrained multicol spills phantom columns sideways
   instead of scrolling down; Save adds exactly the card shown; both modals
   reject when the backpack is full). The test-items area is a collapsible
-  row, collapsed by default; opening it reveals the `(?)` help, import,
-  assemble, and remove (acts on the pinned item), plus the backpack. Closing
-  it reclaims the space and dismisses a pinned tooltip.
+  row, collapsed by default; its header shows only `Test items` (plus
+  `N loaded` when non-empty), with the `(?)` help next to the title. Opening
+  it encases the import, assemble, and remove actions (remove acts on the
+  pinned item) plus the backpack in one bordered section. Closing it
+  reclaims the space and dismisses a pinned tooltip.
 - The page uses a persisted display scale (100 / 115 / 130%, default 115%
   on desktop and 100% on phone-width screens) applied as body zoom. When the
   scaled content no longer fits the viewport the page scrolls and the bench
   takes its natural height (1920x1080 at 115% still fits without page scroll;
   1600x900 at 115% scrolls); phone/narrow screens stack the advanced doll
   above the picker and let the filter, result, and collapsed/expanded test
-  area flow down the page. The scale select sits at the right of the header,
-  next to `how it works` and the GitHub link.
+  area flow down the page. The top bar carries `What is this?`,
+  `import search…`, the scale select, and the GitHub link.
 - The flow is one left-aligned column: mode → criteria (advanced splits into
   doll | picker) → picks rail → search string → test items (collapsible) →
   backpack. The
