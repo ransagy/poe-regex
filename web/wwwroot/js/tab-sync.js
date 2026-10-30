@@ -1,6 +1,6 @@
-// Cross-tab workbench handoff. A share link opened in another tab writes a
-// marker; this tab freezes its workbench writes before asking the app to show
-// the reload dialog.
+// Cross-tab workbench coordination. Any workbench write from another tab
+// freezes this tab before it can overwrite the new state; the share-link
+// handoff gets a specific message.
 window.__poeWorkbenchFrozen = false;
 
 window.poeRegexSetWorkbench = function (key, value) {
@@ -8,22 +8,51 @@ window.poeRegexSetWorkbench = function (key, value) {
   localStorage.setItem(key, value);
 };
 
-window.poeRegexWatchHandoff = function (dotnet) {
-  if (window.__poeHandoffHandler) return;
+window.poeRegexReload = function () {
+  location.reload();
+};
 
-  window.__poeHandoffHandler = function (event) {
-    if (event.key !== 'poe-regex.handoff.v1' || !event.newValue) return;
+window.poeRegexWatchTabs = function (dotnet) {
+  if (window.__poeTabHandler) return;
+
+  const workbenchKey = 'poe-regex.workbench.v1';
+  const handoffKey = 'poe-regex.handoff.v1';
+  let timer = null;
+
+  const freeze = function () {
     // Set this before the async .NET call so an in-flight state change cannot
     // overwrite the workbench that the other tab just installed.
     window.__poeWorkbenchFrozen = true;
-    dotnet.invokeMethodAsync('OnSharedRecipeOpenedElsewhere').catch(function () {});
+  };
+  const invoke = function (method) {
+    dotnet.invokeMethodAsync(method).catch(function () {});
+  };
+  const scheduleGeneric = function () {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      timer = null;
+      invoke('OnWorkbenchChangedInOtherTab');
+    }, 300);
   };
 
-  window.addEventListener('storage', window.__poeHandoffHandler);
+  window.__poeTabHandler = function (event) {
+    if (event.key === handoffKey && event.newValue) {
+      freeze();
+      if (timer) { clearTimeout(timer); timer = null; }
+      invoke('OnSharedRecipeOpenedElsewhere');
+      return;
+    }
+    if (event.key === workbenchKey || event.key === null) {
+      freeze();
+      scheduleGeneric();
+    }
+  };
+
+  window.addEventListener('storage', window.__poeTabHandler);
 };
 
-window.poeRegexUnwatchHandoff = function () {
-  if (!window.__poeHandoffHandler) return;
-  window.removeEventListener('storage', window.__poeHandoffHandler);
-  window.__poeHandoffHandler = null;
+window.poeRegexUnwatchTabs = function () {
+  if (!window.__poeTabHandler) return;
+  window.removeEventListener('storage', window.__poeTabHandler);
+  window.__poeTabHandler = null;
 };

@@ -194,11 +194,21 @@
 {
     <div class="dlg-overlay" id="stale-overlay">
         <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="stale-title">
-            <h2 class="panel-head" id="stale-title">Workbench changed in another tab</h2>
-            <p class="more">A shared recipe was opened in another tab. This tab is frozen so it cannot overwrite the new workbench.</p>
-            @if (_staleBackupSaved)
+            <h2 class="panel-head" id="stale-title">
+                @(_staleShared ? "Shared recipe opened in another tab" : "Workbench changed in another tab")
+            </h2>
+            <p class="more">
+                @(_staleShared
+                    ? "A shared recipe was opened in another tab. This tab is frozen so it cannot overwrite the new workbench."
+                    : "Another tab changed the workbench. This tab is frozen so it cannot overwrite the newer state.")
+            </p>
+            @if (_staleBackup == BackupOutcome.Added)
             {
                 <p class="more">Your picks from this tab were saved under Recipes.</p>
+            }
+            else if (_staleBackup == BackupOutcome.AlreadyPresent)
+            {
+                <p class="more">Your picks from this tab are already saved under Recipes.</p>
             }
             <div class="modrow">
                 <button type="button" class="btn btn-primary" id="stale-reload" @ref="_staleReload" @onclick="ReloadStale">Reload</button>
@@ -210,6 +220,8 @@
 @code {
     private sealed record TaskView(
         string CardId, string Title, string? ItemClass, CompileResult Result);
+
+    private enum BackupOutcome { Added, AlreadyPresent, Failed }
 
     private string _engineStatus = "booting...";
     private List<TaskView> _tasks = [];
@@ -229,7 +241,8 @@
     private int _recipesVersion;
     private bool _openingShared;
     private bool _stale;
-    private bool _staleBackupSaved;
+    private bool _staleShared;
+    private BackupOutcome? _staleBackup;
     private bool _staleFocus;
     private bool _disposed;
     private ElementReference _staleReload;
@@ -269,7 +282,7 @@
         }
         if (!firstRender || _disposed) return;
         _tabRef = DotNetObjectReference.Create(this);
-        try { await JS.InvokeVoidAsync("poeRegexWatchHandoff", _tabRef); }
+        try { await JS.InvokeVoidAsync("poeRegexWatchTabs", _tabRef); }
         catch
         {
             // Cross-tab handoff is best-effort.
@@ -317,14 +330,8 @@
             }
             var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
                            State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
-            if (hadPicks)
-            {
-                var recipes = await Persistence.LoadRecipesAsync();
-                recipes.Insert(0, new SavedRecipe(
-                    $"Before shared link, {DateTime.Now:yyyy-MM-dd HH:mm}", DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
-                await Persistence.SaveRecipesAsync(recipes);
+            if (hadPicks && await BackupPicksAsync("Before shared link") == BackupOutcome.Added)
                 _recipesVersion++;
-            }
             WorkbenchSnapshot.RestoreCriteria(State, shared);
             // Persist before announcing the handoff so another tab cannot
             // reload into the previous workbench.
@@ -340,34 +347,55 @@
         }
     }
 
+    private async Task<BackupOutcome> BackupPicksAsync(string prefix)
+    {
+        try
+        {
+            var current = RecipeCodec.CaptureCriteria(State);
+            var fingerprint = RecipeCodec.Encode(current);
+            var recipes = await Persistence.LoadRecipesAsync();
+            if (recipes.Any(r =>
+                    string.Equals(RecipeCodec.Encode(r.Snapshot), fingerprint, StringComparison.Ordinal)))
+                return BackupOutcome.AlreadyPresent;
+
+            recipes.Insert(0, new SavedRecipe(
+                $"{prefix}, {DateTime.Now:yyyy-MM-dd HH:mm}",
+                DateTimeOffset.UtcNow, current));
+            await Persistence.SaveRecipesAsync(recipes);
+            return BackupOutcome.Added;
+        }
+        catch
+        {
+            return BackupOutcome.Failed;
+        }
+    }
+
     [JSInvokable]
-    public async Task OnSharedRecipeOpenedElsewhere()
+    public Task OnSharedRecipeOpenedElsewhere() => FreezeStaleAsync(shared: true);
+
+    [JSInvokable]
+    public Task OnWorkbenchChangedInOtherTab() => FreezeStaleAsync(shared: false);
+
+    private async Task FreezeStaleAsync(bool shared)
     {
         if (_disposed || _stale) return;
         _stale = true;
+        _staleShared = shared;
         var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
                        State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
         if (hadPicks)
-        {
-            try
-            {
-                var recipes = await Persistence.LoadRecipesAsync();
-                recipes.Insert(0, new SavedRecipe(
-                    $"Before shared link (other tab), {DateTime.Now:yyyy-MM-dd HH:mm}",
-                    DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
-                await Persistence.SaveRecipesAsync(recipes);
-                _staleBackupSaved = true;
-            }
-            catch
-            {
-                // The modal still freezes the tab; the other tab's backup remains.
-            }
-        }
+            _staleBackup = await BackupPicksAsync(shared
+                ? "Before shared link (other tab)"
+                : "Before external change (other tab)");
         _staleFocus = true;
         await InvokeAsync(StateHasChanged);
     }
 
-    private void ReloadStale() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+    private async Task ReloadStale()
+    {
+        try { await JS.InvokeVoidAsync("poeRegexReload"); }
+        catch { Nav.NavigateTo(Nav.BaseUri, forceLoad: true); }
+    }
 
     private Task DismissIntro() => Intro.DismissAsync();
 
@@ -537,7 +565,7 @@
         State.Changed -= OnStateChanged;
         Intro.Changed -= OnIntroChanged;
         Nav.LocationChanged -= OnLocationChanged;
-        try { _ = JS.InvokeVoidAsync("poeRegexUnwatchHandoff"); } catch { }
+        try { _ = JS.InvokeVoidAsync("poeRegexUnwatchTabs"); } catch { }
         _tabRef?.Dispose();
         _tabRef = null;
     }

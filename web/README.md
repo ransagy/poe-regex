@@ -227,9 +227,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   Opening a link replaces the picks, keeps the backpack, saves any earlier
   picks as a "Before shared link" recipe first, clears the fragment, and says
   so in a dismissible notice. A same-tab `#r=` fragment applies without a
-  reload; other tabs receive a handoff marker, save their own picks as a
-  recipe, freeze workbench writes, and show a reload dialog so they cannot
-  overwrite the shared state. Links and saved recipes are untrusted:
+  reload. Any external workbench write freezes the other tabs; a shared link
+  gets a specific handoff dialog, ordinary edits get a generic one. The frozen
+  tab saves its own picks as a recipe, blocks further workbench writes, and
+  offers a hard reload so it cannot overwrite the newer state. Automatic
+  backups are skipped when an identical recipe already exists. Links and saved
+  recipes are untrusted:
   `SnapshotValidator` rejects missing or blank strings, null list entries,
   out-of-range minimums, unknown slots, unknown versions and implausible
   counts, and decoding also rejects tokens past the length cap or more than
@@ -272,8 +275,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   fragments; short links and accounts are future work (see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
 - `wwwroot/js/focus.js` — keeps Tab inside the Recipes dialog.
-- `wwwroot/js/tab-sync.js` — cross-tab share-link handoff and the workbench
-  write freeze.
+- `wwwroot/js/tab-sync.js` — cross-tab workbench freeze and share-link handoff.
 - `wwwroot/js/tooltip.js` — flips/clamps the pinned item tooltip inside the
   viewport after each render.
 
