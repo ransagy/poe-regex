@@ -175,7 +175,10 @@ input:disabled { opacity: 0.5; }
     grid-template-columns: minmax(0, 1fr) minmax(21rem, 27rem);
 }
 .mode-advanced .bench-main {
-    grid-template-columns: minmax(18rem, 23rem) minmax(0, 1fr) minmax(24rem, 32rem);
+    grid-template-columns:
+        clamp(24rem, 24vw, 40rem)
+        minmax(0, 1fr)
+        clamp(26rem, 26vw, 32rem);
     gap: 1.25rem;
 }
 
@@ -377,7 +380,7 @@ input:disabled { opacity: 0.5; }
 .drawer-lead { margin: 0; color: var(--muted); font-size: 0.86rem; }
 .drawer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 0.75rem; align-items: start; }
 
-.picks { display: flex; flex-direction: column; gap: 0.6rem; }
+.picks { display: flex; flex-direction: column; gap: 0.6rem; container-type: inline-size; }
 .picks-title { font-size: 1.05rem; font-weight: 600; }
 .picks-empty { margin: 0; color: var(--muted); font-size: 0.88rem; }
 .qb {
@@ -436,6 +439,11 @@ input:disabled { opacity: 0.5; }
     display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(3.4rem, auto) 1.6rem;
     align-items: center; gap: 0.4rem;
     padding: 0.2rem 0 0.2rem 0.55rem; margin-left: -0.55rem; border-radius: var(--r);
+}
+@container (max-width: 27rem) {
+    .bd-row.inc { grid-template-columns: auto minmax(0, 1fr) auto 1.6rem; }
+    .bd-row.inc .bd-what { grid-column: 1 / -1; }
+    .bd-row.inc .bd-frag { max-width: none; }
 }
 .bd-row:hover, .bd-row.hot { background: var(--raised); }
 .bd-what { min-width: 0; display: flex; flex-direction: column; }
@@ -674,7 +682,7 @@ body.compact { overflow-y: auto; }
 body.compact #app, body.compact .shell { height: auto; min-height: 100%; }
 body.compact .bench { flex: none; overflow: visible; padding-bottom: 0.5rem; }
 body.compact .bench-main { grid-template-columns: minmax(0, 1fr); contain: none; flex: none; }
-body.compact .mode-advanced .bench-main { grid-template-columns: minmax(14rem, 19rem) minmax(0, 1fr); }
+body.compact .mode-advanced .bench-main { grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); }
 body.compact .mode-advanced .col-out { grid-column: 1 / -1; }
 body.compact .col-out { overflow: visible; }
 body.compact .mod-list { flex: 0 0 auto; max-height: 60vh; }
