@@ -109,10 +109,13 @@
     private string _lastQuery = "";
     private string? _copyState;
     private int _flashStamp;
+    private int _copyVersion;
+    private bool _disposed;
     private SearchModel? _subscribed;
 
     protected override void OnParametersSet()
     {
+        if (_disposed) return;
         if (!ReferenceEquals(_subscribed, Model))
         {
             if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
@@ -120,17 +123,17 @@
             _subscribed = Model;
         }
         if (_autoCopy && Model.Query.Length > 0 && !string.Equals(Model.Query, _lastQuery, StringComparison.Ordinal))
-            _ = AutoCopy(Model.Query);
+            _ = AutoCopy(Model.Query, ++_copyVersion);
         _lastQuery = Model.Query;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender || _disposed) return;
         try
         {
             _autoCopy = await JS.InvokeAsync<string?>("localStorage.getItem", AutoCopyKey) == "1";
-            if (_autoCopy) StateHasChanged();
+            if (_autoCopy && !_disposed) StateHasChanged();
         }
         catch
         {
@@ -138,10 +141,14 @@
         }
     }
 
-    private void Repaint() => InvokeAsync(StateHasChanged);
+    private void Repaint()
+    {
+        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
 
     public void Dispose()
     {
+        _disposed = true;
         if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
     }
 
@@ -158,35 +165,40 @@
 
     private async Task ToggleAutoCopy(ChangeEventArgs e)
     {
+        if (_disposed) return;
         _autoCopy = e.Value is true;
+        if (!_autoCopy) _copyVersion++;
         try { await JS.InvokeVoidAsync("localStorage.setItem", AutoCopyKey, _autoCopy ? "1" : "0"); }
         catch { }
-        if (_autoCopy && Model.Query.Length > 0) await Copy();
+        if (!_disposed && _autoCopy && Model.Query.Length > 0) await Copy();
     }
 
-    private async Task AutoCopy(string query)
+    private async Task AutoCopy(string query, int version)
     {
         string status;
         try { status = await JS.InvokeAsync<string>("poeRegexAutoCopy", query); }
         catch { return; }
+        if (_disposed || version != _copyVersion) return;
         if (status == "copied") await Flash("Copied");
     }
 
     private async Task Copy()
     {
+        if (_disposed) return;
         string state;
         try { state = await JS.InvokeAsync<string>("poeRegexCopy", Model.Query) == "copied" ? "Copied" : "Copy failed"; }
         catch { state = "Copy failed"; }
-        await Flash(state);
+        if (!_disposed) await Flash(state);
     }
 
     private async Task Flash(string state)
     {
+        if (_disposed) return;
         var stamp = ++_flashStamp;
         _copyState = state;
         await InvokeAsync(StateHasChanged);
         await Task.Delay(1600);
-        if (stamp != _flashStamp) return;
+        if (_disposed || stamp != _flashStamp) return;
         _copyState = null;
         await InvokeAsync(StateHasChanged);
     }
