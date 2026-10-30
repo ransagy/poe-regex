@@ -32,7 +32,10 @@
         <span class="shell-title">Renly's Recipes</span>
         <span class="shell-sub">A Path of Exile 2 vendor regex workbench</span>
         <div class="shell-actions">
-            <button type="button" class="shell-how" id="intro-open" @onclick="Intro.Show">What is this?</button>
+            <button type="button" class="shell-how" id="intro-open"
+                    disabled="@(Intro.Visible == true)"
+                    title="@(Intro.Visible == true ? "The explanation is already open" : "Show the explanation")"
+                    @onclick="Intro.Show">What does this do?</button>
             <button type="button" class="shell-how" id="query-import-open"
                     title="Import a compiled search string into the workbench"
                     @onclick="() => _queryImportOpen = true">import search…</button>

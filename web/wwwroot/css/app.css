@@ -50,6 +50,8 @@ body { overflow: hidden; }
     font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0;
 }
 .shell-how:hover { color: var(--accent); }
+.shell-how:disabled { color: var(--dim); opacity: 0.45; cursor: default; text-decoration: none; }
+.shell-how:disabled:hover { color: var(--dim); }
 .ui-scale {
     flex: none; display: inline-flex; align-items: center; gap: 0.35rem;
     color: var(--dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
@@ -215,13 +217,21 @@ body { overflow: hidden; }
    take clicks above it (right column only matters in the wide layout, but
    stacked positioning keeps them z-order-safe too). */
 .test-lab { flex: 0 0 auto; margin: 0 0 0.2rem; }
-.test-lab-head { display: flex; align-items: center; gap: 0.35rem; }
-.test-lab-toggle {
-    flex: 0 1 auto; display: flex; align-items: baseline; gap: 0.55rem;
-    min-width: 0; padding: 0.3rem 0.5rem; border: 1px solid var(--panel-edge);
-    background: #171208; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+.test-lab-head {
+    position: relative; display: flex; align-items: center; gap: 0.35rem;
+    width: 100%; box-sizing: border-box;
+    padding: 0.3rem 0.5rem; border: 1px solid var(--panel-edge);
+    background: #171208;
 }
-.test-lab-toggle:hover { border-color: var(--panel-edge-hi); }
+.test-lab:not(.open) .test-lab-head:hover { border-color: var(--panel-edge-hi); }
+.test-lab-toggle {
+    position: absolute; inset: 0; z-index: 1;
+    padding: 0; border: 0; background: transparent; cursor: pointer;
+}
+.test-lab-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.test-lab-chev, .test-lab-title, .test-lab-count {
+    position: relative; z-index: 2; pointer-events: none;
+}
 .test-lab-chev { flex: none; color: var(--dim); font-size: 0.8rem; }
 .test-lab-title { flex: none; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .test-lab-count { flex: none; color: var(--dim); font-size: 0.75rem; }
@@ -229,16 +239,13 @@ body { overflow: hidden; }
     border: 1px solid var(--panel-edge); background: #171208;
     padding: 0.35rem 0.5rem 0.5rem; margin-bottom: 0.2rem;
 }
-.test-lab.open .test-lab-toggle {
-    border-color: transparent; background: transparent; padding: 0;
-}
 .test-lab.open .test-lab-head {
-    border-bottom: 1px solid var(--panel-edge);
-    padding-bottom: 0.3rem; margin-bottom: 0.45rem;
+    border: 0; border-bottom: 1px solid var(--panel-edge);
+    background: transparent; padding: 0 0 0.3rem; margin-bottom: 0.45rem;
 }
 .test-lab-body { padding-top: 0.45rem; }
 .test-lab.open .test-lab-body { padding-top: 0; }
-.test-lab-head .help { margin-left: 0.1rem; }
+.test-lab-head .help { position: relative; z-index: 3; margin-left: 0.1rem; }
 .pack-tools { position: relative; z-index: 3; }
 .pack-wrap { position: relative; z-index: 2; }
 
@@ -1042,9 +1049,9 @@ body.compact .advanced-reserve { display: none; }
 }
 .intro-copy { min-width: 0; }
 .intro-title { color: var(--accent); font-weight: 600; margin-bottom: 0.25rem; }
-.intro-goals { margin: 0.1rem 0 0.3rem 1.1rem; padding: 0; }
+.intro-lead { color: var(--ink); font-size: 0.85rem; margin: 0.1rem 0 0.35rem; }
+.intro-goals { margin: 0.1rem 0 0.2rem 1.1rem; padding: 0; }
 .intro-goals li { margin: 0.12rem 0; }
-.intro-note { color: var(--dim); font-size: 0.8rem; margin-top: 0.15rem; }
 .intro-modes { color: var(--dim); font-size: 0.82rem; }
 .intro-dismiss { flex: none; }
 .hint.warn { color: #f2c94c; }

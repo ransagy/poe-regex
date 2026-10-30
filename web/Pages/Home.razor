@@ -106,14 +106,14 @@
             <div class="test-lab-head">
                 <button type="button" class="test-lab-toggle" id="test-lab-toggle"
                         aria-expanded="@(_testLabOpen ? "true" : "false")" aria-controls="test-lab-body"
-                        @onclick="ToggleTestLab">
-                    <span class="test-lab-chev" aria-hidden="true">@(_testLabOpen ? "▾" : "▸")</span>
-                    <span class="test-lab-title">Test items</span>
-                    @if (State.TestItems.Count > 0)
-                    {
-                        <span class="test-lab-count">@State.TestItems.Count loaded</span>
-                    }
-                </button>
+                        aria-label="@TestLabToggleLabel"
+                        @onclick="ToggleTestLab"></button>
+                <span class="test-lab-chev" aria-hidden="true">@(_testLabOpen ? "▾" : "▸")</span>
+                <span class="test-lab-title" aria-hidden="true">Test items</span>
+                @if (State.TestItems.Count > 0)
+                {
+                    <span class="test-lab-count" aria-hidden="true">@State.TestItems.Count loaded</span>
+                }
                 <HelpTip Class="help-up" Title="what test items are for">
                     <ul>
                         <li><b>import item</b> — paste an item copied from the game.</li>
@@ -243,6 +243,10 @@
     private void CloseImport() => _importOpen = false;
 
     private void CloseBuilder() => _builderOpen = false;
+
+    private string TestLabToggleLabel => State.TestItems.Count > 0
+        ? $"Test items, {State.TestItems.Count} loaded"
+        : "Test items";
 
     private void ToggleTestLab()
     {

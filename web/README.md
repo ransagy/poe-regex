@@ -167,7 +167,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   takes its natural height (1920x1080 at 115% still fits without page scroll;
   1600x900 at 115% scrolls); phone/narrow screens stack the advanced doll
   above the picker and let the filter, result, and collapsed/expanded test
-  area flow down the page. The top bar carries `What is this?`,
+  area flow down the page. The top bar carries `What does this do?`,
   `import search…`, the scale select, and the GitHub link.
 - The flow is one left-aligned column: mode → criteria (advanced splits into
   doll | picker) → picks rail → search string → test items (collapsible) →
