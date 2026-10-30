@@ -42,14 +42,59 @@ production is never touched. It needs two repository settings:
   Edit** for this account (create it in the Cloudflare dashboard).
 
 The same workflow can be run manually (Actions → *cleanup-preview* → Run
-workflow) with a branch name.
+workflow) with a branch name. It is also called by the contributor-preview
+workflow below.
+
+## Contributor (fork) previews
+
+Fork PRs do not receive the automatic Pages preview because the Pages GitHub
+App only builds branches in this repository. A maintainer can opt a fork PR in
+by commenting:
+
+```text
+/preview
+```
+
+`.github/workflows/preview-contrib.yml` then:
+
+1. verifies the commenter has write/maintain/admin access;
+2. verifies the PR is open and from a fork;
+3. refuses PRs that change `build.sh`, MSBuild/project files, `_headers`,
+   `_redirects`, or workflow files;
+4. pushes a temporary `contrib-pr-<number>` branch from
+   `refs/pull/<number>/merge` (or the head ref when no merge ref exists) —
+   without checking out or executing the fork code;
+5. comments the preview URL:
+   `https://contrib-pr-<number>.renlys-recipes.pages.dev`.
+
+Cloudflare Pages builds that branch like any other preview. Re-comment
+`/preview` after new commits to refresh it.
+
+Cleanup happens automatically when the PR closes. A maintainer can also
+comment:
+
+```text
+/preview-cleanup
+```
+
+or run **Actions → preview-contrib → Run workflow** with the PR number and
+`cleanup`. Cleanup deletes the branch's Pages deployments and the temporary
+Git branch. Privileged jobs only move refs or call the Cloudflare API; they
+never check out contributor code. The Pages build environment has no
+repository secrets, and the noindex/SPA headers come from the trusted
+`_headers`/`_redirects` unless the PR is refused by the guard. The Pages build
+still compiles the PR's source; review the diff before opting in.
 
 ### Security notes
 
-- The token lives only as an Actions secret, is referenced by this one
-  workflow, and is masked in logs (verified: runs show `***`, never the value).
-- Fork pull requests never receive secrets and the job skips them; no workflow
-  uses `pull_request_target` or `workflow_run`.
+- The token lives only as an Actions secret. It is used by `cleanup-preview`
+  and by the reusable cleanup call in `preview-contrib`; it is masked in logs
+  (verified: runs show `***`, never the value).
+- Fork pull requests never receive secrets through `pull_request`. The
+  `preview-contrib` workflow does use `issue_comment` and
+  `pull_request_target`, which run from `main` with repository secrets, but
+  those privileged jobs only move refs or call the Cloudflare API. They never
+  check out or execute contributor code. No workflow uses `workflow_run`.
 - Keep the Cloudflare token scoped to **Account → Cloudflare Pages → Edit**
   (the narrowest available — Pages permissions are account-wide), set an
   expiry, and rotate it on schedule.
@@ -138,4 +183,6 @@ alias (`<branch>.<project>.pages.dev`).
       `_framework` immutable caching)
 - [x] build filters: no previews for `dependabot/*`, docs-only pushes skip
       the build (watch paths)
+- [x] manual contributor (fork) previews with `/preview`, automatic cleanup on
+      PR close, and `/preview-cleanup`
 - [ ] custom domain (optional, later)

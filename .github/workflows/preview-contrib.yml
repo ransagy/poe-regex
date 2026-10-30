@@ -1,0 +1,266 @@
+name: preview-contrib
+
+# Fork PR previews are opt-in. A maintainer comments `/preview` on the PR; the
+# workflow pushes a temporary in-repo branch from the PR merge ref. Cloudflare
+# Pages then builds that branch with the normal preview pipeline. `/preview-cleanup`
+# removes it; closing the PR also triggers cleanup.
+#
+# Security boundary: this workflow never checks out or executes contributor
+# code. The privileged jobs only move Git refs or call the Cloudflare API.
+# The Cloudflare build itself runs in Pages' isolated build environment, which
+# has no repository secrets. Previews that change build.sh, MSBuild/project
+# files, _headers, _redirects, or workflows are refused.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Pull request number'
+        required: true
+        type: string
+      action:
+        description: 'preview or cleanup'
+        required: true
+        type: choice
+        options:
+          - preview
+          - cleanup
+        default: preview
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-contrib-${{ github.event.issue.number || github.event.pull_request.number || inputs.pr || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      pr: ${{ steps.plan.outputs.pr }}
+      branch: ${{ steps.plan.outputs.branch }}
+      reason: ${{ steps.plan.outputs.reason }}
+    steps:
+      - name: Classify trigger
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          COMMENT_ACTOR: ${{ github.event.comment.user.login || '' }}
+          EVENT_PR: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+          INPUT_PR: ${{ inputs.pr || '' }}
+          INPUT_ACTION: ${{ inputs.action || '' }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          action="none"
+          pr=""
+          reason=""
+
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            if [[ "$COMMENT_BODY" =~ ^[[:space:]]*/preview[[:space:]]*$ ]]; then
+              action="preview"
+            elif [[ "$COMMENT_BODY" =~ ^[[:space:]]*/preview-cleanup[[:space:]]*$ ]]; then
+              action="cleanup"
+            else
+              echo "not a preview command"
+              exit 0
+            fi
+            permission=$(gh api "repos/$REPO/collaborators/$COMMENT_ACTOR/permission" --jq .permission 2>/dev/null || true)
+            case "$permission" in
+              admin|maintain|write) ;;
+              *) echo "commenter '$COMMENT_ACTOR' does not have write access"; exit 0 ;;
+            esac
+            pr="$EVENT_PR"
+          elif [ "$EVENT_NAME" = "pull_request_target" ]; then
+            action="cleanup"
+            pr="$EVENT_PR"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            action="$INPUT_ACTION"
+            pr="$INPUT_PR"
+            permission=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission 2>/dev/null || true)
+            case "$permission" in
+              admin|maintain|write) ;;
+              *) echo "actor '$ACTOR' does not have write access"; exit 0 ;;
+            esac
+          else
+            exit 0
+          fi
+
+          if ! [[ "$pr" =~ ^[0-9]+$ ]]; then
+            echo "invalid PR number"
+            exit 0
+          fi
+          if [ "$action" != "preview" ] && [ "$action" != "cleanup" ]; then
+            echo "unknown action '$action'"
+            exit 0
+          fi
+
+          state=$(gh api "repos/$REPO/pulls/$pr" --jq .state 2>/dev/null || true)
+          if [ -z "$state" ]; then
+            echo "PR #$pr not found"
+            exit 0
+          fi
+          head_repo=$(gh api "repos/$REPO/pulls/$pr" --jq .head.repo.full_name)
+
+          if [ "$action" = "preview" ]; then
+            if [ "$state" != "open" ]; then
+              action="refuse"
+              reason="Preview refused: PR #$pr is not open."
+            elif [ "$head_repo" = "$REPO" ]; then
+              action="refuse"
+              reason="Preview refused: in-repository PRs already get an automatic Cloudflare preview."
+            else
+              files=$(gh api "repos/$REPO/pulls/$pr/files" --paginate --jq '.[].filename')
+              if echo "$files" | grep -Eq '(\.github/workflows/|(^|/)build\.sh$|web/wwwroot/_headers$|web/wwwroot/_redirects$|(^|/).*\.(csproj|props|targets)$|(^|/)global\.json$|(^|/)NuGet\.config$)'; then
+                action="refuse"
+                reason="Preview refused: this PR changes build/MSBuild configuration, _headers, _redirects, or a workflow file. Review or preview those manually."
+              fi
+            fi
+          elif [ "$EVENT_NAME" = "pull_request_target" ] && [ "$head_repo" = "$REPO" ]; then
+            # In-repo PR previews are handled by cleanup-preview on pull_request close.
+            action="none"
+          fi
+
+          branch="contrib-pr-$pr"
+          {
+            echo "action=$action"
+            echo "pr=$pr"
+            echo "branch=$branch"
+            echo "reason=$reason"
+          } >> "$GITHUB_OUTPUT"
+
+  preview:
+    name: create preview branch
+    needs: plan
+    if: needs.plan.outputs.action == 'preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout trusted base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      # Ref-only: the fork code is fetched as Git objects and pushed to a
+      # temporary branch, but never checked out or executed here.
+      - name: Push temporary preview branch
+        env:
+          PR: ${{ needs.plan.outputs.pr }}
+          BRANCH: ${{ needs.plan.outputs.branch }}
+        run: |
+          set -euo pipefail
+          merge_ref="refs/pull/$PR/merge"
+          if [ -n "$(git ls-remote origin "$merge_ref" | awk '{print $1}')" ]; then
+            src="$merge_ref"
+          else
+            src="refs/pull/$PR/head"
+          fi
+          if [ -z "$(git ls-remote origin "$src" | awk '{print $1}')" ]; then
+            echo "Could not resolve $src"
+            exit 1
+          fi
+          git fetch origin "+$src:refs/remotes/origin/$BRANCH"
+          git push --force origin "refs/remotes/origin/$BRANCH:refs/heads/$BRANCH"
+          echo "Preview branch '$BRANCH' updated from $src"
+
+      - name: Comment preview link
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ needs.plan.outputs.pr }}
+          BRANCH: ${{ needs.plan.outputs.branch }}
+        run: |
+          set -euo pipefail
+          gh pr comment "$PR" --body "Preview branch created: https://$BRANCH.renlys-recipes.pages.dev
+
+          Cloudflare Pages usually finishes in about 90 seconds. Re-comment \`/preview\` after new commits; comment \`/preview-cleanup\` to remove it. Closing the PR also cleans it up."
+
+  cleanup:
+    name: cleanup preview
+    needs: plan
+    if: needs.plan.outputs.action == 'cleanup'
+    uses: ./.github/workflows/cleanup-preview.yml
+    with:
+      branch: ${{ needs.plan.outputs.branch }}
+    secrets: inherit
+
+  delete-branch:
+    name: delete temporary branch
+    needs: [plan, cleanup]
+    if: needs.plan.outputs.action == 'cleanup' && needs.cleanup.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete temporary branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ needs.plan.outputs.branch }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1; then
+            gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null
+            echo "Temporary branch '$BRANCH' deleted"
+          else
+            echo "Temporary branch '$BRANCH' was already absent"
+          fi
+
+  notify-cleanup:
+    name: report cleanup
+    needs: [plan, cleanup, delete-branch]
+    if: always() && needs.plan.outputs.action == 'cleanup' && needs.plan.outputs.pr != '' && github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Comment cleanup result
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ needs.plan.outputs.pr }}
+          CLEANUP_RESULT: ${{ needs.cleanup.result }}
+          BRANCH_RESULT: ${{ needs.delete-branch.result }}
+        run: |
+          set -euo pipefail
+          if [ "$CLEANUP_RESULT" = "success" ] && [ "$BRANCH_RESULT" = "success" ]; then
+            message="Preview cleanup finished: Cloudflare preview deployments were removed and the temporary branch was deleted."
+          else
+            message="Preview cleanup failed or was skipped. The temporary branch or deployments may still exist; retry with /preview-cleanup."
+          fi
+          gh pr comment "$PR" --body "$message" || true
+
+  notify-refusal:
+    name: report refusal
+    needs: plan
+    if: needs.plan.outputs.action == 'refuse' && needs.plan.outputs.pr != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Comment refusal
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ needs.plan.outputs.pr }}
+          REASON: ${{ needs.plan.outputs.reason }}
+        run: |
+          set -euo pipefail
+          gh pr comment "$PR" --body "$REASON" || true
