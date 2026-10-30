@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="bunit" Version="2.13.3" />
     <PackageReference Include="coverlet.collector" Version="10.1.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -22,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PoeRegex.Web.Core\PoeRegex.Web.Core.csproj" />
+    <ProjectReference Include="..\..\web\web.csproj" />
   </ItemGroup>
 
 </Project>
