@@ -7,23 +7,23 @@
     <div class="dlg-overlay" id="import-dialog" @onclick="OnBackdrop">
         <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import item"
              @onkeydown="OnDialogKeyDown">
-            <div class="panel-head"><span>Import advanced description (English)</span></div>
-            <textarea id="import-text" rows="8" placeholder="paste Ctrl+C item text…"
+            <h2 class="panel-head">Import items</h2>
+            <textarea id="import-text" rows="8" placeholder="Paste item text copied in game with Ctrl+Alt+C (English)…"
                       value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
                       aria-label="Item text"></textarea>
             <div class="modrow">
-                <button id="import-parse" class="btn" @onclick="Parse">preview</button>
+                <button id="import-parse" class="btn" @onclick="Parse">Preview</button>
                 @if (_items.Count == 1)
                 {
-                    <button id="import-save" class="btn" disabled="@(_violations.Any(v => v.Level == "error"))" @onclick="Save">Add</button>
+                    <button id="import-save" class="btn btn-primary" disabled="@(_violations.Any(v => v.Level == "error"))" @onclick="Save">Add</button>
                 }
                 @if (IsBatch)
                 {
-                    <button id="import-save-all" class="btn" disabled="@(AddableCount() == 0)" @onclick="SaveAll">
-                        add all (@AddableCount())
+                    <button id="import-save-all" class="btn btn-primary" disabled="@(AddableCount() == 0)" @onclick="SaveAll">
+                        Add all (@AddableCount())
                     </button>
                 }
-                <button id="import-cancel" class="btn" @onclick="Close">cancel</button>
+                <button id="import-cancel" class="btn" @onclick="Close">Cancel</button>
             </div>
             @foreach (var v in _violations)
             {
@@ -45,7 +45,7 @@
             {
                 <div class="import-batch" id="import-batch">
                     <div class="more" id="import-batch-count">
-                        @_items.Count items detected — step through the cards; add all adds every importable item
+                        @_items.Count items found. Add all imports every item that passes the checks.
                     </div>
                     <div class="import-batch-head">
                         <span class="import-nav-count" id="import-nav-count">@(_batchIndex + 1) / @_items.Count</span>
@@ -53,7 +53,7 @@
                         {
                             @if (statusRow.Added)
                             {
-                                <span class="import-batch-ok" id="import-status">added</span>
+                                <span class="import-batch-ok" id="import-status">Added</span>
                             }
                             else if (statusRow.AddError is not null)
                             {

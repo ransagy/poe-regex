@@ -19,3 +19,9 @@ window.poeRegexCopy = async function (text) {
     }
   }
 };
+
+// Auto-copy runs after a pick changes; without a fresh user gesture (page load, restore) the browser would refuse, so skip quietly.
+window.poeRegexAutoCopy = async function (text) {
+  if (navigator.userActivation && !navigator.userActivation.isActive) return "skipped";
+  return window.poeRegexCopy(text);
+};

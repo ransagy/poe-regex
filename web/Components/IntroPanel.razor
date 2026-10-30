@@ -1,15 +1,13 @@
-@* First-run explanation. Inline, dismissible, and deliberately small: the
-   workbench is dense enough without a modal on arrival. *@
 <div class="intro-card" id="intro-card" role="region" aria-label="How this works">
-    <div class="intro-copy">
-        <div class="intro-title">Build a search string, then paste it into the game</div>
-        <ol class="intro-steps">
-            <li><b>Pick mods</b> in Simple or Advanced mode.</li>
-            <li><b>Copy</b> the quoted string from “your search string”.</li>
-            <li><b>Paste</b> it into the in-game Highlight item search.</li>
-        </ol>
+    <div class="intro-head">
+        <h2 class="intro-title">How it works</h2>
+        <button type="button" class="link" id="intro-dismiss" @onclick="Dismiss">Hide</button>
     </div>
-    <button type="button" class="btn intro-dismiss" id="intro-dismiss" @onclick="Dismiss">got it</button>
+    <ol class="intro-steps">
+        <li>Add the mods you want. <b>Per slot</b> gives each gear slot its own list.</li>
+        <li>Copy the search string.</li>
+        <li>Paste it into the Highlight box at your stash or a vendor. Matching items light up.</li>
+    </ol>
 </div>
 
 @code {

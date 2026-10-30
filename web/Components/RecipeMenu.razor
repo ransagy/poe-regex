@@ -1,0 +1,153 @@
+@using PoeRegex.Web.Core
+@inject web.Services.PersistenceService Persistence
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="recipes">
+    <button type="button" class="btn" id="recipes-open" aria-expanded="@(_open ? "true" : "false")"
+            aria-haspopup="dialog" @onclick="Toggle">
+        Recipes
+        @if (_recipes.Count > 0)
+        {
+            <span class="recipes-count">@_recipes.Count</span>
+        }
+    </button>
+    <button type="button" class="btn" id="share-link" disabled="@(!HasPicks)"
+            title="Copy a link that opens these picks in another browser" @onclick="Share">
+        @(_shareState ?? "Copy share link")
+    </button>
+    @if (_open)
+    {
+        <div class="help-backdrop" @onclick="Close"></div>
+        <div class="recipes-pop" role="dialog" aria-label="Saved recipes" @onkeydown="OnKeyDown">
+            <form class="recipes-save" @onsubmit="Save">
+                <input id="recipe-name" placeholder="Name these picks…" autocomplete="off" aria-label="Recipe name"
+                       value="@_name" @oninput="e => _name = e.Value?.ToString() ?? string.Empty" />
+                <button type="submit" class="btn btn-primary" id="recipe-save" disabled="@(!HasPicks)">Save</button>
+            </form>
+            @if (_undo is { } undo)
+            {
+                <p class="recipes-undo" role="status">
+                    @undo.Message
+                    <button type="button" class="link" id="recipe-undo" @onclick="Undo">Undo</button>
+                </p>
+            }
+            @if (_recipes.Count == 0)
+            {
+                <p class="more">No saved recipes yet. Save your picks here to switch between setups.</p>
+            }
+            else
+            {
+                <ul class="recipes-list">
+                    @foreach (var r in _recipes)
+                    {
+                        <li class="recipe-row">
+                            <span class="recipe-what">
+                                <span class="recipe-name">@r.Name</span>
+                                <span class="recipe-meta">@ModeLabel(r), @r.PickCount @(r.PickCount == 1 ? "mod" : "mods")</span>
+                            </span>
+                            <button type="button" class="btn" @onclick="() => Load(r)">Load</button>
+                            <button type="button" class="bd-x" title="@($"Delete {r.Name}")" aria-label="@($"Delete {r.Name}")"
+                                    @onclick="() => Delete(r)">×</button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    /// <summary>Bump to make the menu reload the saved list (the page saved one itself).</summary>
+    [Parameter]
+    public int Version { get; set; }
+
+    private sealed record UndoStep(string Message, List<SavedRecipe> Recipes, WorkbenchSnapshot? Picks);
+
+    private List<SavedRecipe> _recipes = [];
+    private bool _open;
+    private string _name = "";
+    private string? _shareState;
+    private UndoStep? _undo;
+    private int _loadedVersion = -1;
+
+    private bool HasPicks =>
+        State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+        State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedVersion == Version) return;
+        _loadedVersion = Version;
+        _recipes = await Persistence.LoadRecipesAsync();
+    }
+
+    private static string ModeLabel(SavedRecipe r) => r.Snapshot.Mode == "advanced" ? "Per slot" : "All gear";
+
+    private async Task Toggle()
+    {
+        _open = !_open;
+        if (_open)
+        {
+            _undo = null;
+            _recipes = await Persistence.LoadRecipesAsync();
+        }
+    }
+
+    private void Close() => _open = false;
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _open = false;
+    }
+
+    private async Task Save()
+    {
+        if (!HasPicks) return;
+        var name = _name.Trim();
+        if (name.Length == 0) name = $"Recipe {_recipes.Count + 1}";
+        var before = _recipes.ToList();
+        _recipes.RemoveAll(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+        _recipes.Insert(0, new SavedRecipe(name, DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
+        await Persistence.SaveRecipesAsync(_recipes);
+        _undo = new UndoStep($"Saved “{name}”.", before, null);
+        _name = "";
+    }
+
+    private void Load(SavedRecipe recipe)
+    {
+        var before = RecipeCodec.CaptureCriteria(State);
+        WorkbenchSnapshot.RestoreCriteria(State, recipe.Snapshot);
+        _undo = new UndoStep($"Loaded “{recipe.Name}”.", _recipes.ToList(), before);
+    }
+
+    private async Task Delete(SavedRecipe recipe)
+    {
+        var before = _recipes.ToList();
+        _recipes.Remove(recipe);
+        await Persistence.SaveRecipesAsync(_recipes);
+        _undo = new UndoStep($"Deleted “{recipe.Name}”.", before, null);
+    }
+
+    private async Task Undo()
+    {
+        if (_undo is null) return;
+        if (_undo.Picks is { } picks) WorkbenchSnapshot.RestoreCriteria(State, picks);
+        _recipes = _undo.Recipes;
+        await Persistence.SaveRecipesAsync(_recipes);
+        _undo = null;
+    }
+
+    private async Task Share()
+    {
+        var url = Nav.BaseUri + "#" + RecipeCodec.FragmentPrefix + RecipeCodec.Encode(RecipeCodec.CaptureCriteria(State));
+        try { _shareState = await JS.InvokeAsync<string>("poeRegexCopy", url) == "copied" ? "Link copied" : "Copy failed"; }
+        catch { _shareState = "Copy failed"; }
+        StateHasChanged();
+        await Task.Delay(1800);
+        _shareState = null;
+    }
+}

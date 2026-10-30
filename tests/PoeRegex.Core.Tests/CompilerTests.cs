@@ -198,4 +198,42 @@ public class CompilerTests
         Poe2Syntax.ValidateFragment(@"\bfoo").Should().NotBeNull();
     }
 
+
+    [Fact]
+    public void RequiredGroups_EachBecomeTheirOwnBlock()
+    {
+        var compiler = CreateCompiler();
+        var result = compiler.Compile(new QuerySpecification
+        {
+            ItemClass = "Ring",
+            RequiredGroups =
+            [
+                [new ModifierRequirement("IncreasedLife1")],
+                [new ModifierRequirement("Strength1")],
+            ],
+        });
+
+        var blocks = Explainer.Tokenize(result.Query);
+        blocks.Should().HaveCount(3);
+        blocks[0].Phrase.Should().StartWith(": ");
+        blocks.Skip(1).Should().OnlyContain(b => !b.Excluded && !b.Phrase.Contains('|'));
+        result.Diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RequiredGroups_KeepAlternationInsideAGroup()
+    {
+        var compiler = CreateCompiler();
+        var result = compiler.Compile(new QuerySpecification
+        {
+            RequiredGroups =
+            [
+                [new ModifierRequirement("IncreasedLife1"), new ModifierRequirement("Strength1")],
+            ],
+        });
+
+        var blocks = Explainer.Tokenize(result.Query);
+        blocks.Should().ContainSingle();
+        blocks[0].Phrase.Should().Contain("|");
+    }
 }

@@ -9,6 +9,7 @@ public sealed class PersistenceService(IJSRuntime js)
 {
     public const string StorageKey = "poe-regex.workbench.v1";
     private const string IntroKey = "poe-regex.intro.v1";
+    private const string RecipesKey = "poe-regex.recipes.v1";
 
     public async Task<WorkbenchSnapshot?> LoadAsync()
     {
@@ -34,6 +35,32 @@ public sealed class PersistenceService(IJSRuntime js)
         catch
         {
             // best-effort: private mode / quota / unavailable JS
+        }
+    }
+
+    public async Task<List<SavedRecipe>> LoadRecipesAsync()
+    {
+        try
+        {
+            var raw = await js.InvokeAsync<string?>("localStorage.getItem", RecipesKey);
+            if (string.IsNullOrEmpty(raw)) return [];
+            return JsonSerializer.Deserialize(raw, WebJsonContext.Default.ListSavedRecipe) ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task SaveRecipesAsync(List<SavedRecipe> recipes)
+    {
+        try
+        {
+            var raw = JsonSerializer.Serialize(recipes, WebJsonContext.Default.ListSavedRecipe);
+            await js.InvokeVoidAsync("localStorage.setItem", RecipesKey, raw);
+        }
+        catch
+        {
         }
     }
 

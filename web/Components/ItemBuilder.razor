@@ -6,7 +6,7 @@
 {
     <div class="dlg-overlay" id="builder-dialog" @onclick="OnBackdrop">
         <div class="dlg dlg-builder" @onclick:stopPropagation="true" role="dialog" aria-label="Assemble item">
-            <div class="panel-head"><span>Assemble test item from mods (enforced)</span></div>
+            <h2 class="panel-head">Assemble a test item</h2>
             <div class="builder-cols">
                 <div class="builder-left">
                     <div class="modrow">
@@ -23,7 +23,7 @@
                         </select>
                     </div>
                     <div class="modrow">
-                        <input id="builder-search" placeholder="type to filter mods…" value="@_search"
+                        <input id="builder-search" placeholder="Search mods…" value="@_search"
                                disabled="@IsNormal"
                                @oninput="OnSearch" aria-label="Builder mod filter" />
                     </div>
@@ -33,7 +33,7 @@
                             var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
                             <li class="fam-block">
                                 <div class="suggest-row fam-row">
-                                    <span class="gen-tag">@(fam.IsPrefix ? "PREFIX" : "SUFFIX")</span>
+                                    <span class="gen-tag">@(fam.IsPrefix ? "Prefix" : "Suffix")</span>
                                     <button class="suggest-line fam-toggle" id="builder-fam-@fam.Anchor.Id"
                                             aria-expanded="@(expanded ? "true" : "false")"
                                             title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)")"
@@ -84,7 +84,7 @@
                     }
                 </div>
                 <div class="builder-right">
-                    <input id="builder-name" placeholder="item name" value="@_name"
+                    <input id="builder-name" placeholder="Item name…" value="@_name"
                            @oninput="e => _name = e.Value?.ToString() ?? string.Empty" aria-label="Built item name" />
                     <ItemPreview Item="PreviewItem()" Id="builder-preview" />
                     @if (_added.Count > 0)
@@ -92,7 +92,7 @@
                         <div class="chips" aria-label="Added mods">
                             @foreach (var id in _added)
                             {
-                                <button class="chip inc" id="builder-del-@id" title="remove: @DisplayFor(id)"
+                                <button class="chip inc" id="builder-del-@id" title="Remove @DisplayFor(id)"
                                         @onclick="() => Remove(id)">@ChipLabel(id)</button>
                             }
                         </div>
@@ -104,9 +104,9 @@
                 <div class="field-error" id="builder-save-error">@_saveError</div>
             }
             <div class="modrow">
-                <button id="builder-save" class="btn" disabled="@((_added.Count == 0 && !IsNormal) || _violations.Any(v => v.Level == "error"))"
+                <button id="builder-save" class="btn btn-primary" disabled="@((_added.Count == 0 && !IsNormal) || _violations.Any(v => v.Level == "error"))"
                         @onclick="Save">Add</button>
-                <button id="builder-cancel" class="btn" @onclick="Close">cancel</button>
+                <button id="builder-cancel" class="btn" @onclick="Close">Cancel</button>
             </div>
         </div>
     </div>

@@ -275,15 +275,27 @@ public sealed class EngineService
         IEnumerable<ModifierRequirement> excludes,
         string? itemClass = null,
         IEnumerable<string>? keywords = null,
-        bool allowOverflow = false) =>
+        bool allowOverflow = false,
+        IEnumerable<IEnumerable<ModifierRequirement>>? requiredGroups = null) =>
         _compiler.Compile(new QuerySpecification
         {
             ItemClass = itemClass,
             IncludedModifiers = includes.ToList(),
+            RequiredGroups = requiredGroups?.Select(g => (IReadOnlyList<ModifierRequirement>)g.ToList()).ToList() ?? [],
             ExcludedModifiers = excludes.ToList(),
             Keywords = keywords?.ToList() ?? [],
             AllowOverflow = allowOverflow,
         });
+
+    /// <summary>Compiles picks the way a slot asks for them: one any-of block, or one block per pick when every pick is required.</summary>
+    public CompileResult CompilePicks(
+        IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass) =>
+        Compile(
+            matchAll ? [] : picks.SelectMany(m => m.Requirements()),
+            excludes.Select(e => new ModifierRequirement(e)),
+            itemClass: itemClass,
+            allowOverflow: true,
+            requiredGroups: matchAll ? picks.Select(m => m.Requirements()) : null);
 
     /// <summary>
     /// Combine per-slot criteria into one stash paste (anchor + exclusion
@@ -293,11 +305,22 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false) =>
+        Combine(slots.Select(s => (s.Label, s.ClassId, s.Includes, false)), excludes, allowOverflow);
+
+    /// <summary>As above; a MatchAll slot requires every pick, each as its own group.</summary>
+    public MultiPasteResult Combine(
+        IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes, bool MatchAll)> slots,
+        IEnumerable<string> excludes,
+        bool allowOverflow = false) =>
         new PasteComposer(_corpus, validateRecall: false).Compose(
-            slots.Select(s => new PasteSlotCriterion(
-                s.ClassId,
-                s.Includes.SelectMany(m => m.Requirements()).ToList(),
-                s.Label)).ToList(),
+            slots.Select(s => s.MatchAll && s.Includes.Any()
+                ? new PasteSlotCriterion(
+                    s.ClassId, [], s.Label,
+                    s.Includes.Select(m => (IReadOnlyList<ModifierRequirement>)m.Requirements().ToList()).ToList())
+                : new PasteSlotCriterion(
+                    s.ClassId,
+                    s.Includes.SelectMany(m => m.Requirements()).ToList(),
+                    s.Label)).ToList(),
             excludes.Select(e => new ModifierRequirement(e)),
             allowOverflow);
 

@@ -73,6 +73,7 @@ public sealed record QuerySpecification
 {
     public string? ItemClass { get; init; }
     public IReadOnlyList<ModifierRequirement> IncludedModifiers { get; init; }
+    public IReadOnlyList<IReadOnlyList<ModifierRequirement>> RequiredGroups { get; init; }
     public IReadOnlyList<ModifierRequirement> ExcludedModifiers { get; init; }
     public IReadOnlyList<string> Keywords { get; init; }
     public bool AllowOverflow { get; init; }
@@ -85,6 +86,12 @@ public sealed record QuerySpecification
   the fragment becomes a digit-range pattern that matches every roll at or
   above the value.
 - **Free text** — validated, escaped, and emitted as a literal quoted block.
+
+`IncludedModifiers` compile to one `|` alternation: an item needs any one of
+them. Each `RequiredGroups` entry compiles to its own quoted block, so an item
+needs every group (any member of a group). `PasteSlotCriterion` takes the same
+groups; two slots of one item class cannot both require all of their own
+mods, so that case falls back to any-of with a `paste-merge-any` warning.
 
 `ItemClass` anchors the query to an item class. Unknown classes produce an
 `unresolved-class` warning and are skipped.

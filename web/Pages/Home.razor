@@ -8,201 +8,185 @@
 @inject web.Services.PersistenceService Persistence
 @inject web.Services.IntroState Intro
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Renly's Recipes</PageTitle>
 
-<div class="bench">
-    <section class="panel inventory mode-@State.Mode" aria-label="Inventory">
-        @{
-            var barQuery = BarQuery();
-            var scopeText = ScopeText();
-        }
-        @if (Intro.Visible == true)
-        {
-            <IntroPanel OnDismiss="DismissIntro" />
-        }
+<div class="bench mode-@State.Mode">
+    <SearchBar Model="_model" State="State" Unresolved="@UnresolvedDiagnostics()">
+        <Tools>
+            <div class="hero-checks" role="group" aria-label="Check the string">
+                <button type="button" class="tool-toggle @(_panel == "items" ? "on" : "")" id="test-lab-toggle"
+                        aria-expanded="@(_panel == "items" ? "true" : "false")" aria-controls="test-lab-body"
+                        @onclick='() => TogglePanel("items")'>
+                    <svg class="tool-chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5L6 8L9.5 4.5" /></svg>
+                    Test on items
+                    <span class="tool-count">@State.TestItems.Count</span>
+                    @if (_dimNonMatching && State.TestItems.Count > 0)
+                    {
+                        <span class="tool-sub">@_highlight.Count lit</span>
+                    }
+                </button>
+                <button type="button" class="tool-toggle @(_panel == "details" ? "on" : "")" id="more-info-toggle"
+                        aria-expanded="@(_panel == "details" ? "true" : "false")" aria-controls="more-info"
+                        @onclick='() => TogglePanel("details")'>
+                    <svg class="tool-chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5L6 8L9.5 4.5" /></svg>
+                    What it matches
+                </button>
+            </div>
+            <div class="hero-lib">
+                <RecipeMenu State="State" Version="_recipesVersion" />
+                <button type="button" class="btn" id="query-import-open"
+                        title="Turn a search string back into picks" @onclick="() => _queryImportOpen = true">Import string</button>
+            </div>
+        </Tools>
+    </SearchBar>
 
-        <div class="mode-bar">
-            <span class="section-label">search mode</span>
-            <ModeSwitch State="State" />
-        </div>
-
-        <div class="inv-top">
-            @if (State.Mode == "advanced")
+    @if (_panel == "items")
+    {
+        <section class="drawer" id="test-lab-body" aria-label="Test items">
+            <div class="drawer-head">
+                <p class="drawer-lead">Items the string matches light up; the rest dim. Click an item to read it.</p>
+                <div class="pack-tools">
+                    <button id="import-open" class="btn" @onclick="() => _importOpen = true">Import item</button>
+                    <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">Assemble item</button>
+                    <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
+                            title="@RemoveTitle()" @onclick="RemoveSelected">Remove</button>
+                    <HelpTip Title="What test items are for" Class="help-right">
+                        <ul>
+                            <li><b>Import item</b> pastes items copied from the game.</li>
+                            <li><b>Assemble item</b> builds one from catalog mods.</li>
+                            <li>Items the search string matches light up; the rest dim.</li>
+                        </ul>
+                    </HelpTip>
+                </div>
+            </div>
+            <div class="pack-wrap">
+                <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
+            </div>
+        </section>
+    }
+    @if (_panel == "details")
+    {
+        <section class="drawer" id="more-info" aria-label="What the string matches">
+            @if (_model.Query.Length == 0)
             {
-                <div class="inv-doll">
-                    <PaperDoll State="State" />
-                </div>
+                <p class="drawer-lead">Add picks first. This panel then lists the mods each part of the string matches.</p>
             }
-            <div class="inv-editor" aria-label="Mods to find">
-                @if (State.Mode == "advanced")
-                {
-                    @if (State.FocusedSlot is not null)
+            else
+            {
+                <p class="drawer-lead">Each slot's own string, with the catalog mods it matches. Use it to check that nothing extra lights up.</p>
+                <div class="drawer-grid">
+                    @if (_paste is not null)
                     {
-                        <ModPicker State="State" Scope="@State.FocusedSlot" Mods="@RailMods" />
-                    }
-                    else
-                    {
-                        <div class="hint">click a slot on the doll to pick its mods</div>
-                    }
-                }
-                else
-                {
-                    <ModPicker State="State" Scope="@null" Mods="@RailMods" />
-                }
-            </div>
-        </div>
-
-        <PicksRail State="State" Scope="@RailScope" Mods="@RailMods" ShowHint="@RailHint" Label="selected mods" />
-
-        <div class="result-bar">
-            <div class="rb-head">
-                <span class="rb-label">Your search string</span>
-                @if (scopeText.Length > 0)
-                {
-                    <span class="rb-scope">@scopeText</span>
-                }
-                @if (UnresolvedDiagnostics() is { Count: > 0 } unresolved)
-                {
-                    <span class="rb-unresolved" id="rb-unresolved" title="@UnresolvedTitle(unresolved)">@unresolved.Count unresolved</span>
-                }
-                <div class="rb-actions">
-                    <button type="button" class="rb-action" id="query-import-open"
-                            title="Import a compiled search string into the workbench"
-                            @onclick="() => _queryImportOpen = true">import search…</button>
-                    <span class="rb-hint">copy → paste into the game's item search</span>
-                </div>
-            </div>
-            <div class="result-strip" id="result-strip" aria-label="Compiled search string">
-                @if (barQuery.Length > 0)
-                {
-                    @if (State.Mode == "advanced" && _paste is not null)
-                    {
-                        <div class="slot-query @(_paste.Exceeded ? "over" : "")" id="slot-query-advanced">
-                            <code title="@_paste.Query">@_paste.Query</code>
-                            <span class="meter-num" title="@MeterTitle(_paste.Length, _paste.Limit)">
-                                @_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")
-                            </span>
-                            <button id="slot-copy-advanced" @onclick="() => CopyBar(_paste.Query)">copy</button>
+                        <div class="qcard" id="combined-paste">
+                            <div class="qcard-head">
+                                <span class="qcard-title">How the combined string is built</span>
+                                <span class="meter-num @(_paste.Exceeded ? "over" : "")">@_paste.Length / @_paste.Limit</span>
+                            </div>
+                            <dl class="qparts">
+                                <dt>Item classes</dt>
+                                <dd><code>@_paste.Anchor</code></dd>
+                                @foreach (var g in _paste.Groups)
+                                {
+                                    <dt>@g.Label</dt>
+                                    <dd><code>@g.Token</code></dd>
+                                }
+                            </dl>
+                            @foreach (var d in _paste.Diagnostics)
+                            {
+                                <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+                            }
+                            <p class="more">Excluded mods apply to every slot. Slots of the same item class share one block.</p>
                         </div>
                     }
-                    else
+                    @foreach (var t in _tasks)
                     {
-                        @foreach (var t in _barTasks)
-                        {
-                            <div class="slot-query @(t.Result.Exceeded ? "over" : "")" id="slot-query-@t.CardId">
-                                <code title="@t.Result.Query">@t.Result.Query</code>
-                                <span class="meter-num" title="@MeterTitle(t.Result.Length, t.Result.Limit)">
-                                    @t.Result.Length/@t.Result.Limit@(t.Result.Exceeded ? " OVER" : "")
-                                </span>
-                                <button id="slot-copy-@t.CardId" @onclick="() => CopyBar(t.Result.Query)">copy</button>
-                            </div>
-                        }
+                        <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass" Result="@t.Result" />
                     }
-                }
-                else
-                {
-                    <span class="rb-empty">nothing to show yet — pick mods to build the string</span>
-                }
-            </div>
-        </div>
-
-        <section class="test-lab" id="test-lab" aria-label="Test items">
-            <div class="test-lab-head">
-                <button type="button" class="test-lab-toggle" id="test-lab-toggle"
-                        aria-expanded="@(_testLabOpen ? "true" : "false")" aria-controls="test-lab-body"
-                        @onclick="ToggleTestLab">
-                    <span class="test-lab-chev" aria-hidden="true">@(_testLabOpen ? "▾" : "▸")</span>
-                    <span class="test-lab-title">Test items</span>
-                    <span class="test-lab-count">@State.TestItems.Count</span>
-                    <span class="test-lab-sub">import, assemble, test matches</span>
-                </button>
-                <HelpTip Title="what test items are for">
-                    <ul>
-                        <li><b>import item</b> — paste an item copied from the game.</li>
-                        <li><b>assemble item</b> — build one from catalog mods.</li>
-                        <li>A search string lights up the matching items in the backpack.</li>
-                    </ul>
-                </HelpTip>
-            </div>
-            @if (_testLabOpen)
-            {
-                <div class="test-lab-body" id="test-lab-body">
-                    <div class="modrow pack-tools">
-                        <button id="import-open" class="btn" @onclick="() => _importOpen = true">import item</button>
-                        <button id="builder-open" class="btn" @onclick="() => _builderOpen = true">assemble item</button>
-                        <button id="pack-remove" class="btn" disabled="@(State.SelectedItemId is null)"
-                                title="@RemoveTitle()" @onclick="RemoveSelected">remove item</button>
-                    </div>
-                    <div class="pack-wrap">
-                        <BackpackGrid State="State" HighlightIds="_highlight" DimNonMatching="_dimNonMatching" OnPick="PickItem" />
-                    </div>
                 </div>
             }
         </section>
-        <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
-        <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
-        <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
-    </section>
-    <div class="advanced-reserve" aria-hidden="true"></div>
-</div>
+    }
+    @if (_notice is not null)
+    {
+        <p class="bench-notice" role="status">
+            @_notice
+            <button type="button" class="link" id="notice-dismiss" @onclick="() => _notice = null">Dismiss</button>
+        </p>
+    }
 
-<details class="panel advanced" id="more-info">
-    <summary>More info</summary>
-    <div id="engine-status">@_engineStatus</div>
-    @if (_paste is not null)
-    {
-        <div class="qcard" id="combined-paste">
-            <div class="qcard-head">
-                <span>combined paste</span>
-                <span class="meter" title="@_paste.Length/@_paste.Limit">
-                    <span class="meter-bar meter-@ModSearch.MeterColor(_paste.Length, _paste.Limit)"
-                          style="width:@(Math.Round(ModSearch.MeterRatio(_paste.Length, _paste.Limit) * 100))%"></span>
-                </span>
-                <span class="meter-num">@_paste.Length/@_paste.Limit@(_paste.Exceeded ? " OVER" : "")</span>
-            </div>
-            <div class="qquery" id="combined-paste-query">@_paste.Query</div>
-            <div class="qactions">
-                <button id="combined-copy" @onclick="() => CopyBar(_paste.Query)">copy</button>
-            </div>
-            <div class="qexplain">
-                <div>anchor: <code>@_paste.Anchor</code></div>
-                @foreach (var g in _paste.Groups)
-                {
-                    <div>@g.Label → <code>@g.Token</code></div>
-                }
-            </div>
-            @foreach (var d in _paste.Diagnostics)
+    <div class="bench-bar">
+        <ModeSwitch State="State" />
+    </div>
+
+    <div class="bench-main">
+        @if (State.Mode == "advanced")
+        {
+            <aside class="col-doll" aria-label="Gear slots">
+                <PaperDoll State="State" />
+            </aside>
+        }
+        <section class="col-picker" aria-label="Mods">
+            @if (State.Mode == "advanced")
             {
-                <div class="qdiag">@d.Level @d.Code: @d.Message</div>
+                @if (State.FocusedSlot is { } focus)
+                {
+                    <div class="col-head">
+                        <h2 class="col-title">@(GearSlot.ById(focus)?.Label ?? focus)</h2>
+                        @if (focus is "weapon" or "offhand")
+                        {
+                            <select class="col-class" id="slot-class-@focus" aria-label="@(GearSlot.ById(focus)?.Label) base class"
+                                    value="@State.SlotClassOrDefault(focus)" @onchange="e => SetClass(focus, e)">
+                                @foreach (var cls in ClassOptions(focus))
+                                {
+                                    <option value="@cls.Id">@cls.Name</option>
+                                }
+                            </select>
+                        }
+                    </div>
+                    <ModPicker State="State" Scope="@focus" Mods="@RailMods" />
+                }
+                else
+                {
+                    <p class="col-empty">Choose a gear slot to see the mods it can roll.</p>
+                }
             }
-            <div class="more">slot exclusions apply globally; same-class slots merge (see plan §8.1)</div>
-        </div>
-    }
-    @foreach (var t in _tasks)
-    {
-        <QueryCard CardId="@t.CardId" Title="@t.Title" ItemClass="@t.ItemClass" Result="@t.Result" />
-    }
-    <div class="modrow reset-row">
-        <button id="workbench-reset" class="btn btn-danger"
-                title="Destructive: clears every slot's class and mods plus the backpack lab"
-                @onclick="ResetWorkbench">reset workbench</button>
-        <div class="adv-meta">
-            <span class="hint @(Engine.DataReady ? "" : "warn")" id="data-stamp"
-                  title="catalog data version, target model, and exact table status">
-                data: @Engine.DataVersion · @Engine.TargetModel ·
-                @(Engine.DataReady ? "exact table" : "exact table missing")
-            </span>
-            <BuildStamp />
-            <span class="legal-links">
-                <a href="license.txt" target="_blank" rel="noopener noreferrer">license</a>
-                <a href="notice.txt" target="_blank" rel="noopener noreferrer">notice</a>
-                <a href="provenance.md" target="_blank" rel="noopener noreferrer">data provenance</a>
-            </span>
+            else
+            {
+                <ModPicker State="State" Scope="@null" Mods="@RailMods" />
+            }
+        </section>
+        <div class="col-out">
+            @if (Intro.Visible == true)
+            {
+                <IntroPanel OnDismiss="DismissIntro" />
+            }
+            <PickBreakdown Model="_model" State="State" />
         </div>
     </div>
-</details>
+
+    <ImportPanel State="State" Open="_importOpen" OnClose="CloseImport" />
+    <QueryImportPanel State="State" Open="_queryImportOpen" OnClose="CloseQueryImport" />
+    <ItemBuilder State="State" Open="_builderOpen" OnClose="CloseBuilder" />
+</div>
+
+<footer class="shell-foot">
+    <span id="engine-status">@_engineStatus</span>
+    <span class="@(Engine.DataReady ? "" : "warn")" id="data-stamp"
+          title="Catalog data version, target model, and exact table status">
+        Data @Engine.DataVersion, @Engine.TargetModel, @(Engine.DataReady ? "exact table" : "exact table missing")
+    </span>
+    <BuildStamp />
+    <span class="legal-links">
+        <a href="license.txt" target="_blank" rel="noopener noreferrer">License</a>
+        <a href="notice.txt" target="_blank" rel="noopener noreferrer">Notice</a>
+        <a href="provenance.md" target="_blank" rel="noopener noreferrer">Data provenance</a>
+    </span>
+    <button id="workbench-reset" class="link foot-reset" title="Clears every slot's class and mods, and the test items"
+            @onclick="ResetWorkbench">Reset workbench</button>
+</footer>
 
 <ItemTooltip Item="@SelectedItem()" X="_ttX" Y="_ttY" OnDismiss="DismissTooltip" />
 
@@ -219,17 +203,22 @@
     private bool _importOpen;
     private bool _queryImportOpen;
     private bool _builderOpen;
-    private bool _testLabOpen;
+    private string? _panel;
+    private SearchModel _model = null!;
     private MultiPasteResult? _paste;
     private double _ttX;
     private double _ttY;
+    private string? _notice;
+    private int _recipesVersion;
+
+    protected override void OnInitialized() => _model = new SearchModel(Engine, State);
 
     protected override async Task OnInitializedAsync()
     {
         State.Changed += OnStateChanged;
         Intro.Changed += OnIntroChanged;
         await Intro.InitializeAsync();
-        _engineStatus = $"engine ok ({Engine.InGameClasses().Count()} classes with mods)";
+        _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
         var saved = await Persistence.LoadAsync();
         if (saved is not null)
             WorkbenchSnapshot.Restore(State, saved);
@@ -239,7 +228,37 @@
         foreach (var item in State.TestItems)
             if (item.Reheal(Engine)) healed = true;
         if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
+        await OpenSharedRecipeAsync();
         Recompute();
+    }
+
+    /// <summary>A share link replaces the picks; earlier picks are saved as a recipe first so nothing is lost.</summary>
+    private async Task OpenSharedRecipeAsync()
+    {
+        var token = RecipeCodec.TokenFromFragment(new Uri(Nav.Uri).Fragment);
+        if (token is null) return;
+        try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
+        catch { }
+        var shared = RecipeCodec.Decode(token);
+        if (shared is null)
+        {
+            _notice = "That share link could not be read, so your picks are unchanged.";
+            return;
+        }
+        var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+                       State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
+        if (hadPicks)
+        {
+            var recipes = await Persistence.LoadRecipesAsync();
+            recipes.Insert(0, new SavedRecipe(
+                $"Before shared link, {DateTime.Now:yyyy-MM-dd HH:mm}", DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
+            await Persistence.SaveRecipesAsync(recipes);
+            _recipesVersion++;
+        }
+        WorkbenchSnapshot.RestoreCriteria(State, shared);
+        _notice = hadPicks
+            ? "Opened a shared recipe. Your earlier picks are saved under Recipes."
+            : "Opened a shared recipe.";
     }
 
     private Task DismissIntro() => Intro.DismissAsync();
@@ -251,10 +270,11 @@
 
     private void CloseBuilder() => _builderOpen = false;
 
-    private void ToggleTestLab()
+    /// <summary>One check panel at a time; closing test items also dismisses a pinned item card.</summary>
+    private void TogglePanel(string panel)
     {
-        _testLabOpen = !_testLabOpen;
-        if (!_testLabOpen) State.SelectTestItem(null);
+        _panel = _panel == panel ? null : panel;
+        if (_panel != "items") State.SelectTestItem(null);
     }
 
     private void OnStateChanged()
@@ -292,8 +312,8 @@
     }
 
     private string RemoveTitle() => SelectedItem() is { } item
-        ? $"remove {item.Name} from the backpack"
-        : "select a backpack item first";
+        ? $"Remove {item.Name} from the backpack"
+        : "Select an item in the backpack first";
 
     private void Recompute()
     {
@@ -301,7 +321,7 @@
         _paste = null;
         if (State.Mode == "simple")
         {
-            tasks.Add(CompileTask("simple", "all items", null, State.Global));
+            tasks.Add(CompileTask("simple", "All gear", null, State.Global));
         }
         else
         {
@@ -309,7 +329,9 @@
             foreach (var s in active)
             {
                 var crit = State.CriteriaFor(s);
-                tasks.Add(CompileTask(s, $"{s} ({crit.ClassId})", crit.ClassId, crit));
+                var label = GearSlot.ById(s)?.Label ?? s;
+                var cls = ClassName(crit.ClassId);
+                tasks.Add(CompileTask(s, string.Equals(label, cls, StringComparison.OrdinalIgnoreCase) ? label : $"{label} ({cls})", crit.ClassId, crit));
             }
             if (active.Count > 0)
             {
@@ -320,7 +342,7 @@
                     active.Select(s =>
                     {
                         var crit = State.CriteriaFor(s);
-                        return ($"{s} ({crit.ClassId})", crit.ClassId, (IEnumerable<WantedMod>)crit.Included);
+                        return ($"{s} ({crit.ClassId})", crit.ClassId, (IEnumerable<WantedMod>)crit.Included, crit.MatchAll);
                     }),
                     active.SelectMany(s => State.CriteriaFor(s).Excluded)
                         .Concat(State.Global.Excluded).Distinct(StringComparer.Ordinal),
@@ -345,6 +367,7 @@
                 .Select(item => item.Id).ToHashSet()
             : [];
         _dimNonMatching = chipsPicked && queries.Count > 0;
+        _model.Update(_barTasks.FirstOrDefault()?.Result, _paste);
     }
 
     /// <summary>Selected backpack item (null when none or it was removed).</summary>
@@ -355,19 +378,11 @@
     {
         // allowOverflow: a picked string always keeps its value; over-budget
         // states render with the k/N meter instead of a placeholder.
-        var result = Engine.Compile(
-            crit.Included.SelectMany(m => m.Requirements()),
-            crit.Excluded.Select(e => new ModifierRequirement(e)),
-            itemClass: itemClass,
-            allowOverflow: true);
+        var result = Engine.CompilePicks(crit.Included, crit.Excluded, crit.MatchAll, itemClass);
         return new TaskView(cardId, title, itemClass, result);
     }
 
-    /// <summary>
-    /// Distinct skipped picks across the visible compiles (and the combined
-    /// paste). The result bar carries a quiet count when this is non-zero; the
-    /// title is the engine's factual diagnostic text.
-    /// </summary>
+    /// <summary>Distinct skipped picks across the visible compiles and the combined paste.</summary>
     private List<CompilerDiagnostic> UnresolvedDiagnostics() =>
         _tasks.SelectMany(t => t.Result.Diagnostics)
             .Concat(_paste?.Diagnostics ?? [])
@@ -376,27 +391,7 @@
             .Select(g => g.First())
             .ToList();
 
-    private static string UnresolvedTitle(IReadOnlyList<CompilerDiagnostic> diagnostics) =>
-        string.Join("\n", diagnostics.Select(d => d.Message));
-
-    private static string MeterTitle(int length, int limit) =>
-        length > limit
-            ? $"{length}/{limit} characters — {length - limit} over the game's search box limit"
-            : $"{length} of {limit} characters";
-
-    /// <summary>The single string shown in the search-string bar for the current scope.</summary>
-    private string BarQuery() =>
-        State.Mode == "advanced"
-            ? _paste?.Query ?? ""
-            : _barTasks.FirstOrDefault()?.Result.Query ?? "";
-
-    /// <summary>Picks rail scope: the focused slot in advanced, the global set in simple.</summary>
-    private string? RailScope => State.Mode == "advanced" ? State.FocusedSlot : null;
-
-    /// <summary>The rail shows its "+ to add" hint only where a picker is available.</summary>
-    private bool RailHint => State.Mode == "simple" || State.FocusedSlot is not null;
-
-    /// <summary>Mods for the rail/picker scope (empty while advanced is unfocused).</summary>
+    /// <summary>Mods for the picker scope (empty while advanced is unfocused).</summary>
     private IReadOnlyList<ModEntry> RailMods =>
         State.Mode == "simple"
             ? Engine.PlayableMods()
@@ -404,25 +399,23 @@
                 ? Engine.ModsForClass(State.SlotClassOrDefault(focus))
                 : [];
 
-    /// <summary>What the bar's string covers: silent in simple; the slots in advanced.</summary>
-    private string ScopeText()
+    private string ClassName(string classId) =>
+        Engine.Classes.FirstOrDefault(c => c.Id == classId)?.Name ?? classId;
+
+    /// <summary>Classes fitting the slot; a saved class that no longer fits stays listed so nobody gets stranded.</summary>
+    private IEnumerable<ItemClassEntry> ClassOptions(string slotId)
     {
-        if (State.Mode != "advanced") return "";
-        var active = State.ActiveSlots();
-        if (active.Count == 0) return "";
-        if (active.Count > 3) return $"{active.Count} slots";
-        if (active.Count == 1)
-        {
-            var slot = active[0];
-            var label = GearSlot.ById(slot)?.Label ?? slot;
-            var cls = State.SlotClassOrDefault(slot);
-            return string.Equals(label, cls, StringComparison.OrdinalIgnoreCase)
-                ? label
-                : $"{label} · {cls}";
-        }
-        return string.Join(" + ", active.Select(s => GearSlot.ById(s)?.Label ?? s));
+        var playable = Engine.InGameClasses().ToList();
+        var allowed = SlotClasses.AllowedFor(slotId, playable.Select(c => c.Id)).ToHashSet();
+        var current = State.SlotClassOrDefault(slotId);
+        return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);
     }
 
+    private void SetClass(string slotId, ChangeEventArgs e)
+    {
+        if (e.Value is string id && id.Length > 0)
+            State.SetSlotClass(slotId, id);
+    }
     private async Task ResetWorkbench()
     {
         await Persistence.ClearAsync();

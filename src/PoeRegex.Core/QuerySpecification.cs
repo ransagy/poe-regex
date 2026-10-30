@@ -15,6 +15,9 @@ public sealed record QuerySpecification
 
     public IReadOnlyList<ModifierRequirement> IncludedModifiers { get; init; } = [];
 
+    /// <summary>Each group becomes its own quoted block, so an item must match every group (any member of a group).</summary>
+    public IReadOnlyList<IReadOnlyList<ModifierRequirement>> RequiredGroups { get; init; } = [];
+
     public IReadOnlyList<ModifierRequirement> ExcludedModifiers { get; init; } = [];
 
     /// <summary>Custom keywords (e.g. "ilvl:60").</summary>

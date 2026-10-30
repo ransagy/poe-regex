@@ -78,6 +78,7 @@ public sealed class QueryImportService
 
         var tokens = new List<ImportedToken>();
         var includes = new List<ModifierRequirement>();
+        var includeGroups = new List<IReadOnlyList<ModifierRequirement>>();
         var excludes = new List<ModifierRequirement>();
         var keywords = new List<string>();
 
@@ -106,6 +107,7 @@ public sealed class QueryImportService
                         if (excluded) excludes.Add(recoveredRequirement);
                         else includes.Add(recoveredRequirement);
                     }
+                    if (!excluded) includeGroups.Add(recovered.Select(r => new ModifierRequirement(r.Mod)).ToList());
                     var first = recovered[0];
                     var firstMod = _engine.FindMod(first.Mod);
                     tokens.Add(new ImportedToken(
@@ -157,7 +159,11 @@ public sealed class QueryImportService
                     $"fragment '{phrase}' maps to {mods.Count} mods; using '{mod.Id}'");
             var requirement = new ModifierRequirement(mod.Id);
             if (excluded) excludes.Add(requirement);
-            else includes.Add(requirement);
+            else
+            {
+                includes.Add(requirement);
+                includeGroups.Add([requirement]);
+            }
             tokens.Add(new ImportedToken(
                 phrase, excluded, excluded ? "exclusion" : "mod",
                 pattern, mod.Id, mod.Classes, grouped.Count > 1 || mods.Count > 1 ? "ambiguous" : "exact"));
@@ -174,7 +180,7 @@ public sealed class QueryImportService
             diagnostics.Add("the query is not a valid quoted query; imported tokens are best-effort");
 
         return new QueryImportResult(
-            query, mode, orderedClasses, includes, excludes, keywords, tokens, diagnostics);
+            query, mode, orderedClasses, includes, excludes, keywords, tokens, diagnostics, includeGroups);
     }
 
     private static bool LooksSynthetic(string phrase) =>
@@ -258,4 +264,9 @@ public sealed record QueryImportResult(
     IReadOnlyList<ModifierRequirement> Excludes,
     IReadOnlyList<string> Keywords,
     IReadOnlyList<ImportedToken> Tokens,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<IReadOnlyList<ModifierRequirement>>? IncludeGroups = null)
+{
+    /// <summary>True when the string required several picks at once (one include block each).</summary>
+    public bool RequiresAll => IncludeGroups is { Count: > 1 } groups && groups.All(g => g.Count == 1);
+}

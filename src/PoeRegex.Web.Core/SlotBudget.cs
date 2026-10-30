@@ -22,10 +22,6 @@ public static class SlotBudget
         foreach (var pick in extra)
             if (!picks.Any(m => m.SamePick(pick)))
                 picks.Add(pick);
-        return engine.Compile(
-            picks.SelectMany(m => m.Requirements()),
-            crit.Excluded.Select(e => new ModifierRequirement(e)),
-            itemClass: itemClass,
-            allowOverflow: true);
+        return engine.CompilePicks(picks, crit.Excluded, crit.MatchAll, itemClass);
     }
 }
