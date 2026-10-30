@@ -81,7 +81,7 @@ outer loop. It runs at data-build time, never in the browser.
   threshold validation. It does not search for fragments.
 - `Poe2Syntax` owns the query dialect: quoted terms, `!` exclusions, the
   250-character limit, custom keywords, escaping, and `\b` validation.
-- `QuerySpecification { ItemClass?, IncludedModifiers, ExcludedModifiers,
+- `QuerySpecification { ItemClass?, IncludedModifiers, RequiredGroups, ExcludedModifiers,
   Keywords, AllowOverflow }`; each modifier is a catalog mod id or free text,
   optionally with `MinValue`.
 - `PoeRegexCompiler(corpus)` composes a query from table lookups and

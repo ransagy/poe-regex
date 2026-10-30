@@ -10,9 +10,8 @@
 
   Advanced mode only (simple mode has no slots): clicking a slot moves the
   editing focus (accent outline); slots with picks are enrolled and filled.
-  Weapon/offhand are the only slots with a base-class choice, so each carries
-  its class select above the slot label inside the card (always visible);
-  every other slot is 1:1.
+  Weapon/offhand are the only slots with a base-class choice; the card names
+  the class and the picker header carries the select. Every other slot is 1:1.
 *@
 <div class="doll" aria-label="Equipment">
     @foreach (var slot in GearSlot.All)
@@ -20,24 +19,22 @@
         var enrolled = State.Enrolled(slot.Id);
         var focused = State.FocusedSlot == slot.Id;
         var showClass = slot.Id is "weapon" or "offhand";
-        <div class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "")"
+        var picks = enrolled ? State.CriteriaFor(slot.Id).Included.Count + State.CriteriaFor(slot.Id).Excluded.Count : 0;
+        <div class="gear-slot @(enrolled ? "active" : "") @(focused ? "focused" : "") @(slot.Cols == 1 ? "small" : "")"
              style="@Placement(slot)">
             <button id="slot-@slot.Id" type="button" class="gear-focus"
-                    title="@slot.Label" aria-label="@slot.Label" aria-pressed="@enrolled"
+                    title="@slot.Label" aria-label="@(picks > 0 ? $"{slot.Label}, {picks} picked" : slot.Label)"
+                    aria-pressed="@(focused ? "true" : "false")"
                     @onclick="() => State.SelectSlot(slot.Id)"></button>
+            @if (picks > 0)
+            {
+                <span class="gear-count" aria-hidden="true">@picks</span>
+            }
             @if (showClass)
             {
                 <div class="gear-stack">
-                    <select class="gear-class" aria-label="@slot.Label base class"
-                            value="@State.SlotClassOrDefault(slot.Id)"
-                            @onchange="e => SetClass(slot.Id, e)"
-                            @onclick:stopPropagation="true">
-                        @foreach (var cls in ClassOptions(slot.Id))
-                        {
-                            <option value="@cls.Id">@cls.Name</option>
-                        }
-                    </select>
                     <span class="gear-label">@slot.Label</span>
+                    <span class="gear-class">@ClassName(State.SlotClassOrDefault(slot.Id))</span>
                 </div>
             }
             else
@@ -48,13 +45,13 @@
     }
     @foreach (var slot in GearSlot.All)
     {
-        if (State.Enrolled(slot.Id))
+        if (State.Enrolled(slot.Id) && slot.Cols > 1)
         {
             <button id="slot-clear-@slot.Id"
                     class="slot-clear"
                     style="@ClearPlacement(slot)"
-                    title="clear @slot.Label mods"
-                    aria-label="clear @slot.Label mods"
+                    title="Clear @slot.Label mods"
+                    aria-label="Clear @slot.Label mods"
                     @onclick="() => State.ClearChips(slot.Id)">×</button>
         }
     }
@@ -64,21 +61,8 @@
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
 
-    /// <summary>Classes fitting the slot; the current selection is kept even if
-    /// it no longer fits (grandfathered saves) so nobody gets stranded.</summary>
-    private IEnumerable<ItemClassEntry> ClassOptions(string slotId)
-    {
-        var playable = Engine.InGameClasses().ToList();
-        var allowed = SlotClasses.AllowedFor(slotId, playable.Select(c => c.Id)).ToHashSet();
-        var current = State.SlotClassOrDefault(slotId);
-        return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);
-    }
-
-    private void SetClass(string slotId, ChangeEventArgs e)
-    {
-        if (e.Value is string id && id.Length > 0)
-            State.SetSlotClass(slotId, id);
-    }
+    private string ClassName(string classId) =>
+        Engine.Classes.FirstOrDefault(c => c.Id == classId)?.Name ?? classId;
 
     // Cell-grid layout transcribed from the in-game PoE2 gear panel.
     // One cell (c) = ring/amulet; helmet/gloves/boots are 2x2, body 2x3,

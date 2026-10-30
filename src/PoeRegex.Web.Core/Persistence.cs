@@ -16,7 +16,7 @@ public sealed record WorkbenchSnapshot(
     SlotCriteria Global,
     List<TestItem> TestItems)
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state) => new(
         CurrentVersion,
@@ -34,6 +34,19 @@ public sealed record WorkbenchSnapshot(
         // half-applied one with the backpack still empty.
         state.WithSuppressedNotifications(() => RestoreCore(state, snap));
 
+    /// <summary>Restores modes, classes and picks only; the backpack stays as it is.</summary>
+    public static void RestoreCriteria(WorkbenchState state, WorkbenchSnapshot snap) =>
+        state.WithSuppressedNotifications(() =>
+        {
+            foreach (var crit in state.Slots.Values)
+            {
+                crit.Included.Clear();
+                crit.Excluded.Clear();
+                crit.MatchAll = false;
+            }
+            RestoreCore(state, snap, items: false);
+        });
+
     /// <summary>Maps retired mode names onto the two-mode model.</summary>
     private static (string Mode, string? Focus) ModeOf(WorkbenchSnapshot snap) => snap.Mode switch
     {
@@ -44,7 +57,7 @@ public sealed record WorkbenchSnapshot(
         _ => ("simple", null),
     };
 
-    private static void RestoreCore(WorkbenchState state, WorkbenchSnapshot snap)
+    private static void RestoreCore(WorkbenchState state, WorkbenchSnapshot snap, bool items = true)
     {
         var (mode, focus) = ModeOf(snap);
         try { state.SetMode(mode); } catch (ArgumentOutOfRangeException) { /* keep default */ }
@@ -59,14 +72,19 @@ public sealed record WorkbenchSnapshot(
             var mine = state.CriteriaFor(slot);
             if (crit.ClassId.Length > 0) mine.ClassId = crit.ClassId;
             mine.Included.Clear();
-            mine.Included.AddRange(crit.Included.Where(m => m.ModId.Length > 0));
+            mine.Included.AddRange(Picks(snap, crit.Included));
             mine.Excluded.Clear();
             mine.Excluded.AddRange(crit.Excluded.Where(e => e.Length > 0));
+            mine.MatchAll = crit.MatchAll;
+            mine.NormalizeMatchAll();
         }
         state.Global.Included.Clear();
-        state.Global.Included.AddRange(snap.Global.Included.Where(m => m.ModId.Length > 0));
+        state.Global.Included.AddRange(Picks(snap, snap.Global.Included));
         state.Global.Excluded.Clear();
         state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
+        state.Global.MatchAll = snap.Global.MatchAll;
+        state.Global.NormalizeMatchAll();
+        if (!items) return;
         state.TestItems.Clear();
         var placed = new List<TestItem>(snap.TestItems.Count);
         foreach (var item in snap.TestItems)
@@ -97,6 +115,11 @@ public sealed record WorkbenchSnapshot(
         state.TestItems.AddRange(placed);
     }
 
+    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them, and any floor out of range.</summary>
+    private static IEnumerable<WantedMod> Picks(WorkbenchSnapshot snap, IEnumerable<WantedMod> picks) =>
+        picks.Where(m => m.ModId.Length > 0)
+            .Select(m => m.MinValue is { } min && (snap.Version < 4 || !WantedMod.IsValidMinValue(min)) ? m with { MinValue = null } : m);
+
     /// <summary>True when any already-placed item shares a cell with this one.</summary>
     private static bool Overlaps(IReadOnlyList<TestItem> placed, TestItem item)
     {
@@ -120,4 +143,5 @@ public sealed record WorkbenchSnapshot(
 [JsonSerializable(typeof(ParsedItem))]
 [JsonSerializable(typeof(ParsedModBlock))]
 [JsonSerializable(typeof(ParsedValueLine))]
+[JsonSerializable(typeof(List<SavedRecipe>))]
 public sealed partial class WebJsonContext : JsonSerializerContext;

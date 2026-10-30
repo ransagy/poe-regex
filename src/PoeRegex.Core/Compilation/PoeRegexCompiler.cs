@@ -50,6 +50,20 @@ public sealed class PoeRegexCompiler
             blocks.Add(Poe2Syntax.Quote(string.Join("|", factored)));
         }
 
+        foreach (var group in spec.RequiredGroups)
+        {
+            var fragments = new List<string>();
+            foreach (var req in group)
+            {
+                var frag = SelectFragment(req, spec.ItemClass, diagnostics);
+                if (frag is not null) fragments.Add(frag);
+                else diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                    $"Modifier '{req.Value}' could not be resolved; skipped."));
+            }
+            if (fragments.Count > 0)
+                blocks.Add(Poe2Syntax.Quote(string.Join("|", CompactionEngine.FactorCommonPrefixes(fragments))));
+        }
+
         // Exclusions → separate quoted blocks.
         foreach (var req in spec.ExcludedModifiers)
         {

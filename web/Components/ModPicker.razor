@@ -15,7 +15,7 @@
             @if (_bulkVisible)
             {
                 <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
-                        disabled="@(_bulkOverflow || _bulkTooMany)" @onclick="SelectAll">++</button>
+                        disabled="@(_bulkOverflow || _bulkTooMany)" @onclick="SelectAll">Add all @_bulkNew</button>
             }
         </div>
     </div>
@@ -24,14 +24,14 @@
     {
         <div class="more">@(_search.Trim().Length == 0
             ? _placeholder
-            : "no mods match the filter")</div>
+            : $"No mods match \"{_search.Trim()}\".")</div>
     }
     else
     {
         <div class="mod-list">
             @{
                 (IReadOnlyList<ModFamily> List, string Header)[] sections =
-                    [(_prefixes, "prefixes"), (_suffixes, "suffixes")];
+                    [(_prefixes, "Prefixes"), (_suffixes, "Suffixes")];
                 var twoCols = _prefixes.Count > 0 && _suffixes.Count > 0;
             }
             <div class="mod-cols @(twoCols ? "" : "single")">
@@ -40,14 +40,15 @@
                     if (list.Count == 0) continue;
                     <section class="mod-sec">
                         <div class="gen-head">@header</div>
-                        <ol class="suggest" aria-label="@header mods">
+                        <ol class="suggest" aria-label="@header">
                             @foreach (var fam in list)
                             {
                                 var plainPick = fam.Pick();
                                 var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
+                                var pickedTier = !pickedPlain && crit.Included.Any(m => m.IsNamePick && fam.Tiers.Any(t => t.Anchor.Id == m.ModId));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 <li class="fam-block">
-                                    <div class="suggest-row fam-row">
+                                    <div class="suggest-row fam-row @(pickedPlain ? "picked" : pickedTier ? "has-tier" : "")">
                                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
                                                 aria-expanded="@(expanded ? "true" : "false")"
                                                 title="@FamilyToggleTitle(fam, expanded)"
@@ -66,12 +67,12 @@
                                                     }
                                                 }
                                             </span>
-                                            <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
+                                            <span class="tier-count">@fam.Tiers.Count tiers</span>
                                         </button>
-                                        <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)"
+                                        <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)" aria-label="@FamilyIncludeTitle(fam)"
                                                 disabled="@pickedPlain"
-                                                @onclick="() => Include(plainPick)">+</button>
-                                        <button id="pick-exc-@fam.Anchor.Id" class="exc" title="@FamilyExcludeTitle(fam)"
+                                                @onclick="() => Include(plainPick)">@(pickedPlain ? "✓" : "+")</button>
+                                        <button id="pick-exc-@fam.Anchor.Id" class="exc" title="@FamilyExcludeTitle(fam)" aria-label="@FamilyExcludeTitle(fam)"
                                                 @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
                                     </div>
                                     @if (expanded)
@@ -84,24 +85,24 @@
                                                 var upPick = new WantedMod(tier.Anchor.Id, upNames);
                                                 var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
                                                 var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
-                                                <li class="suggest-row tier-row">
-                                                    <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                                <li class="suggest-row tier-row @(pickedExact || pickedUp ? "picked" : "")">
                                                     <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
                                                         @foreach (var l in tier.DisplayLines)
                                                         {
                                                             <span class="mod-line">@l</span>
                                                         }
                                                     </span>
-                                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)"
+                                                    <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)" aria-label="@TierPickTitle(tier)"
                                                             disabled="@pickedExact"
-                                                            @onclick="() => Include(exactPick)">+</button>
+                                                            @onclick="() => Include(exactPick)">@(pickedExact ? "✓" : "+")</button>
                                                     @if (upNames.Count > 1)
                                                     {
-                                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)"
+                                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)" aria-label="@TierUpTitle(tier, upNames)"
                                                                 disabled="@pickedUp"
                                                                 @onclick="() => Include(upPick)">↑</button>
                                                     }
-                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc" title="@TierExcludeTitle(tier)"
+                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc" title="@TierExcludeTitle(tier)" aria-label="@TierExcludeTitle(tier)"
                                                             @onclick="() => AddExclude(tier.Name)">−</button>
                                                 </li>
                                             }
@@ -113,9 +114,15 @@
                     </section>
                 }
             </div>
-            @if (_families.Count > MaxShown)
+            @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
             {
-                <div class="more">@(_families.Count - MaxShown) more… keep typing to narrow</div>
+                <button type="button" class="link list-toggle" id="mod-show-all" @onclick="ToggleShowAll">
+                    @(_showAll ? "Show common mods only" : $"Show all {_allFamilies.Count} mods")
+                </button>
+            }
+            else if (_families.Count > MaxShown)
+            {
+                <div class="more">@(_families.Count - MaxShown) more. Keep typing to narrow the list.</div>
             }
         </div>
     }
@@ -151,7 +158,16 @@
     private int _bulkNew;
     private int _bulkLength;
     private int _bulkLimit;
-    private string _placeholder = "type to search families";
+    private string _placeholder = "Search mods…";
+    private bool _showAll;
+
+    private int CommonCount => _allFamilies.Count(ModFamilies.IsCommon);
+
+    private void ToggleShowAll()
+    {
+        _showAll = !_showAll;
+        Refresh();
+    }
 
     /// <summary>Item class the scope compiles with (null in global mode).</summary>
     private string? ScopeClassId => Scope is null ? null : State.CriteriaFor(Scope).ClassId;
@@ -173,10 +189,10 @@
 
     private void Refresh()
     {
-        _placeholder = $"showing common picks — type to search all {_allFamilies.Count} families";
+        _placeholder = $"Search all {_allFamilies.Count} mods…";
         var filter = _search.Trim();
         _families = filter.Length == 0
-            ? _allFamilies.Where(ModFamilies.IsCommon).ToList()
+            ? _showAll || CommonCount == 0 ? _allFamilies : _allFamilies.Where(ModFamilies.IsCommon).ToList()
             : _allFamilies
                 .Select(f =>
                 {
@@ -191,7 +207,7 @@
                 .Where(f => f is not null)
                 .Select(f => f!)
                 .ToList();
-        var shown = _families.Take(MaxShown).ToList();
+        var shown = filter.Length == 0 && (_showAll || CommonCount == 0) ? _families : _families.Take(MaxShown).ToList();
         _prefixes = shown.Where(f => f.IsPrefix).ToList();
         _suffixes = shown.Where(f => !f.IsPrefix).ToList();
         // A single letter is too broad to expand every match (hundreds of
@@ -242,13 +258,13 @@
     {
         var already = _families.Count - _bulkNew;
         var what = already > 0
-            ? $"add all {_bulkNew} matching families ({already} already added)"
-            : $"add all {_bulkNew} matching families";
+            ? $"Add all {_bulkNew} matching mods ({already} already added)"
+            : $"Add all {_bulkNew} matching mods";
         if (_bulkTooMany)
-            return $"{what} — more than {MaxBulkPreview} matches would exceed the query budget; narrow the filter";
+            return $"More than {MaxBulkPreview} matches would not fit in the game's limit. Narrow the search.";
         return _bulkOverflow
-            ? $"{what} — would exceed the game's character limit ({_bulkLength}/{_bulkLimit}); narrow the filter"
-            : $"{what} ({_bulkLength}/{_bulkLimit} characters)";
+            ? $"Adding all {_bulkNew} would make the string {_bulkLength} of {_bulkLimit} characters. Narrow the search."
+            : $"{what}, {_bulkLength} of {_bulkLimit} characters";
     }
 
     private void Toggle(string key)
@@ -260,22 +276,22 @@
     // through DOM APIs, so a literal `&quot;` would show verbatim. Family
     // titles name the content, like the tier titles do.
     private static string FamilyToggleTitle(ModFamily fam, bool expanded) =>
-        $"{(expanded ? "hide" : "show")} {fam.Tiers.Count} tiers: {fam.DisplayText}";
+        $"{(expanded ? "Hide" : "Show")} {fam.Tiers.Count} tiers of {fam.DisplayText}";
 
     private static string FamilyIncludeTitle(ModFamily fam) =>
-        $"include \"{fam.DisplayText}\" (any tier)";
+        $"Add {fam.DisplayText} (any tier)";
 
     private static string FamilyExcludeTitle(ModFamily fam) =>
-        $"exclude \"{fam.DisplayText}\" (any tier)";
+        $"Exclude {fam.DisplayText} (any tier)";
 
     private static string TierPickTitle(ModTier tier) =>
-        $"include \"{tier.Name}\"";
+        $"Add \"{tier.Name}\"";
 
     private static string TierUpTitle(ModTier tier, IReadOnlyList<string> names) =>
-        $"include \"{tier.Name}\" and better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
+        $"Add \"{tier.Name}\" or better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
 
     private static string TierExcludeTitle(ModTier tier) =>
-        $"exclude \"{tier.Name}\"";
+        $"Exclude \"{tier.Name}\"";
 
     private void OnSearch(ChangeEventArgs e)
     {

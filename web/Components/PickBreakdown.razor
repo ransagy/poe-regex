@@ -1,0 +1,263 @@
+@using System.Globalization
+@using PoeRegex.Core.Data
+@using PoeRegex.Core.Search
+@using PoeRegex.Web.Core
+@inject EngineService Engine
+@implements IDisposable
+
+<section class="picks" aria-labelledby="picks-title">
+    <h2 class="picks-title" id="picks-title">Your picks</h2>
+    @if (!HasPicks)
+    {
+        <p class="picks-empty">@(State.Mode == "advanced" ? "Nothing picked yet. Choose a slot, then use + on a mod." : "Nothing picked yet. Use + on a mod to add it.")</p>
+    }
+    @if (State.Mode == "advanced")
+    {
+        @if (Model.Anchor is { } anchor)
+        {
+            <div class="bd-sec bd-anchor @(Model.IsHot(anchor.Index) ? "hot" : "")"
+                 @onmouseenter="() => Model.Hot(anchor.Index)" @onmouseleave="Model.Cool">
+                <div class="bd-head">
+                    <span class="bd-name">Item classes</span>
+                    <code class="bd-frag" title="@anchor.Text">@anchor.Text</code>
+                    <span class="bd-cost">@anchor.Cost</span>
+                </div>
+            </div>
+        }
+        @foreach (var slot in State.ActiveSlots())
+        {
+            var crit = State.CriteriaFor(slot);
+            var blocks = Model.ScopeBlocks(slot);
+            <div class="bd-sec @(State.FocusedSlot == slot ? "focused" : "") @(blocks.Any(Model.IsHot) ? "hot" : "")"
+                 @onmouseleave="Model.Cool">
+                <div class="bd-head" @onmouseenter="() => Model.Hot(blocks)">
+                    <button type="button" class="bd-name bd-slot" title="Edit @SearchModel.SlotLabel(slot) mods"
+                            @onclick="() => State.SelectSlot(slot)">@SearchModel.SlotLabel(slot)</button>
+                    @if (SlotSub(slot) is { } sub)
+                    {
+                        <span class="bd-sub">@sub</span>
+                    }
+                    @if (blocks.Count > 0)
+                    {
+                        <span class="bd-cost" title="@CostTitle(slot, blocks)">@Model.Cost(blocks)</span>
+                    }
+                    <button type="button" class="link bd-clear" id="chips-clear-@slot"
+                            @onclick="() => State.ClearChips(slot)">Clear</button>
+                </div>
+                @PickList(slot, crit, Engine.ModsForClass(State.SlotClassOrDefault(slot)))
+            </div>
+        }
+        @if (State.ActiveSlots().Count > 0 && State.Global.Excluded.Count > 0)
+        {
+            <div class="bd-sec" @onmouseleave="Model.Cool">
+                <div class="bd-head">
+                    <span class="bd-name" title="Excludes from the All gear list also apply per slot">All gear</span>
+                </div>
+                @PickList(null, new SlotCriteria { Excluded = State.Global.Excluded }, Engine.PlayableMods())
+            </div>
+        }
+    }
+    else if (State.Global.Included.Count + State.Global.Excluded.Count > 0)
+    {
+        var blocks = Model.ScopeBlocks(null);
+        <div class="bd-sec @(blocks.Any(Model.IsHot) ? "hot" : "")" @onmouseleave="Model.Cool">
+            <div class="bd-head" @onmouseenter="() => Model.Hot(blocks)">
+                <span class="bd-name">All gear</span>
+                @if (blocks.Count > 0)
+                {
+                    <span class="bd-cost" title="@($"{Model.Cost(blocks)} characters")">@Model.Cost(blocks)</span>
+                }
+                <button type="button" class="link bd-clear" id="chips-clear-global"
+                        @onclick="() => State.ClearChips(null)">Clear</button>
+            </div>
+            @PickList(null, State.Global, Engine.PlayableMods())
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public required SearchModel Model { get; set; }
+
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    private SearchModel? _subscribed;
+
+    private bool HasPicks => State.Mode == "advanced"
+        ? State.ActiveSlots().Count > 0
+        : State.Global.Included.Count + State.Global.Excluded.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Model)) return;
+        if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
+        Model.HotChanged += Repaint;
+        _subscribed = Model;
+    }
+
+    private void Repaint() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
+    }
+
+    private RenderFragment PickList(string? slot, SlotCriteria crit, IReadOnlyList<ModEntry> mods) => __builder =>
+    {
+        var families = ModFamilies.CachedGroup(mods);
+        var cls = slot is null ? null : State.SlotClassOrDefault(slot);
+        var scopeKey = slot ?? "global";
+        var scopeBlocks = Model.ScopeBlocks(slot);
+        if (crit.Included.Count > 0)
+        {
+            <div class="bd-logic">
+                @if (crit.Included.Count > 1)
+                {
+                    <span class="logic-seg" role="group" aria-label="How these picks combine">
+                        <button type="button" id="logic-any-@scopeKey" class="@(crit.MatchAll ? "" : "on")"
+                                aria-pressed="@(crit.MatchAll ? "false" : "true")"
+                                title="Light up items with at least one of these mods"
+                                @onclick="() => State.SetMatchAll(slot, false)">Any of</button>
+                        <button type="button" id="logic-all-@scopeKey" class="@(crit.MatchAll ? "on" : "")"
+                                aria-pressed="@(crit.MatchAll ? "true" : "false")"
+                                title="Light up only items with every one of these mods"
+                                @onclick="() => State.SetMatchAll(slot, true)">All of</button>
+                    </span>
+                    @if (crit.MatchAll && cls is not null && Model.MergedToAny(cls))
+                    {
+                        <span class="logic-note" title="Two slots of the same item class share one block in the combined string">Shares a block with another @SearchModel.SlotLabel(slot!) slot, so it matches any of these.</span>
+                    }
+                }
+                else
+                {
+                    <span>@(crit.MatchAll ? "All of" : "Any of")</span>
+                }
+            </div>
+            <ul class="bd-list" @onmouseenter="() => { if (!crit.MatchAll) Model.Hot(scopeBlocks); }">
+                @foreach (var inc in crit.Included)
+                {
+                    var frag = Model.PickFragment(inc, cls);
+                    var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
+                    var own = Model.PickBlock(slot, inc);
+                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId);
+                    var minIgnored = inc.MinValue is not null && frag is not null
+                        && frag == Model.PickFragment(inc with { MinValue = null }, cls);
+                    <li class="bd-row inc @(own >= 0 && Model.IsHot(own) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
+                        @onmouseenter="() => { if (own >= 0) Model.Hot(own); }">
+                        <span class="bd-what">
+                            @if (inc.IsNamePick)
+                            {
+                                <span class="bd-label">@label@(inc.Names!.Count > 1 ? " or better" : "")</span>
+                                @if (tier is not null)
+                                {
+                                    <span class="bd-detail">@string.Join(" / ", tier.DisplayLines)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="bd-label">@label</span>
+                            }
+                        </span>
+                        @if (AcceptsMin(inc))
+                        {
+                            <input class="bd-min @(minIgnored ? "ignored" : "")" type="number" inputmode="numeric" min="0" step="1"
+                                   id="min-@scopeKey-@ChipKey(inc)" placeholder="min" autocomplete="off"
+                                   value="@inc.MinValue?.ToString(CultureInfo.InvariantCulture)"
+                                   title="@(minIgnored ? "This text cannot carry a minimum safely, so the pick matches any value" : "Only match this value or higher (a longer fragment)")"
+                                   aria-label="@($"Minimum value for {label}")"
+                                   @onchange="e => SetMin(slot, inc, e)" />
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
+                        @if (frag is not null)
+                        {
+                            <code class="bd-frag" title="@frag">@frag</code>
+                            <span class="bd-n" title="@($"{frag.Length} characters on its own")">@frag.Length</span>
+                        }
+                        else
+                        {
+                            <span class="bd-frag missing">no fragment</span>
+                            <span class="bd-n"></span>
+                        }
+                        <button type="button" class="bd-x" id="chip-remove-inc-@scopeKey-@ChipKey(inc)"
+                                title="@RemoveTitle(inc, label)" aria-label="@RemoveTitle(inc, label)"
+                                @onclick="() => State.RemoveInclude(slot, inc)">×</button>
+                    </li>
+                }
+            </ul>
+        }
+        if (crit.Excluded.Count > 0)
+        {
+            <div class="bd-logic"><span>@(slot is null ? "None of" : "None of, on any slot")</span></div>
+            <ul class="bd-list">
+                @foreach (var exc in crit.Excluded)
+                {
+                    var frag = Model.ExcludeFragment(exc);
+                    var block = Model.ExcludeBlock(exc);
+                    var label = SearchModel.ExcludeLabel(exc, mods);
+                    <li class="bd-row exc @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
+                        @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
+                        <span class="bd-what"><span class="bd-label">@label</span></span>
+                        <span></span>
+                        <code class="bd-frag" title="@frag">@frag</code>
+                        <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@block?.Cost</span>
+                        <button type="button" class="bd-x" id="chip-remove-exc-@scopeKey-@exc"
+                                title="@($"Remove {label}")" aria-label="@($"Remove {label}")"
+                                @onclick="() => State.RemoveExclude(slot, exc)">×</button>
+                    </li>
+                }
+            </ul>
+        }
+    };
+
+    /// <summary>A minimum only applies to a plain single-line pick whose text carries a number.</summary>
+    private bool AcceptsMin(WantedMod pick)
+    {
+        if (pick.IsNamePick) return false;
+        var mod = Engine.FindMod(pick.ModId);
+        return mod is { StatLines.Count: 1 } && mod.StatLines[0].Pattern.Contains(SuffixIndex.DigitPlaceholder);
+    }
+
+    private void SetMin(string? slot, WantedMod pick, ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString()?.Trim();
+        double? value = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
+            ? Math.Floor(v)
+            : null;
+        State.SetMinValue(slot, pick, value);
+    }
+
+    private string CostTitle(string slot, List<int> blocks)
+    {
+        var shared = State.ActiveSlots()
+            .Where(s => s != slot && Model.ScopeBlocks(s).Intersect(blocks).Any())
+            .Select(SearchModel.SlotLabel).Distinct().ToList();
+        var what = blocks.Count == 1 ? "1 block" : $"{blocks.Count} blocks";
+        return shared.Count == 0
+            ? $"{Model.Cost(blocks)} characters in {what}"
+            : $"{Model.Cost(blocks)} characters in {what}, shared with {string.Join(" and ", shared)}";
+    }
+
+    /// <summary>Base class under the slot name where the slot is not 1:1 with a class.</summary>
+    private string? SlotSub(string slot)
+    {
+        if (slot is not ("weapon" or "offhand")) return null;
+        var id = State.SlotClassOrDefault(slot);
+        return Engine.Classes.FirstOrDefault(c => c.Id == id)?.Name ?? id;
+    }
+
+    private static string ChipKey(WantedMod pick) => pick switch
+    {
+        { IsNamePick: true } => $"{pick.ModId}-n-{string.Join('-', pick.Names!)}".Replace(' ', '_'),
+        { VariantModIds.Count: > 0 } => $"{pick.ModId}-v",
+        _ => pick.ModId,
+    };
+
+    private static string RemoveTitle(WantedMod pick, string label) =>
+        pick.IsNamePick && pick.Names!.Count > 1
+            ? $"Remove {label} or better ({string.Join(", ", pick.Names)})"
+            : $"Remove {label}";
+}

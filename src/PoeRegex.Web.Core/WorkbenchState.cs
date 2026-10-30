@@ -34,20 +34,25 @@ public sealed record GearSlot(string Id, string Label, int Cols, int Rows)
 public sealed record WantedMod(
     string ModId,
     IReadOnlyList<string>? Names = null,
-    IReadOnlyList<string>? VariantModIds = null)
+    IReadOnlyList<string>? VariantModIds = null,
+    double? MinValue = null)
 {
     /// <summary>Computed; kept out of snapshots (plain picks would carry
     /// `IsNamePick:false` noise on every entry).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNamePick => Names is { Count: > 0 };
 
-    /// <summary>Exact-pick identity: same anchor, names, and family variants in order.</summary>
-    public bool SamePick(WantedMod other) => Equals(other);
-
-    public bool Equals(WantedMod? other) =>
-        other is not null && ModId == other.ModId &&
+    /// <summary>Exact-pick identity: same anchor, names, and family variants in order (the minimum is a setting, not identity).</summary>
+    public bool SamePick(WantedMod other) =>
+        ModId == other.ModId &&
         (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal) &&
         (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal);
+
+    /// <summary>The engine builds digit ranges from an int, and a floor of zero or less filters nothing.</summary>
+    public static bool IsValidMinValue(double value) => value is > 0 and <= int.MaxValue;
+
+    public bool Equals(WantedMod? other) =>
+        other is not null && SamePick(other) && MinValue == other.MinValue;
 
     public override int GetHashCode()
     {
@@ -55,6 +60,7 @@ public sealed record WantedMod(
         hash.Add(ModId, StringComparer.Ordinal);
         foreach (var name in Names ?? []) hash.Add(name, StringComparer.Ordinal);
         foreach (var id in VariantModIds ?? []) hash.Add(id, StringComparer.Ordinal);
+        hash.Add(MinValue);
         return hash.ToHashCode();
     }
 
@@ -68,8 +74,8 @@ public sealed record WantedMod(
     {
         if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
         if (VariantModIds is { Count: > 0 })
-            return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id));
-        return [new PoeRegex.Core.ModifierRequirement(ModId)];
+            return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id, MinValue));
+        return [new PoeRegex.Core.ModifierRequirement(ModId, MinValue)];
     }
 }
 
@@ -79,6 +85,15 @@ public sealed class SlotCriteria
     public string ClassId { get; set; } = "";
     public List<WantedMod> Included { get; set; } = [];
     public List<string> Excluded { get; set; } = [];
+
+    /// <summary>True: an item needs every included pick; false: any one of them.</summary>
+    public bool MatchAll { get; set; }
+
+    /// <summary>Below two picks all-of matches like any-of and its switch is hidden, so it must not linger for the next pick.</summary>
+    internal void NormalizeMatchAll()
+    {
+        if (Included.Count < 2) MatchAll = false;
+    }
 }
 
 /// <summary>
@@ -239,10 +254,32 @@ public sealed class WorkbenchState
     /// plain pick on the same anchor are distinct entries.</summary>
     public bool RemoveInclude(string? slot, WantedMod pick)
     {
+        var crit = CriteriaFor(slot);
+        var i = crit.Included.FindIndex(m => m.SamePick(pick));
+        if (i < 0) return false;
+        crit.Included.RemoveAt(i);
+        crit.NormalizeMatchAll();
+        Notify();
+        return true;
+    }
+
+    public void SetMatchAll(string? slot, bool matchAll)
+    {
+        var crit = CriteriaFor(slot);
+        var before = crit.MatchAll;
+        crit.MatchAll = matchAll;
+        crit.NormalizeMatchAll();
+        if (crit.MatchAll != before) Notify();
+    }
+
+    /// <summary>Sets or clears a plain pick's minimum value in place, so the pick keeps its position.</summary>
+    public bool SetMinValue(string? slot, WantedMod pick, double? minValue)
+    {
+        if (minValue is { } v && !WantedMod.IsValidMinValue(v)) minValue = null;
         var list = CriteriaFor(slot).Included;
         var i = list.FindIndex(m => m.SamePick(pick));
-        if (i < 0) return false;
-        list.RemoveAt(i);
+        if (i < 0 || list[i].IsNamePick || list[i].MinValue == minValue) return false;
+        list[i] = list[i] with { MinValue = minValue };
         Notify();
         return true;
     }
@@ -268,6 +305,7 @@ public sealed class WorkbenchState
         var c = CriteriaFor(slot);
         c.Included.Clear();
         c.Excluded.Clear();
+        c.MatchAll = false;
         Notify();
     }
 
@@ -363,6 +401,7 @@ public sealed class WorkbenchState
         Global.ClassId = "";
         Global.Included.Clear();
         Global.Excluded.Clear();
+        Global.MatchAll = false;
         TestItems.Clear();
         SelectedItemId = null;
         Notify();

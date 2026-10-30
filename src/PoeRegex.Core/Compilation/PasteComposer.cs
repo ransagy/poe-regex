@@ -4,8 +4,15 @@ using PoeRegex.Core.Explain;
 
 namespace PoeRegex.Core.Compilation;
 
-/// <summary>One slot's contribution to a combined paste: base class + wanted mods.</summary>
-public sealed record PasteSlotCriterion(string ItemClass, IReadOnlyList<ModifierRequirement> Includes, string Label);
+/// <summary>One slot's contribution to a combined paste: base class + wanted mods (any of Includes, or every RequiredGroups entry).</summary>
+public sealed record PasteSlotCriterion(
+    string ItemClass,
+    IReadOnlyList<ModifierRequirement> Includes,
+    string Label,
+    IReadOnlyList<IReadOnlyList<ModifierRequirement>>? RequiredGroups = null)
+{
+    public bool MatchAll => RequiredGroups is { Count: > 0 };
+}
 
 /// <summary>One quoted group of a combined paste (anchor excluded — see result).</summary>
 public sealed record PasteGroup(string Label, IReadOnlyList<string> TargetClasses, string Token);
@@ -77,8 +84,20 @@ public sealed class PasteComposer
         foreach (var group in known.GroupBy(s => s.ItemClass, StringComparer.Ordinal))
         {
             var ordered = group.OrderBy(s => s.Label, StringComparer.Ordinal).ToList();
-            var includes = ordered.SelectMany(s => s.Includes).Distinct().ToList();
             var label = string.Join(", ", ordered.Select(s => s.Label).Distinct(StringComparer.Ordinal));
+            var contributing = ordered.Where(s => s.Includes.Count > 0 || s.MatchAll).ToList();
+            if (contributing.Count == 1 && contributing[0].MatchAll)
+            {
+                merged.Add(new PasteSlotCriterion(group.Key, [], label, contributing[0].RequiredGroups));
+                continue;
+            }
+            // Two same-class slots cannot each require all of their own mods in one paste.
+            if (contributing.Any(s => s.MatchAll))
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "paste-merge-any",
+                    $"Slots sharing item class '{group.Key}' combine as any-of; all-of needs one slot of that class."));
+            var includes = ordered
+                .SelectMany(s => s.Includes.Concat(s.RequiredGroups?.SelectMany(g => g) ?? []))
+                .Distinct().ToList();
             merged.Add(new PasteSlotCriterion(group.Key, includes, label));
         }
         merged.Sort((a, b) => string.CompareOrdinal(a.ItemClass, b.ItemClass));
@@ -97,38 +116,44 @@ public sealed class PasteComposer
         var groups = new List<PasteGroup>();
         var blocks = new List<string> { Poe2Syntax.Quote(anchorInner) };
         // Group identical criteria (different classes, same mods) into one line.
-        foreach (var bucket in merged.Where(s => s.Includes.Count > 0)
-                     .GroupBy(s => string.Join("\n", s.Includes.Select(i => i.Value + "\u0001" + i.MinValue)),
-                         StringComparer.Ordinal))
+        foreach (var bucket in merged.Where(s => s.Includes.Count > 0 || s.MatchAll)
+                     .GroupBy(CriterionKey, StringComparer.Ordinal))
         {
             var targets = bucket.Select(s => s.ItemClass).OrderBy(x => x, StringComparer.Ordinal).ToList();
             var label = string.Join(", ", bucket.Select(s => s.Label).OrderBy(x => x, StringComparer.Ordinal));
-            var frags = new List<string>();
-            var sources = new List<string>();
-            foreach (var req in bucket.SelectMany(s => s.Includes).Distinct().ToList())
-            {
-                var frag = FragmentFor(req, targets[0], diagnostics);
-                if (frag is null)
-                {
-                    diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
-                        $"Modifier '{req.Value}' could not be resolved; skipped."));
-                    continue;
-                }
-                frags.Add(frag);
-                if (_corpus.FindMod(req.Value) is not null) sources.Add(req.Value);
-            }
-            if (frags.Count == 0) continue;
             var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal)).ToList();
-            var factored = CompactionEngine.FactorCommonPrefixes(frags);
-            var token = others.Count > 0
-                ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", factored)
-                : string.Join("|", factored);
-            var tokenDiag = Poe2Syntax.ValidateFragment(token);
-            if (tokenDiag is not null) diagnostics.Add(tokenDiag);
-            groups.Add(new PasteGroup(label, targets, token));
-            blocks.Add(Poe2Syntax.Quote(token));
-            if (_validateRecall)
-                ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
+            var first = bucket.First();
+            IReadOnlyList<IReadOnlyList<ModifierRequirement>> required = first.MatchAll
+                ? first.RequiredGroups!
+                : [first.Includes.Distinct().ToList()];
+            foreach (var reqs in required)
+            {
+                var frags = new List<string>();
+                var sources = new List<string>();
+                foreach (var req in reqs.Distinct().ToList())
+                {
+                    var frag = FragmentFor(req, targets[0], diagnostics);
+                    if (frag is null)
+                    {
+                        diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                            $"Modifier '{req.Value}' could not be resolved; skipped."));
+                        continue;
+                    }
+                    frags.Add(frag);
+                    if (_corpus.FindMod(req.Value) is not null) sources.Add(req.Value);
+                }
+                if (frags.Count == 0) continue;
+                var factored = CompactionEngine.FactorCommonPrefixes(frags);
+                var token = others.Count > 0
+                    ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", factored)
+                    : string.Join("|", factored);
+                var tokenDiag = Poe2Syntax.ValidateFragment(token);
+                if (tokenDiag is not null) diagnostics.Add(tokenDiag);
+                groups.Add(new PasteGroup(label, targets, token));
+                blocks.Add(Poe2Syntax.Quote(token));
+                if (_validateRecall)
+                    ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
+            }
         }
 
         // Exclusions union globally: block negation cannot be scoped per slot.
@@ -158,6 +183,12 @@ public sealed class PasteComposer
             Diagnostics = diagnostics,
         };
     }
+
+    private static string CriterionKey(PasteSlotCriterion s) => s.MatchAll
+        ? "all\u0002" + string.Join("\u0002", s.RequiredGroups!.Select(g => string.Join("\n", g.Select(RequirementKey))))
+        : string.Join("\n", s.Includes.Select(RequirementKey));
+
+    private static string RequirementKey(ModifierRequirement r) => r.Value + "\u0001" + r.MinValue;
 
     private string? FragmentFor(ModifierRequirement req, string itemClass, List<CompilerDiagnostic> diagnostics)
     {

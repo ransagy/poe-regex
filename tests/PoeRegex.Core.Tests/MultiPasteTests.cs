@@ -133,4 +133,38 @@ public class MultiPasteTests
             [new PasteSlotCriterion("Ring", many, "weapon")], [], allowOverflow: true);
         loose.Exceeded.Should().BeTrue();
     }
+
+    [Fact]
+    public void Combine_MatchAll_EmitsOneGroupPerRequiredGroup()
+    {
+        var corpus = Corpus();
+        var result = Composer(corpus).Compose(
+        [
+            new PasteSlotCriterion("Helmet", [], "helmet",
+                [[new ModifierRequirement("IncreasedLife6")], [new ModifierRequirement("Strength1")]]),
+            new PasteSlotCriterion("Ring", [new ModifierRequirement("IncreasedLife6")], "ring"),
+        ], []);
+
+        var helmet = result.Groups.Where(g => g.Label == "helmet").ToList();
+        helmet.Should().HaveCount(2);
+        helmet.Should().OnlyContain(g => g.TargetClasses.SequenceEqual(new[] { "Helmet" }));
+        helmet.Should().OnlyContain(g => g.Token.StartsWith(": (", StringComparison.Ordinal));
+        result.Groups.Where(g => g.Label == "ring").Should().ContainSingle();
+        result.Diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Combine_MatchAll_SameClassFallsBackToAnyWithWarning()
+    {
+        var corpus = Corpus();
+        var result = Composer(corpus).Compose(
+        [
+            new PasteSlotCriterion("Ring", [], "ring1",
+                [[new ModifierRequirement("IncreasedLife6")], [new ModifierRequirement("Strength1")]]),
+            new PasteSlotCriterion("Ring", [new ModifierRequirement("Dexterity1")], "ring2"),
+        ], []);
+
+        result.Groups.Should().ContainSingle();
+        result.Diagnostics.Should().Contain(d => d.Code == "paste-merge-any");
+    }
 }

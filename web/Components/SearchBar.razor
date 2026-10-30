@@ -1,0 +1,193 @@
+@using System.Globalization
+@using PoeRegex.Core
+@using PoeRegex.Web.Core
+@inject IJSRuntime JS
+@implements IDisposable
+
+<section class="hero" id="result-strip" aria-label="Search string">
+    <div class="hero-head">
+        <h2 class="hero-title">Search string</h2>
+        @if (Model.Query.Length > 0)
+        {
+            <span class="out-len @(Model.Over ? "over" : "")" title="@LengthTitle()" aria-live="polite">
+                <b>@Model.Length</b> / @Model.Limit
+                @if (Model.Over)
+                {
+                    <span class="out-over">, @(Model.Length - Model.Limit) over the game's limit</span>
+                }
+            </span>
+        }
+    </div>
+    <div class="hero-main">
+        <div class="qbox @(Model.Over ? "over" : "") @(Model.Query.Length == 0 ? "empty" : "")" id="slot-query-@CardId">
+            @if (Model.Query.Length == 0)
+            {
+                <span class="qbox-empty">@EmptyText()</span>
+            }
+            else
+            {
+                <code class="qtext">
+                    @if (Model.Blocks.Count == 0)
+                    {
+                        @Model.Query
+                    }
+                    else
+                    {
+                        for (var i = 0; i < Model.Blocks.Count; i++)
+                        {
+                            var b = Model.Blocks[i];
+                            <span class="qb qb-@b.Role @(Model.IsHot(b.Index) ? "hot" : "")"
+                                  @onmouseenter="() => Model.Hot(b.Index)" @onmouseleave="Model.Cool">@b.Text</span>@(i < Model.Blocks.Count - 1 ? " " : "")
+                        }
+                    }
+                </code>
+            }
+        </div>
+        <div class="hero-side">
+            <button type="button" class="btn btn-primary hero-copy" id="slot-copy-@CardId"
+                    disabled="@(Model.Query.Length == 0)" @onclick="Copy">
+                @(_copyState ?? "Copy")
+            </button>
+            <label class="auto-copy" title="Copies the string each time you change a pick">
+                <input type="checkbox" id="auto-copy" checked="@_autoCopy" @onchange="ToggleAutoCopy" />
+                Copy on every change
+            </label>
+        </div>
+    </div>
+    @if (Model.Query.Length > 0)
+    {
+        <div class="ruler" aria-hidden="true">
+            @foreach (var b in Model.Blocks)
+            {
+                <span class="ruler-seg seg-@b.Role @(Model.IsHot(b.Index) ? "hot" : "")"
+                      style="width:@Pct(b.Cost)%" title="@($"{b.Label}: {b.Cost} characters")"
+                      @onmouseenter="() => Model.Hot(b.Index)" @onmouseleave="Model.Cool"></span>
+            }
+            @if (Model.Over)
+            {
+                <span class="ruler-limit" style="left:@Pct(Model.Limit)%"></span>
+            }
+        </div>
+    }
+    @if (Unresolved.Count > 0)
+    {
+        <p class="out-warn" id="rb-unresolved" title="@string.Join("\n", Unresolved.Select(d => d.Message))">
+            @(Unresolved.Count == 1 ? "1 pick has" : $"{Unresolved.Count} picks have") no fragment and @(Unresolved.Count == 1 ? "is" : "are") left out.
+        </p>
+    }
+    <div class="hero-tools">
+        @Tools
+    </div>
+
+    @if (Model.Query.Length > 0)
+    {
+        <div class="out-dock">
+            <span class="out-len @(Model.Over ? "over" : "")" title="@LengthTitle()"><b>@Model.Length</b> / @Model.Limit</span>
+            <button type="button" class="btn btn-primary" id="dock-copy" @onclick="Copy">@(_copyState ?? "Copy search string")</button>
+        </div>
+    }
+</section>
+
+@code {
+    private const string AutoCopyKey = "poe-regex.auto-copy";
+
+    [Parameter, EditorRequired]
+    public required SearchModel Model { get; set; }
+
+    [Parameter, EditorRequired]
+    public required WorkbenchState State { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<CompilerDiagnostic> Unresolved { get; set; } = [];
+
+    /// <summary>Controls that act on the string (test items, details, recipes, sharing).</summary>
+    [Parameter]
+    public RenderFragment? Tools { get; set; }
+
+    private string CardId => State.Mode == "advanced" ? "advanced" : "simple";
+    private bool _autoCopy;
+    private string _lastQuery = "";
+    private string? _copyState;
+    private int _flashStamp;
+    private SearchModel? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Model))
+        {
+            if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
+            Model.HotChanged += Repaint;
+            _subscribed = Model;
+        }
+        if (_autoCopy && Model.Query.Length > 0 && !string.Equals(Model.Query, _lastQuery, StringComparison.Ordinal))
+            _ = AutoCopy(Model.Query);
+        _lastQuery = Model.Query;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _autoCopy = await JS.InvokeAsync<string?>("localStorage.getItem", AutoCopyKey) == "1";
+            if (_autoCopy) StateHasChanged();
+        }
+        catch
+        {
+            // Storage unavailable: auto-copy stays off.
+        }
+    }
+
+    private void Repaint() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
+    }
+
+    private string EmptyText() => State.Mode == "advanced"
+        ? "Choose a slot below and add mods with + to build your search string."
+        : "Add mods below with + to build your search string.";
+
+    private string LengthTitle() => Model.Over
+        ? $"{Model.Length} characters, {Model.Length - Model.Limit} over the game's {Model.Limit}-character limit"
+        : $"{Model.Length} of {Model.Limit} characters";
+
+    private string Pct(int value) =>
+        (100.0 * value / Math.Max(Model.Length, Model.Limit)).ToString("0.###", CultureInfo.InvariantCulture);
+
+    private async Task ToggleAutoCopy(ChangeEventArgs e)
+    {
+        _autoCopy = e.Value is true;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", AutoCopyKey, _autoCopy ? "1" : "0"); }
+        catch { }
+        if (_autoCopy && Model.Query.Length > 0) await Copy();
+    }
+
+    private async Task AutoCopy(string query)
+    {
+        string status;
+        try { status = await JS.InvokeAsync<string>("poeRegexAutoCopy", query); }
+        catch { return; }
+        if (status == "copied") await Flash("Copied");
+    }
+
+    private async Task Copy()
+    {
+        string state;
+        try { state = await JS.InvokeAsync<string>("poeRegexCopy", Model.Query) == "copied" ? "Copied" : "Copy failed"; }
+        catch { state = "Copy failed"; }
+        await Flash(state);
+    }
+
+    private async Task Flash(string state)
+    {
+        var stamp = ++_flashStamp;
+        _copyState = state;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(1600);
+        if (stamp != _flashStamp) return;
+        _copyState = null;
+        await InvokeAsync(StateHasChanged);
+    }
+}
