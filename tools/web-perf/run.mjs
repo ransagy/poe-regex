@@ -173,11 +173,11 @@ function makeActions(sampleText) {
   const sampleJson = JSON.stringify(sampleText);
   return [
     ['mode: advanced', () => `document.querySelector('#mode-advanced').click()`,
-      `!!document.querySelector('.inv-doll')`],
+      `!!document.querySelector('.doll')`],
     ['slot focus', () => `document.querySelector('#slot-helmet').click()`,
       `!!document.querySelector('#mod-search')`],
     ['mode: simple', () => `document.querySelector('#mode-simple').click()`,
-      `!document.querySelector('.inv-doll') && !!document.querySelector('#mod-search')`],
+      `!document.querySelector('.doll') && !!document.querySelector('#mod-search')`],
     ['picker expand', () => `document.querySelector('.fam-toggle').click()`,
       `!!document.querySelector('.tier-list')`],
     ['picker collapse', () => `document.querySelector('.fam-toggle').click()`,
@@ -190,16 +190,24 @@ function makeActions(sampleText) {
       `true`],
     ['exclusion pick', () => `document.querySelector('.fam-row button[id^="pick-exc-"]').click()`,
       `!!document.querySelector('[id^="chip-exc-"]')`],
+    ['details open', () => `document.querySelector('#more-info-toggle').click()`,
+      `!!document.querySelector('#more-info')`],
     ['explain cold', () => `document.querySelector('#qcard-simple-explain').click()`,
       `!!document.querySelector('#qcard-simple-explain-panel')`, 15000],
     ['explain close', () => `document.querySelector('#qcard-simple-explain').click()`,
       `!document.querySelector('#qcard-simple-explain-panel')`],
     ['explain warm', () => `document.querySelector('#qcard-simple-explain').click()`,
       `!!document.querySelector('#qcard-simple-explain-panel')`],
+    ['details close', () => `document.querySelector('#more-info-toggle').click()`,
+      `!document.querySelector('#more-info')`],
     ['clear picks', () => `document.querySelector('#chips-clear-global').click()`,
       `!document.querySelector('[id^="chip-inc-"]')`],
     ['bulk add (++)', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('#suggest-all')?.click(), 0)`,
       `[...document.querySelectorAll('[id^="chip-inc-"]')].length > 0`, 10000],
+    ['query import open', () => `document.querySelector('#query-import-open').click()`,
+      `!!document.querySelector('#query-import-dialog')`],
+    ['query import close', () => `document.querySelector('#query-import-cancel').click()`,
+      `!document.querySelector('#query-import-dialog')`],
     ['test area open', () => `document.querySelector('#test-lab-toggle').click()`,
       `!!document.querySelector('#test-lab-body')`],
     ['import open', () => `document.querySelector('#import-open').click()`,
@@ -217,7 +225,7 @@ function makeActions(sampleText) {
     ['advanced: reset simple picks', () => `document.querySelector('#chips-clear-global').click()`,
       `!document.querySelector('[id^="chip-inc-"]')`],
     ['advanced: mode', () => `document.querySelector('#mode-advanced').click()`,
-      `!!document.querySelector('.inv-doll')`],
+      `!!document.querySelector('.doll')`],
     ['advanced: focus helmet', () => `document.querySelector('#slot-helmet').click()`,
       `!!document.querySelector('#mod-search')`],
     ['advanced: pick helmet', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
@@ -235,9 +243,13 @@ function makeActions(sampleText) {
     ['advanced: pick boots', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,
       `!!document.querySelector('[id^="chip-inc-boots"]')`],
     ['advanced: 4-slot paste', () => `true`,
-      `!!document.querySelector('#combined-paste-query') && document.querySelector('#combined-paste-query').textContent.length > 0`],
+      `(document.querySelector('#slot-query-advanced .qtext')?.textContent || '').length > 0`],
+    ['advanced: details open', () => `document.querySelector('#more-info-toggle').click()`,
+      `!!document.querySelector('#more-info')`],
     ['advanced: explain helmet cold', () => `document.querySelector('#qcard-helmet-explain').click()`,
       `!!document.querySelector('#qcard-helmet-explain-panel')`, 15000],
+    ['advanced: details close', () => `document.querySelector('#more-info-toggle').click()`,
+      `!document.querySelector('#more-info')`],
     ['advanced: focus weapon', () => `document.querySelector('#slot-weapon').click()`,
       `!!document.querySelector('#modpicker-weapon')`],
     ['advanced: pick weapon', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
@@ -263,7 +275,7 @@ function makeActions(sampleText) {
     ['advanced: pick ring2', () => `(async () => { const input=document.querySelector('#mod-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,40)); [...document.querySelectorAll('.fam-row button[id^="pick-inc-"]')].find(b=>!b.disabled)?.click(); })()`,
       `!!document.querySelector('[id^="chip-inc-ring2"]')`, 10000],
     ['advanced: 10-slot paste', () => `true`,
-      `!!document.querySelector('#combined-paste-query') && document.querySelector('#combined-paste-query').textContent.length > 0`],
+      `(document.querySelector('#slot-query-advanced .qtext')?.textContent || '').length > 0`],
     ['advanced: 10-slot paste update', () => `(async () => {
         const wait=async(fn,ms=3000)=>{const t=Date.now();while(Date.now()-t<ms){if(fn())return true;await new Promise(r=>setTimeout(r,40));}return false;};
         document.querySelector('#slot-weapon')?.click();
@@ -271,21 +283,21 @@ function makeActions(sampleText) {
         const input=document.querySelector('#mod-search');
         if (input) { input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); }
         await wait(()=>[...document.querySelectorAll('.fam-row button[id^="pick-exc-"]')].some(b=>!b.disabled));
-        window.__pasteBefore=document.querySelector('#combined-paste-query')?.textContent||'';
+        window.__pasteBefore=document.querySelector('#slot-query-advanced .qtext')?.textContent||'';
         [...document.querySelectorAll('.fam-row button[id^="pick-exc-"]')].find(b=>!b.disabled)?.click();
         return true;
       })()`,
-      `(document.querySelector('#combined-paste-query')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
+      `(document.querySelector('#slot-query-advanced .qtext')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
     ['advanced: class change', () => `(async () => {
         const wait=async(fn,ms=3000)=>{const t=Date.now();while(Date.now()-t<ms){if(fn())return true;await new Promise(r=>setTimeout(r,40));}return false;};
         document.querySelector('#slot-weapon')?.click();
         await wait(()=>!!document.querySelector('#modpicker-weapon'));
-        window.__pasteBefore=document.querySelector('#combined-paste-query')?.textContent||'';
-        const sel=document.querySelector('#slot-weapon')?.closest('.gear-slot')?.querySelector('select.gear-class');
+        window.__pasteBefore=document.querySelector('#slot-query-advanced .qtext')?.textContent||'';
+        const sel=document.querySelector('#slot-class-weapon');
         if (sel && sel.options.length>1) { sel.selectedIndex=1; sel.dispatchEvent(new Event('change',{bubbles:true})); }
         return true;
       })()`,
-      `(document.querySelector('#combined-paste-query')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
+      `(document.querySelector('#slot-query-advanced .qtext')?.textContent||'') !== (window.__pasteBefore||'')`, 20000],
   ].map(([label, fn, wait, timeout, debug]) => ({ label, fn, wait, timeout, debug }));
 }
 
