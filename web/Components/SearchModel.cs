@@ -159,7 +159,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     }
 
     public bool MergedToAny(string cls) =>
-        Paste?.Diagnostics.Any(d => d.Code == "paste-merge-any" && d.Message.Contains($"'{cls}'", StringComparison.Ordinal)) == true;
+        Paste?.MergedToAnyClasses.Contains(cls, StringComparer.Ordinal) == true;
 
     /// <summary>The fragment one pick compiles to on its own (cached).</summary>
     public string? PickFragment(WantedMod pick, string? cls)

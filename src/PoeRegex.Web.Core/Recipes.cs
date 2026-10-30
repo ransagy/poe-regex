@@ -57,7 +57,7 @@ public static class RecipeCodec
             var snap = JsonSerializer.Deserialize(json.ToArray(), WebJsonContext.Default.WorkbenchSnapshot);
             return SnapshotValidator.IsValid(snap) ? snap with { TestItems = [] } : null;
         }
-        catch (Exception ex) when (ex is FormatException or InvalidDataException or JsonException or NotSupportedException)
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or JsonException or NotSupportedException or ArgumentException)
         {
             return null;
         }

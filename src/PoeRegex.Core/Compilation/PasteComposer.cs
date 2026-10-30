@@ -27,6 +27,8 @@ public sealed record MultiPasteResult
     public required string Anchor { get; init; }
     public required IReadOnlyList<PasteGroup> Groups { get; init; }
     public required IReadOnlyList<CompilerDiagnostic> Diagnostics { get; init; }
+    /// <summary>Classes whose same-class all-of merge fell back to any-of.</summary>
+    public IReadOnlyList<string> MergedToAnyClasses { get; init; } = [];
 }
 
 /// <summary>
@@ -64,6 +66,7 @@ public sealed class PasteComposer
         bool allowOverflow = false)
     {
         var diagnostics = new List<CompilerDiagnostic>();
+        var mergedToAnyClasses = new List<string>();
 
         // Resolve classes; unknown slots are skipped with a warning.
         var known = new List<PasteSlotCriterion>();
@@ -93,8 +96,11 @@ public sealed class PasteComposer
             }
             // Two same-class slots cannot each require all of their own mods in one paste.
             if (contributing.Any(s => s.MatchAll))
+            {
+                mergedToAnyClasses.Add(group.Key);
                 diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "paste-merge-any",
                     $"Slots sharing item class '{group.Key}' combine as any-of; all-of needs one slot of that class."));
+            }
             var includes = ordered
                 .SelectMany(s => s.Includes.Concat(s.RequiredGroups?.SelectMany(g => g) ?? []))
                 .Distinct().ToList();
@@ -181,6 +187,7 @@ public sealed class PasteComposer
             Anchor = anchorInner,
             Groups = groups,
             Diagnostics = diagnostics,
+            MergedToAnyClasses = mergedToAnyClasses,
         };
     }
 

@@ -2,10 +2,11 @@
 @inject web.Services.PersistenceService Persistence
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@implements IDisposable
 
-<div class="recipes">
+<div class="recipes" @onkeydown="OnKeyDown">
     <button type="button" class="btn" id="recipes-open" aria-expanded="@(_open ? "true" : "false")"
-            aria-haspopup="dialog" @onclick="Toggle">
+            aria-haspopup="dialog" @ref="_openButton" @onclick="Toggle">
         Recipes
         @if (_recipes.Count > 0)
         {
@@ -19,10 +20,11 @@
     @if (_open)
     {
         <div class="help-backdrop" @onclick="Close"></div>
-        <div class="recipes-pop" role="dialog" aria-label="Saved recipes" @onkeydown="OnKeyDown">
+        <div class="recipes-pop" role="dialog" aria-modal="true" aria-label="Saved recipes"
+             @ref="_dialog" @onkeydown="OnKeyDown">
             <form class="recipes-save" @onsubmit="Save">
                 <input id="recipe-name" placeholder="Name these picks…" autocomplete="off" aria-label="Recipe name"
-                       maxlength="@SnapshotValidator.MaxRecipeName"
+                       maxlength="@SnapshotValidator.MaxRecipeName" @ref="_nameInput"
                        value="@_name" @oninput="e => _name = e.Value?.ToString() ?? string.Empty" />
                 <button type="submit" class="btn btn-primary" id="recipe-save" disabled="@(!HasPicks)">Save</button>
             </form>
@@ -68,12 +70,21 @@
 
     private sealed record UndoStep(string Message, List<SavedRecipe> Recipes, WorkbenchSnapshot? Picks);
 
+    private const int MaxShareUrlLength = 8000;
+
     private List<SavedRecipe> _recipes = [];
     private bool _open;
     private string _name = "";
     private string? _shareState;
     private UndoStep? _undo;
     private int _loadedVersion = -1;
+    private int _shareStamp;
+    private bool _focusPending;
+    private bool _restoreFocus;
+    private bool _disposed;
+    private ElementReference _openButton;
+    private ElementReference _nameInput;
+    private ElementReference _dialog;
 
     private bool HasPicks =>
         State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
@@ -83,37 +94,74 @@
     {
         if (_loadedVersion == Version) return;
         _loadedVersion = Version;
-        _recipes = await Persistence.LoadRecipesAsync();
+        var recipes = await Persistence.LoadRecipesAsync();
+        if (!_disposed) _recipes = recipes;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        if (_open && _focusPending)
+        {
+            _focusPending = false;
+            try
+            {
+                await JS.InvokeVoidAsync("poeRegexTrapFocus", _dialog);
+                await _nameInput.FocusAsync();
+            }
+            catch
+            {
+                // JS unavailable: the dialog still works by mouse/keyboard.
+            }
+        }
+        else if (!_open && _restoreFocus)
+        {
+            _restoreFocus = false;
+            try { await _openButton.FocusAsync(); }
+            catch { }
+        }
     }
 
     private static string ModeLabel(SavedRecipe r) => r.Snapshot.Mode == "advanced" ? "Per slot" : "All gear";
 
     private async Task Toggle()
     {
-        _open = !_open;
         if (_open)
         {
-            _undo = null;
-            _recipes = await Persistence.LoadRecipesAsync();
+            Close();
+            return;
         }
+        _open = true;
+        _undo = null;
+        _focusPending = true;
+        var recipes = await Persistence.LoadRecipesAsync();
+        if (!_disposed) _recipes = recipes;
     }
 
-    private void Close() => _open = false;
+    private void Close()
+    {
+        if (!_open) return;
+        _open = false;
+        _restoreFocus = true;
+    }
 
     private void OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape") _open = false;
+        if (e.Key == "Escape") Close();
     }
+
+    public void Dispose() => _disposed = true;
 
     private async Task Save()
     {
-        if (!HasPicks) return;
+        if (_disposed || !HasPicks) return;
         var name = _name.Trim();
         if (name.Length == 0) name = $"Recipe {_recipes.Count + 1}";
         var before = _recipes.ToList();
         _recipes.RemoveAll(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
         _recipes.Insert(0, new SavedRecipe(name, DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
         await Persistence.SaveRecipesAsync(_recipes);
+        if (_disposed) return;
         _undo = new UndoStep($"Saved “{name}”.", before, null);
         _name = "";
     }
@@ -127,28 +175,52 @@
 
     private async Task Delete(SavedRecipe recipe)
     {
+        if (_disposed) return;
         var before = _recipes.ToList();
         _recipes.Remove(recipe);
         await Persistence.SaveRecipesAsync(_recipes);
+        if (_disposed) return;
         _undo = new UndoStep($"Deleted “{recipe.Name}”.", before, null);
     }
 
     private async Task Undo()
     {
-        if (_undo is null) return;
+        if (_disposed || _undo is null) return;
         if (_undo.Picks is { } picks) WorkbenchSnapshot.RestoreCriteria(State, picks);
         _recipes = _undo.Recipes;
         await Persistence.SaveRecipesAsync(_recipes);
-        _undo = null;
+        if (!_disposed) _undo = null;
     }
 
     private async Task Share()
     {
+        if (_disposed) return;
         var url = Nav.BaseUri + "#" + RecipeCodec.FragmentPrefix + RecipeCodec.Encode(RecipeCodec.CaptureCriteria(State));
-        try { _shareState = await JS.InvokeAsync<string>("poeRegexCopy", url) == "copied" ? "Link copied" : "Copy failed"; }
-        catch { _shareState = "Copy failed"; }
-        StateHasChanged();
-        await Task.Delay(1800);
+        if (url.Length > MaxShareUrlLength)
+        {
+            await FlashShare("Link too long; save a recipe instead");
+            return;
+        }
+        try
+        {
+            var status = await JS.InvokeAsync<string>("poeRegexCopy", url);
+            await FlashShare(status == "copied" ? "Link copied" : "Copy failed");
+        }
+        catch
+        {
+            await FlashShare("Copy failed");
+        }
+    }
+
+    private async Task FlashShare(string state)
+    {
+        if (_disposed) return;
+        var stamp = ++_shareStamp;
+        _shareState = state;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2200);
+        if (_disposed || stamp != _shareStamp) return;
         _shareState = null;
+        await InvokeAsync(StateHasChanged);
     }
 }

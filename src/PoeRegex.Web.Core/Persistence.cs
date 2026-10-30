@@ -86,9 +86,12 @@ public sealed record WorkbenchSnapshot(
         state.Global.NormalizeMatchAll();
         if (!items) return;
         state.TestItems.Clear();
+        if (snap.TestItems is null) return;
         var placed = new List<TestItem>(snap.TestItems.Count);
         foreach (var item in snap.TestItems)
         {
+            if (item is null || item.Parsed is null) continue;
+            item.Mapped ??= [];
             // Heal stale pre-footprint items: derive the class footprint.
             if (item.Cols <= 0 || item.Rows <= 0)
             {

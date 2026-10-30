@@ -35,6 +35,20 @@ public class CombineServiceTests
     }
 
     [Fact]
+    public void Combine_SameClassAllOf_ReportsMergedToAnyClass()
+    {
+        var picks = new[] { new WantedMod("IncreasedLife6"), new WantedMod("Strength1") };
+        var paste = Engine.Combine(
+        [
+            ("ring1 (Ring)", "Ring", picks, true),
+            ("ring2 (Ring)", "Ring", picks, true),
+        ], []);
+
+        paste.MergedToAnyClasses.Should().Equal(["Ring"]);
+        paste.Diagnostics.Should().Contain(d => d.Code == "paste-merge-any");
+    }
+
+    [Fact]
     public void Combine_Deterministic()
     {
         MultiPasteResult Build() => Engine.Combine(

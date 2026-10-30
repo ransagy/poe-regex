@@ -137,6 +137,23 @@ public class RecipeTests
     public void Validator_AcceptsCapturedPicks() =>
         SnapshotValidator.IsValid(RecipeCodec.CaptureCriteria(Picked())).Should().BeTrue();
 
+    [Fact]
+    public void Validator_RejectsBrokenTestItems()
+    {
+        var snap = RecipeCodec.CaptureCriteria(Picked());
+        var item = new TestItem
+        {
+            Name = "item",
+            ClassId = "Belt",
+            Parsed = ItemTextParser.Parse(FixtureTexts.Belt),
+        };
+        snap.TestItems.Add(item);
+        SnapshotValidator.IsValid(snap).Should().BeTrue();
+
+        item.Mapped = null!;
+        SnapshotValidator.IsValid(snap).Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("Boots", true)]
     [InlineData("", false)]
