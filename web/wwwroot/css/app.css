@@ -40,6 +40,18 @@
     --mod-ink: #11131c;
     --tint: rgba(255, 255, 255, 0.06);
     --loader-ink: #9aa4b2;
+    /* Structural chrome; light variants can tint the bars and page. */
+    --head-bg: transparent;
+    --head-ink: var(--text);
+    --head-sub: var(--faint);
+    --head-link: var(--muted);
+    --head-line: var(--line);
+    --foot-bg: transparent;
+    --foot-ink: var(--faint);
+    --foot-link: var(--muted);
+    --foot-line: var(--line);
+    --page-bg: transparent;
+    --panel-accent: transparent;
     --r: 4px;
     --r-lg: 7px;
     --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
@@ -48,115 +60,19 @@
 }
 
 /*
-  Light options, same forge accent in Bronze. These are candidates while the
-  light look is chosen; the dark default stays Forge Black.
+  Sandstone light themes. The two bases are Sandstone and Sandstone Deep; the
+  other three vary the surface hierarchy and chrome rather than just the tint.
+  Game rarity colors keep their hues and are only darkened enough to read on a
+  light card; mod blue is likewise kept blue-violet.
 */
-:root[data-theme="sandstone-light"] {
-    color-scheme: light;
-    --ground: #f7f0e4;
-    --surface: #fdf9f1;
-    --raised: #ece1cf;
-    --well: #fffdf8;
-    --line: #e0d2bc;
-    --line-strong: #c3af93;
-    --text: #2b2218;
-    --muted: #6a5d4c;
-    --faint: #786b5a;
-    --ember: #92550f;
-    --ember-hi: #a96a1c;
-    --ember-ink: #fff7ea;
-    --ember-soft: rgba(146, 85, 15, 0.12);
-    --ember-btn: #92550f;
-    --ember-btn-hi: #a96a1c;
-    --mod: #4a4a9e;
-    --mod-soft: rgba(74, 74, 158, 0.12);
+:root[data-theme^="sandstone"] {
+    --rarity-normal: #5f5f5c;
+    --rarity-magic: #5b5be0;
+    --rarity-rare: #7c6b00;
+    --rarity-unique: #a45a20;
+    --mod: #414ac0;
+    --mod-soft: rgba(65, 74, 192, 0.12);
     --mod-ink: #ffffff;
-    --no: #a23c28;
-    --no-soft: rgba(162, 60, 40, 0.12);
-    --ok: #456d33;
-    --btn-hover: #e8dcc8;
-    --btn-hover-line: #b09a7b;
-    --anchor: #c3af93;
-    --card-bg: #fffdf8;
-    --rarity-normal: #4a4035;
-    --rarity-magic: #40439f;
-    --rarity-rare: #6f5100;
-    --rarity-unique: #89450f;
-    --exc-ink: #a23c28;
-    --tint: rgba(43, 34, 24, 0.06);
-    --loader-ink: #5f5444;
-}
-
-:root[data-theme="sandstone-deep"] {
-    color-scheme: light;
-    --ground: #e7d7bf;
-    --surface: #f3e7d5;
-    --raised: #dbc8ab;
-    --well: #fbf3e5;
-    --line: #c9b28e;
-    --line-strong: #a08762;
-    --text: #22180e;
-    --muted: #5a4d3c;
-    --faint: #6a5c49;
-    --ember: #7f4a0c;
-    --ember-hi: #945a14;
-    --ember-ink: #fff6e8;
-    --ember-soft: rgba(127, 74, 12, 0.13);
-    --ember-btn: #7f4a0c;
-    --ember-btn-hi: #945a14;
-    --mod: #45408f;
-    --mod-soft: rgba(69, 64, 143, 0.12);
-    --mod-ink: #ffffff;
-    --no: #963323;
-    --no-soft: rgba(150, 51, 35, 0.12);
-    --ok: #3f652e;
-    --btn-hover: #d3bfa0;
-    --btn-hover-line: #94794f;
-    --anchor: #a08762;
-    --card-bg: #fbf3e5;
-    --rarity-normal: #43392e;
-    --rarity-magic: #3a3c91;
-    --rarity-rare: #664a00;
-    --rarity-unique: #7f3f0c;
-    --exc-ink: #963323;
-    --tint: rgba(34, 24, 14, 0.07);
-    --loader-ink: #54483a;
-}
-
-:root[data-theme="sandstone-muted"] {
-    color-scheme: light;
-    --ground: #ece7de;
-    --surface: #f8f5ef;
-    --raised: #e2dacd;
-    --well: #fdfbf7;
-    --line: #d5cbbd;
-    --line-strong: #b4a794;
-    --text: #282219;
-    --muted: #62594d;
-    --faint: #70675b;
-    --ember: #875817;
-    --ember-hi: #9e6a20;
-    --ember-ink: #fff8ee;
-    --ember-soft: rgba(135, 88, 23, 0.12);
-    --ember-btn: #875817;
-    --ember-btn-hi: #9e6a20;
-    --mod: #494b9b;
-    --mod-soft: rgba(73, 75, 155, 0.12);
-    --mod-ink: #ffffff;
-    --no: #9e3f2c;
-    --no-soft: rgba(158, 63, 44, 0.12);
-    --ok: #456e36;
-    --btn-hover: #e6ddcf;
-    --btn-hover-line: #aa9c86;
-    --anchor: #b4a794;
-    --card-bg: #fdfbf7;
-    --rarity-normal: #463f35;
-    --rarity-magic: #3e419c;
-    --rarity-rare: #6c5004;
-    --rarity-unique: #85460f;
-    --exc-ink: #9e3f2c;
-    --tint: rgba(40, 34, 25, 0.06);
-    --loader-ink: #5a5145;
 }
 
 :root[data-theme="sandstone"] {
@@ -176,9 +92,6 @@
     --ember-soft: rgba(143, 84, 16, 0.12);
     --ember-btn: #8f5410;
     --ember-btn-hi: #a96a1c;
-    --mod: #4a4a9e;
-    --mod-soft: rgba(74, 74, 158, 0.12);
-    --mod-ink: #ffffff;
     --no: #a23c28;
     --no-soft: rgba(162, 60, 40, 0.12);
     --ok: #456d33;
@@ -186,122 +99,161 @@
     --btn-hover-line: #a4906f;
     --anchor: #b39f83;
     --card-bg: #fefaf3;
-    --rarity-normal: #4a4035;
-    --rarity-magic: #40439f;
-    --rarity-rare: #6f5100;
-    --rarity-unique: #89450f;
     --exc-ink: #a23c28;
     --tint: rgba(37, 29, 20, 0.06);
     --loader-ink: #5c5142;
 }
 
-/* Light options built from the neutral Forge Black palette. */
-:root[data-theme="forge-light"] {
+:root[data-theme="sandstone-deep"] {
     color-scheme: light;
-    --ground: #ecebe8;
-    --surface: #f7f6f3;
-    --raised: #e2e1dd;
-    --well: #fcfbf8;
-    --line: #d6d4cf;
-    --line-strong: #b3b0a9;
-    --text: #23231f;
-    --muted: #5c5b55;
-    --faint: #6a6962;
-    --ember: #8a5a12;
-    --ember-hi: #a56f1d;
-    --ember-ink: #fff8ec;
-    --ember-soft: rgba(138, 90, 18, 0.12);
-    --ember-btn: #8a5a12;
-    --ember-btn-hi: #a56f1d;
-    --mod: #4b4fa8;
-    --mod-soft: rgba(75, 79, 168, 0.12);
-    --mod-ink: #ffffff;
-    --no: #a8402c;
-    --no-soft: rgba(168, 64, 44, 0.12);
-    --ok: #487335;
-    --btn-hover: #e6e4df;
-    --btn-hover-line: #a5a29a;
-    --anchor: #b3b0a9;
-    --card-bg: #fcfbf8;
-    --rarity-normal: #4a453c;
-    --rarity-magic: #3f45a8;
-    --rarity-rare: #6f5200;
-    --rarity-unique: #8a4a12;
-    --exc-ink: #a8402c;
-    --tint: rgba(35, 35, 31, 0.06);
-    --loader-ink: #5b5a54;
+    --ground: #e7d7bf;
+    --surface: #f3e7d5;
+    --raised: #dbc8ab;
+    --well: #fbf3e5;
+    --line: #c9b28e;
+    --line-strong: #a08762;
+    --text: #22180e;
+    --muted: #5a4d3c;
+    --faint: #6a5c49;
+    --ember: #7f4a0c;
+    --ember-hi: #945a14;
+    --ember-ink: #fff6e8;
+    --ember-soft: rgba(127, 74, 12, 0.13);
+    --ember-btn: #7f4a0c;
+    --ember-btn-hi: #945a14;
+    --no: #963323;
+    --no-soft: rgba(150, 51, 35, 0.12);
+    --ok: #3f652e;
+    --btn-hover: #d3bfa0;
+    --btn-hover-line: #94794f;
+    --anchor: #a08762;
+    --card-bg: #fbf3e5;
+    --exc-ink: #963323;
+    --tint: rgba(34, 24, 14, 0.07);
+    --loader-ink: #54483a;
 }
 
-:root[data-theme="forge-steel"] {
+/* Cards on a deeper tan bench; the header and footer are paper strips. */
+:root[data-theme="sandstone-bench"] {
     color-scheme: light;
-    --ground: #e9edf0;
-    --surface: #f6f9fb;
-    --raised: #dfe5e9;
-    --well: #fcfeff;
-    --line: #cfd8de;
-    --line-strong: #a9b6c0;
-    --text: #1d2429;
-    --muted: #4d5962;
-    --faint: #5f6b74;
-    --ember: #86580f;
-    --ember-hi: #a06c1c;
-    --ember-ink: #fbfcff;
-    --ember-soft: rgba(134, 88, 15, 0.12);
-    --ember-btn: #86580f;
-    --ember-btn-hi: #a06c1c;
-    --mod: #3f4aa0;
-    --mod-soft: rgba(63, 74, 160, 0.12);
-    --mod-ink: #ffffff;
-    --no: #a03a2c;
-    --no-soft: rgba(160, 58, 44, 0.12);
-    --ok: #3f6f36;
-    --btn-hover: #dbe3e8;
-    --btn-hover-line: #96a4af;
-    --anchor: #a9b6c0;
-    --card-bg: #fcfeff;
-    --rarity-normal: #3f4a52;
-    --rarity-magic: #3f45a8;
-    --rarity-rare: #6b4f00;
-    --rarity-unique: #86460f;
-    --exc-ink: #a03a2c;
-    --tint: rgba(29, 36, 41, 0.06);
-    --loader-ink: #4b555e;
+    --ground: #e4d0b0;
+    --surface: #fdf8ee;
+    --raised: #f1e6d3;
+    --well: #fffdf9;
+    --line: #d6c3a4;
+    --line-strong: #b09a77;
+    --text: #2a2013;
+    --muted: #615440;
+    --faint: #645742;
+    --ember: #7f4a0c;
+    --ember-hi: #a96a1c;
+    --ember-ink: #fff7ea;
+    --ember-soft: rgba(143, 84, 16, 0.12);
+    --ember-btn: #85500f;
+    --ember-btn-hi: #9b6119;
+    --no: #93331f;
+    --no-soft: rgba(147, 51, 31, 0.12);
+    --ok: #3d612c;
+    --btn-hover: #e9dcc6;
+    --btn-hover-line: #a8916d;
+    --anchor: #b09a77;
+    --card-bg: #fffdf9;
+    --exc-ink: #a23c28;
+    --tint: rgba(42, 32, 19, 0.06);
+    --loader-ink: #5d5140;
+    --head-bg: #fbf5e9;
+    --head-ink: #2a2013;
+    --head-sub: #6f6250;
+    --head-link: #5f5343;
+    --head-line: #d6c3a4;
+    --foot-bg: #fbf5e9;
+    --foot-ink: #6f6250;
+    --foot-link: #5f5343;
+    --foot-line: #d6c3a4;
+    --page-bg: linear-gradient(180deg, #efe1c9 0%, #e4d0b0 55%, #dfc9a7 100%);
+    --panel-accent: #c9a25f;
 }
 
-:root[data-theme="forge-graphite"] {
+/* Cream page framed by dark bronze chrome; the most dramatic light take. */
+:root[data-theme="sandstone-ember"] {
     color-scheme: light;
-    --ground: #dbdee0;
-    --surface: #e9ecee;
-    --raised: #cfd4d7;
-    --well: #f2f5f6;
-    --line: #bfc6ca;
-    --line-strong: #97a0a6;
-    --text: #191e22;
-    --muted: #48525a;
-    --faint: #586168;
-    --ember: #7f5410;
-    --ember-hi: #95661b;
-    --ember-ink: #fbfcfd;
-    --ember-soft: rgba(127, 84, 16, 0.12);
-    --ember-btn: #7f5410;
-    --ember-btn-hi: #95661b;
-    --mod: #3d4796;
-    --mod-soft: rgba(61, 71, 150, 0.12);
-    --mod-ink: #ffffff;
-    --no: #963525;
-    --no-soft: rgba(150, 53, 37, 0.12);
-    --ok: #3d6833;
-    --btn-hover: #c9cfd3;
-    --btn-hover-line: #879198;
-    --anchor: #97a0a6;
-    --card-bg: #f2f5f6;
-    --rarity-normal: #39434a;
-    --rarity-magic: #3a4099;
-    --rarity-rare: #634a00;
-    --rarity-unique: #7f420e;
-    --exc-ink: #963525;
-    --tint: rgba(25, 30, 34, 0.07);
-    --loader-ink: #46505a;
+    --ground: #f2e8d6;
+    --surface: #fcf6e9;
+    --raised: #efe3ce;
+    --well: #fffdf7;
+    --line: #ddceb4;
+    --line-strong: #b8a17c;
+    --text: #2a1f12;
+    --muted: #665846;
+    --faint: #756752;
+    --ember: #8a4f0c;
+    --ember-hi: #a26318;
+    --ember-ink: #fff6e8;
+    --ember-soft: rgba(138, 79, 12, 0.12);
+    --ember-btn: #7a4a10;
+    --ember-btn-hi: #8f5a18;
+    --no: #9e3a28;
+    --no-soft: rgba(158, 58, 40, 0.12);
+    --ok: #456d33;
+    --btn-hover: #eadcc6;
+    --btn-hover-line: #a89170;
+    --anchor: #b8a17c;
+    --card-bg: #fffdf7;
+    --exc-ink: #9e3a28;
+    --tint: rgba(42, 31, 18, 0.06);
+    --loader-ink: #4e4230;
+    --head-bg: #3b2a16;
+    --head-ink: #f7ecd9;
+    --head-sub: #c8b593;
+    --head-link: #ddc9a5;
+    --head-line: #6b5028;
+    --foot-bg: #3b2a16;
+    --foot-ink: #c8b593;
+    --foot-link: #ddc9a5;
+    --foot-line: #6b5028;
+    --page-bg: radial-gradient(120% 90% at 50% 0%, #fbf3e2 0%, #f2e8d6 60%, #ecdfc9 100%);
+    --panel-accent: #a56a1c;
+}
+
+/* Warm greige with charcoal chrome: an industrial light workshop. */
+:root[data-theme="sandstone-foundry"] {
+    color-scheme: light;
+    --ground: #ddd7cb;
+    --surface: #f6f1e7;
+    --raised: #e8e1d3;
+    --well: #fdf9f1;
+    --line: #cdc4b3;
+    --line-strong: #a79a85;
+    --text: #211c15;
+    --muted: #5b5346;
+    --faint: #5f574b;
+    --ember: #7b490d;
+    --ember-hi: #a46a1c;
+    --ember-ink: #fdf7ec;
+    --ember-soft: rgba(138, 83, 16, 0.12);
+    --ember-btn: #6f4510;
+    --ember-btn-hi: #855417;
+    --no: #9a3827;
+    --no-soft: rgba(154, 56, 39, 0.12);
+    --ok: #3a602c;
+    --btn-hover: #e0d8c9;
+    --btn-hover-line: #9b8d78;
+    --anchor: #a79a85;
+    --card-bg: #fdf9f1;
+    --exc-ink: #9a3827;
+    --tint: rgba(33, 28, 21, 0.06);
+    --loader-ink: #4b463d;
+    --head-bg: #242522;
+    --head-ink: #eee8dc;
+    --head-sub: #a49d90;
+    --head-link: #c3bbab;
+    --head-line: #4a4740;
+    --foot-bg: #242522;
+    --foot-ink: #a49d90;
+    --foot-link: #c3bbab;
+    --foot-line: #4a4740;
+    --page-bg: linear-gradient(180deg, #e4ded2 0%, #ddd7cb 60%, #d7d0c3 100%);
+    --panel-accent: #c08a3a;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -331,26 +283,26 @@ h1:focus { outline: none; }
 .shell-bar {
     display: flex; align-items: center; gap: 0.75rem;
     padding: 0 1.25rem; height: 3.25rem; flex: none;
-    border-bottom: 1px solid var(--line);
+    background: var(--head-bg); border-bottom: 1px solid var(--head-line);
 }
 .shell-icon { width: 1.9rem; height: 1.9rem; flex: none; }
 .shell-title {
     font-family: var(--serif); font-variant: small-caps; font-size: 1.3rem;
-    letter-spacing: 0.02em; color: var(--text); white-space: nowrap;
+    letter-spacing: 0.02em; color: var(--head-ink); white-space: nowrap;
 }
-.shell-sub { color: var(--faint); font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.shell-sub { color: var(--head-sub); font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .shell-actions { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 1.25rem; }
 .shell-link {
     border: 0; background: none; padding: 0; font: inherit; font-size: 0.86rem;
-    color: var(--muted); text-decoration: none; cursor: pointer;
+    color: var(--head-link); text-decoration: none; cursor: pointer;
 }
-.shell-link:hover { color: var(--text); }
-.shell-link:disabled { color: var(--faint); opacity: 0.45; cursor: default; text-decoration: none; }
-.shell-link:disabled:hover { color: var(--faint); }
-.ui-field { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.86rem; }
+.shell-link:hover { color: var(--head-ink); }
+.shell-link:disabled { color: var(--head-link); opacity: 0.45; cursor: default; text-decoration: none; }
+.shell-link:disabled:hover { color: var(--head-link); }
+.ui-field { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--head-link); font-size: 0.86rem; }
 .ui-field select { height: 1.75rem; padding: 0 0.3rem; font-size: 0.82rem; }
 
-.shell-body { flex: 1 0 auto; display: flex; flex-direction: column; }
+.shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
 
 /* ---------- Controls ---------- */
 
@@ -602,6 +554,7 @@ input:disabled { opacity: 0.5; }
     flex: none; display: grid; gap: 0.6rem;
     padding: 0.85rem 1rem 0.8rem;
     background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px;
+    box-shadow: inset 0 2px 0 var(--panel-accent);
 }
 .hero-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .hero-title { font-size: 1.05rem; font-weight: 600; }
@@ -920,15 +873,16 @@ input:disabled { opacity: 0.5; }
 
 .shell-foot {
     flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 1.25rem;
-    padding: 0.5rem 1.25rem; border-top: 1px solid var(--line);
-    color: var(--faint); font-size: 0.78rem;
+    padding: 0.5rem 1.25rem;
+    background: var(--foot-bg); border-top: 1px solid var(--foot-line);
+    color: var(--foot-ink); font-size: 0.78rem;
 }
-.shell-foot .hint { font-size: 0.78rem; color: var(--faint); font-style: normal; }
-.foot-reset { margin-left: auto; font-size: 0.78rem; color: var(--faint); }
+.shell-foot .hint { font-size: 0.78rem; color: var(--foot-ink); font-style: normal; }
+.foot-reset { margin-left: auto; font-size: 0.78rem; color: var(--foot-ink); }
 .foot-reset:hover { color: var(--no); text-decoration-color: var(--no); }
 .legal-links { display: flex; gap: 0.75rem; }
-.legal-links a { color: var(--muted); }
-.legal-links a:hover { color: var(--text); }
+.legal-links a { color: var(--foot-link); }
+.legal-links a:hover { color: var(--foot-ink); }
 
 .qcard { background: var(--well); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0.75rem 0.85rem; }
 .qcard-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.45rem; }

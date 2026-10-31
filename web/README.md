@@ -175,15 +175,17 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   reach. The scale select sits at the right of the header, next to
   `What is this?` and the GitHub link.
 - The header also carries a persisted appearance picker. Forge Black is the
-  dark default; light candidates are grouped as Sandstone (base, Light, Deep,
-  Muted) and Forge light (Forge Light, Forge Steel, Forge Graphite). The choice
-  sets `data-theme` on `<html>`, is stored under `poe-regex.theme`, applied
-  before the stylesheet on boot (no flash of the default), and other open tabs
-  follow it. Forge Black primary actions use Bronze (`#c78a3c`) while accent
-  text and focus rings keep `#f0a541`; light themes use a deeper amber with
-  light button ink. Item-rarity colors are theme variables so they stay
-  readable on light cards; the forge loading screen keeps its game-like
-  palette with a theme-aware label.
+  dark default; the Sandstone group holds Sandstone and Sandstone Deep plus
+  three structural variations: Bench (paper cards on a deeper tan desk), Ember
+  (dark bronze header/footer on cream), and Foundry (charcoal chrome on warm
+  greige). The choice sets `data-theme` on `<html>`, is stored under
+  `poe-regex.theme`, applied before the stylesheet on boot (no flash of the
+  default), and other open tabs follow it. Forge Black primary actions use
+  Bronze (`#c78a3c`) while accent text and focus rings keep `#f0a541`; light
+  themes use a deeper amber with light button ink. Game colors keep their
+  identity in light themes: rarity stays gray/blue/yellow/orange and the mod
+  blue stays blue-violet, darkened only enough to read on a light card. The
+  forge loading screen keeps its game-like palette with a theme-aware label.
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).
