@@ -1,0 +1,521 @@
+{
+  "generated": "2026-10-31T17:15:25.5075618+00:00",
+  "dataVersion": "2026-08-09",
+  "targetModel": "advanced-ranges-v1",
+  "fragmentTable": "2026-08-09",
+  "app": [
+    {
+      "id": "simple-plain-1",
+      "scope": "simple",
+      "description": "one plain pick",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B.*ife\u0027 maps to 49 mods; using \u0027IncreasedLife1\u0027"
+      ]
+    },
+    {
+      "id": "simple-any-2",
+      "scope": "simple",
+      "description": "two plain picks, any-of",
+      "classification": "ambiguous",
+      "reason": "recovered criteria recompile to a different query",
+      "importMode": "simple",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 58,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B.*ife|o Str\u0027 recovered 58 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "simple-all-2",
+      "scope": "simple",
+      "description": "two plain picks, all-of",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 2,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B.*ife\u0027 maps to 49 mods; using \u0027IncreasedLife1\u0027",
+        "fragment \u0027o Str\u0027 maps to 9 mods; using \u0027Strength1\u0027"
+      ]
+    },
+    {
+      "id": "simple-exclusion",
+      "scope": "simple",
+      "description": "plain pick \u002B exclusion",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 1,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B.*ife\u0027 maps to 49 mods; using \u0027IncreasedLife1\u0027",
+        "fragment \u0027o Str\u0027 maps to 9 mods; using \u0027Strength1\u0027"
+      ]
+    },
+    {
+      "id": "simple-name",
+      "scope": "simple",
+      "description": "one affix-name pick",
+      "classification": "unrecoverable",
+      "reason": "affix-name pick is preserved as free text (needs the affix-name index)",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": true,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 1,
+      "diagnostics": [
+        "unmatched token \u0027Clouded|Darkened|Impure|Malignant|Tainted|Vile\u0027 preserved as keyword"
+      ]
+    },
+    {
+      "id": "simple-family",
+      "scope": "simple",
+      "description": "one family pick",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": true,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d cha.*ge$\u0027 maps to 22 mods; using \u0027ChaosDamagePercent1\u0027"
+      ]
+    },
+    {
+      "id": "simple-min",
+      "scope": "simple",
+      "description": "plain pick with minimum",
+      "classification": "unrecoverable",
+      "reason": "minimum value is not encoded in the string",
+      "importMode": "simple",
+      "sameQuery": false,
+      "minValue": true,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 49,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027 recovered 49 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "advanced-plain",
+      "scope": "advanced",
+      "description": "Ring plain pick",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027\\\u002B.*fe\u0027 maps to 49 mods; using \u0027IncreasedLife1\u0027"
+      ]
+    },
+    {
+      "id": "advanced-name",
+      "scope": "advanced",
+      "description": "Ring affix-name pick",
+      "classification": "unrecoverable",
+      "reason": "affix-name pick is preserved as free text (needs the affix-name index)",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": true,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 1,
+      "diagnostics": [
+        "unmatched token \u0027Clouded|Darkened|Impure|Malignant|Tainted|Vile\u0027 preserved as keyword"
+      ]
+    },
+    {
+      "id": "advanced-family",
+      "scope": "advanced",
+      "description": "Ring family pick",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": true,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d Ch\u0027 maps to 22 mods; using \u0027ChaosDamagePercent1\u0027"
+      ]
+    },
+    {
+      "id": "advanced-any-2",
+      "scope": "advanced",
+      "description": "Ring two picks, any-of",
+      "classification": "factored",
+      "reason": "query-equivalent via explain recovery",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 12,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d Ch|ed Co\u0027 recovered 12 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "advanced-all-2",
+      "scope": "advanced",
+      "description": "Ring two picks, all-of",
+      "classification": "factored",
+      "reason": "query-equivalent via an arbitrary catalog mod choice",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": true,
+      "includes": 2,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d Ch\u0027 maps to 22 mods; using \u0027ChaosDamagePercent1\u0027",
+        "fragment \u0027ed Co\u0027 maps to 22 mods; using \u0027ColdDamagePercent1\u0027"
+      ]
+    },
+    {
+      "id": "paste-rings",
+      "scope": "paste",
+      "description": "ring1 \u002B ring2",
+      "classification": "factored",
+      "reason": "query-equivalent via explain recovery",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": true,
+      "arbitraryChoice": false,
+      "includes": 12,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d Ch|ed Co\u0027 recovered 12 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "paste-weapon-offhand",
+      "scope": "paste",
+      "description": "weapon \u002B offhand",
+      "classification": "unrecoverable",
+      "reason": "multi-class paste: per-slot mapping is lost",
+      "importMode": "multi-class",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": true,
+      "arbitraryChoice": false,
+      "includes": 20,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027: (Shi.\u002Bs)|ith\u0027 recovered 6 catalog mod(s) via explain",
+        "fragment \u0027: (Cro)|i.*ur$\u0027 recovered 14 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "paste-armour",
+      "scope": "paste",
+      "description": "helmet \u002B boots \u002B gloves",
+      "classification": "unrecoverable",
+      "reason": "multi-class paste: per-slot mapping is lost",
+      "importMode": "multi-class",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": true,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027i.*ur$\u0027 maps to 39 mods; using \u0027LocalArmourAndStunThreshold1\u0027"
+      ]
+    },
+    {
+      "id": "paste-exclusion",
+      "scope": "paste",
+      "description": "two slots \u002B exclusion",
+      "classification": "unrecoverable",
+      "reason": "multi-class paste: per-slot mapping is lost",
+      "importMode": "multi-class",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": true,
+      "arbitraryChoice": true,
+      "includes": 1,
+      "excludes": 1,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027i.*ur$\u0027 maps to 39 mods; using \u0027LocalArmourAndStunThreshold1\u0027",
+        "fragment \u0027o Str\u0027 maps to 9 mods; using \u0027Strength1\u0027"
+      ]
+    },
+    {
+      "id": "paste-same-class-allof",
+      "scope": "paste",
+      "description": "ring1 \u002B ring2 all-of (accepted fallback)",
+      "classification": "factored",
+      "reason": "query-equivalent via explain recovery",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": true,
+      "arbitraryChoice": false,
+      "includes": 12,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": [
+        "fragment \u0027d Ch|ed Co\u0027 recovered 12 catalog mod(s) via explain"
+      ]
+    },
+    {
+      "id": "edge-class-anchor",
+      "scope": "edge",
+      "description": "class anchor only",
+      "classification": "exact",
+      "reason": "identical recompile",
+      "importMode": "advanced",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": []
+    },
+    {
+      "id": "edge-old-anchor",
+      "scope": "edge",
+      "description": "old literal class anchor",
+      "classification": "ambiguous",
+      "reason": "legacy literal class anchor recompiles to the current wildcard",
+      "importMode": "advanced",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 0,
+      "diagnostics": []
+    },
+    {
+      "id": "edge-unknown-token",
+      "scope": "edge",
+      "description": "free text / unknown token",
+      "classification": "unrecoverable",
+      "reason": "free text / unknown token is preserved as a keyword",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 1,
+      "diagnostics": [
+        "unmatched token \u0027zzzz\u0027 preserved as keyword"
+      ]
+    },
+    {
+      "id": "edge-shape",
+      "scope": "edge",
+      "description": "unterminated query",
+      "classification": "unrecoverable",
+      "reason": "invalid query shape",
+      "importMode": "simple",
+      "sameQuery": false,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 1,
+      "diagnostics": [
+        "shape: unterminated quoted block",
+        "unmatched token \u0027life\u0027 preserved as keyword",
+        "the query is not a valid quoted query; imported tokens are best-effort"
+      ]
+    },
+    {
+      "id": "edge-free-text-and-mod",
+      "scope": "edge",
+      "description": "known fragment \u002B free text",
+      "classification": "unrecoverable",
+      "reason": "free text / unknown token is preserved as a keyword",
+      "importMode": "simple",
+      "sameQuery": true,
+      "minValue": false,
+      "namePick": false,
+      "familyPick": false,
+      "paste": false,
+      "arbitraryChoice": false,
+      "includes": 0,
+      "excludes": 0,
+      "keywords": 2,
+      "diagnostics": [
+        "unmatched token \u0027life\u0027 preserved as keyword",
+        "unmatched token \u0027zzzz\u0027 preserved as keyword"
+      ]
+    }
+  ],
+  "guide": [
+    {
+      "Name": "FGkorbyn Act 1",
+      "classAnchor": false,
+      "branches": 7,
+      "categories": {
+        "one family": 1,
+        "multiple families": 4,
+        "affix name/tier": 2
+      },
+      "multiFamilyBranches": 4
+    },
+    {
+      "Name": "FGkorbyn Act 2",
+      "classAnchor": false,
+      "branches": 7,
+      "categories": {
+        "multiple families": 3,
+        "one family": 1,
+        "affix name/tier": 2,
+        "base/vendor name": 1
+      },
+      "multiFamilyBranches": 3
+    },
+    {
+      "Name": "FGkorbyn Act 3",
+      "classAnchor": false,
+      "branches": 7,
+      "categories": {
+        "one family": 1,
+        "multiple families": 3,
+        "affix name/tier": 3
+      },
+      "multiFamilyBranches": 3
+    },
+    {
+      "Name": "FGkorbyn Act 4",
+      "classAnchor": false,
+      "branches": 9,
+      "categories": {
+        "one family": 1,
+        "multiple families": 5,
+        "affix name/tier": 3
+      },
+      "multiFamilyBranches": 5
+    },
+    {
+      "Name": "GuyThatDies huntress",
+      "classAnchor": false,
+      "branches": 4,
+      "categories": {
+        "unknown/free text": 1,
+        "base/vendor name": 1,
+        "one family": 1,
+        "multiple families": 1
+      },
+      "multiFamilyBranches": 1
+    },
+    {
+      "Name": "Lundburgerr Warrior",
+      "classAnchor": false,
+      "branches": 6,
+      "categories": {
+        "multiple families": 5,
+        "base/vendor name": 1
+      },
+      "multiFamilyBranches": 5
+    }
+  ]
+}
