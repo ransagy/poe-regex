@@ -271,6 +271,23 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void MixedGroup_NonSuffixNames_StayIndividual()
+    {
+        // A subset of a family suffix is not "or better"; keep the two names
+        // as their own picks so the search is not broadened.
+        const string query = "\"Flaming|Scorching|\\+.*ife\"";
+
+        var recovered = Reconstruction.ReconstructWorkbench(query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(query);
+        recovered.Slots.Should().ContainSingle();
+        var namePicks = recovered.Slots[0].Includes.Where(p => p.IsNamePick).ToList();
+        namePicks.Should().HaveCount(2);
+        namePicks.SelectMany(p => p.Names!).Should().BeEquivalentTo(["Flaming", "Scorching"]);
+    }
+
+    [Fact]
     public void Simple_MixedNameAndFragmentGroup_RoundTrips()
     {
         // A real app string: six affix names plus four fragments in one group.
