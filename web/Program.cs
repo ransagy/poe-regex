@@ -12,5 +12,6 @@ builder.Services.AddSingleton<EngineService>();
 builder.Services.AddScoped<WorkbenchState>();
 builder.Services.AddScoped<web.Services.PersistenceService>();
 builder.Services.AddScoped<web.Services.IntroState>();
+builder.Services.AddScoped<web.Services.PreferencesState>();
 
 await builder.Build().RunAsync();

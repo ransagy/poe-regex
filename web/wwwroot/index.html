@@ -5,9 +5,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#13171c" />
+    <meta name="theme-color" content="#070809" />
     <title>Renly's Recipes</title>
     <base href="/" />
+    <script>
+        // Apply the saved palette before the stylesheet so a reload never
+        // flashes the default theme. "system" resolves from the OS/browser
+        // scheme here; js/theme.js keeps it current afterwards.
+        (function () {
+            var allowed = ["forge", "bench-amber", "system"];
+            var preference = "forge";
+            try {
+                var saved = localStorage.getItem("poe-regex.theme");
+                if (allowed.indexOf(saved) >= 0) preference = saved;
+            } catch (e) { /* storage may be unavailable */ }
+            var light = preference === "system" && window.matchMedia
+                && window.matchMedia("(prefers-color-scheme: light)").matches;
+            var theme = preference === "system"
+                ? (light ? "bench-amber" : "forge")
+                : preference;
+            document.documentElement.dataset.theme = theme;
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute("content", theme === "bench-amber" ? "#3b2a16" : "#070809");
+        })();
+    </script>
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -18,6 +39,7 @@
     <script src="js/tab-sync.js"></script>
     <script src="js/tooltip.js"></script>
     <script src="js/uiscale.js"></script>
+    <script src="js/theme.js"></script>
 </head>
 
 <body>
