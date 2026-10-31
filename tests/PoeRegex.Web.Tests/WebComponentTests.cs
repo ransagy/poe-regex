@@ -116,7 +116,7 @@ public class WebComponentTests
         var set = ctx.JSInterop.Invocations.Last(i => i.Identifier == "poeRegexTheme.set");
         set.Arguments.Should().ContainSingle().Which.Should().Be("system");
 
-        cut.Find("#options-auto-copy").Change(true);
+        cut.Find("#auto-copy-on").Click();
         prefs.AutoCopy.Should().BeTrue();
 
         cut.Find(".options-wrap").KeyDown("Escape");

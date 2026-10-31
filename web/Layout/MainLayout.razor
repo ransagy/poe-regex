@@ -63,11 +63,17 @@
                                 <option value="1.3">130%</option>
                             </select>
                         </label>
-                        <label class="options-check" title="Copies the string each time you change a pick">
-                            <input type="checkbox" id="options-auto-copy" checked="@Prefs.AutoCopy"
-                                   @onchange="ToggleAutoCopy" />
-                            <span>Copy on every change</span>
-                        </label>
+                        <div class="options-row" title="Copies the string each time you change a pick">
+                            <span id="auto-copy-label">Copy on every change</span>
+                            <div class="options-seg" role="group" aria-labelledby="auto-copy-label">
+                                <button type="button" id="auto-copy-off" class="@(!Prefs.AutoCopy ? "on" : "")"
+                                        aria-pressed="@(!Prefs.AutoCopy ? "true" : "false")"
+                                        @onclick="() => SetAutoCopy(false)">Off</button>
+                                <button type="button" id="auto-copy-on" class="@(Prefs.AutoCopy ? "on" : "")"
+                                        aria-pressed="@(Prefs.AutoCopy ? "true" : "false")"
+                                        @onclick="() => SetAutoCopy(true)">On</button>
+                            </div>
+                        </div>
                         <p class="options-note">Saved in this browser.</p>
                     </div>
                 }
@@ -154,8 +160,8 @@
         if (_optionsOpen && e.Key == "Escape") await CloseOptions();
     }
 
-    private async Task ToggleAutoCopy(ChangeEventArgs e) =>
-        await Prefs.SetAutoCopyAsync(e.Value is true);
+    private async Task SetAutoCopy(bool value) =>
+        await Prefs.SetAutoCopyAsync(value);
 
     private async Task SetTheme(ChangeEventArgs e)
     {

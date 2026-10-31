@@ -179,7 +179,10 @@ h1:focus { outline: none; }
 .options-title { font-weight: 600; font-size: 0.95rem; }
 .options-row { display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; color: var(--muted); font-size: 0.84rem; }
 .options-row select { height: 2rem; padding: 0 0.35rem; font-size: 0.84rem; min-width: 9.5rem; }
-.options-check { display: flex; align-items: center; gap: 0.5rem; color: var(--text); font-size: 0.86rem; cursor: pointer; }
+.options-seg { display: inline-flex; gap: 1px; padding: 2px; background: var(--well); border: 1px solid var(--line); border-radius: 5px; }
+.options-seg button { border: 0; background: none; padding: 0.28rem 0.7rem; border-radius: 3px; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+.options-seg button:hover { color: var(--text); }
+.options-seg button.on { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .options-note { margin: 0; color: var(--faint); font-size: 0.75rem; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
