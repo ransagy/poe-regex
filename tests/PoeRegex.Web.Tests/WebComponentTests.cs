@@ -95,6 +95,18 @@ public class WebComponentTests
     }
 
     [Fact]
+    public void IntroPanel_IdSuffixKeepsRenderedCopiesUnique()
+    {
+        using var ctx = Context();
+        var cut = ctx.Render<IntroPanel>(p => p.Add(x => x.IdSuffix, "-top"));
+
+        cut.Find("#intro-card-top").Should().NotBeNull();
+        cut.Find("#intro-dismiss-top").Should().NotBeNull();
+        cut.FindAll("#intro-card").Should().BeEmpty();
+        cut.FindAll("#intro-dismiss").Should().BeEmpty();
+    }
+
+    [Fact]
     public void MainLayout_OffersEveryThemeAndPersistsTheChoice()
     {
         using var ctx = Context();

@@ -14,6 +14,12 @@
 <PageTitle>Renly's Recipes</PageTitle>
 
 <div class="bench mode-@State.Mode">
+    @if (Intro.Visible == true)
+    {
+        <div class="intro-top">
+            <IntroPanel IdSuffix="-top" OnDismiss="DismissIntro" />
+        </div>
+    }
     <SearchBar Model="_model" State="State" Unresolved="@UnresolvedDiagnostics()">
         <Tools>
             <div class="hero-checks" role="group" aria-label="Check the string">
@@ -161,7 +167,9 @@
         <div class="col-out">
             @if (Intro.Visible == true)
             {
-                <IntroPanel OnDismiss="DismissIntro" />
+                <div class="intro-side">
+                    <IntroPanel IdSuffix="-side" OnDismiss="DismissIntro" />
+                </div>
             }
             <PickBreakdown Model="_model" State="State" />
         </div>
