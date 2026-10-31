@@ -721,8 +721,9 @@ public static class Phase1Report
         sb.AppendLine("The same representative strings as the coverage spike are reconstructed with");
         sb.AppendLine("`QueryReconstructionService`, then the recovered criteria are recompiled and");
         sb.AppendLine("compared byte-for-byte with the original. A case passes only when it is both");
-        sb.AppendLine("reconstructed and recompiles to the identical string. Factored alternations,");
-        sb.AppendLine("multi-class pastes, free text, and legacy anchors intentionally fail closed.");
+        sb.AppendLine("reconstructed and recompiles to the identical string. Tierless fragments prefer");
+        sb.AppendLine("the family pick; name literals stay name picks. Factored alternations, multi-class");
+        sb.AppendLine("pastes, free text, and legacy anchors intentionally fail closed.");
         sb.AppendLine();
 
         var passed = cases.Count(x => x.Ok && x.SameQuery);
@@ -779,18 +780,20 @@ public static class Phase1Report
 
         sb.AppendLine("## Review notes");
         sb.AppendLine();
-        sb.AppendLine("- **Simple affix-name picks are ambiguous when the name exists on multiple");
-        sb.AppendLine("  classes.** Phase 1 refuses to guess; the advanced anchor supplies the scope.");
+        sb.AppendLine("- **Simple affix-name picks choose one owning family when the names exist on");
+        sb.AppendLine("  multiple classes.** The names are the query term; the family only supplies");
+        sb.AppendLine("  identity, so the string is unchanged. An advanced anchor scopes it explicitly.");
         sb.AppendLine("- **Legacy literal class anchors** (e.g. `\": One Hand M\"`) reconstruct the class");
         sb.AppendLine("  but recompile to the current wildcard anchor, so they fail the same-string check.");
-        sb.AppendLine("- **Shared-fragment mod identity is deterministic but arbitrary.** The query is");
-        sb.AppendLine("  equivalent even when several catalog mods share the selected fragment.");
+        sb.AppendLine("- **Tierless fragments reconstruct as family picks**, not representative tiers.");
+        sb.AppendLine("  When a fragment or name set spans families, the chosen family is deterministic");
+        sb.AppendLine("  but arbitrary; the query is unchanged.");
         sb.AppendLine("- **Ring1 + ring2 paste** reconstructs to one Ring scope; exact ring split is a");
         sb.AppendLine("  non-goal and the string is unchanged.");
         sb.AppendLine("- **Same-class all-of** falls back to any-of in the compiler; the reconstruction");
         sb.AppendLine("  reports the any-of form (accepted).");
-        sb.AppendLine("- **Family picks** recover one representative mod; the query is equivalent, but");
-        sb.AppendLine("  the pick identity is arbitrary among mods that share the fragment.");
+        sb.AppendLine("- **Minimum values are genuinely lost**; the query encodes a threshold that the");
+        sb.AppendLine("  pick model cannot recover (accepted limitation).");
         sb.AppendLine("- Factored fragments/name sets and multi-class pastes are Phase 2; there is no");
         sb.AppendLine("  UI wiring yet.");
         sb.AppendLine();
@@ -840,7 +843,9 @@ public static class Phase1Report
     }
 
     private static string PickLabel(WantedMod pick) =>
-        pick.Names is { Count: > 0 } ? "name:" + string.Join("|", pick.Names) : pick.ModId;
+        pick.Names is { Count: > 0 } ? "name:" + string.Join("|", pick.Names)
+        : pick.VariantModIds is { Count: > 0 } ? "family:" + pick.ModId
+        : pick.ModId;
 
     private static string Short(string value) =>
         value.Length <= 110 ? value : value[..107] + "...";

@@ -41,6 +41,8 @@ public sealed class QueryReconstructionService
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ModEntry>> _byName =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ModFamily> _familyByKey =
+        new(StringComparer.Ordinal);
 
     public QueryReconstructionService(EngineService engine)
     {
@@ -58,8 +60,10 @@ public sealed class QueryReconstructionService
             list.Add((pattern, itemClass));
         }
 
-        foreach (var mod in engine.ModsForClasses(engine.PlayableClasses().Select(c => c.Id))
-                     .DistinctBy(m => m.Id, StringComparer.Ordinal))
+        var playableMods = engine.ModsForClasses(engine.PlayableClasses().Select(c => c.Id))
+            .DistinctBy(m => m.Id, StringComparer.Ordinal)
+            .ToList();
+        foreach (var mod in playableMods)
         {
             if (string.IsNullOrWhiteSpace(mod.Name)) continue;
             if (!_byName.TryGetValue(mod.Name, out var list))
@@ -69,6 +73,8 @@ public sealed class QueryReconstructionService
             }
             list.Add(mod);
         }
+        foreach (var family in ModFamilies.Group(playableMods))
+            _familyByKey[family.Key] = family;
     }
 
     public ReconstructedQuery Reconstruct(string query)
@@ -169,18 +175,12 @@ public sealed class QueryReconstructionService
         }
 
         var matches = found.SelectMany(x => x.Mods).ToList();
-        var families = matches
-            .Select(m => m.Family)
-            .Where(f => f.Length > 0)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (families.Count != 1)
-        {
-            failure = "affix-name set spans multiple families; add a class anchor or choose one";
-            return false;
-        }
-
-        var representative = matches.OrderBy(m => m.Id, StringComparer.Ordinal).First();
+        // The names are the query term; the family only supplies identity. If
+        // the same names exist in several families, choose one deterministically.
+        var representative = matches
+            .OrderBy(m => m.Family, StringComparer.Ordinal)
+            .ThenBy(m => m.Id, StringComparer.Ordinal)
+            .First();
         pick = new WantedMod(representative.Id, Names: names);
         return true;
     }
@@ -208,11 +208,40 @@ public sealed class QueryReconstructionService
             .ToList();
         if (mods.Count == 0) return false;
 
+        // Prefer the tierless family form: the query has no tier information.
+        foreach (var familyKey in mods
+                     .Select(m => m.Family)
+                     .Where(f => f.Length > 0)
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (!_familyByKey.TryGetValue(familyKey, out var family)) continue;
+            var candidate = family.Pick();
+            if (CompilesToTerm(candidate, branch, itemClass))
+            {
+                pick = candidate;
+                return true;
+            }
+        }
+
+        // Fallback: a family pick that would broaden the query is not used.
         var mod = itemClass is null
             ? mods[0]
             : mods.FirstOrDefault(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)) ?? mods[0];
         pick = new WantedMod(mod.Id);
         return true;
+    }
+
+    private bool CompilesToTerm(WantedMod pick, string term, string? itemClass)
+    {
+        var compiled = _engine.CompilePicks([pick], [], false, itemClass);
+        var terms = new List<string>();
+        foreach (var (phrase, excluded) in Explainer.Tokenize(compiled.Query))
+        {
+            if (!excluded && phrase.StartsWith(": ", StringComparison.Ordinal)) continue;
+            terms.Add(phrase);
+        }
+        return terms.Count == 1 && terms[0] == term;
     }
 
     private static bool IsRegexLike(string value) =>

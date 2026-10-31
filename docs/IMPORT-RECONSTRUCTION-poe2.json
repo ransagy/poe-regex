@@ -1,9 +1,9 @@
 {
-  "generated": "2026-10-31T19:47:34.7785983+00:00",
+  "generated": "2026-10-31T20:49:05.8381442+00:00",
   "dataVersion": "2026-08-09",
   "targetModel": "advanced-ranges-v1",
   "fragmentTable": "2026-08-09",
-  "passed": 13,
+  "passed": 14,
   "total": 22,
   "cases": [
     {
@@ -17,7 +17,7 @@
       "itemClass": null,
       "matchAll": false,
       "includes": [
-        "IncreasedLife1"
+        "family:IncreasedLife1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -33,8 +33,8 @@
       "itemClass": null,
       "matchAll": false,
       "includes": [
-        "IncreasedLife1",
-        "Strength1"
+        "family:IncreasedLife1",
+        "family:Strength1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -50,8 +50,8 @@
       "itemClass": null,
       "matchAll": true,
       "includes": [
-        "IncreasedLife1",
-        "Strength1"
+        "family:IncreasedLife1",
+        "family:Strength1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -67,7 +67,7 @@
       "itemClass": null,
       "matchAll": false,
       "includes": [
-        "IncreasedLife1"
+        "family:IncreasedLife1"
       ],
       "excludes": [
         "Strength1"
@@ -79,16 +79,16 @@
       "scope": "simple",
       "description": "one affix-name pick",
       "query": "\u0022Clouded|Darkened|Impure|Malignant|Tainted|Vile\u0022",
-      "ok": false,
-      "sameQuery": false,
+      "ok": true,
+      "sameQuery": true,
       "mode": "simple",
       "itemClass": null,
       "matchAll": false,
-      "includes": [],
+      "includes": [
+        "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+      ],
       "excludes": [],
-      "diagnostics": [
-        "affix-name set spans multiple families; add a class anchor or choose one"
-      ]
+      "diagnostics": []
     },
     {
       "id": "simple-family",
@@ -101,7 +101,7 @@
       "itemClass": null,
       "matchAll": false,
       "includes": [
-        "ChaosDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -133,7 +133,7 @@
       "itemClass": "Ring",
       "matchAll": false,
       "includes": [
-        "IncreasedLife1"
+        "family:IncreasedLife1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -165,7 +165,7 @@
       "itemClass": "Ring",
       "matchAll": false,
       "includes": [
-        "ChaosDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -181,8 +181,8 @@
       "itemClass": "Ring",
       "matchAll": false,
       "includes": [
-        "ChaosDamagePercent1",
-        "ColdDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1",
+        "family:ColdDamagePercent1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -198,8 +198,8 @@
       "itemClass": "Ring",
       "matchAll": true,
       "includes": [
-        "ChaosDamagePercent1",
-        "ColdDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1",
+        "family:ColdDamagePercent1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -215,8 +215,8 @@
       "itemClass": "Ring",
       "matchAll": false,
       "includes": [
-        "ChaosDamagePercent1",
-        "ColdDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1",
+        "family:ColdDamagePercent1"
       ],
       "excludes": [],
       "diagnostics": []
@@ -280,8 +280,8 @@
       "itemClass": "Ring",
       "matchAll": false,
       "includes": [
-        "ChaosDamagePercent1",
-        "ColdDamagePercent1"
+        "family:ChaosDamagePrefixOnTwoHandWeapon1",
+        "family:ColdDamagePercent1"
       ],
       "excludes": [],
       "diagnostics": []

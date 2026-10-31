@@ -57,6 +57,7 @@ public class QueryReconstructionTests
         recovered.ItemClass.Should().BeNull();
         recovered.MatchAll.Should().BeFalse();
         recovered.Includes.Should().ContainSingle();
+        recovered.Includes[0].VariantModIds.Should().NotBeNullOrEmpty("the query is tierless");
         recovered.Recompile(Engine)!.Query.Should().Be(compiled.Query);
     }
 
@@ -75,16 +76,19 @@ public class QueryReconstructionTests
     }
 
     [Fact]
-    public void Simple_AmbiguousName_FailsClosed()
+    public void Simple_AmbiguousName_UsesOneRepresentativeFamily()
     {
-        // "Clouded|..." exists on both Ring and weapon families; without a
-        // class anchor Phase 1 refuses to guess.
-        var compiled = Engine.CompilePicks([RingNamePick()], [], false, null);
+        // "Clouded|..." exists on both Ring and weapon families. The term is
+        // just the name list, so any owning family reconstructs the same query.
+        var pick = RingNamePick();
+        var compiled = Engine.CompilePicks([pick], [], false, null);
 
         var recovered = Reconstruction.Reconstruct(compiled.Query);
 
-        recovered.Ok.Should().BeFalse();
-        recovered.Diagnostics.Should().Contain(d => d.Contains("multiple families"));
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Includes.Should().ContainSingle();
+        recovered.Includes[0].Names.Should().BeEquivalentTo(pick.Names);
+        recovered.Recompile(Engine)!.Query.Should().Be(compiled.Query);
     }
 
     [Fact]
@@ -138,6 +142,7 @@ public class QueryReconstructionTests
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
         recovered.Mode.Should().Be("advanced");
         recovered.ItemClass.Should().Be("Ring");
+        recovered.Includes[0].VariantModIds.Should().NotBeNullOrEmpty("the query is tierless");
         recovered.Recompile(Engine)!.Query.Should().Be(compiled.Query);
     }
 
