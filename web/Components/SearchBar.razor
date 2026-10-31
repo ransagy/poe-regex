@@ -2,6 +2,7 @@
 @using PoeRegex.Core
 @using PoeRegex.Web.Core
 @inject IJSRuntime JS
+@inject web.Services.PreferencesState Prefs
 @implements IDisposable
 
 <section class="hero" id="result-strip" aria-label="Search string">
@@ -48,10 +49,6 @@
                     disabled="@(Model.Query.Length == 0)" @onclick="Copy">
                 @(_copyState ?? "Copy")
             </button>
-            <label class="auto-copy" title="Copies the string each time you change a pick">
-                <input type="checkbox" id="auto-copy" checked="@_autoCopy" @onchange="ToggleAutoCopy" />
-                Copy on every change
-            </label>
         </div>
     </div>
     @if (Model.Query.Length > 0)
@@ -89,8 +86,6 @@
 </section>
 
 @code {
-    private const string AutoCopyKey = "poe-regex.auto-copy";
-
     [Parameter, EditorRequired]
     public required SearchModel Model { get; set; }
 
@@ -105,7 +100,6 @@
     public RenderFragment? Tools { get; set; }
 
     private string CardId => State.Mode == "advanced" ? "advanced" : "simple";
-    private bool _autoCopy;
     private string _lastQuery = "";
     private string? _copyState;
     private int _flashStamp;
@@ -122,23 +116,23 @@
             Model.HotChanged += Repaint;
             _subscribed = Model;
         }
-        if (_autoCopy && Model.Query.Length > 0 && !string.Equals(Model.Query, _lastQuery, StringComparison.Ordinal))
+        if (Prefs.AutoCopy && Model.Query.Length > 0 && !string.Equals(Model.Query, _lastQuery, StringComparison.Ordinal))
             _ = AutoCopy(Model.Query, ++_copyVersion);
         _lastQuery = Model.Query;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (!firstRender || _disposed) return;
-        try
-        {
-            _autoCopy = await JS.InvokeAsync<string?>("localStorage.getItem", AutoCopyKey) == "1";
-            if (_autoCopy && !_disposed) StateHasChanged();
-        }
-        catch
-        {
-            // Storage unavailable: auto-copy stays off.
-        }
+        await Prefs.EnsureLoadedAsync();
+        if (!_disposed) Prefs.Changed += OnPrefsChanged;
+    }
+
+    private void OnPrefsChanged()
+    {
+        if (_disposed) return;
+        if (Prefs.AutoCopy) _ = Copy();
+        else _copyVersion++;
+        Repaint();
     }
 
     private void Repaint()
@@ -149,6 +143,7 @@
     public void Dispose()
     {
         _disposed = true;
+        Prefs.Changed -= OnPrefsChanged;
         if (_subscribed is not null) _subscribed.HotChanged -= Repaint;
     }
 
@@ -162,16 +157,6 @@
 
     private string Pct(int value) =>
         (100.0 * value / Math.Max(Model.Length, Model.Limit)).ToString("0.###", CultureInfo.InvariantCulture);
-
-    private async Task ToggleAutoCopy(ChangeEventArgs e)
-    {
-        if (_disposed) return;
-        _autoCopy = e.Value is true;
-        if (!_autoCopy) _copyVersion++;
-        try { await JS.InvokeVoidAsync("localStorage.setItem", AutoCopyKey, _autoCopy ? "1" : "0"); }
-        catch { }
-        if (!_disposed && _autoCopy && Model.Query.Length > 0) await Copy();
-    }
 
     private async Task AutoCopy(string query, int version)
     {

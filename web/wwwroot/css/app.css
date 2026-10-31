@@ -163,8 +163,24 @@ h1:focus { outline: none; }
 .shell-link:hover { color: var(--head-ink); }
 .shell-link:disabled { color: var(--head-link); opacity: 0.45; cursor: default; text-decoration: none; }
 .shell-link:disabled:hover { color: var(--head-link); }
-.ui-field { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--head-link); font-size: 0.86rem; }
-.ui-field select { height: 1.75rem; padding: 0 0.3rem; font-size: 0.82rem; }
+/* ---------- Options popover ---------- */
+
+.options-wrap { position: relative; }
+.options-backdrop { position: fixed; inset: 0; z-index: 30; }
+.options-pop {
+    position: absolute; top: calc(100% + 0.55rem); right: 0; z-index: 31;
+    width: min(20rem, calc(100vw - 1.5rem));
+    display: grid; gap: 0.7rem;
+    padding: 0.9rem 0.95rem 0.8rem;
+    background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    color: var(--text); text-align: left;
+}
+.options-title { font-weight: 600; font-size: 0.95rem; }
+.options-row { display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; color: var(--muted); font-size: 0.84rem; }
+.options-row select { height: 2rem; padding: 0 0.35rem; font-size: 0.84rem; min-width: 9.5rem; }
+.options-check { display: flex; align-items: center; gap: 0.5rem; color: var(--text); font-size: 0.86rem; cursor: pointer; }
+.options-note { margin: 0; color: var(--faint); font-size: 0.75rem; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
 
@@ -503,8 +519,6 @@ input:disabled { opacity: 0.5; }
 .seg-inc.hot { background: var(--mod); filter: brightness(1.2); }
 .ruler-limit { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--no); }
 
-.auto-copy { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font-size: 0.82rem; cursor: pointer; white-space: nowrap; }
-.auto-copy:hover { color: var(--text); }
 
 .bd-sec { border-top: 1px solid var(--line); padding-top: 0.6rem; }
 .bd-sec.focused .bd-slot { color: var(--ember); }
@@ -795,12 +809,18 @@ body.compact .out-dock {
     background: var(--surface); border-top: 1px solid var(--line-strong);
 }
 
+@media (max-width: 430px) {
+    .shell-title { display: none; }
+    .shell-actions { gap: 0.7rem; }
+}
+
 @media (max-width: 700px) {
     html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
     #app, .shell { height: auto; min-height: 100%; }
     .shell-bar { padding: 0 0.75rem; gap: 0.5rem; }
-    .shell-sub, .ui-field { display: none; }
+    .shell-sub { display: none; }
     .shell-actions { gap: 0.9rem; }
+    .options-pop { position: fixed; top: 3.35rem; left: 0.75rem; right: 0.75rem; width: auto; }
     .bench { flex: none; overflow: visible; padding: 0.75rem; }
     .bench-bar { flex-wrap: wrap; }
     .bench-main, .mode-advanced .bench-main, body.compact .mode-advanced .bench-main { grid-template-columns: minmax(0, 1fr); gap: 1rem; }

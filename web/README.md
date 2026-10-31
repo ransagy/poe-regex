@@ -172,10 +172,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   check panel on a short window scrolls the page and pushes the footer down
   instead (1280x800 at 115% fits with both panels closed). In the stacked
   layouts a bar pinned to the bottom keeps the length and a copy button in
-  reach. The scale select sits at the right of the header, next to
-  `What is this?` and the GitHub link.
-- The header also carries a persisted appearance picker. **Forge Black** is the
-  dark default; **Bench Amber** is the light theme (tan workbench page, dark
+  reach. Display scale, theme, and `Copy on every change` live in the header's
+  **Options** popover between `What is this?` and the GitHub link.
+- The Options popover carries a persisted appearance picker. **Forge Black**
+  is the dark default; **Bench Amber** is the light theme (tan workbench page, dark
   bronze header/footer, gold CTA with dark ink, game-dark item cards);
   **Match system** follows `prefers-color-scheme` (dark → Forge Black, light →
   Bench Amber) and switches live when the OS/browser mode changes. The choice
@@ -211,8 +211,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - `SearchBar` and `PickBreakdown` replace the old picks rail and result bar.
   The bar shows the string with each quoted block underlined by role (class
   anchor grey, included mods blue, exclusions red), Copy with an optional
-  `Copy on every change` (stored in `poe-regex.auto-copy`; it only writes the
-  clipboard after a user gesture, so loading the page never copies), and a
+  `Copy on every change` in the header Options popover (stored in
+  `poe-regex.auto-copy`; it only writes the clipboard after a user gesture, so
+  loading the page never copies), and a
   budget bar where each block is a segment of its exact character cost
   (spaces included, so the segments sum to the `k / 250` count). Your picks
   lists them per slot in advanced (or `All gear` in simple), each with the

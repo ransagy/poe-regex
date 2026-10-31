@@ -15,6 +15,7 @@ public class WebComponentTests
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         ctx.Services.AddSingleton(new EngineService());
         ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
         return ctx;
     }
 
@@ -76,7 +77,7 @@ public class WebComponentTests
 
         cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
         cut.Find("#slot-copy-simple").Should().NotBeNull();
-        cut.Find("#auto-copy").Should().NotBeNull();
+        cut.FindAll("#auto-copy").Should().BeEmpty(); // moved into the header Options popover
     }
 
     [Fact]
@@ -97,18 +98,29 @@ public class WebComponentTests
     public void MainLayout_OffersEveryThemeAndPersistsTheChoice()
     {
         using var ctx = Context();
+        var prefs = new PreferencesState(ctx.JSInterop.JSRuntime);
+        ctx.Services.AddSingleton(prefs);
         ctx.Services.AddSingleton(new IntroState(new PersistenceService(ctx.JSInterop.JSRuntime)));
         var cut = ctx.Render<MainLayout>(p => p
             .Add(x => x.Body, b => b.AddMarkupContent(0, "<p>body</p>")));
 
+        cut.Find("#options-open").Click();
+
         var options = cut.FindAll("#theme-select option");
         options.Select(o => o.GetAttribute("value"))
             .Should().ContainInOrder("forge", "bench-amber", "system");
+        cut.Find("#scale-select").Should().NotBeNull();
 
         cut.Find("#theme-select").Change("system");
 
         var set = ctx.JSInterop.Invocations.Last(i => i.Identifier == "poeRegexTheme.set");
         set.Arguments.Should().ContainSingle().Which.Should().Be("system");
+
+        cut.Find("#options-auto-copy").Change(true);
+        prefs.AutoCopy.Should().BeTrue();
+
+        cut.Find(".options-wrap").KeyDown("Escape");
+        cut.WaitForAssertion(() => cut.FindAll("#options-pop").Should().BeEmpty());
     }
 
     [Fact]
