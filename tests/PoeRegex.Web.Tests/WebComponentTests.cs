@@ -103,12 +103,12 @@ public class WebComponentTests
 
         var options = cut.FindAll("#theme-select option");
         options.Select(o => o.GetAttribute("value"))
-            .Should().ContainInOrder("forge", "forge-flame", "forge-honey", "forge-sand", "forge-bronze");
+            .Should().ContainInOrder("forge", "parchment", "ash", "sandstone");
 
-        cut.Find("#theme-select").Change("forge-bronze");
+        cut.Find("#theme-select").Change("sandstone");
 
         var set = ctx.JSInterop.Invocations.Last(i => i.Identifier == "poeRegexTheme.set");
-        set.Arguments.Should().ContainSingle().Which.Should().Be("forge-bronze");
+        set.Arguments.Should().ContainSingle().Which.Should().Be("sandstone");
     }
 
     [Fact]

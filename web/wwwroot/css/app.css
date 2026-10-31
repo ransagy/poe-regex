@@ -18,9 +18,9 @@
     --ember-hi: #ffc06a;
     --ember-ink: #1a1207;
     --ember-soft: rgba(240, 165, 65, 0.13);
-    /* Primary buttons use a slightly calmer amber than focus rings/accents. */
-    --ember-btn: #d4923f;
-    --ember-btn-hi: #e5a854;
+    /* Primary buttons use Bronze, a calmer amber than focus rings/accents. */
+    --ember-btn: #c78a3c;
+    --ember-btn-hi: #dba04f;
     --mod: #9aa6ff;
     --mod-soft: rgba(154, 166, 255, 0.12);
     --no: #e87964;
@@ -31,6 +31,15 @@
     --btn-hover-line: #394047;
     --anchor: #4b4a45;
     --card-bg: #08090a;
+    /* Text/surfaces that are game-like but must follow light/dark themes. */
+    --rarity-normal: #d4d4d4;
+    --rarity-magic: #8888ff;
+    --rarity-rare: #ffff77;
+    --rarity-unique: #af6025;
+    --exc-ink: #f3b3a6;
+    --mod-ink: #11131c;
+    --tint: rgba(255, 255, 255, 0.06);
+    --loader-ink: #9aa4b2;
     --r: 4px;
     --r-lg: 7px;
     --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
@@ -39,14 +48,116 @@
 }
 
 /*
-  Temporary primary-button amber picks for Forge Black. Each variant changes
-  only --ember-btn/--ember-btn-hi; accent text and focus rings keep the theme
-  ember. A light theme and "match system" option come later.
+  Light options, same forge accent in Bronze. These are candidates while the
+  light look is chosen; the dark default stays Forge Black.
 */
-:root[data-theme="forge-flame"] { --ember-btn: #f0a541; --ember-btn-hi: #ffbf66; }
-:root[data-theme="forge-honey"] { --ember-btn: #e09a45; --ember-btn-hi: #f0ae5a; }
-:root[data-theme="forge-sand"] { --ember-btn: #e6a24a; --ember-btn-hi: #f7b765; }
-:root[data-theme="forge-bronze"] { --ember-btn: #c78a3c; --ember-btn-hi: #dba04f; }
+:root[data-theme="parchment"] {
+    color-scheme: light;
+    --ground: #f3eee4;
+    --surface: #fbf7ef;
+    --raised: #e9e1d3;
+    --well: #fffdf8;
+    --line: #d9cfbd;
+    --line-strong: #b9ab93;
+    --text: #241f17;
+    --muted: #5f574a;
+    --faint: #6f6658;
+    --ember: #8a5a12;
+    --ember-hi: #a56f1d;
+    --ember-ink: #fff8ec;
+    --ember-soft: rgba(138, 90, 18, 0.12);
+    --ember-btn: #8a5a12;
+    --ember-btn-hi: #a56f1d;
+    --mod: #4b4fa8;
+    --mod-soft: rgba(75, 79, 168, 0.12);
+    --mod-ink: #ffffff;
+    --no: #a8402c;
+    --no-soft: rgba(168, 64, 44, 0.12);
+    --ok: #487335;
+    --btn-hover: #e3d9c8;
+    --btn-hover-line: #a89a82;
+    --anchor: #b9ab93;
+    --card-bg: #fffdf8;
+    --rarity-normal: #4a453c;
+    --rarity-magic: #3f45a8;
+    --rarity-rare: #6f5200;
+    --rarity-unique: #8a4a12;
+    --exc-ink: #a8402c;
+    --tint: rgba(36, 31, 23, 0.06);
+    --loader-ink: #5b5347;
+}
+
+:root[data-theme="ash"] {
+    color-scheme: light;
+    --ground: #edf0f2;
+    --surface: #f8fafb;
+    --raised: #e3e8ec;
+    --well: #fdfefe;
+    --line: #d0d7dd;
+    --line-strong: #aab5bf;
+    --text: #1a2127;
+    --muted: #4c5761;
+    --faint: #606c75;
+    --ember: #86580f;
+    --ember-hi: #a06c1c;
+    --ember-ink: #fbfcff;
+    --ember-soft: rgba(134, 88, 15, 0.12);
+    --ember-btn: #86580f;
+    --ember-btn-hi: #a06c1c;
+    --mod: #3f4aa0;
+    --mod-soft: rgba(63, 74, 160, 0.12);
+    --mod-ink: #ffffff;
+    --no: #a03a2c;
+    --no-soft: rgba(160, 58, 44, 0.12);
+    --ok: #3f6f36;
+    --btn-hover: #dae1e6;
+    --btn-hover-line: #98a5b0;
+    --anchor: #aab5bf;
+    --card-bg: #fdfefe;
+    --rarity-normal: #3f4a52;
+    --rarity-magic: #3f45a8;
+    --rarity-rare: #6b4f00;
+    --rarity-unique: #86460f;
+    --exc-ink: #a03a2c;
+    --tint: rgba(26, 33, 39, 0.06);
+    --loader-ink: #4b555e;
+}
+
+:root[data-theme="sandstone"] {
+    color-scheme: light;
+    --ground: #efe5d5;
+    --surface: #f9f2e6;
+    --raised: #e6d9c4;
+    --well: #fefaf3;
+    --line: #d5c5ad;
+    --line-strong: #b39f83;
+    --text: #251d14;
+    --muted: #625647;
+    --faint: #726555;
+    --ember: #8f5410;
+    --ember-hi: #a96a1c;
+    --ember-ink: #fff7ea;
+    --ember-soft: rgba(143, 84, 16, 0.12);
+    --ember-btn: #8f5410;
+    --ember-btn-hi: #a96a1c;
+    --mod: #4a4a9e;
+    --mod-soft: rgba(74, 74, 158, 0.12);
+    --mod-ink: #ffffff;
+    --no: #a23c28;
+    --no-soft: rgba(162, 60, 40, 0.12);
+    --ok: #456d33;
+    --btn-hover: #dfd1ba;
+    --btn-hover-line: #a4906f;
+    --anchor: #b39f83;
+    --card-bg: #fefaf3;
+    --rarity-normal: #4a4035;
+    --rarity-magic: #40439f;
+    --rarity-rare: #6f5100;
+    --rarity-unique: #89450f;
+    --exc-ink: #a23c28;
+    --tint: rgba(37, 29, 20, 0.06);
+    --loader-ink: #5c5142;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -256,7 +367,7 @@ input:disabled { opacity: 0.5; }
     position: absolute; top: 0.25rem; left: 0.3rem; z-index: 2; pointer-events: none;
     min-width: 1.1rem; height: 1.1rem; padding: 0 0.25rem; border-radius: 0.55rem;
     display: inline-flex; align-items: center; justify-content: center;
-    background: var(--mod); color: #11131c; font-size: 0.68rem; font-weight: 700;
+    background: var(--mod); color: var(--mod-ink); font-size: 0.68rem; font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
 .gear-slot.small .gear-count { top: 0.15rem; left: 0.15rem; min-width: 0.85rem; height: 0.85rem; padding: 0 0.15rem; font-size: 0.58rem; }
@@ -412,10 +523,10 @@ input:disabled { opacity: 0.5; }
 }
 .qb-anchor { color: var(--muted); text-decoration-color: var(--line-strong); }
 .qb-inc { text-decoration-color: rgba(154, 166, 255, 0.55); }
-.qb-exc { color: #f3b3a6; text-decoration-color: rgba(236, 122, 101, 0.6); }
+.qb-exc { color: var(--exc-ink); text-decoration-color: rgba(236, 122, 101, 0.6); }
 .qb.hot { background: var(--mod-soft); text-decoration-color: var(--mod); }
 .qb-exc.hot { background: var(--no-soft); text-decoration-color: var(--no); }
-.qb-anchor.hot { background: rgba(255, 255, 255, 0.06); text-decoration-color: var(--muted); }
+.qb-anchor.hot { background: var(--tint); text-decoration-color: var(--muted); }
 
 .ruler {
     position: relative; display: flex; height: 6px; border-radius: 3px;
@@ -472,7 +583,7 @@ input:disabled { opacity: 0.5; }
 .bd-what { min-width: 0; display: flex; flex-direction: column; }
 .bd-label { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bd-detail { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bd-row.exc .bd-label { color: #f3b3a6; }
+.bd-row.exc .bd-label { color: var(--exc-ink); }
 .bd-frag {
     max-width: 6.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-size: 0.78rem; color: var(--muted);
@@ -573,10 +684,10 @@ input:disabled { opacity: 0.5; }
 
 /* ---------- Item card ---------- */
 
-.rarity-normal { color: #d4d4d4; }
-.rarity-magic { color: #8888ff; }
-.rarity-rare { color: #ffff77; }
-.rarity-unique { color: #af6025; }
+.rarity-normal { color: var(--rarity-normal); }
+.rarity-magic { color: var(--rarity-magic); }
+.rarity-rare { color: var(--rarity-rare); }
+.rarity-unique { color: var(--rarity-unique); }
 
 .iprev {
     background: var(--card-bg); border: 1px solid var(--line-strong); border-radius: var(--r);
@@ -591,7 +702,7 @@ input:disabled { opacity: 0.5; }
 .iprev-mod + .iprev-mod { margin-top: 0.35rem; }
 .iprev-cap { color: var(--faint); font-size: 0.74rem; margin: 0.1rem 0; }
 .iprev-line { display: flex; gap: 0.5rem; align-items: baseline; justify-content: center; padding: 0.05rem 0; }
-.iprev-text { min-width: 0; overflow-wrap: anywhere; color: #8888ff; }
+.iprev-text { min-width: 0; overflow-wrap: anywhere; color: var(--rarity-magic); }
 .iprev-annot { white-space: nowrap; font-size: 0.74rem; }
 .iprev-corrupt { color: #d20000; font-weight: 600; }
 .map-none { color: var(--no); font-size: 0.76rem; }
@@ -752,9 +863,9 @@ body.compact .out-dock {
   --iron-hi:#aab4c2;--iron-lo:#566070;--iron-edge:#0b0d11;
   --wood-hi:#86603a;--wood-lo:#52371f;
   --spark-hi:#fff1b8;--spark-lo:#ff9a22;
-  --shadow:rgba(0,0,0,.5);--ink:#9aa4b2;
+  --shadow:rgba(0,0,0,.5);
   width:var(--forge-size);display:grid;justify-items:center;gap:6px;
-  font:500 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:var(--ink);
+  font:500 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:var(--loader-ink);
 }
 .forge-loader svg{display:block;width:100%;height:auto;overflow:visible}
 .forge-loader .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
