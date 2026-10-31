@@ -253,7 +253,7 @@ input:disabled { opacity: 0.5; }
 }
 .seg-opt:hover { color: var(--text); }
 .seg-opt.active { background: var(--raised); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.seg-note { color: var(--faint); font-size: 0.86rem; }
+.seg-note { color: var(--ember); font-size: 0.86rem; }
 .bench-bar { flex-wrap: wrap; row-gap: 0.5rem; }
 .bench-notice {
     flex: none; margin: 0; padding: 0.5rem 0.75rem; display: flex; align-items: baseline; gap: 0.75rem;
@@ -596,6 +596,10 @@ input:disabled { opacity: 0.5; }
 .intro-flow { margin: 0; color: var(--muted); font-size: 0.85rem; }
 .intro-flow b { font-weight: 600; color: var(--text); }
 
+/* Two placements: wide keeps the card in the output column, stacked shows it first below the top bar. */
+.intro-top { display: none; flex: none; }
+.intro-top .intro-card { margin-bottom: 0; }
+
 /* ---------- Test items ---------- */
 
 .pack-tools { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: none; }
@@ -802,6 +806,8 @@ body.compact .bench-main { grid-template-columns: minmax(0, 1fr); contain: none;
 body.compact .mode-advanced .bench-main { grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); }
 body.compact .mode-advanced .col-out { grid-column: 1 / -1; }
 body.compact .col-out { overflow: visible; }
+body.compact .intro-top { display: block; }
+body.compact .intro-side { display: none; }
 body.compact .mod-list { flex: 0 0 auto; max-height: 60vh; }
 body.compact .pack-wrap { max-height: none; }
 body.compact .shell { padding-bottom: 3.75rem; }
@@ -828,6 +834,8 @@ body.compact .out-dock {
     .bench-bar { flex-wrap: wrap; }
     .bench-main, .mode-advanced .bench-main, body.compact .mode-advanced .bench-main { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
     .col-out { overflow: visible; }
+    .intro-top { display: block; }
+    .intro-side { display: none; }
     .bench-main { contain: none; flex: none; }
     .mod-list { flex: 0 0 auto; max-height: 60vh; }
     .pack-wrap { width: 100%; max-height: none; }
