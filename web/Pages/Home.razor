@@ -255,6 +255,8 @@
     private bool _disposed;
     private ElementReference _staleReload;
     private DotNetObjectReference<Home>? _tabRef;
+    private string? _warmKey;
+    private bool _warmScheduled;
 
     protected override void OnInitialized()
     {
@@ -297,6 +299,9 @@
             _tabRef.Dispose();
             _tabRef = null;
         }
+        // Warm the value-threshold corpus after the first paint so the first
+        // minimum is immediate; see PrewarmValuePath.
+        ScheduleValuePrewarm();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -427,6 +432,55 @@
         Recompute();
         _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
         InvokeAsync(StateHasChanged);
+        // After the pick paints, warm the value path for the scope so the
+        // first min entry is immediate.
+        ScheduleValuePrewarm();
+    }
+
+    /// <summary>
+    /// Warm the real-line corpus for the editing scope in the background so a
+    /// min entry never pays the lazy index build. Only runs when a pick in the
+    /// scope can actually take a minimum, and once per scope.
+    /// </summary>
+    private void ScheduleValuePrewarm()
+    {
+        if (_disposed || _warmScheduled) return;
+        var (key, itemClass) = PrewarmTarget();
+        if (key is null || string.Equals(key, _warmKey, StringComparison.Ordinal)) return;
+        _warmScheduled = true;
+        _ = PrewarmAsync(key, itemClass);
+    }
+
+    private (string? Key, string? ItemClass) PrewarmTarget()
+    {
+        if (State.Mode == "simple")
+            return State.Global.Included.Any(Engine.MayAcceptMin)
+                ? ("simple|global", null)
+                : (null, null);
+        if (State.FocusedSlot is { } slot)
+        {
+            var cls = State.SlotClassOrDefault(slot);
+            return State.CriteriaFor(slot).Included.Any(Engine.MayAcceptMin)
+                ? ($"advanced|{cls}", cls)
+                : (null, null);
+        }
+        return (null, null);
+    }
+
+    private async Task PrewarmAsync(string key, string? itemClass)
+    {
+        try
+        {
+            // Let the pick that triggered this paint first.
+            await Task.Yield();
+            if (_disposed) return;
+            Engine.PrewarmValuePath(itemClass);
+            _warmKey = key;
+        }
+        finally
+        {
+            _warmScheduled = false;
+        }
     }
 
     private async Task CopyBar(string query)

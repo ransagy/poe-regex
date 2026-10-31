@@ -52,4 +52,15 @@ public class CommonPrefixFactorTests
         var b = CompactionEngine.FactorCommonPrefixes(["to strength", "to dexterity", "to intelligence"]);
         a.Should().Equal(b);
     }
+
+    [Fact]
+    public void WithSources_ReportsWhichFragmentsWereMerged()
+    {
+        var result = CompactionEngine.FactorWithSources(["to strength", "to dexterity", "of fire"]);
+        result.Should().HaveCount(2);
+        var factored = result.Single(a => a.Text.StartsWith("to ", StringComparison.Ordinal));
+        factored.SourceIndices.Should().Equal([0, 1]);
+        var plain = result.Single(a => a.Text == "of fire");
+        plain.SourceIndices.Should().Equal([2]);
+    }
 }

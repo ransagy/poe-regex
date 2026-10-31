@@ -4,6 +4,7 @@ using PoeRegex.Core;
 using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Explain;
+using PoeRegex.Core.Search;
 
 namespace PoeRegex.Web.Core;
 
@@ -17,9 +18,11 @@ public sealed class EngineService
 {
     private readonly EngineCorpus _corpus;
     private readonly PoeRegexCompiler _compiler;
+    private readonly CompactionEngine _compaction;
     private readonly Explainer _explainer;
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
+    private readonly ConcurrentDictionary<(string PickKey, string? ItemClass), bool> _minCapable = new();
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
@@ -31,6 +34,7 @@ public sealed class EngineService
         var catalog = new EmbeddedCatalogSource().Load();
         _corpus = new EngineCorpus(catalog);
         _compiler = new PoeRegexCompiler(_corpus);
+        _compaction = new CompactionEngine(_corpus);
         _explainer = new Explainer(_corpus);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
@@ -296,6 +300,84 @@ public sealed class EngineService
             itemClass: itemClass,
             allowOverflow: true,
             requiredGroups: matchAll ? picks.Select(m => m.Requirements()) : null);
+
+    /// <summary>
+    /// The compiled fragment for each requirement of a pick, in compile order.
+    /// The picker ruler uses this to split one any-of block into per-pick
+    /// segments without re-running the whole compile pipeline.
+    /// </summary>
+    public IReadOnlyList<string> RequirementFragments(WantedMod pick, string? itemClass)
+    {
+        var fragments = new List<string>();
+        foreach (var req in pick.Requirements())
+        {
+            var mod = _corpus.FindMod(req.Value);
+            string? fragment;
+            if (mod is not null)
+                fragment = _compaction.SelectFragment(req, itemClass);
+            else
+                fragment = Poe2Syntax.ValidateFragment(req.Value) is null
+                    ? Poe2Syntax.EscapeLiteral(req.Value)
+                    : null;
+            if (fragment is not null) fragments.Add(fragment);
+        }
+        return fragments;
+    }
+
+    /// <summary>
+    /// True when setting a minimum on this pick changes its compiled fragment.
+    /// Name picks never carry a minimum, and a pick must have a digit in a
+    /// single stat line for a threshold to be meaningful. The result is probed
+    /// once per pick shape + class and cached: the picker hides the min input
+    /// when it would be silently ignored (for example a resistance family whose
+    /// precomputed fragment already covers every roll).
+    /// </summary>
+    public bool CanApplyMin(WantedMod pick, string? itemClass)
+    {
+        if (!MayAcceptMin(pick)) return false;
+        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
+        var key = (string.Join('\u0001', ids), itemClass);
+        return _minCapable.GetOrAdd(key, _ =>
+        {
+            // Probe with the smallest useful value: a threshold at 1 matches
+            // every roll >= 1, so it only differs when the build path can
+            // actually replace the value token with a range.
+            var baseQuery = Compile(pick.Requirements(), [], itemClass: itemClass, allowOverflow: true).Query;
+            var minQuery = Compile((pick with { MinValue = 1 }).Requirements(), [],
+                itemClass: itemClass, allowOverflow: true).Query;
+            return !string.Equals(baseQuery, minQuery, StringComparison.Ordinal);
+        });
+    }
+
+    /// <summary>
+    /// Cheap catalog-only gate: plain pick, one stat line, a value to
+    /// threshold, and every family variant sharing that shape. The cached
+    /// fragment probe in <see cref="CanApplyMin"/> then decides whether the
+    /// minimum actually changes the compiled text.
+    /// </summary>
+    public bool MayAcceptMin(WantedMod pick)
+    {
+        if (pick.IsNamePick) return false;
+        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
+        foreach (var id in ids)
+        {
+            var mod = FindMod(id);
+            if (mod is not { StatLines.Count: 1 }) return false;
+            if (!mod.StatLines[0].Pattern.Contains(SuffixIndex.DigitPlaceholder)) return false;
+        }
+        return ids.Count > 0;
+    }
+
+    /// <summary>
+    /// Warm the lazy real-line corpus used by value thresholds, so the first
+    /// min entry does not pay for it. Called once after the first render (and
+    /// when the editing scope changes), never at startup.
+    /// </summary>
+    public void PrewarmValuePath(string? itemClass)
+    {
+        if (itemClass is null) _corpus.RealLinesGlobal();
+        else _corpus.RealLinesForClass(itemClass);
+    }
 
     /// <summary>
     /// Combine per-slot criteria into one stash paste (anchor + exclusion

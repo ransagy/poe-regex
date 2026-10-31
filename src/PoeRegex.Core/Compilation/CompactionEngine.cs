@@ -64,9 +64,13 @@ public sealed class CompactionEngine
     private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
     {
         var allowed = new HashSet<string> { pattern };
+        // Any line the threshold regex can match must contain the pattern's
+        // longest literal run; skipping the rest keeps the oracle from
+        // scanning the whole catalog on every minimum change.
+        var literal = EngineCorpus.LiteralProbe(pattern);
         return itemClass is not null
-            ? _corpus.RegexSafeOnClass(itemClass, fragment, allowed)
-            : _corpus.GlobalRegexSafe(fragment, allowed);
+            ? _corpus.RegexSafeOnClass(itemClass, fragment, allowed, literal)
+            : _corpus.GlobalRegexSafe(fragment, allowed, literal);
     }
 
     /// <summary>
@@ -135,22 +139,43 @@ public sealed class CompactionEngine
     /// "to maximum" common → "to (maxima|strength)" style alternation.
     /// Deterministic and order-independent.
     /// </summary>
-    public static IReadOnlyList<string> FactorCommonPrefixes(IReadOnlyList<string> fragments)
+    public static IReadOnlyList<string> FactorCommonPrefixes(IReadOnlyList<string> fragments) =>
+        FactorWithSources(fragments).Select(a => a.Text).ToList();
+
+    /// <summary>One emitted alternative and the input fragment indexes it covers.</summary>
+    public readonly record struct FactoredAlternative(string Text, IReadOnlyList<int> SourceIndices);
+
+    /// <summary>
+    /// As <see cref="FactorCommonPrefixes"/>, but keeps track of which input
+    /// fragments produced each emitted alternative. The picker ruler uses this
+    /// to split a single any-of block into per-pick segments: a factored
+    /// alternative that covers several picks becomes one shared segment.
+    /// </summary>
+    public static IReadOnlyList<FactoredAlternative> FactorWithSources(IReadOnlyList<string> fragments)
     {
-        if (fragments.Count < 2) return fragments;
+        if (fragments.Count < 2)
+            return fragments.Select((f, i) => new FactoredAlternative(f, [i])).ToList();
+
+        var sources = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        for (var i = 0; i < fragments.Count; i++)
+        {
+            if (!sources.TryGetValue(fragments[i], out var list))
+                sources[fragments[i]] = list = [];
+            list.Add(i);
+        }
         var distinct = fragments.Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
 
         // Group by the first character; within a group find the longest common prefix
         // of all members. If shared prefix is >= 2 chars and alternation is shorter,
         // factor it.
-        var result = new List<string>();
+        var result = new List<FactoredAlternative>();
         var groups = distinct.GroupBy(s => s.Length > 0 ? s[0] : '\0').OrderBy(g => g.Key);
         foreach (var group in groups)
         {
             var items = group.ToList();
             if (items.Count < 2)
             {
-                result.AddRange(items);
+                result.Add(new FactoredAlternative(items[0], sources[items[0]]));
                 continue;
             }
             var prefix = LongestCommonPrefix(items);
@@ -169,12 +194,19 @@ public sealed class CompactionEngine
                 var factored = prefix + "(" + string.Join("|", suffixes!) + ")";
                 // Only use if actually shorter than the union.
                 var union = string.Join("|", items);
-                if (factored.Length < union.Length) result.Add(factored);
-                else result.AddRange(items);
+                if (factored.Length < union.Length)
+                {
+                    result.Add(new FactoredAlternative(factored,
+                        items.SelectMany(t => sources[t]).Distinct().OrderBy(x => x).ToList()));
+                }
+                else
+                {
+                    result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
+                }
             }
             else
             {
-                result.AddRange(items);
+                result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
             }
         }
         return result;
