@@ -54,10 +54,11 @@
                             {
                                 var plainPick = fam.Pick();
                                 var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
-                                var pickedTier = !pickedPlain && crit.Included.Any(m => m.IsNamePick && fam.Tiers.Any(t => t.Anchor.Id == m.ModId));
+                                var pickedTiers = fam.Tiers.Count(t =>
+                                    crit.Included.Any(m => m.IsNamePick && m.ModId == t.Anchor.Id));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 <li class="fam-block">
-                                    <div class="suggest-row fam-row @(pickedPlain ? "picked" : pickedTier ? "has-tier" : "")">
+                                    <div class="suggest-row fam-row @(pickedPlain ? "picked" : "")">
                                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
                                                 aria-expanded="@(expanded ? "true" : "false")"
                                                 title="@FamilyToggleTitle(fam, expanded)"
@@ -77,6 +78,10 @@
                                                 }
                                             </span>
                                             <span class="tier-count">@fam.Tiers.Count tiers</span>
+                                            @if (pickedTiers > 0)
+                                            {
+                                                <span class="picked-count" title="@($"{pickedTiers} {(pickedTiers == 1 ? "tier" : "tiers")} picked in this family")">@pickedTiers picked</span>
+                                            }
                                         </button>
                                         <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)" aria-label="@FamilyIncludeTitle(fam)"
                                                 disabled="@pickedPlain"

@@ -29,6 +29,9 @@ public sealed class EngineCorpus
     private readonly Lazy<UnionIndex> _union;
     private readonly Lazy<UnionIndex> _fullUnion;
     private readonly Lazy<Dictionary<string, List<ModEntry>>> _modsByPattern;
+    private readonly Lazy<Dictionary<string, List<(string Pattern, string Real)>>> _globalByPattern;
+    private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _globalByLiteral =
+        new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
     private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
@@ -37,21 +40,73 @@ public sealed class EngineCorpus
 
     private sealed class ClassIndex
     {
-        public required SuffixIndex Index { get; init; }
+        private readonly Lazy<SuffixIndex> _index;
+        private readonly Lazy<SuffixIndex> _foldIndex;
+        private readonly Dictionary<string, List<(string Pattern, string Real)>> _byPattern;
+        private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _byLiteral =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public ClassIndex(
+            IReadOnlyList<string> corpus,
+            int classLineIndex,
+            Dictionary<string, int> patternToIndex,
+            HashSet<string> safetyOnlyPatterns,
+            List<(string Pattern, string Real)> allRealLines)
+        {
+            Corpus = corpus;
+            ClassLineIndex = classLineIndex;
+            PatternToIndex = patternToIndex;
+            SafetyOnlyPatterns = safetyOnlyPatterns;
+            AllRealLines = allRealLines;
+            _byPattern = GroupByPattern(allRealLines);
+            _index = new(() => SuffixIndex.Build(corpus), LazyThreadSafetyMode.ExecutionAndPublication);
+            _foldIndex = new(() => SuffixIndex.Build(corpus, caseInsensitive: true),
+                LazyThreadSafetyMode.ExecutionAndPublication);
+        }
+
+        /// <summary>Real lines carrying one normalized pattern.</summary>
+        public IReadOnlyList<(string Pattern, string Real)> LinesWithPattern(string pattern) =>
+            _byPattern.GetValueOrDefault(pattern) ?? [];
+
+        /// <summary>
+        /// Real lines containing a literal run, cached per run. The value
+        /// threshold oracle uses this to avoid scanning the whole class corpus
+        /// (and running a regex on every line) for each minimum change.
+        /// </summary>
+        public IReadOnlyList<(string Pattern, string Real)> LinesWithLiteral(string literal) =>
+            _byLiteral.GetOrAdd(literal, key => AllRealLines
+                .Where(x => x.Real.Contains(key, StringComparison.OrdinalIgnoreCase))
+                .ToList());
+
+        /// <summary>Sorted normalized patterns for this class.</summary>
+        public IReadOnlyList<string> Corpus { get; }
+
+        /// <summary>
+        /// Suffix index, built on first fingerprint/oracle use. Most picks use
+        /// the precomputed table and never need it; building every class's
+        /// suffix arrays up front made the first value-threshold compile wait
+        /// for the whole catalog (about 1.2 s in the browser).
+        /// </summary>
+        public SuffixIndex Index => _index.Value;
+
         /// <summary>Case-insensitive index: fingerprints are unique under case-folded matching.</summary>
-        public required SuffixIndex FoldIndex { get; init; }
+        public SuffixIndex FoldIndex => _foldIndex.Value;
+
         /// <summary>Corpus line index of the "Item Class: X" line.</summary>
-        public required int ClassLineIndex { get; init; }
+        public int ClassLineIndex { get; }
+
         /// <summary>pattern -> corpus line index.</summary>
-        public required Dictionary<string, int> PatternToIndex { get; init; }
+        public Dictionary<string, int> PatternToIndex { get; }
+
         /// <summary>Patterns present only because of the captured-item safety lines.</summary>
-        public required HashSet<string> SafetyOnlyPatterns { get; init; }
+        public HashSet<string> SafetyOnlyPatterns { get; }
+
         /// <summary>
         /// All real (un-normalized) copy-text lines on this class, each tagged
         /// with its normalized pattern. Used by the regex-based oracle so value
         /// thresholds validate against every actual roll.
         /// </summary>
-        public required List<(string Pattern, string Real)> AllRealLines { get; init; }
+        public List<(string Pattern, string Real)> AllRealLines { get; }
     }
 
     /// <summary>Union corpus over every class's mod lines, for global (no-class) fingerprints.</summary>
@@ -283,6 +338,8 @@ public sealed class EngineCorpus
         _union = new(() => BuildUnionIndex(includeNotInGame: false), LazyThreadSafetyMode.ExecutionAndPublication);
         _fullUnion = new(() => BuildUnionIndex(includeNotInGame: true), LazyThreadSafetyMode.ExecutionAndPublication);
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
+        _globalByPattern = new(() => GroupByPattern(RealLinesGlobal()),
+            LazyThreadSafetyMode.ExecutionAndPublication);
         _fragments = fragments ?? FragmentTables.ForCurrentGame;
         if (_fragments is not null)
         {
@@ -451,9 +508,12 @@ public sealed class EngineCorpus
     /// </summary>
     public IReadOnlyList<string> DisplayPatternsFor(string pattern, string? itemClass)
     {
-        var lines = itemClass is null ? RealLinesGlobal() : RealLinesForClass(itemClass);
+        var lines = itemClass is null
+            ? _globalByPattern.Value.GetValueOrDefault(pattern) ?? []
+            : _byClass.Value.TryGetValue(itemClass, out var ci)
+                ? ci.LinesWithPattern(pattern)
+                : [];
         return lines
-            .Where(x => string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
             .Select(x => CatalogLineNormalizer.Normalize(x.Real))
             .Where(x => !string.Equals(x, pattern, StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
@@ -611,7 +671,7 @@ public sealed class EngineCorpus
         var any = false;
         foreach (var lineIndex in matched)
         {
-            var pattern = ci.Index.ClassCorpus[lineIndex];
+            var pattern = ci.Corpus[lineIndex];
             if (!includeSafety && ((pattern.Length > 0 && pattern[0] == SafetyPatternMarker) || ci.SafetyOnlyPatterns.Contains(pattern))) continue;
             if (!includeUniversal && UniversalPatterns.Contains(pattern)) continue;
             any = true;
@@ -626,11 +686,13 @@ public sealed class EngineCorpus
     /// Matching is case-insensitive to mirror the game. Used to validate
     /// value-threshold patterns against actual copy text.
     /// </summary>
-    public bool RegexSafeOnClass(string itemClass, string regexFragment, IReadOnlyCollection<string> allowedPatterns)
+    public bool RegexSafeOnClass(string itemClass, string regexFragment, IReadOnlyCollection<string> allowedPatterns,
+        string? literal = null)
     {
         if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return false;
         var matchedAny = false;
-        foreach (var (pattern, real) in ci.AllRealLines)
+        var lines = literal is null ? ci.AllRealLines : ci.LinesWithLiteral(literal);
+        foreach (var (pattern, real) in lines)
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
             matchedAny = true;
@@ -677,16 +739,64 @@ public sealed class EngineCorpus
     /// the fragment must match at least one real line whose pattern is allowed and
     /// no real line whose pattern is not allowed. Matching is case-insensitive.
     /// </summary>
-    public bool GlobalRegexSafe(string regexFragment, IReadOnlyCollection<string> allowedPatterns)
+    public bool GlobalRegexSafe(string regexFragment, IReadOnlyCollection<string> allowedPatterns,
+        string? literal = null)
     {
         var matchedAny = false;
-        foreach (var (pattern, real) in RealLinesGlobal())
+        var lines = literal is null
+            ? RealLinesGlobal()
+            : _globalByLiteral.GetOrAdd(literal, key => RealLinesGlobal()
+                .Where(x => x.Real.Contains(key, StringComparison.OrdinalIgnoreCase))
+                .ToList());
+        foreach (var (pattern, real) in lines)
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(real, regexFragment, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
             matchedAny = true;
             if (!allowedPatterns.Contains(pattern)) return false;
         }
         return matchedAny;
+    }
+
+    /// <summary>Groups real lines by their normalized pattern once.</summary>
+    private static Dictionary<string, List<(string Pattern, string Real)>> GroupByPattern(
+        IReadOnlyList<(string Pattern, string Real)> lines)
+    {
+        var map = new Dictionary<string, List<(string Pattern, string Real)>>(StringComparer.Ordinal);
+        foreach (var line in lines)
+        {
+            if (!map.TryGetValue(line.Pattern, out var list))
+                map[line.Pattern] = list = [];
+            list.Add(line);
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// A literal run from a catalog pattern that every matching copy-text
+    /// line must contain (letters/spaces/percent, at least three chars). Used
+    /// to skip unrelated lines before running a regex, which keeps the
+    /// value-threshold oracle cheap even in the browser.
+    /// </summary>
+    public static string? LiteralProbe(string pattern)
+    {        var best = string.Empty;
+        var run = new System.Text.StringBuilder();
+        void Consider()
+        {
+            var text = run.ToString().Trim();
+            if (text.Length > best.Length) best = text;
+            run.Clear();
+        }
+        foreach (var ch in pattern)
+        {
+            if (ch == SuffixIndex.DigitPlaceholder || !(char.IsLetter(ch) || ch is ' ' or '%' or '\''))
+            {
+                Consider();
+                continue;
+            }
+            run.Append(ch);
+        }
+        Consider();
+        return best.Length >= 3 ? best : null;
     }
 
     /// <summary>
@@ -701,7 +811,7 @@ public sealed class EngineCorpus
         if (itemClass is not null)
         {
             if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return [];
-            return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Index.ClassCorpus[i]).ToList();
+            return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Corpus[i]).ToList();
         }
         var union = _union.Value;
         return union.FoldIndex.LinesMatching(literal).Select(i => union.Index.ClassCorpus[i]).ToList();
@@ -841,8 +951,6 @@ public sealed class EngineCorpus
             var corpus = new List<string>(patterns) { classLinePattern };
             corpus.Sort(StringComparer.Ordinal);
 
-            var index = SuffixIndex.Build(corpus);
-            var foldIndex = SuffixIndex.Build(corpus, caseInsensitive: true);
             var classLineIndex = corpus.IndexOf(classLinePattern);
             var patternToIndex = new Dictionary<string, int>();
             for (var i = 0; i < corpus.Count; i++) patternToIndex[corpus[i]] = i;
@@ -860,15 +968,12 @@ public sealed class EngineCorpus
                 .OrderBy(x => x.Pattern, StringComparer.Ordinal)
                 .ThenBy(x => x.Real, StringComparer.Ordinal)
                 .ToList();
-            result[cls.Id] = new ClassIndex
-            {
-                Index = index,
-                FoldIndex = foldIndex,
-                ClassLineIndex = classLineIndex,
-                PatternToIndex = patternToIndex,
-                SafetyOnlyPatterns = safetyOnly,
-                AllRealLines = sortedReal,
-            };
+            result[cls.Id] = new ClassIndex(
+                corpus,
+                classLineIndex,
+                patternToIndex,
+                safetyOnly,
+                sortedReal);
         }
         return result;
     }

@@ -11,23 +11,37 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
 {
     public sealed record Block(int Index, string Role, string Text, int Cost, string Label);
 
+    /// <summary>
+    /// One segment of the ruler. Normally a segment is one quoted block; in
+    /// simple any-of mode the single group is split into one segment per pick
+    /// (or one shared segment when prefix factoring merged them).
+    /// </summary>
+    public sealed record RulerSegment(
+        int Index, int BlockIndex, string Role, int Cost, string Label, IReadOnlyList<WantedMod> Picks);
+
     public string Query { get; private set; } = "";
     public int Length { get; private set; }
     public int Limit { get; private set; } = 250;
     public bool Over => Length > Limit;
     public MultiPasteResult? Paste { get; private set; }
     public IReadOnlyList<Block> Blocks => _blocks;
+    public IReadOnlyList<RulerSegment> RulerSegments => _ruler;
     public Block? Anchor { get; private set; }
 
     /// <summary>Raised when the hover highlight moves, so every view showing blocks can repaint.</summary>
     public event Action? HotChanged;
 
     private List<Block> _blocks = [];
+    private List<RulerSegment> _ruler = [];
     private List<PasteGroup> _groups = [];
     private List<string> _excludeOrder = [];
     private readonly Dictionary<string, List<int>> _scopeBlocks = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Scope, WantedMod Pick), int> _pickBlock = [];
+    private readonly Dictionary<int, List<int>> _segmentsByBlock = [];
+    private readonly Dictionary<WantedMod, List<int>> _segmentsByPick = [];
     private readonly HashSet<int> _hot = [];
+    private readonly HashSet<int> _hotSegments = [];
+    private readonly HashSet<WantedMod> _hotPicks = [];
     private readonly Dictionary<(WantedMod Pick, string? Class), string?> _pickFragments = [];
     private readonly Dictionary<string, string?> _excludeFragments = new(StringComparer.Ordinal);
 
@@ -54,8 +68,11 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
                 .Concat(state.Global.Excluded).Distinct(StringComparer.Ordinal).ToList()
             : state.Global.Excluded.ToList();
         _hot.Clear();
+        _hotSegments.Clear();
+        _hotPicks.Clear();
         BuildBlocks();
         MapBlocks();
+        BuildRulerSegments();
     }
 
     /// <summary>Leaves the string unsegmented when re-joining its blocks would not reproduce it exactly.</summary>
@@ -140,6 +157,137 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
             _pickBlock[(slot ?? "global", resolved[i])] = indices[i];
     }
 
+    /// <summary>
+    /// Builds the ruler segments. Advanced and all-of keep one segment per
+    /// quoted block; simple any-of splits its single block into per-pick
+    /// segments aligned to the compiled alternatives. Prefix factoring can
+    /// merge alternatives from several picks, so those picks share a segment.
+    /// </summary>
+    private void BuildRulerSegments()
+    {
+        _ruler = [];
+        _segmentsByBlock.Clear();
+        _segmentsByPick.Clear();
+        if (_blocks.Count == 0) return;
+
+        var split = state.Mode == "simple" && !state.Global.MatchAll
+            ? BuildAnyOfSplit()
+            : null;
+
+        foreach (var block in _blocks)
+        {
+            if (split is not null && block.Index == split.BlockIndex)
+            {
+                var total = split.Weights.Sum();
+                var remaining = block.Cost;
+                for (var i = 0; i < split.Weights.Count; i++)
+                {
+                    var left = split.Weights.Count - i - 1;
+                    var cost = i == split.Weights.Count - 1
+                        ? remaining
+                        : Math.Max(1, (int)Math.Round(
+                            (double)block.Cost * split.Weights[i] / total,
+                            MidpointRounding.AwayFromZero));
+                    cost = Math.Min(cost, Math.Max(1, remaining - left));
+                    remaining -= cost;
+                    AddSegment(new RulerSegment(
+                        _ruler.Count, block.Index, block.Role, cost,
+                        split.Labels[i], split.Picks[i]));
+                }
+                continue;
+            }
+            AddSegment(new RulerSegment(
+                _ruler.Count, block.Index, block.Role, block.Cost, block.Label, []));
+        }
+    }
+
+    private void AddSegment(RulerSegment segment)
+    {
+        _ruler.Add(segment);
+        if (!_segmentsByBlock.TryGetValue(segment.BlockIndex, out var blockSegs))
+            _segmentsByBlock[segment.BlockIndex] = blockSegs = [];
+        blockSegs.Add(segment.Index);
+        foreach (var pick in segment.Picks)
+        {
+            if (!_segmentsByPick.TryGetValue(pick, out var pickSegs))
+                _segmentsByPick[pick] = pickSegs = [];
+            pickSegs.Add(segment.Index);
+        }
+    }
+
+    private sealed record AnyOfSplit(
+        int BlockIndex,
+        IReadOnlyList<int> Weights,
+        IReadOnlyList<string> Labels,
+        IReadOnlyList<IReadOnlyList<WantedMod>> Picks);
+
+    /// <summary>
+    /// Splits the single simple any-of block using the same fragments and
+    /// factoring the compiler used. Returns null when the block cannot be
+    /// reproduced exactly (the caller then keeps the one-segment ruler).
+    /// </summary>
+    private AnyOfSplit? BuildAnyOfSplit()
+    {
+        var inc = _blocks.Where(b => b.Role == "inc").ToList();
+        if (inc.Count != 1) return null;
+        var block = inc[0];
+        var picks = state.Global.Included.Where(p => PickFragment(p, null) is not null).ToList();
+        if (picks.Count < 2) return null;
+
+        var inputs = new List<string>();
+        var inputPick = new List<int>();
+        for (var i = 0; i < picks.Count; i++)
+            foreach (var fragment in engine.RequirementFragments(picks[i], null))
+            {
+                inputs.Add(fragment);
+                inputPick.Add(i);
+            }
+        var factored = CompactionEngine.FactorWithSources(inputs);
+        if (factored.Count < 2) return null;
+        var inner = string.Join("|", factored.Select(f => f.Text));
+        var blockInner = block.Text.Length >= 2 ? block.Text[1..^1] : block.Text;
+        if (!string.Equals(inner, blockInner, StringComparison.Ordinal)) return null;
+
+        // Union picks that share a factored alternative (or an identical
+        // fragment), then weight each group by its emitted text.
+        var parent = Enumerable.Range(0, picks.Count).ToArray();
+        int Find(int x) => parent[x] == x ? x : parent[x] = Find(parent[x]);
+        void Union(int a, int b) => parent[Find(a)] = Find(b);
+        foreach (var alt in factored)
+        {
+            var first = inputPick[alt.SourceIndices[0]];
+            foreach (var source in alt.SourceIndices.Skip(1))
+                Union(first, inputPick[source]);
+        }
+
+        var weights = new Dictionary<int, int>();
+        var order = new List<int>();
+        foreach (var alt in factored)
+        {
+            var root = Find(inputPick[alt.SourceIndices[0]]);
+            if (!weights.ContainsKey(root)) order.Add(root);
+            weights[root] = weights.GetValueOrDefault(root) + alt.Text.Length + 1;
+        }
+        if (order.Count < 2 || block.Cost < order.Count) return null;
+
+        var groups = order.Select(root => (root, picks: picks
+                .Where((_, i) => Find(i) == root)
+                .ToList()))
+            .ToList();
+        return new AnyOfSplit(
+            block.Index,
+            groups.Select(g => weights[g.root]).ToList(),
+            groups.Select(g => string.Join(" + ", g.picks.Select(PickLabel))).ToList(),
+            groups.Select(g => (IReadOnlyList<WantedMod>)g.picks).ToList());
+    }
+
+    private string PickLabel(WantedMod pick)
+    {
+        if (pick.IsNamePick) return $"\"{pick.Names![0]}\"";
+        var mods = engine.PlayableMods();
+        return FamilyText(ModFamilies.CachedGroup(mods), mods, pick.ModId);
+    }
+
     public List<int> ScopeBlocks(string? slot) =>
         _scopeBlocks.TryGetValue(slot ?? "global", out var list) ? list : [];
 
@@ -183,18 +331,58 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
 
     public bool IsHot(int index) => _hot.Contains(index);
 
+    public bool IsSegmentHot(int index) => _hotSegments.Contains(index);
+
+    /// <summary>True when this pick owns a hot ruler segment (simple any-of).</summary>
+    public bool IsPickHot(WantedMod pick) => _hotPicks.Contains(pick);
+
     public void Hot(int index) => Hot([index]);
 
     public void Hot(IEnumerable<int> indices)
     {
-        var next = indices.ToHashSet();
-        if (next.SetEquals(_hot)) return;
+        var blocks = indices.ToHashSet();
+        var segments = blocks
+            .SelectMany(b => _segmentsByBlock.GetValueOrDefault(b) ?? [])
+            .ToHashSet();
+        var picks = segments
+            .Where(s => s < _ruler.Count)
+            .SelectMany(s => _ruler[s].Picks)
+            .ToHashSet();
+        ApplyHot(blocks, segments, picks);
+    }
+
+    /// <summary>Hover one ruler segment: its block, segment and picks light up.</summary>
+    public void HotSegment(int index)
+    {
+        if (index < 0 || index >= _ruler.Count) return;
+        var segment = _ruler[index];
+        ApplyHot([segment.BlockIndex], [index], segment.Picks.ToHashSet());
+    }
+
+    /// <summary>Hover a Your-picks row: light every segment that pick owns.</summary>
+    public bool HotPick(WantedMod pick)
+    {
+        if (!_segmentsByPick.TryGetValue(pick, out var segments) || segments.Count == 0) return false;
+        var blocks = segments.Where(s => s < _ruler.Count)
+            .Select(s => _ruler[s].BlockIndex).ToHashSet();
+        ApplyHot(blocks, segments.ToHashSet(), [pick]);
+        return true;
+    }
+
+    private void ApplyHot(HashSet<int> blocks, HashSet<int> segments, HashSet<WantedMod> picks)
+    {
+        if (blocks.SetEquals(_hot) && segments.SetEquals(_hotSegments) && picks.SetEquals(_hotPicks))
+            return;
         _hot.Clear();
-        _hot.UnionWith(next);
+        _hot.UnionWith(blocks);
+        _hotSegments.Clear();
+        _hotSegments.UnionWith(segments);
+        _hotPicks.Clear();
+        _hotPicks.UnionWith(picks);
         HotChanged?.Invoke();
     }
 
-    public void Cool() => Hot([]);
+    public void Cool() => ApplyHot([], [], []);
 
     public static string SlotLabel(string slot) => GearSlot.ById(slot)?.Label ?? slot;
 
