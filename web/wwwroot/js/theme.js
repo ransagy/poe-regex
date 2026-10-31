@@ -8,7 +8,7 @@
     forge: { label: "Forge Black", chrome: "#070809" },
     sandstone: { label: "Sandstone", chrome: "#efe5d5" },
     "sandstone-deep": { label: "Sandstone Deep", chrome: "#e7d7bf" },
-    "sandstone-bench": { label: "Sandstone Bench", chrome: "#fbf5e9" },
+    "sandstone-bench": { label: "Sandstone Bench", chrome: "#3b2a16" },
     "sandstone-ember": { label: "Sandstone Ember", chrome: "#3b2a16" },
     "sandstone-foundry": { label: "Sandstone Foundry", chrome: "#242522" }
   };

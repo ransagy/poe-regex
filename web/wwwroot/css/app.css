@@ -52,6 +52,13 @@
     --foot-line: var(--line);
     --page-bg: transparent;
     --panel-accent: transparent;
+    /* Item cards stay game-dark in every theme; these keep them readable. */
+    --card-ink: var(--text);
+    --card-sub: var(--muted);
+    --card-faint: var(--faint);
+    --card-line: var(--line-strong);
+    --card-hover: var(--raised);
+    --card-no: var(--no);
     --r: 4px;
     --r-lg: 7px;
     --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
@@ -62,17 +69,22 @@
 /*
   Sandstone light themes. The two bases are Sandstone and Sandstone Deep; the
   other three vary the surface hierarchy and chrome rather than just the tint.
-  Game rarity colors keep their hues and are only darkened enough to read on a
-  light card; mod blue is likewise kept blue-violet.
+  Item cards stay game-dark in every theme, tinted to the page, so rarity and
+  modifier colors keep their exact game values; only the surrounding UI turns
+  light.
 */
 :root[data-theme^="sandstone"] {
-    --rarity-normal: #5f5f5c;
-    --rarity-magic: #5b5be0;
-    --rarity-rare: #7c6b00;
-    --rarity-unique: #a45a20;
     --mod: #414ac0;
     --mod-soft: rgba(65, 74, 192, 0.12);
     --mod-ink: #ffffff;
+    /* The game-dark item card, tinted to the light theme's warmth. */
+    --card-bg: #17120c;
+    --card-ink: #ece3d4;
+    --card-sub: #b4a892;
+    --card-faint: #948875;
+    --card-line: #4b3a28;
+    --card-hover: rgba(255, 255, 255, 0.10);
+    --card-no: #e08a76;
 }
 
 :root[data-theme="sandstone"] {
@@ -98,7 +110,7 @@
     --btn-hover: #dfd1ba;
     --btn-hover-line: #a4906f;
     --anchor: #b39f83;
-    --card-bg: #fefaf3;
+    --card-bg: #17120c;
     --exc-ink: #a23c28;
     --tint: rgba(37, 29, 20, 0.06);
     --loader-ink: #5c5142;
@@ -127,7 +139,7 @@
     --btn-hover: #d3bfa0;
     --btn-hover-line: #94794f;
     --anchor: #a08762;
-    --card-bg: #fbf3e5;
+    --card-bg: #161009;
     --exc-ink: #963323;
     --tint: rgba(34, 24, 14, 0.07);
     --loader-ink: #54483a;
@@ -157,21 +169,22 @@
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
-    --card-bg: #fffdf9;
     --exc-ink: #a23c28;
     --tint: rgba(42, 32, 19, 0.06);
     --loader-ink: #5d5140;
-    --head-bg: #fbf5e9;
-    --head-ink: #2a2013;
-    --head-sub: #6f6250;
-    --head-link: #5f5343;
-    --head-line: #d6c3a4;
-    --foot-bg: #fbf5e9;
-    --foot-ink: #6f6250;
-    --foot-link: #5f5343;
-    --foot-line: #d6c3a4;
+    --head-bg: #3b2a16;
+    --head-ink: #f7ecd9;
+    --head-sub: #c8b593;
+    --head-link: #ddc9a5;
+    --head-line: #6b5028;
+    --foot-bg: #3b2a16;
+    --foot-ink: #c8b593;
+    --foot-link: #ddc9a5;
+    --foot-line: #6b5028;
     --page-bg: linear-gradient(180deg, #efe1c9 0%, #e4d0b0 55%, #dfc9a7 100%);
     --panel-accent: #c9a25f;
+    --card-bg: #1b140d;
+    --card-line: #4f3c27;
 }
 
 /* Cream page framed by dark bronze chrome; the most dramatic light take. */
@@ -198,7 +211,6 @@
     --btn-hover: #eadcc6;
     --btn-hover-line: #a89170;
     --anchor: #b8a17c;
-    --card-bg: #fffdf7;
     --exc-ink: #9e3a28;
     --tint: rgba(42, 31, 18, 0.06);
     --loader-ink: #4e4230;
@@ -213,6 +225,8 @@
     --foot-line: #6b5028;
     --page-bg: radial-gradient(120% 90% at 50% 0%, #fbf3e2 0%, #f2e8d6 60%, #ecdfc9 100%);
     --panel-accent: #a56a1c;
+    --card-bg: #171009;
+    --card-line: #4a3420;
 }
 
 /* Warm greige with charcoal chrome: an industrial light workshop. */
@@ -239,7 +253,6 @@
     --btn-hover: #e0d8c9;
     --btn-hover-line: #9b8d78;
     --anchor: #a79a85;
-    --card-bg: #fdf9f1;
     --exc-ink: #9a3827;
     --tint: rgba(33, 28, 21, 0.06);
     --loader-ink: #4b463d;
@@ -254,6 +267,11 @@
     --foot-line: #4a4740;
     --page-bg: linear-gradient(180deg, #e4ded2 0%, #ddd7cb 60%, #d7d0c3 100%);
     --panel-accent: #c08a3a;
+    --card-bg: #17181a;
+    --card-ink: #e8e5de;
+    --card-sub: #a9a69f;
+    --card-faint: #8b8881;
+    --card-line: #3f4348;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -788,23 +806,26 @@ input:disabled { opacity: 0.5; }
 .rarity-unique { color: var(--rarity-unique); }
 
 .iprev {
-    background: var(--card-bg); border: 1px solid var(--line-strong); border-radius: var(--r);
+    background: var(--card-bg); border: 1px solid var(--card-line); border-radius: var(--r);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
     padding: 0.55rem 0.8rem 0.65rem; font-size: 0.84rem; text-align: center;
+    color: var(--card-ink);
 }
 .iprev-name { font-weight: 600; font-size: 1rem; }
 .item-tooltip .iprev-name { padding: 0 1.4rem; }
-.iprev-sub { color: var(--muted); font-size: 0.8rem; margin-top: 0.1rem; }
-.iprev-sep { height: 1px; margin: 0.45rem 1.5rem; background: linear-gradient(90deg, transparent, var(--line-strong), transparent); }
-.iprev-stats, .iprev-meta { color: var(--muted); }
+.iprev-sub { color: var(--card-sub); font-size: 0.8rem; margin-top: 0.1rem; }
+.iprev-sep { height: 1px; margin: 0.45rem 1.5rem; background: linear-gradient(90deg, transparent, var(--card-line), transparent); }
+.iprev-stats, .iprev-meta { color: var(--card-sub); }
 .iprev-mod + .iprev-mod { margin-top: 0.35rem; }
-.iprev-cap { color: var(--faint); font-size: 0.74rem; margin: 0.1rem 0; }
+.iprev-cap { color: var(--card-faint); font-size: 0.74rem; margin: 0.1rem 0; }
 .iprev-line { display: flex; gap: 0.5rem; align-items: baseline; justify-content: center; padding: 0.05rem 0; }
 .iprev-text { min-width: 0; overflow-wrap: anywhere; color: var(--rarity-magic); }
 .iprev-annot { white-space: nowrap; font-size: 0.74rem; }
 .iprev-corrupt { color: #d20000; font-weight: 600; }
 .map-none { color: var(--no); font-size: 0.76rem; }
 .map-one { color: var(--faint); font-size: 0.76rem; font-family: var(--mono); }
+.iprev .map-none { color: var(--card-no); }
+.iprev .map-one { color: var(--card-faint); }
 
 .item-tooltip {
     position: fixed; z-index: 40;
@@ -814,9 +835,9 @@ input:disabled { opacity: 0.5; }
 .tt-close {
     position: absolute; top: 0.3rem; right: 0.35rem; z-index: 1;
     width: 1.5rem; height: 1.5rem; padding: 0; border: 0; border-radius: var(--r);
-    background: none; color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer;
+    background: none; color: var(--card-sub); font-size: 1rem; line-height: 1; cursor: pointer;
 }
-.tt-close:hover { color: var(--text); background: var(--raised); }
+.tt-close:hover { color: var(--card-ink); background: var(--card-hover); }
 
 /* ---------- Dialogs ---------- */
 

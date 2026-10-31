@@ -176,15 +176,15 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   `What is this?` and the GitHub link.
 - The header also carries a persisted appearance picker. Forge Black is the
   dark default; the Sandstone group holds Sandstone and Sandstone Deep plus
-  three structural variations: Bench (paper cards on a deeper tan desk), Ember
-  (dark bronze header/footer on cream), and Foundry (charcoal chrome on warm
-  greige). The choice sets `data-theme` on `<html>`, is stored under
+  three structural variations: Bench (deeper tan desk with Ember's dark bronze
+  header/footer), Ember (cream page with dark bronze header/footer), and
+  Foundry (charcoal chrome on warm greige). The choice sets `data-theme` on `<html>`, is stored under
   `poe-regex.theme`, applied before the stylesheet on boot (no flash of the
   default), and other open tabs follow it. Forge Black primary actions use
   Bronze (`#c78a3c`) while accent text and focus rings keep `#f0a541`; light
-  themes use a deeper amber with light button ink. Game colors keep their
-  identity in light themes: rarity stays gray/blue/yellow/orange and the mod
-  blue stays blue-violet, darkened only enough to read on a light card. The
+  themes use a deeper amber with light button ink. Item cards (tooltip, import
+  preview, assemble dialog) stay the game-dark card in light themes, tinted to
+  the page, so rarity and modifier colors keep their exact game values. The
   forge loading screen keeps its game-like palette with a theme-aware label.
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
