@@ -1,7 +1,7 @@
 /*
-  Default palette: Forge Black. Near-black grounds with amber "forge" accents.
-  The other palettes are picked in the header and saved per browser; item-rarity
-  colors and the forge loading screen stay game-like in every theme.
+  Forge Black: near-black grounds with amber "forge" accents. The header offers
+  a few primary-button amber picks (below) while we settle on one; item-rarity
+  colors and the forge loading screen stay game-like.
 */
 :root {
     color-scheme: dark;
@@ -38,113 +38,15 @@
     --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
 }
 
-:root[data-theme="steel"] {
-    --ground: #13171c;
-    --surface: #1a1f26;
-    --raised: #222932;
-    --well: #0e1115;
-    --line: #2a313a;
-    --line-strong: #3a4450;
-    --text: #e3e6ea;
-    --muted: #98a1ac;
-    --faint: #7b8591;
-    --ember: #f0a541;
-    --ember-hi: #ffbf66;
-    --ember-ink: #1c1306;
-    --ember-soft: rgba(240, 165, 65, 0.14);
-    --ember-btn: var(--ember);
-    --ember-btn-hi: var(--ember-hi);
-    --mod: #9aa6ff;
-    --mod-soft: rgba(154, 166, 255, 0.13);
-    --no: #ec7a65;
-    --no-soft: rgba(236, 122, 101, 0.13);
-    --ok: #93c47d;
-    --btn-hover: #29313b;
-    --btn-hover-line: #4a5562;
-    --anchor: #4c5763;
-    --card-bg: #0b0d10;
-}
-
-:root[data-theme="coal"] {
-    --ground: #080706;
-    --surface: #100e0c;
-    --raised: #191512;
-    --well: #050403;
-    --line: #29231d;
-    --line-strong: #3d342b;
-    --text: #e9e1d5;
-    --muted: #a39a8d;
-    --faint: #827a6e;
-    --ember: #e8943a;
-    --ember-hi: #ffb35c;
-    --ember-ink: #1b0f05;
-    --ember-soft: rgba(232, 148, 58, 0.14);
-    --ember-btn: var(--ember);
-    --ember-btn-hi: var(--ember-hi);
-    --mod: #9aa6ff;
-    --mod-soft: rgba(154, 166, 255, 0.12);
-    --no: #e67b62;
-    --no-soft: rgba(230, 123, 98, 0.13);
-    --ok: #9bc487;
-    --btn-hover: #241e18;
-    --btn-hover-line: #493c30;
-    --anchor: #5a5043;
-    --card-bg: #0a0807;
-}
-
-:root[data-theme="obsidian"] {
-    --ground: #050506;
-    --surface: #0a0a0c;
-    --raised: #121216;
-    --well: #020203;
-    --line: #1c1c21;
-    --line-strong: #2e2e35;
-    --text: #f0ebe3;
-    --muted: #a6a09a;
-    --faint: #7d7975;
-    --ember: #f2a23b;
-    --ember-hi: #ffc15c;
-    --ember-ink: #1a1106;
-    --ember-soft: rgba(242, 162, 59, 0.13);
-    --ember-btn: var(--ember);
-    --ember-btn-hi: var(--ember-hi);
-    --mod: #9aa6ff;
-    --mod-soft: rgba(154, 166, 255, 0.12);
-    --no: #e87964;
-    --no-soft: rgba(232, 121, 100, 0.13);
-    --ok: #9bc487;
-    --btn-hover: #1a1a20;
-    --btn-hover-line: #3b3b45;
-    --anchor: #4a4a53;
-    --card-bg: #050506;
-}
-
-:root[data-theme="graphite"] {
-    --ground: #0b0c0d;
-    --surface: #121416;
-    --raised: #1b1e21;
-    --well: #070809;
-    --line: #24282c;
-    --line-strong: #363c42;
-    --text: #e8e5de;
-    --muted: #9fa19e;
-    --faint: #7b7f79;
-    --ember: #f0a541;
-    --ember-hi: #ffbf66;
-    --ember-ink: #1a1207;
-    --ember-soft: rgba(240, 165, 65, 0.13);
-    --ember-btn: var(--ember);
-    --ember-btn-hi: var(--ember-hi);
-    --mod: #9aa6ff;
-    --mod-soft: rgba(154, 166, 255, 0.12);
-    --no: #e87964;
-    --no-soft: rgba(232, 121, 100, 0.13);
-    --ok: #9bc487;
-    --btn-hover: #1f2327;
-    --btn-hover-line: #3c444b;
-    --anchor: #4c5157;
-    --card-bg: #090a0b;
-}
+/*
+  Temporary primary-button amber picks for Forge Black. Each variant changes
+  only --ember-btn/--ember-btn-hi; accent text and focus rings keep the theme
+  ember. A light theme and "match system" option come later.
+*/
+:root[data-theme="forge-flame"] { --ember-btn: #f0a541; --ember-btn-hi: #ffbf66; }
+:root[data-theme="forge-honey"] { --ember-btn: #e09a45; --ember-btn-hi: #f0ae5a; }
+:root[data-theme="forge-sand"] { --ember-btn: #e6a24a; --ember-btn-hi: #f7b765; }
+:root[data-theme="forge-bronze"] { --ember-btn: #c78a3c; --ember-btn-hi: #dba04f; }
 
 *, *::before, *::after { box-sizing: border-box; }
 
