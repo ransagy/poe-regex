@@ -6,11 +6,9 @@
   const key = "poe-regex.theme";
   const themes = {
     forge: { label: "Forge Black", chrome: "#070809" },
-    sandstone: { label: "Sandstone", chrome: "#efe5d5" },
-    "sandstone-deep": { label: "Sandstone Deep", chrome: "#e7d7bf" },
-    "sandstone-bench": { label: "Sandstone Bench", chrome: "#3b2a16" },
-    "sandstone-ember": { label: "Sandstone Ember", chrome: "#3b2a16" },
-    "sandstone-foundry": { label: "Sandstone Foundry", chrome: "#242522" }
+    "bench-bronze": { label: "Bench Bronze", chrome: "#3b2a16" },
+    "bench-gold": { label: "Bench Gold", chrome: "#3b2a16" },
+    "bench-amber": { label: "Bench Amber", chrome: "#3b2a16" }
   };
   const names = Object.keys(themes);
   const normalize = value => names.indexOf(value) >= 0 ? value : "forge";

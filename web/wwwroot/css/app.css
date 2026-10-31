@@ -67,86 +67,11 @@
 }
 
 /*
-  Sandstone light themes. The two bases are Sandstone and Sandstone Deep; the
-  other three vary the surface hierarchy and chrome rather than just the tint.
-  Item cards stay game-dark in every theme, tinted to the page, so rarity and
-  modifier colors keep their exact game values; only the surrounding UI turns
-  light.
+  Sandstone Bench: a tan workbench page with dark bronze chrome and game-dark
+  item cards. The three options differ only in the CTA amber, moving from
+  bronze toward gold; accent text stays dark enough to read on the tan page.
 */
-:root[data-theme^="sandstone"] {
-    --mod: #414ac0;
-    --mod-soft: rgba(65, 74, 192, 0.12);
-    --mod-ink: #ffffff;
-    /* The game-dark item card, tinted to the light theme's warmth. */
-    --card-bg: #17120c;
-    --card-ink: #ece3d4;
-    --card-sub: #b4a892;
-    --card-faint: #948875;
-    --card-line: #4b3a28;
-    --card-hover: rgba(255, 255, 255, 0.10);
-    --card-no: #e08a76;
-}
-
-:root[data-theme="sandstone"] {
-    color-scheme: light;
-    --ground: #efe5d5;
-    --surface: #f9f2e6;
-    --raised: #e6d9c4;
-    --well: #fefaf3;
-    --line: #d5c5ad;
-    --line-strong: #b39f83;
-    --text: #251d14;
-    --muted: #625647;
-    --faint: #726555;
-    --ember: #8f5410;
-    --ember-hi: #a96a1c;
-    --ember-ink: #fff7ea;
-    --ember-soft: rgba(143, 84, 16, 0.12);
-    --ember-btn: #8f5410;
-    --ember-btn-hi: #a96a1c;
-    --no: #a23c28;
-    --no-soft: rgba(162, 60, 40, 0.12);
-    --ok: #456d33;
-    --btn-hover: #dfd1ba;
-    --btn-hover-line: #a4906f;
-    --anchor: #b39f83;
-    --card-bg: #17120c;
-    --exc-ink: #a23c28;
-    --tint: rgba(37, 29, 20, 0.06);
-    --loader-ink: #5c5142;
-}
-
-:root[data-theme="sandstone-deep"] {
-    color-scheme: light;
-    --ground: #e7d7bf;
-    --surface: #f3e7d5;
-    --raised: #dbc8ab;
-    --well: #fbf3e5;
-    --line: #c9b28e;
-    --line-strong: #a08762;
-    --text: #22180e;
-    --muted: #5a4d3c;
-    --faint: #6a5c49;
-    --ember: #7f4a0c;
-    --ember-hi: #945a14;
-    --ember-ink: #fff6e8;
-    --ember-soft: rgba(127, 74, 12, 0.13);
-    --ember-btn: #7f4a0c;
-    --ember-btn-hi: #945a14;
-    --no: #963323;
-    --no-soft: rgba(150, 51, 35, 0.12);
-    --ok: #3f652e;
-    --btn-hover: #d3bfa0;
-    --btn-hover-line: #94794f;
-    --anchor: #a08762;
-    --card-bg: #161009;
-    --exc-ink: #963323;
-    --tint: rgba(34, 24, 14, 0.07);
-    --loader-ink: #54483a;
-}
-
-/* Cards on a deeper tan bench; the header and footer are paper strips. */
-:root[data-theme="sandstone-bench"] {
+:root[data-theme^="bench"] {
     color-scheme: light;
     --ground: #e4d0b0;
     --surface: #fdf8ee;
@@ -159,17 +84,20 @@
     --faint: #645742;
     --ember: #7f4a0c;
     --ember-hi: #a96a1c;
-    --ember-ink: #fff7ea;
-    --ember-soft: rgba(143, 84, 16, 0.12);
-    --ember-btn: #85500f;
-    --ember-btn-hi: #9b6119;
+    --ember-ink: #241705;
+    --ember-soft: rgba(176, 120, 42, 0.14);
+    --ember-btn: #b0782a;
+    --ember-btn-hi: #c68a34;
+    --mod: #414ac0;
+    --mod-soft: rgba(65, 74, 192, 0.12);
+    --mod-ink: #ffffff;
     --no: #93331f;
     --no-soft: rgba(147, 51, 31, 0.12);
     --ok: #3d612c;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
-    --exc-ink: #a23c28;
+    --exc-ink: #93331f;
     --tint: rgba(42, 32, 19, 0.06);
     --loader-ink: #5d5140;
     --head-bg: #3b2a16;
@@ -182,96 +110,35 @@
     --foot-link: #ddc9a5;
     --foot-line: #6b5028;
     --page-bg: linear-gradient(180deg, #efe1c9 0%, #e4d0b0 55%, #dfc9a7 100%);
-    --panel-accent: #c9a25f;
+    --panel-accent: #cfa263;
     --card-bg: #1b140d;
+    --card-ink: #ece3d4;
+    --card-sub: #b4a892;
+    --card-faint: #948875;
     --card-line: #4f3c27;
+    --card-hover: rgba(255, 255, 255, 0.10);
+    --card-no: #e08a76;
 }
 
-/* Cream page framed by dark bronze chrome; the most dramatic light take. */
-:root[data-theme="sandstone-ember"] {
-    color-scheme: light;
-    --ground: #f2e8d6;
-    --surface: #fcf6e9;
-    --raised: #efe3ce;
-    --well: #fffdf7;
-    --line: #ddceb4;
-    --line-strong: #b8a17c;
-    --text: #2a1f12;
-    --muted: #665846;
-    --faint: #756752;
-    --ember: #8a4f0c;
-    --ember-hi: #a26318;
-    --ember-ink: #fff6e8;
-    --ember-soft: rgba(138, 79, 12, 0.12);
-    --ember-btn: #7a4a10;
-    --ember-btn-hi: #8f5a18;
-    --no: #9e3a28;
-    --no-soft: rgba(158, 58, 40, 0.12);
-    --ok: #456d33;
-    --btn-hover: #eadcc6;
-    --btn-hover-line: #a89170;
-    --anchor: #b8a17c;
-    --exc-ink: #9e3a28;
-    --tint: rgba(42, 31, 18, 0.06);
-    --loader-ink: #4e4230;
-    --head-bg: #3b2a16;
-    --head-ink: #f7ecd9;
-    --head-sub: #c8b593;
-    --head-link: #ddc9a5;
-    --head-line: #6b5028;
-    --foot-bg: #3b2a16;
-    --foot-ink: #c8b593;
-    --foot-link: #ddc9a5;
-    --foot-line: #6b5028;
-    --page-bg: radial-gradient(120% 90% at 50% 0%, #fbf3e2 0%, #f2e8d6 60%, #ecdfc9 100%);
-    --panel-accent: #a56a1c;
-    --card-bg: #171009;
-    --card-line: #4a3420;
+:root[data-theme="bench-bronze"] {
+    --ember-btn: #b0782a;
+    --ember-btn-hi: #c68a34;
+    --ember-ink: #241705;
+    --panel-accent: #cfa263;
 }
 
-/* Warm greige with charcoal chrome: an industrial light workshop. */
-:root[data-theme="sandstone-foundry"] {
-    color-scheme: light;
-    --ground: #ddd7cb;
-    --surface: #f6f1e7;
-    --raised: #e8e1d3;
-    --well: #fdf9f1;
-    --line: #cdc4b3;
-    --line-strong: #a79a85;
-    --text: #211c15;
-    --muted: #5b5346;
-    --faint: #5f574b;
-    --ember: #7b490d;
-    --ember-hi: #a46a1c;
-    --ember-ink: #fdf7ec;
-    --ember-soft: rgba(138, 83, 16, 0.12);
-    --ember-btn: #6f4510;
-    --ember-btn-hi: #855417;
-    --no: #9a3827;
-    --no-soft: rgba(154, 56, 39, 0.12);
-    --ok: #3a602c;
-    --btn-hover: #e0d8c9;
-    --btn-hover-line: #9b8d78;
-    --anchor: #a79a85;
-    --exc-ink: #9a3827;
-    --tint: rgba(33, 28, 21, 0.06);
-    --loader-ink: #4b463d;
-    --head-bg: #242522;
-    --head-ink: #eee8dc;
-    --head-sub: #a49d90;
-    --head-link: #c3bbab;
-    --head-line: #4a4740;
-    --foot-bg: #242522;
-    --foot-ink: #a49d90;
-    --foot-link: #c3bbab;
-    --foot-line: #4a4740;
-    --page-bg: linear-gradient(180deg, #e4ded2 0%, #ddd7cb 60%, #d7d0c3 100%);
-    --panel-accent: #c08a3a;
-    --card-bg: #17181a;
-    --card-ink: #e8e5de;
-    --card-sub: #a9a69f;
-    --card-faint: #8b8881;
-    --card-line: #3f4348;
+:root[data-theme="bench-gold"] {
+    --ember-btn: #c78a3c;
+    --ember-btn-hi: #dba04f;
+    --ember-ink: #1a1207;
+    --panel-accent: #d9a95a;
+}
+
+:root[data-theme="bench-amber"] {
+    --ember-btn: #d99a3a;
+    --ember-btn-hi: #edb054;
+    --ember-ink: #241705;
+    --panel-accent: #e6b566;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

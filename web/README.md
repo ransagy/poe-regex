@@ -175,17 +175,17 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   reach. The scale select sits at the right of the header, next to
   `What is this?` and the GitHub link.
 - The header also carries a persisted appearance picker. Forge Black is the
-  dark default; the Sandstone group holds Sandstone and Sandstone Deep plus
-  three structural variations: Bench (deeper tan desk with Ember's dark bronze
-  header/footer), Ember (cream page with dark bronze header/footer), and
-  Foundry (charcoal chrome on warm greige). The choice sets `data-theme` on `<html>`, is stored under
-  `poe-regex.theme`, applied before the stylesheet on boot (no flash of the
-  default), and other open tabs follow it. Forge Black primary actions use
-  Bronze (`#c78a3c`) while accent text and focus rings keep `#f0a541`; light
-  themes use a deeper amber with light button ink. Item cards (tooltip, import
-  preview, assemble dialog) stay the game-dark card in light themes, tinted to
-  the page, so rarity and modifier colors keep their exact game values. The
-  forge loading screen keeps its game-like palette with a theme-aware label.
+  dark default; Sandstone Bench is the light theme and comes in **Bronze**,
+  **Gold**, and **Amber** CTA variants (tan workbench page, dark bronze
+  header/footer, game-dark item cards). The choice sets `data-theme` on
+  `<html>`, is stored under `poe-regex.theme`, applied before the stylesheet on
+  boot (no flash of the default), and other open tabs follow it. Forge Black
+  primary actions use Bronze (`#c78a3c`) while accent text and focus rings keep
+  `#f0a541`; the Bench variants move the CTA amber toward gold with dark button
+  ink. Item cards (tooltip, import preview, assemble dialog) stay the game-dark
+  card in every theme, tinted to the page, so rarity and modifier colors keep
+  their exact game values. The forge loading screen keeps its game-like palette
+  with a theme-aware label.
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).
