@@ -81,6 +81,71 @@ public class WebComponentTests
     }
 
     [Fact]
+    public void QueryImportPanel_ParsesAndAppliesASimpleString()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        var compiled = engine.CompilePicks([new WantedMod("IncreasedLife6")], [], false, null);
+        var closed = false;
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => closed = true));
+
+        cut.Find("#query-import-text").Input(compiled.Query);
+        cut.Find("#query-import-parse").Click();
+        cut.Find("#query-import-apply").Click();
+
+        closed.Should().BeTrue();
+        state.Mode.Should().Be("simple");
+        state.Global.Included.Should().ContainSingle();
+        engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(compiled.Query);
+    }
+
+    [Fact]
+    public void QueryImportPanel_AppliesAMultiClassPaste()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        var combined = engine.Combine(
+        [
+            ("weapon", "Crossbow", new[] { ClassFamilyPick(engine, "Crossbow") }),
+            ("offhand", "Shield", new[] { ClassFamilyPick(engine, "Shield") }),
+        ], []);
+        var closed = false;
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => closed = true));
+
+        cut.Find("#query-import-text").Input(combined.Query);
+        cut.Find("#query-import-parse").Click();
+        cut.Find("#query-import-apply").Click();
+
+        closed.Should().BeTrue();
+        state.Mode.Should().Be("advanced");
+        state.ActiveSlots().Should().HaveCount(2);
+        var recompiled = engine.Combine(
+            state.ActiveSlots().Select(s => (s, state.CriteriaFor(s).ClassId,
+                (IEnumerable<WantedMod>)state.CriteriaFor(s).Included,
+                state.CriteriaFor(s).MatchAll)),
+            state.Global.Excluded, allowOverflow: true).Query;
+        recompiled.Should().Be(combined.Query);
+    }
+
+    private static WantedMod ClassFamilyPick(EngineService engine, string classId)
+    {
+        var family = ModFamilies.Group(engine.ModsForClasses([classId]))
+            .First(f => f.Tiers.Count >= 2 && f.DisplayLines.Count > 0);
+        return family.Pick();
+    }
+
+    [Fact]
     public void IntroPanel_ExplainsExactAndShortStrings()
     {
         using var ctx = Context();

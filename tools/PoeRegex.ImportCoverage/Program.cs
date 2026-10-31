@@ -328,13 +328,13 @@ public static class Program
     private static Phase1Outcome EvaluatePhase1(
         EngineService engine, QueryReconstructionService reconstruction, CaseSpec c)
     {
-        var recovered = reconstruction.Reconstruct(c.Query);
+        var recovered = reconstruction.ReconstructWorkbench(c.Query);
         var recompiled = recovered.Recompile(engine);
         return new Phase1Outcome(
             c.Id, c.Scope, c.Description, c.Query,
-            recovered.Ok, recovered.Mode, recovered.ItemClass,
-            recovered.Includes, recovered.Excludes, recovered.MatchAll,
-            recompiled?.Query == c.Query, recovered.Diagnostics);
+            recovered.Ok, recovered.Mode, recovered.Slots,
+            recovered.Excludes, recompiled == c.Query,
+            recovered.Diagnostics, recovered.Warnings);
     }
 
     private static bool IsRecovered(string message) =>
@@ -365,9 +365,9 @@ public static class Program
 
     public sealed record Phase1Outcome(
         string Id, string Scope, string Description, string Query,
-        bool Ok, string Mode, string? ItemClass,
-        IReadOnlyList<WantedMod> Includes, IReadOnlyList<string> Excludes,
-        bool MatchAll, bool SameQuery, IReadOnlyList<string> Diagnostics);
+        bool Ok, string Mode, IReadOnlyList<ReconstructedSlot> Slots,
+        IReadOnlyList<string> Excludes, bool SameQuery,
+        IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Warnings);
 }
 
 /// <summary>Classifies guide filter branches without retaining the guide text.</summary>
@@ -722,8 +722,10 @@ public static class Phase1Report
         sb.AppendLine("`QueryReconstructionService`, then the recovered criteria are recompiled and");
         sb.AppendLine("compared byte-for-byte with the original. A case passes only when it is both");
         sb.AppendLine("reconstructed and recompiles to the identical string. Tierless fragments prefer");
-        sb.AppendLine("the family pick; name literals stay name picks. Factored alternations, multi-class");
-        sb.AppendLine("pastes, free text, and legacy anchors intentionally fail closed.");
+        sb.AppendLine("the family pick; name literals stay name picks; factored and multi-class forms");
+        sb.AppendLine("are expanded. The Import string panel applies the recovered slots; the same");
+        sb.AppendLine("comparison is exercised by the UI tests. Free text, legacy anchors, class-only");
+        sb.AppendLine("strings, and minimum values fail closed or are accepted losses.");
         sb.AppendLine();
 
         var passed = cases.Count(x => x.Ok && x.SameQuery);
@@ -747,7 +749,11 @@ public static class Phase1Report
         foreach (var c in cases)
         {
             var result = c.Ok && c.SameQuery ? "**pass**" : "fail-closed";
-            sb.AppendLine($"| `{c.Id}` | {c.Scope} | {result} | {c.Mode} | {c.ItemClass ?? "—"} | {c.Includes.Count} | {(c.MatchAll ? "yes" : "no")} | {Escape(Short(NoteFor(c)))} |");
+            var classes = string.Join(", ", c.Slots.Select(s => s.ClassId)
+                .Where(x => x.Length > 0).Distinct(StringComparer.Ordinal));
+            var picks = c.Slots.Sum(s => s.Includes.Count);
+            var matchAll = c.Slots.Any(s => s.MatchAll);
+            sb.AppendLine($"| `{c.Id}` | {c.Scope} | {result} | {c.Mode} | {(classes.Length == 0 ? "—" : classes)} | {picks} | {(matchAll ? "yes" : "no")} | {Escape(Short(NoteFor(c)))} |");
         }
         sb.AppendLine();
 
@@ -757,14 +763,19 @@ public static class Phase1Report
         {
             sb.AppendLine($"### `{c.Id}` — {Escape(c.Description)}");
             sb.AppendLine($"- query: `{Escape(c.Query)}`");
-            sb.AppendLine($"- mode: {(c.ItemClass is null ? "simple" : $"advanced · {c.ItemClass}")}");
-            var picks = c.Includes.Count == 0
-                ? "—"
-                : string.Join(", ", c.Includes.Select(PickLabel).Select(x => $"`{Escape(x)}`"));
-            sb.AppendLine($"- picks: {picks}");
+            sb.AppendLine($"- mode: {c.Mode}");
+            foreach (var slot in c.Slots)
+            {
+                var picks = slot.Includes.Count == 0
+                    ? "—"
+                    : string.Join(", ", slot.Includes.Select(PickLabel).Select(x => $"`{Escape(x)}`"));
+                var cls = string.IsNullOrEmpty(slot.ClassId) ? "" : $" · {slot.ClassId}";
+                sb.AppendLine($"- {slot.SlotId}{cls} — {(slot.MatchAll ? "all of" : "any of")}: {picks}");
+            }
             if (c.Excludes.Count > 0)
                 sb.AppendLine($"- exclusions: {string.Join(", ", c.Excludes.Select(x => $"`{Escape(x)}`"))}");
-            sb.AppendLine($"- match-all: {(c.MatchAll ? "yes" : "no")}");
+            foreach (var warning in c.Warnings)
+                sb.AppendLine($"- warning: {Escape(warning)}");
             sb.AppendLine("- recompile: identical");
             sb.AppendLine();
         }
@@ -794,8 +805,9 @@ public static class Phase1Report
         sb.AppendLine("  reports the any-of form (accepted).");
         sb.AppendLine("- **Minimum values are genuinely lost**; the query encodes a threshold that the");
         sb.AppendLine("  pick model cannot recover (accepted limitation).");
-        sb.AppendLine("- Factored fragments/name sets and multi-class pastes are Phase 2; there is no");
-        sb.AppendLine("  UI wiring yet.");
+        sb.AppendLine("- Factored fragments/name sets and multi-class pastes are supported by this");
+        sb.AppendLine("  path. The Import string panel applies the recovered slots; guide extraction is");
+        sb.AppendLine("  still later.");
         sb.AppendLine();
         sb.AppendLine("Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter \"FullyQualifiedName~QueryReconstructionTests\"`.");
         return sb.ToString();
@@ -820,10 +832,15 @@ public static class Phase1Report
                 ok = c.Ok,
                 sameQuery = c.SameQuery,
                 mode = c.Mode,
-                itemClass = c.ItemClass,
-                matchAll = c.MatchAll,
-                includes = c.Includes.Select(PickLabel),
+                slots = c.Slots.Select(s => new
+                {
+                    slotId = s.SlotId,
+                    classId = s.ClassId,
+                    matchAll = s.MatchAll,
+                    includes = s.Includes.Select(PickLabel),
+                }),
                 excludes = c.Excludes,
+                warnings = c.Warnings,
                 diagnostics = c.Diagnostics,
             }),
         };

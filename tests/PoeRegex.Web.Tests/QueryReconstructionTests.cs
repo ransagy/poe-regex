@@ -45,6 +45,14 @@ public class QueryReconstructionTests
         return family.Pick();
     }
 
+    private static WantedMod FactoredRingNamePick()
+    {
+        var family = ModFamilies.Group(Engine.ModsForClasses(["Ring"]))
+            .First(f => f.Key == "Strength" && f.Tiers.Count >= 2);
+        var tier = family.Tiers.First(t => !string.IsNullOrWhiteSpace(t.Name));
+        return new WantedMod(tier.Anchor.Id, Names: family.NamesFrom(tier));
+    }
+
     [Fact]
     public void Simple_PlainPick_RoundTrips()
     {
@@ -161,6 +169,96 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void Advanced_FactoredNameSet_RoundTrips()
+    {
+        var compiled = Engine.CompilePicks([FactoredRingNamePick()], [], false, "Ring");
+        compiled.Query.Should().Contain("(");
+
+        var recovered = Reconstruction.ReconstructWorkbench(compiled.Query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(compiled.Query);
+    }
+
+    [Fact]
+    public void MultiClassPaste_RoundTripsAndApplies()
+    {
+        var combined = Engine.Combine(
+        [
+            ("weapon", "Crossbow", new[] { FamilyPick("Crossbow") }),
+            ("offhand", "Shield", new[] { FamilyPick("Shield") }),
+        ], []);
+
+        var recovered = Reconstruction.ReconstructWorkbench(combined.Query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Mode.Should().Be("advanced");
+        recovered.Slots.Select(s => s.ClassId).Should().BeEquivalentTo(["Crossbow", "Shield"]);
+        recovered.Recompile(Engine).Should().Be(combined.Query);
+
+        var state = new WorkbenchState();
+        recovered.ApplyTo(state);
+        var active = state.ActiveSlots();
+        active.Should().HaveCount(2);
+        var recompiled = Engine.Combine(
+            active.Select(s => (s, state.CriteriaFor(s).ClassId,
+                (IEnumerable<WantedMod>)state.CriteriaFor(s).Included,
+                state.CriteriaFor(s).MatchAll)),
+            state.Global.Excluded, allowOverflow: true).Query;
+        recompiled.Should().Be(combined.Query);
+    }
+
+    [Fact]
+    public void MultiArmourPaste_RoundTrips()
+    {
+        var combined = Engine.Combine(
+        [
+            ("helmet", "Helmet", new[] { FamilyPick("Helmet") }),
+            ("boots", "Boots", new[] { FamilyPick("Boots") }),
+            ("gloves", "Gloves", new[] { FamilyPick("Gloves") }),
+        ], []);
+
+        var recovered = Reconstruction.ReconstructWorkbench(combined.Query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Slots.Select(s => s.SlotId).Should().BeEquivalentTo(["helmet", "boots", "gloves"]);
+        recovered.Recompile(Engine).Should().Be(combined.Query);
+    }
+
+    [Fact]
+    public void Simple_Apply_RoundTrips()
+    {
+        var compiled = Engine.CompilePicks(
+            [new WantedMod("IncreasedLife6"), new WantedMod("Strength1")], [], false, null);
+        var recovered = Reconstruction.ReconstructWorkbench(compiled.Query);
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+
+        var state = new WorkbenchState();
+        recovered.ApplyTo(state);
+
+        state.Mode.Should().Be("simple");
+        Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(compiled.Query);
+    }
+
+    [Fact]
+    public void Advanced_Apply_RoundTrips()
+    {
+        var compiled = Engine.CompilePicks([new WantedMod("IncreasedLife6")], [], false, "Ring");
+        var recovered = Reconstruction.ReconstructWorkbench(compiled.Query);
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+
+        var state = new WorkbenchState();
+        recovered.ApplyTo(state);
+
+        state.Mode.Should().Be("advanced");
+        state.ActiveSlots().Should().Contain("ring1");
+        var crit = state.CriteriaFor("ring1");
+        Engine.CompilePicks(crit.Included, crit.Excluded, crit.MatchAll, crit.ClassId)
+            .Query.Should().Be(compiled.Query);
+    }
+
+    [Fact]
     public void Advanced_ClassAnchorOnly_RoundTrips()
     {
         var compiled = Engine.Compile([], [], "Ring");
@@ -174,10 +272,8 @@ public class QueryReconstructionTests
     }
 
     [Fact]
-    public void FactoredNameSet_FailsClosed()
+    public void FactoredNameSet_WithUnknownName_FailsClosed()
     {
-        // The compiler factors a common name prefix into `...(a|b)`. Phase 1
-        // deliberately does not split factored alternations.
         var compiled = Engine.CompilePicks(
             [new WantedMod("Strength1", Names: ["of the Bear", "of the Beast"])], [], false, null);
         compiled.Query.Should().Contain("(");
@@ -185,7 +281,7 @@ public class QueryReconstructionTests
         var recovered = Reconstruction.Reconstruct(compiled.Query);
 
         recovered.Ok.Should().BeFalse();
-        recovered.Diagnostics.Should().Contain(d => d.Contains("unfactored"));
+        recovered.Diagnostics.Should().Contain(d => d.Contains("not in the catalog"));
     }
 
     [Fact]

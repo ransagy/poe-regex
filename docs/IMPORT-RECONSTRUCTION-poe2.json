@@ -1,9 +1,9 @@
 {
-  "generated": "2026-10-31T20:49:05.8381442+00:00",
+  "generated": "2026-10-31T22:02:11.1593785+00:00",
   "dataVersion": "2026-08-09",
   "targetModel": "advanced-ranges-v1",
   "fragmentTable": "2026-08-09",
-  "passed": 14,
+  "passed": 16,
   "total": 22,
   "cases": [
     {
@@ -14,12 +14,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [
-        "family:IncreasedLife1"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedLife1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -30,13 +36,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [
-        "family:IncreasedLife1",
-        "family:Strength1"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedLife1",
+            "family:Strength1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -47,13 +59,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": true,
-      "includes": [
-        "family:IncreasedLife1",
-        "family:Strength1"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": true,
+          "includes": [
+            "family:IncreasedLife1",
+            "family:Strength1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -64,14 +82,20 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [
-        "family:IncreasedLife1"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedLife1"
+          ]
+        }
       ],
       "excludes": [
         "Strength1"
       ],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -82,12 +106,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [
-        "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": false,
+          "includes": [
+            "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -98,12 +128,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1"
+      "slots": [
+        {
+          "slotId": "global",
+          "classId": "",
+          "matchAll": false,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -114,12 +150,11 @@
       "ok": false,
       "sameQuery": false,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "slots": [],
       "excludes": [],
+      "warnings": [],
       "diagnostics": [
-        "fragment \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027 is not an unfactored table fragment for this scope (term \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027)"
+        "fragment \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027 is not an unfactored table fragment for this scope"
       ]
     },
     {
@@ -130,12 +165,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "family:IncreasedLife1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedLife1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -146,12 +187,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -162,12 +209,18 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -178,13 +231,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1",
-        "family:ColdDamagePercent1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ColdDamagePercent1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -195,13 +254,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": true,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1",
-        "family:ColdDamagePercent1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": true,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ColdDamagePercent1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -212,13 +277,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1",
-        "family:ColdDamagePercent1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ColdDamagePercent1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -226,48 +297,100 @@
       "scope": "paste",
       "description": "weapon \u002B offhand",
       "query": "\u0022: (Cro|Shi.\u002Bs)\u0022 \u0022: (Shi.\u002Bs)|ith\u0022 \u0022: (Cro)|i.*ur$\u0022",
-      "ok": false,
-      "sameQuery": false,
-      "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "slots": [
+        {
+          "slotId": "weapon",
+          "classId": "Crossbow",
+          "matchAll": false,
+          "includes": [
+            "family:WeaponElementalDamage1"
+          ]
+        },
+        {
+          "slotId": "offhand",
+          "classId": "Shield",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        }
+      ],
       "excludes": [],
-      "diagnostics": [
-        "multi-class paste reconstruction is not in Phase 1"
-      ]
+      "warnings": [],
+      "diagnostics": []
     },
     {
       "id": "paste-armour",
       "scope": "paste",
       "description": "helmet \u002B boots \u002B gloves",
       "query": "\u0022: (Boo|Gl|Hel)\u0022 \u0022i.*ur$\u0022",
-      "ok": false,
-      "sameQuery": false,
-      "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "slots": [
+        {
+          "slotId": "boots",
+          "classId": "Boots",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        },
+        {
+          "slotId": "gloves",
+          "classId": "Gloves",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        },
+        {
+          "slotId": "helmet",
+          "classId": "Helmet",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        }
+      ],
       "excludes": [],
-      "diagnostics": [
-        "multi-class paste reconstruction is not in Phase 1"
-      ]
+      "warnings": [],
+      "diagnostics": []
     },
     {
       "id": "paste-exclusion",
       "scope": "paste",
       "description": "two slots \u002B exclusion",
       "query": "\u0022: (Boo|Hel)\u0022 \u0022i.*ur$\u0022 !\u0022o Str\u0022",
-      "ok": false,
-      "sameQuery": false,
-      "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
-      "excludes": [],
-      "diagnostics": [
-        "multi-class paste reconstruction is not in Phase 1"
-      ]
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "slots": [
+        {
+          "slotId": "boots",
+          "classId": "Boots",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        },
+        {
+          "slotId": "helmet",
+          "classId": "Helmet",
+          "matchAll": false,
+          "includes": [
+            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+          ]
+        }
+      ],
+      "excludes": [
+        "Strength1"
+      ],
+      "warnings": [],
+      "diagnostics": []
     },
     {
       "id": "paste-same-class-allof",
@@ -277,13 +400,19 @@
       "ok": true,
       "sameQuery": true,
       "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [
-        "family:ChaosDamagePrefixOnTwoHandWeapon1",
-        "family:ColdDamagePercent1"
+      "slots": [
+        {
+          "slotId": "ring1",
+          "classId": "Ring",
+          "matchAll": false,
+          "includes": [
+            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ColdDamagePercent1"
+          ]
+        }
       ],
       "excludes": [],
+      "warnings": [],
       "diagnostics": []
     },
     {
@@ -291,14 +420,15 @@
       "scope": "edge",
       "description": "class anchor only",
       "query": "\u0022: Ri\u0022",
-      "ok": true,
-      "sameQuery": true,
-      "mode": "advanced",
-      "itemClass": "Ring",
-      "matchAll": false,
-      "includes": [],
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "slots": [],
       "excludes": [],
-      "diagnostics": []
+      "warnings": [],
+      "diagnostics": [
+        "a class-only advanced string cannot be represented by a slot without picks"
+      ]
     },
     {
       "id": "edge-old-anchor",
@@ -308,10 +438,9 @@
       "ok": false,
       "sameQuery": false,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "slots": [],
       "excludes": [],
+      "warnings": [],
       "diagnostics": [
         "recompiled query differs (any: \u0027\u0022: On.\u002BM\u0022\u0027; all: \u0027\u0022: On.\u002BM\u0022\u0027)"
       ]
@@ -324,12 +453,11 @@
       "ok": false,
       "sameQuery": false,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "slots": [],
       "excludes": [],
+      "warnings": [],
       "diagnostics": [
-        "fragment \u0027zzzz\u0027 is not an unfactored table fragment for this scope (term \u0027zzzz\u0027)"
+        "fragment \u0027zzzz\u0027 is not an unfactored table fragment for this scope"
       ]
     },
     {
@@ -340,10 +468,9 @@
       "ok": false,
       "sameQuery": false,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "slots": [],
       "excludes": [],
+      "warnings": [],
       "diagnostics": [
         "invalid query shape: unterminated quoted block"
       ]
@@ -356,12 +483,11 @@
       "ok": false,
       "sameQuery": false,
       "mode": "simple",
-      "itemClass": null,
-      "matchAll": false,
-      "includes": [],
+      "slots": [],
       "excludes": [],
+      "warnings": [],
       "diagnostics": [
-        "fragment \u0027life\u0027 is not an unfactored table fragment for this scope (term \u0027life\u0027)"
+        "fragment \u0027life\u0027 is not an unfactored table fragment for this scope"
       ]
     }
   ]
