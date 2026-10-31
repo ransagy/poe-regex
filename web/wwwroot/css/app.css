@@ -71,7 +71,7 @@
   item cards. The three options differ only in the CTA amber, moving from
   bronze toward gold; accent text stays dark enough to read on the tan page.
 */
-:root[data-theme^="bench"] {
+:root[data-theme="bench-amber"] {
     color-scheme: light;
     --ground: #e4d0b0;
     --surface: #fdf8ee;
@@ -86,8 +86,8 @@
     --ember-hi: #a96a1c;
     --ember-ink: #241705;
     --ember-soft: rgba(176, 120, 42, 0.14);
-    --ember-btn: #b0782a;
-    --ember-btn-hi: #c68a34;
+    --ember-btn: #d99a3a;
+    --ember-btn-hi: #edb054;
     --mod: #414ac0;
     --mod-soft: rgba(65, 74, 192, 0.12);
     --mod-ink: #ffffff;
@@ -110,7 +110,7 @@
     --foot-link: #ddc9a5;
     --foot-line: #6b5028;
     --page-bg: linear-gradient(180deg, #efe1c9 0%, #e4d0b0 55%, #dfc9a7 100%);
-    --panel-accent: #cfa263;
+    --panel-accent: #e6b566;
     --card-bg: #1b140d;
     --card-ink: #ece3d4;
     --card-sub: #b4a892;
@@ -118,27 +118,6 @@
     --card-line: #4f3c27;
     --card-hover: rgba(255, 255, 255, 0.10);
     --card-no: #e08a76;
-}
-
-:root[data-theme="bench-bronze"] {
-    --ember-btn: #b0782a;
-    --ember-btn-hi: #c68a34;
-    --ember-ink: #241705;
-    --panel-accent: #cfa263;
-}
-
-:root[data-theme="bench-gold"] {
-    --ember-btn: #c78a3c;
-    --ember-btn-hi: #dba04f;
-    --ember-ink: #1a1207;
-    --panel-accent: #d9a95a;
-}
-
-:root[data-theme="bench-amber"] {
-    --ember-btn: #d99a3a;
-    --ember-btn-hi: #edb054;
-    --ember-ink: #241705;
-    --panel-accent: #e6b566;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

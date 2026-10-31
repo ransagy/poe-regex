@@ -10,15 +10,23 @@
     <base href="/" />
     <script>
         // Apply the saved palette before the stylesheet so a reload never
-        // flashes the default theme. js/theme.js keeps it current afterwards.
+        // flashes the default theme. "system" resolves from the OS/browser
+        // scheme here; js/theme.js keeps it current afterwards.
         (function () {
-            var allowed = ["forge", "bench-bronze", "bench-gold", "bench-amber"];
-            var theme = "forge";
+            var allowed = ["forge", "bench-amber", "system"];
+            var preference = "forge";
             try {
                 var saved = localStorage.getItem("poe-regex.theme");
-                if (allowed.indexOf(saved) >= 0) theme = saved;
+                if (allowed.indexOf(saved) >= 0) preference = saved;
             } catch (e) { /* storage may be unavailable */ }
+            var light = preference === "system" && window.matchMedia
+                && window.matchMedia("(prefers-color-scheme: light)").matches;
+            var theme = preference === "system"
+                ? (light ? "bench-amber" : "forge")
+                : preference;
             document.documentElement.dataset.theme = theme;
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute("content", theme === "bench-amber" ? "#3b2a16" : "#070809");
         })();
     </script>
     <link rel="preload" id="webassembly" />
