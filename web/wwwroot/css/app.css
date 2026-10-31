@@ -182,7 +182,7 @@ h1:focus { outline: none; }
 .options-seg { display: inline-flex; gap: 1px; padding: 2px; background: var(--well); border: 1px solid var(--line); border-radius: 5px; }
 .options-seg button { border: 0; background: none; padding: 0.28rem 0.7rem; border-radius: 3px; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
 .options-seg button:hover { color: var(--text); }
-.options-seg button.on { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.options-seg button.on { background: var(--surface); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .options-note { margin: 0; color: var(--faint); font-size: 0.75rem; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
@@ -252,7 +252,7 @@ input:disabled { opacity: 0.5; }
     font-size: 0.88rem; color: var(--muted);
 }
 .seg-opt:hover { color: var(--text); }
-.seg-opt.active { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.seg-opt.active { background: var(--raised); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .seg-note { color: var(--faint); font-size: 0.86rem; }
 .bench-bar { flex-wrap: wrap; row-gap: 0.5rem; }
 .bench-notice {
@@ -470,7 +470,7 @@ input:disabled { opacity: 0.5; }
     background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r);
 }
 .tool-toggle:hover { background: var(--raised); }
-.tool-toggle.on { background: var(--raised); border-color: var(--muted); }
+.tool-toggle.on { background: var(--raised); border-color: var(--muted); color: var(--ember); }
 .tool-chev {
     width: 0.75rem; height: 0.75rem; flex: none; color: var(--muted);
     fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
@@ -545,7 +545,7 @@ input:disabled { opacity: 0.5; }
 .logic-seg { display: inline-flex; gap: 1px; padding: 1px; background: var(--well); border: 1px solid var(--line); border-radius: 5px; }
 .logic-seg button { border: 0; background: none; padding: 0.1rem 0.55rem; border-radius: 3px; font-size: 0.78rem; color: var(--muted); cursor: pointer; }
 .logic-seg button:hover { color: var(--text); }
-.logic-seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.logic-seg button.on { background: var(--raised); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .logic-note { color: var(--ember); }
 .bd-list { list-style: none; margin: 0; padding: 0; }
 .bd-row {
