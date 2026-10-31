@@ -75,6 +75,19 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void Simple_AmbiguousName_FailsClosed()
+    {
+        // "Clouded|..." exists on both Ring and weapon families; without a
+        // class anchor Phase 1 refuses to guess.
+        var compiled = Engine.CompilePicks([RingNamePick()], [], false, null);
+
+        var recovered = Reconstruction.Reconstruct(compiled.Query);
+
+        recovered.Ok.Should().BeFalse();
+        recovered.Diagnostics.Should().Contain(d => d.Contains("multiple families"));
+    }
+
+    [Fact]
     public void Simple_AnyOf_Unfactored_RoundTrips()
     {
         var compiled = Engine.CompilePicks(

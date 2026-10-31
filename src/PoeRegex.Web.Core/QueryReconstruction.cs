@@ -95,13 +95,15 @@ public sealed class QueryReconstructionService
             if (!excluded && phrase.StartsWith(": ", StringComparison.Ordinal))
                 continue; // the class anchor is already resolved
 
-            if (TryNamePick(phrase, itemClass, out var namePick))
+            if (TryNamePick(phrase, itemClass, out var namePick, out var nameFailure))
             {
                 if (excluded)
                     return ReconstructedQuery.Failed(query, "name exclusions are not in Phase 1");
                 includes.Add(namePick!);
                 continue;
             }
+            if (nameFailure is not null)
+                return ReconstructedQuery.Failed(query, nameFailure);
 
             var branches = SplitAlternatives(phrase);
             if (branches.Count == 0)
@@ -141,9 +143,10 @@ public sealed class QueryReconstructionService
             itemClass, includes, excludes, !anyMatch && allMatch, []);
     }
 
-    private bool TryNamePick(string phrase, string? itemClass, out WantedMod? pick)
+    private bool TryNamePick(string phrase, string? itemClass, out WantedMod? pick, out string? failure)
     {
         pick = null;
+        failure = null;
         var branches = SplitAlternatives(phrase);
         if (branches.Count == 0) return false;
 
@@ -155,20 +158,27 @@ public sealed class QueryReconstructionService
             names.Add(name);
         }
 
-        var matches = new List<ModEntry>();
-        foreach (var name in names)
+        var found = names.Select(name => (Name: name, Mods: LookupName(name, itemClass))).ToList();
+        if (found.All(x => x.Mods.Count == 0)) return false; // not a name set; try the fragment path
+
+        var missing = found.FirstOrDefault(x => x.Mods.Count == 0);
+        if (missing.Name is not null)
         {
-            var found = LookupName(name, itemClass);
-            if (found.Count == 0) return false; // fall through to the fragment path
-            matches.AddRange(found);
+            failure = $"affix name '{missing.Name}' is not in the catalog for this scope";
+            return false;
         }
 
+        var matches = found.SelectMany(x => x.Mods).ToList();
         var families = matches
             .Select(m => m.Family)
             .Where(f => f.Length > 0)
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        if (families.Count != 1) return false;
+        if (families.Count != 1)
+        {
+            failure = "affix-name set spans multiple families; add a class anchor or choose one";
+            return false;
+        }
 
         var representative = matches.OrderBy(m => m.Id, StringComparer.Ordinal).First();
         pick = new WantedMod(representative.Id, Names: names);

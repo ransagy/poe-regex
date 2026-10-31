@@ -1,0 +1,368 @@
+{
+  "generated": "2026-10-31T19:47:34.7785983+00:00",
+  "dataVersion": "2026-08-09",
+  "targetModel": "advanced-ranges-v1",
+  "fragmentTable": "2026-08-09",
+  "passed": 13,
+  "total": 22,
+  "cases": [
+    {
+      "id": "simple-plain-1",
+      "scope": "simple",
+      "description": "one plain pick",
+      "query": "\u0022\\\u002B.*ife\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [
+        "IncreasedLife1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "simple-any-2",
+      "scope": "simple",
+      "description": "two plain picks, any-of",
+      "query": "\u0022\\\u002B.*ife|o Str\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [
+        "IncreasedLife1",
+        "Strength1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "simple-all-2",
+      "scope": "simple",
+      "description": "two plain picks, all-of",
+      "query": "\u0022\\\u002B.*ife\u0022 \u0022o Str\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": true,
+      "includes": [
+        "IncreasedLife1",
+        "Strength1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "simple-exclusion",
+      "scope": "simple",
+      "description": "plain pick \u002B exclusion",
+      "query": "\u0022\\\u002B.*ife\u0022 !\u0022o Str\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [
+        "IncreasedLife1"
+      ],
+      "excludes": [
+        "Strength1"
+      ],
+      "diagnostics": []
+    },
+    {
+      "id": "simple-name",
+      "scope": "simple",
+      "description": "one affix-name pick",
+      "query": "\u0022Clouded|Darkened|Impure|Malignant|Tainted|Vile\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "affix-name set spans multiple families; add a class anchor or choose one"
+      ]
+    },
+    {
+      "id": "simple-family",
+      "scope": "simple",
+      "description": "one family pick",
+      "query": "\u0022d cha.*ge$\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [
+        "ChaosDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "simple-min",
+      "scope": "simple",
+      "description": "plain pick with minimum",
+      "query": "\u0022\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "fragment \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027 is not an unfactored table fragment for this scope (term \u0027\\\u002B(\\d{3,}|[2-9]\\d|1[0-9])\\(\\d\u002B-\\d\u002B\\) to maximum Life\u0027)"
+      ]
+    },
+    {
+      "id": "advanced-plain",
+      "scope": "advanced",
+      "description": "Ring plain pick",
+      "query": "\u0022: Ri\u0022 \u0022\\\u002B.*fe\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "IncreasedLife1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "advanced-name",
+      "scope": "advanced",
+      "description": "Ring affix-name pick",
+      "query": "\u0022: Ri\u0022 \u0022Clouded|Darkened|Impure|Malignant|Tainted|Vile\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "advanced-family",
+      "scope": "advanced",
+      "description": "Ring family pick",
+      "query": "\u0022: Ri\u0022 \u0022d Ch\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "ChaosDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "advanced-any-2",
+      "scope": "advanced",
+      "description": "Ring two picks, any-of",
+      "query": "\u0022: Ri\u0022 \u0022d Ch|ed Co\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "ChaosDamagePercent1",
+        "ColdDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "advanced-all-2",
+      "scope": "advanced",
+      "description": "Ring two picks, all-of",
+      "query": "\u0022: Ri\u0022 \u0022d Ch\u0022 \u0022ed Co\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": true,
+      "includes": [
+        "ChaosDamagePercent1",
+        "ColdDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "paste-rings",
+      "scope": "paste",
+      "description": "ring1 \u002B ring2",
+      "query": "\u0022: Ri\u0022 \u0022d Ch|ed Co\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "ChaosDamagePercent1",
+        "ColdDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "paste-weapon-offhand",
+      "scope": "paste",
+      "description": "weapon \u002B offhand",
+      "query": "\u0022: (Cro|Shi.\u002Bs)\u0022 \u0022: (Shi.\u002Bs)|ith\u0022 \u0022: (Cro)|i.*ur$\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "multi-class paste reconstruction is not in Phase 1"
+      ]
+    },
+    {
+      "id": "paste-armour",
+      "scope": "paste",
+      "description": "helmet \u002B boots \u002B gloves",
+      "query": "\u0022: (Boo|Gl|Hel)\u0022 \u0022i.*ur$\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "multi-class paste reconstruction is not in Phase 1"
+      ]
+    },
+    {
+      "id": "paste-exclusion",
+      "scope": "paste",
+      "description": "two slots \u002B exclusion",
+      "query": "\u0022: (Boo|Hel)\u0022 \u0022i.*ur$\u0022 !\u0022o Str\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "multi-class paste reconstruction is not in Phase 1"
+      ]
+    },
+    {
+      "id": "paste-same-class-allof",
+      "scope": "paste",
+      "description": "ring1 \u002B ring2 all-of (accepted fallback)",
+      "query": "\u0022: Ri\u0022 \u0022d Ch|ed Co\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [
+        "ChaosDamagePercent1",
+        "ColdDamagePercent1"
+      ],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "edge-class-anchor",
+      "scope": "edge",
+      "description": "class anchor only",
+      "query": "\u0022: Ri\u0022",
+      "ok": true,
+      "sameQuery": true,
+      "mode": "advanced",
+      "itemClass": "Ring",
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": []
+    },
+    {
+      "id": "edge-old-anchor",
+      "scope": "edge",
+      "description": "old literal class anchor",
+      "query": "\u0022: One Hand M\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "recompiled query differs (any: \u0027\u0022: On.\u002BM\u0022\u0027; all: \u0027\u0022: On.\u002BM\u0022\u0027)"
+      ]
+    },
+    {
+      "id": "edge-unknown-token",
+      "scope": "edge",
+      "description": "free text / unknown token",
+      "query": "\u0022zzzz\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "fragment \u0027zzzz\u0027 is not an unfactored table fragment for this scope (term \u0027zzzz\u0027)"
+      ]
+    },
+    {
+      "id": "edge-shape",
+      "scope": "edge",
+      "description": "unterminated query",
+      "query": "\u0022life",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "invalid query shape: unterminated quoted block"
+      ]
+    },
+    {
+      "id": "edge-free-text-and-mod",
+      "scope": "edge",
+      "description": "known fragment \u002B free text",
+      "query": "\u0022life\u0022 \u0022zzzz\u0022",
+      "ok": false,
+      "sameQuery": false,
+      "mode": "simple",
+      "itemClass": null,
+      "matchAll": false,
+      "includes": [],
+      "excludes": [],
+      "diagnostics": [
+        "fragment \u0027life\u0027 is not an unfactored table fragment for this scope (term \u0027life\u0027)"
+      ]
+    }
+  ]
+}
