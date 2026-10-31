@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/PoeRegex.Data.Build/PoeRegex.Data.Build.csproj" />
+    <Project Path="tools/PoeRegex.ImportCoverage/PoeRegex.ImportCoverage.csproj" />
   </Folder>
   <Folder Name="/web/">
     <Project Path="web/web.csproj" />
