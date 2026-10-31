@@ -2,6 +2,7 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
+using web.Layout;
 using web.Services;
 
 namespace PoeRegex.Web.Tests;
@@ -90,6 +91,24 @@ public class WebComponentTests
         cut.FindAll(".intro-goals li").Should().HaveCount(2);
         cut.Find("#intro-dismiss").Click();
         dismissed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MainLayout_OffersEveryThemeAndPersistsTheChoice()
+    {
+        using var ctx = Context();
+        ctx.Services.AddSingleton(new IntroState(new PersistenceService(ctx.JSInterop.JSRuntime)));
+        var cut = ctx.Render<MainLayout>(p => p
+            .Add(x => x.Body, b => b.AddMarkupContent(0, "<p>body</p>")));
+
+        var options = cut.FindAll("#theme-select option");
+        options.Select(o => o.GetAttribute("value"))
+            .Should().ContainInOrder("steel", "forge", "coal", "obsidian", "graphite");
+
+        cut.Find("#theme-select").Change("graphite");
+
+        var set = ctx.JSInterop.Invocations.Last(i => i.Identifier == "poeRegexTheme.set");
+        set.Arguments.Should().ContainSingle().Which.Should().Be("graphite");
     }
 
     [Fact]

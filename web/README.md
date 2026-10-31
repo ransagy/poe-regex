@@ -174,6 +174,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   layouts a bar pinned to the bottom keeps the length and a copy button in
   reach. The scale select sits at the right of the header, next to
   `What is this?` and the GitHub link.
+- The header also carries a persisted palette picker: Steel (default),
+  Forge Black, Coal & Copper, Obsidian, and Graphite Forge. The choice sets
+  `data-theme` on `<html>` so the CSS variables swap without a reload; it is
+  stored under `poe-regex.theme`, applied before the stylesheet on boot (no
+  flash of the default), and other open tabs follow it. Item-rarity colors and
+  the forge loading screen keep their game-like colors in every theme.
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).

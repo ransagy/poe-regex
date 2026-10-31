@@ -18,11 +18,122 @@
     --no: #ec7a65;
     --no-soft: rgba(236, 122, 101, 0.13);
     --ok: #93c47d;
+    /* Surfaces that used to be hardcoded so every theme can restyle them. */
+    --btn-hover: #29313b;
+    --btn-hover-line: #4a5562;
+    --anchor: #4c5763;
+    --card-bg: #0b0d10;
     --r: 4px;
     --r-lg: 7px;
     --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
     --mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+/*
+  Alternate palettes, picked in the header and saved per browser. The default
+  (:root) is the steel-blue look; the others are deeper near-black grounds with
+  amber "forge" accents. Item-rarity colors and the forge loading screen stay
+  game-like in every theme.
+*/
+:root[data-theme="forge"] {
+    --ground: #070809;
+    --surface: #0d0f11;
+    --raised: #15181b;
+    --well: #040506;
+    --line: #202428;
+    --line-strong: #30363c;
+    --text: #e8e3d9;
+    --muted: #9c978d;
+    --faint: #7f7b73;
+    --ember: #f0a541;
+    --ember-hi: #ffc06a;
+    --ember-ink: #1a1207;
+    --ember-soft: rgba(240, 165, 65, 0.13);
+    --mod: #9aa6ff;
+    --mod-soft: rgba(154, 166, 255, 0.12);
+    --no: #e87964;
+    --no-soft: rgba(232, 121, 100, 0.13);
+    --ok: #9bc487;
+    --btn-hover: #1c2024;
+    --btn-hover-line: #394047;
+    --anchor: #4b4a45;
+    --card-bg: #08090a;
+}
+
+:root[data-theme="coal"] {
+    --ground: #080706;
+    --surface: #100e0c;
+    --raised: #191512;
+    --well: #050403;
+    --line: #29231d;
+    --line-strong: #3d342b;
+    --text: #e9e1d5;
+    --muted: #a39a8d;
+    --faint: #827a6e;
+    --ember: #e8943a;
+    --ember-hi: #ffb35c;
+    --ember-ink: #1b0f05;
+    --ember-soft: rgba(232, 148, 58, 0.14);
+    --mod: #9aa6ff;
+    --mod-soft: rgba(154, 166, 255, 0.12);
+    --no: #e67b62;
+    --no-soft: rgba(230, 123, 98, 0.13);
+    --ok: #9bc487;
+    --btn-hover: #241e18;
+    --btn-hover-line: #493c30;
+    --anchor: #5a5043;
+    --card-bg: #0a0807;
+}
+
+:root[data-theme="obsidian"] {
+    --ground: #050506;
+    --surface: #0a0a0c;
+    --raised: #121216;
+    --well: #020203;
+    --line: #1c1c21;
+    --line-strong: #2e2e35;
+    --text: #f0ebe3;
+    --muted: #a6a09a;
+    --faint: #7d7975;
+    --ember: #f2a23b;
+    --ember-hi: #ffc15c;
+    --ember-ink: #1a1106;
+    --ember-soft: rgba(242, 162, 59, 0.13);
+    --mod: #9aa6ff;
+    --mod-soft: rgba(154, 166, 255, 0.12);
+    --no: #e87964;
+    --no-soft: rgba(232, 121, 100, 0.13);
+    --ok: #9bc487;
+    --btn-hover: #1a1a20;
+    --btn-hover-line: #3b3b45;
+    --anchor: #4a4a53;
+    --card-bg: #050506;
+}
+
+:root[data-theme="graphite"] {
+    --ground: #0b0c0d;
+    --surface: #121416;
+    --raised: #1b1e21;
+    --well: #070809;
+    --line: #24282c;
+    --line-strong: #363c42;
+    --text: #e8e5de;
+    --muted: #9fa19e;
+    --faint: #7b7f79;
+    --ember: #f0a541;
+    --ember-hi: #ffbf66;
+    --ember-ink: #1a1207;
+    --ember-soft: rgba(240, 165, 65, 0.13);
+    --mod: #9aa6ff;
+    --mod-soft: rgba(154, 166, 255, 0.12);
+    --no: #e87964;
+    --no-soft: rgba(232, 121, 100, 0.13);
+    --ok: #9bc487;
+    --btn-hover: #1f2327;
+    --btn-hover-line: #3c444b;
+    --anchor: #4c5157;
+    --card-bg: #090a0b;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -68,8 +179,8 @@ h1:focus { outline: none; }
 .shell-link:hover { color: var(--text); }
 .shell-link:disabled { color: var(--faint); opacity: 0.45; cursor: default; text-decoration: none; }
 .shell-link:disabled:hover { color: var(--faint); }
-.ui-scale { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.86rem; }
-.ui-scale select { height: 1.75rem; padding: 0 0.3rem; font-size: 0.82rem; }
+.ui-field { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.86rem; }
+.ui-field select { height: 1.75rem; padding: 0 0.3rem; font-size: 0.82rem; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; }
 
@@ -84,7 +195,7 @@ button { font: inherit; color: inherit; }
     background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r);
     cursor: pointer;
 }
-.btn:hover:not(:disabled) { background: #29313b; border-color: #4a5562; }
+.btn:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-hover-line); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-primary { background: var(--ember); border-color: var(--ember); color: var(--ember-ink); font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: var(--ember-hi); border-color: var(--ember-hi); }
@@ -400,7 +511,7 @@ input:disabled { opacity: 0.5; }
 }
 .ruler-seg { height: 100%; flex: none; box-shadow: inset -2px 0 0 var(--surface); }
 .ruler-seg:first-child { border-radius: 3px 0 0 3px; }
-.seg-anchor { background: #4c5763; }
+.seg-anchor { background: var(--anchor); }
 .seg-inc { background: rgba(154, 166, 255, 0.7); }
 .seg-exc { background: rgba(236, 122, 101, 0.75); }
 .ruler-seg.hot { background: var(--text); }
@@ -556,7 +667,7 @@ input:disabled { opacity: 0.5; }
 .rarity-unique { color: #af6025; }
 
 .iprev {
-    background: #0b0d10; border: 1px solid var(--line-strong); border-radius: var(--r);
+    background: var(--card-bg); border: 1px solid var(--line-strong); border-radius: var(--r);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
     padding: 0.55rem 0.8rem 0.65rem; font-size: 0.84rem; text-align: center;
 }
@@ -699,7 +810,7 @@ body.compact .out-dock {
     html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
     #app, .shell { height: auto; min-height: 100%; }
     .shell-bar { padding: 0 0.75rem; gap: 0.5rem; }
-    .shell-sub, .ui-scale { display: none; }
+    .shell-sub, .ui-field { display: none; }
     .shell-actions { gap: 0.9rem; }
     .bench { flex: none; overflow: visible; padding: 0.75rem; }
     .bench-bar { flex-wrap: wrap; }

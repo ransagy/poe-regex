@@ -34,7 +34,17 @@
                     disabled="@(Intro.Visible == true)"
                     title="@(Intro.Visible == true ? "The explanation is already open" : "Show the explanation")"
                     @onclick="Intro.Show">What is this?</button>
-            <label class="ui-scale" title="Display scale, saved in this browser">
+            <label class="ui-field" title="Palette, saved in this browser">
+                <span>Theme</span>
+                <select id="theme-select" value="@_theme" @onchange="SetTheme" aria-label="Theme">
+                    <option value="steel">Steel</option>
+                    <option value="forge">Forge Black</option>
+                    <option value="coal">Coal &amp; Copper</option>
+                    <option value="obsidian">Obsidian</option>
+                    <option value="graphite">Graphite Forge</option>
+                </select>
+            </label>
+            <label class="ui-field" title="Display scale, saved in this browser">
                 <span>Size</span>
                 <select value="@_scaleText" @onchange="SetScale" aria-label="Display scale">
                     <option value="1">100%</option>
@@ -56,6 +66,8 @@
 @code {
     private double _scale = 1.15;
     private string _scaleText => _scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private string _theme = "steel";
+    private DotNetObjectReference<MainLayout>? _themeRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,20 +77,45 @@
 
     private void OnIntroChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Intro.Changed -= OnIntroChanged;
+    public void Dispose()
+    {
+        Intro.Changed -= OnIntroChanged;
+        _themeRef?.Dispose();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+        _themeRef ??= DotNetObjectReference.Create(this);
         try
         {
             _scale = await JS.InvokeAsync<double>("poeRegexScale.current");
+            var theme = await JS.InvokeAsync<string>("poeRegexTheme.current");
+            if (!string.IsNullOrWhiteSpace(theme)) _theme = theme;
+            await JS.InvokeVoidAsync("poeRegexTheme.bind", _themeRef);
             StateHasChanged();
         }
         catch
         {
-            // JS not ready/failed: the inline bootstrap default remains.
+            // JS not ready/failed: the inline bootstrap defaults remain.
         }
+    }
+
+    private async Task SetTheme(ChangeEventArgs e)
+    {
+        var theme = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(theme)) return;
+        _theme = theme;
+        try { await JS.InvokeVoidAsync("poeRegexTheme.set", theme); }
+        catch { }
+    }
+
+    [JSInvokable]
+    public void ApplyThemeFromStorage(string theme)
+    {
+        if (string.IsNullOrWhiteSpace(theme) || theme == _theme) return;
+        _theme = theme;
+        StateHasChanged();
     }
 
     private async Task SetScale(ChangeEventArgs e)
