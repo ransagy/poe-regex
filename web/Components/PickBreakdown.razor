@@ -1,6 +1,5 @@
 @using System.Globalization
 @using PoeRegex.Core.Data
-@using PoeRegex.Core.Search
 @using PoeRegex.Web.Core
 @inject EngineService Engine
 @implements IDisposable
@@ -103,6 +102,7 @@
     public string Title { get; set; } = "Your picks";
 
     private SearchModel? _subscribed;
+    private WantedMod? _minBusy;
 
     private bool HasPicks => State.Mode == "advanced"
         ? State.ActiveSlots().Count > 0
@@ -165,8 +165,9 @@
                     var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
-                    <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
-                        @onmouseenter="() => { if (own >= 0) Model.Hot(own); }">
+                    var busy = _minBusy?.SamePick(inc) == true;
+                    <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
+                        @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
                         <span class="bd-what">
                             @if (inc.IsNamePick)
                             {
@@ -181,12 +182,13 @@
                                 <span class="bd-label">@label</span>
                             }
                         </span>
-                        @if (!ReadOnly && AcceptsMin(inc))
+                        @if (!ReadOnly && AcceptsMin(inc, cls))
                         {
-                            <input class="bd-min @(minIgnored ? "ignored" : "")" type="number" inputmode="numeric" min="0" step="1"
-                                   id="min-@scopeKey-@ChipKey(inc)" placeholder="min" autocomplete="off"
+                            <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="numeric" min="0" step="1"
+                                   id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
+                                   aria-busy="@(busy ? "true" : "false")"
                                    value="@inc.MinValue?.ToString(CultureInfo.InvariantCulture)"
-                                   title="@(minIgnored ? "This text cannot carry a minimum safely, so the pick matches any value" : "Only match this value or higher (a longer fragment)")"
+                                   title="@(busy ? "Applying the minimum…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher (a longer fragment)")"
                                    aria-label="@($"Minimum value for {label}")"
                                    @onchange="e => SetMin(slot, inc, e)" />
                         }
@@ -241,21 +243,23 @@
         }
     };
 
-    /// <summary>A minimum only applies to a plain single-line pick whose text carries a number.</summary>
-    private bool AcceptsMin(WantedMod pick)
-    {
-        if (pick.IsNamePick) return false;
-        var mod = Engine.FindMod(pick.ModId);
-        return mod is { StatLines.Count: 1 } && mod.StatLines[0].Pattern.Contains(SuffixIndex.DigitPlaceholder);
-    }
+    /// <summary>A minimum is offered only when it changes the compiled fragment safely.</summary>
+    private bool AcceptsMin(WantedMod pick, string? cls) => Engine.CanApplyMin(pick, cls);
 
-    private void SetMin(string? slot, WantedMod pick, ChangeEventArgs e)
+    private async Task SetMin(string? slot, WantedMod pick, ChangeEventArgs e)
     {
         var text = e.Value?.ToString()?.Trim();
         double? value = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
             ? Math.Floor(v)
             : null;
+        // Paint the working state before the (possibly first-use) compile, so
+        // the first minimum never looks like a frozen input.
+        _minBusy = pick;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
         State.SetMinValue(slot, pick, value);
+        _minBusy = null;
+        await InvokeAsync(StateHasChanged);
     }
 
     private string CostTitle(string slot, List<int> blocks)
