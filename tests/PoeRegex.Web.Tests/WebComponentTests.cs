@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
@@ -81,7 +82,7 @@ public class WebComponentTests
     }
 
     [Fact]
-    public void QueryImportPanel_ParsesAndAppliesASimpleString()
+    public async Task QueryImportPanel_ParsesAndAppliesASimpleString()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -95,8 +96,9 @@ public class WebComponentTests
             .Add(x => x.OnClose, () => closed = true));
 
         cut.Find("#query-import-text").Input(compiled.Query);
-        cut.Find("#query-import-parse").Click();
-        cut.Find("#query-import-apply").Click();
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-apply:not([disabled])");
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
         closed.Should().BeTrue();
         state.Mode.Should().Be("simple");
@@ -106,7 +108,7 @@ public class WebComponentTests
     }
 
     [Fact]
-    public void QueryImportPanel_AppliesAMultiClassPaste()
+    public async Task QueryImportPanel_AppliesAMultiClassPaste()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -124,8 +126,9 @@ public class WebComponentTests
             .Add(x => x.OnClose, () => closed = true));
 
         cut.Find("#query-import-text").Input(combined.Query);
-        cut.Find("#query-import-parse").Click();
-        cut.Find("#query-import-apply").Click();
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-apply:not([disabled])");
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
         closed.Should().BeTrue();
         state.Mode.Should().Be("advanced");
@@ -136,6 +139,42 @@ public class WebComponentTests
                 state.CriteriaFor(s).MatchAll)),
             state.Global.Excluded, allowOverflow: true).Query;
         recompiled.Should().Be(combined.Query);
+    }
+
+    [Fact]
+    public async Task QueryImportPanel_PreviewsExactlyTheAppliedPicks()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        const string query =
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-text").Input(query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-preview");
+
+        // The preview is read-only and uses the real Your-picks rows.
+        state.Global.Included.Should().BeEmpty("nothing is applied until Apply");
+        var preview = cut.Find("#query-import-preview");
+        preview.TextContent.Should().Contain("\"Flaming\" or better");
+        preview.TextContent.Should().Contain("Adds 20–24 to 32–37 Fire Damage");
+        preview.TextContent.Should().NotContain("name:");
+        cut.FindAll("#query-import-preview .bd-row.inc").Count.Should().Be(5);
+        cut.FindAll("#query-import-preview .bd-x").Should().BeEmpty();
+        cut.FindAll("#query-import-preview .bd-min").Should().BeEmpty();
+        cut.FindAll("#query-import-preview .bd-clear").Should().BeEmpty();
+
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
+
+        state.Global.Included.Should().HaveCount(5);
+        engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(query);
     }
 
     private static WantedMod ClassFamilyPick(EngineService engine, string classId)

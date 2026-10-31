@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-10-31 22:32 UTC._
+_Generated 2026-10-31 22:57 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -85,7 +85,7 @@ strings, and minimum values fail closed or are accepted losses.
 ### `simple-name` — one affix-name pick
 - query: `"Clouded\|Darkened\|Impure\|Malignant\|Tainted\|Vile"`
 - mode: simple
-- global — any of: `name:Clouded\|Darkened\|Impure\|Malignant\|Tainted\|Vile`
+- global — any of: `name:Impure\|Tainted\|Clouded\|Darkened\|Malignant\|Vile`
 - recompile: identical
 
 ### `simple-family` — one family pick
@@ -103,7 +103,7 @@ strings, and minimum values fail closed or are accepted losses.
 ### `advanced-name` — Ring affix-name pick
 - query: `": Ri" "Clouded\|Darkened\|Impure\|Malignant\|Tainted\|Vile"`
 - mode: advanced
-- ring1 · Ring — any of: `name:Clouded\|Darkened\|Impure\|Malignant\|Tainted\|Vile`
+- ring1 · Ring — any of: `name:Impure\|Tainted\|Clouded\|Darkened\|Malignant\|Vile`
 - recompile: identical
 
 ### `advanced-family` — Ring family pick

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-31T22:32:12.9370732+00:00",
+  "generated": "2026-10-31T22:57:17.7225549+00:00",
   "dataVersion": "2026-08-09",
   "targetModel": "advanced-ranges-v1",
   "fragmentTable": "2026-08-09",
@@ -112,7 +112,7 @@
           "classId": "",
           "matchAll": false,
           "includes": [
-            "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+            "name:Impure|Tainted|Clouded|Darkened|Malignant|Vile"
           ]
         }
       ],
@@ -193,7 +193,7 @@
           "classId": "Ring",
           "matchAll": false,
           "includes": [
-            "name:Clouded|Darkened|Impure|Malignant|Tainted|Vile"
+            "name:Impure|Tainted|Clouded|Darkened|Malignant|Vile"
           ]
         }
       ],

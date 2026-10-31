@@ -245,6 +245,32 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void MixedGroup_NameSuffix_CollapsesToTierOrBetterPick()
+    {
+        // The six names are exactly the LocalFireDamage suffix from Flaming
+        // up; the four fragments are separate picks in the same any-of group.
+        const string query =
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+
+        var recovered = Reconstruction.ReconstructWorkbench(query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(query);
+        recovered.Slots.Should().ContainSingle();
+        var namePicks = recovered.Slots[0].Includes.Where(p => p.IsNamePick).ToList();
+        namePicks.Should().ContainSingle("the suffix becomes one tier-or-better pick");
+        namePicks[0].Names.Should().Equal(
+            "Flaming", "Scorching", "Incinerating", "Blasting", "Cremating", "Carbonising");
+
+        var state = new WorkbenchState();
+        recovered.ApplyTo(state);
+        state.Global.Included.Should().HaveCount(5);
+        state.Global.Included.Count(p => p.IsNamePick).Should().Be(1);
+        Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(query);
+    }
+
+    [Fact]
     public void Simple_MixedNameAndFragmentGroup_RoundTrips()
     {
         // A real app string: six affix names plus four fragments in one group.

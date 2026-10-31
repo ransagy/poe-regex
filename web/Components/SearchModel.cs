@@ -213,4 +213,30 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         if (!mods.Any(m => m.Id == exc)) return $"\"{exc}\"";
         return FamilyText(ModFamilies.CachedGroup(mods), mods, exc);
     }
+
+    /// <summary>
+    /// The strip compilation for a workbench state, shared by the page and the
+    /// import preview so both render the same blocks.
+    /// </summary>
+    public static (CompileResult? Simple, MultiPasteResult? Paste) CompileForStrip(
+        EngineService engine, WorkbenchState state)
+    {
+        if (state.Mode != "advanced")
+            return (engine.CompilePicks(
+                state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null), null);
+
+        var active = state.ActiveSlots();
+        if (active.Count == 0) return (null, null);
+        var paste = engine.Combine(
+            active.Select(s =>
+            {
+                var crit = state.CriteriaFor(s);
+                return ($"{s} ({crit.ClassId})", crit.ClassId,
+                    (IEnumerable<WantedMod>)crit.Included, crit.MatchAll);
+            }),
+            active.SelectMany(s => state.CriteriaFor(s).Excluded)
+                .Concat(state.Global.Excluded).Distinct(StringComparer.Ordinal),
+            allowOverflow: true);
+        return (null, paste);
+    }
 }

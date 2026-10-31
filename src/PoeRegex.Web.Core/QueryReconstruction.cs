@@ -102,8 +102,6 @@ public sealed class QueryReconstructionService
 {
     private readonly EngineService _engine;
     private readonly QueryImportService _anchors;
-    private readonly Dictionary<string, List<(string Pattern, string? Class)>> _byFragment =
-        new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ModEntry>> _byName =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ModFamily> _familyByKey =
@@ -114,20 +112,10 @@ public sealed class QueryReconstructionService
         _engine = engine;
         _anchors = new QueryImportService(engine);
 
-        foreach (var (pattern, fragment, itemClass) in engine.PrecomputedFragments())
-        {
-            if (fragment.Length == 0) continue;
-            if (!_byFragment.TryGetValue(fragment, out var list))
-            {
-                list = [];
-                _byFragment[fragment] = list;
-            }
-            list.Add((pattern, itemClass));
-        }
-
-        var playableMods = engine.ModsForClasses(engine.PlayableClasses().Select(c => c.Id))
-            .DistinctBy(m => m.Id, StringComparer.Ordinal)
-            .ToList();
+        // Reuse the picker's caches: PlayableMods and its family grouping are
+        // already warm by the time a dialog opens, and rebuilding them here
+        // used to freeze the first Preview for seconds.
+        var playableMods = engine.PlayableMods();
         foreach (var mod in playableMods)
         {
             if (string.IsNullOrWhiteSpace(mod.Name)) continue;
@@ -138,7 +126,7 @@ public sealed class QueryReconstructionService
             }
             list.Add(mod);
         }
-        foreach (var family in ModFamilies.Group(playableMods))
+        foreach (var family in ModFamilies.CachedGroup(playableMods))
             _familyByKey[family.Key] = family;
     }
 
@@ -466,24 +454,42 @@ public sealed class QueryReconstructionService
             return false;
         }
 
+        // A group can mix names and fragments. Resolve the names as a set so
+        // an app-built tier-or-better set becomes one pick, not one per name.
+        var names = new List<string>();
+        var fragments = new List<string>();
         foreach (var branch in SplitAlternatives(term))
         {
-            if (TryNamePick(branch, itemClass, out var branchName, out var branchNameFailure))
+            foreach (var candidate in ExpandFactored(branch))
             {
-                AddUnique(picks, branchName!);
-                continue;
+                if (TryNamePick(candidate, itemClass, out var branchName, out var branchNameFailure))
+                {
+                    if (branchNameFailure is not null)
+                    {
+                        failure = branchNameFailure;
+                        return false;
+                    }
+                    names.AddRange(branchName!.Names ?? []);
+                }
+                else
+                {
+                    fragments.Add(candidate);
+                }
             }
-            if (branchNameFailure is not null)
-            {
-                failure = branchNameFailure;
-                return false;
-            }
-            if (!TryFragmentPicks(branch, itemClass, used, out var fragments, out var fragmentFailure))
+        }
+
+        if (names.Count > 0)
+            foreach (var pick in ResolveNameAlternatives(names, itemClass))
+                AddUnique(picks, pick);
+
+        foreach (var fragment in fragments)
+        {
+            if (!TryFragmentPicks(fragment, itemClass, used, out var resolved, out var fragmentFailure))
             {
                 failure = fragmentFailure;
                 return false;
             }
-            foreach (var pick in fragments) AddUnique(picks, pick);
+            foreach (var pick in resolved) AddUnique(picks, pick);
         }
 
         if (picks.Count == 0)
@@ -492,6 +498,87 @@ public sealed class QueryReconstructionService
             return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Turns the name alternatives of a mixed group into the same picks the
+    /// picker creates: one canonical tier-or-better pick per family suffix,
+    /// and individual picks for names outside a suffix.
+    /// </summary>
+    private List<WantedMod> ResolveNameAlternatives(IReadOnlyList<string> names, string? itemClass)
+    {
+        var picks = new List<WantedMod>();
+        var remaining = names.Distinct(StringComparer.Ordinal).ToList();
+        while (remaining.Count > 1 && TryTakeLargestNameSuffix(remaining, itemClass, out var suffixPick))
+            AddUnique(picks, suffixPick!);
+        foreach (var name in remaining)
+            if (TryBuildNamePick([name], itemClass, out var pick, out _))
+                AddUnique(picks, pick!);
+        return picks;
+    }
+
+    private bool TryTakeLargestNameSuffix(
+        List<string> remaining, string? itemClass, out WantedMod? pick)
+    {
+        pick = null;
+        var wanted = remaining.ToHashSet(StringComparer.Ordinal);
+        ModFamily? bestFamily = null;
+        ModTier? bestTier = null;
+        var bestCount = 1;
+        foreach (var family in _familyByKey.Values.OrderBy(f => f.Key, StringComparer.Ordinal))
+        {
+            foreach (var tier in family.Tiers)
+            {
+                if (tier.Name.Length == 0) continue;
+                var suffix = family.NamesFrom(tier);
+                if (suffix.Count <= bestCount || !suffix.All(wanted.Contains)) continue;
+                if (itemClass is not null &&
+                    !tier.Members.Any(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)))
+                    continue;
+                bestFamily = family;
+                bestTier = tier;
+                bestCount = suffix.Count;
+            }
+        }
+
+        if (bestFamily is null || bestTier is null) return false;
+        pick = NamePickFor(bestFamily, bestTier, itemClass);
+        foreach (var name in bestFamily.NamesFrom(bestTier)) remaining.Remove(name);
+        return true;
+    }
+
+    /// <summary>One multi-name pick in the picker's canonical tier-or-better order.</summary>
+    private static WantedMod NamePickFor(ModFamily family, ModTier tier, string? itemClass)
+    {
+        var anchor = itemClass is null
+            ? tier.Anchor
+            : tier.Members.FirstOrDefault(m => m.Classes.Contains(itemClass, StringComparer.Ordinal))
+              ?? tier.Anchor;
+        return new WantedMod(anchor.Id, Names: family.NamesFrom(tier));
+    }
+
+    private bool TryCanonicalNameSet(
+        IReadOnlyList<string> names, string? itemClass, out WantedMod? pick)
+    {
+        pick = null;
+        if (names.Count == 0) return false;
+        var wanted = names.ToHashSet(StringComparer.Ordinal);
+        if (wanted.Count != names.Count) return false;
+        foreach (var family in _familyByKey.Values.OrderBy(f => f.Key, StringComparer.Ordinal))
+        {
+            foreach (var tier in family.Tiers)
+            {
+                if (tier.Name.Length == 0) continue;
+                var suffix = family.NamesFrom(tier);
+                if (suffix.Count != wanted.Count || !suffix.All(wanted.Contains)) continue;
+                if (itemClass is not null &&
+                    !tier.Members.Any(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)))
+                    continue;
+                pick = NamePickFor(family, tier, itemClass);
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -615,6 +702,14 @@ public sealed class QueryReconstructionService
             var name = UnescapeLiteral(part.Trim());
             if (name.Length == 0 || IsRegexLike(name)) return false;
             names.Add(name);
+        }
+
+        // Prefer the picker's canonical "tier or better" set when the input is
+        // exactly that suffix; this is what the applied Your-picks row shows.
+        if (TryCanonicalNameSet(names, itemClass, out pick))
+        {
+            failure = null;
+            return true;
         }
 
         var found = names.Select(name => (Name: name, Mods: LookupName(name, itemClass))).ToList();
@@ -751,7 +846,8 @@ public sealed class QueryReconstructionService
         ISet<string>? forbiddenIds = null)
     {
         pick = null;
-        if (!_byFragment.TryGetValue(branch, out var matches)) return false;
+        var matches = _anchors.FragmentsFor(branch);
+        if (matches.Count == 0) return false;
 
         var scoped = itemClass is null
             ? matches
