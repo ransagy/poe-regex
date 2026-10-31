@@ -175,7 +175,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   reach. The scale select sits at the right of the header, next to
   `What is this?` and the GitHub link.
 - The header also carries a persisted appearance picker. Forge Black is the
-  dark default; Parchment, Ash, and Sandstone are light options. The choice
+  dark default; light candidates are grouped as Sandstone (base, Light, Deep,
+  Muted) and Forge light (Forge Light, Forge Steel, Forge Graphite). The choice
   sets `data-theme` on `<html>`, is stored under `poe-regex.theme`, applied
   before the stylesheet on boot (no flash of the default), and other open tabs
   follow it. Forge Black primary actions use Bronze (`#c78a3c`) while accent

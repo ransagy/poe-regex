@@ -38,9 +38,17 @@
                 <span>Theme</span>
                 <select id="theme-select" value="@_theme" @onchange="SetTheme" aria-label="Theme">
                     <option value="forge">Forge Black</option>
-                    <option value="parchment">Parchment</option>
-                    <option value="ash">Ash</option>
-                    <option value="sandstone">Sandstone</option>
+                    <optgroup label="Sandstone">
+                        <option value="sandstone">Sandstone</option>
+                        <option value="sandstone-light">Sandstone Light</option>
+                        <option value="sandstone-deep">Sandstone Deep</option>
+                        <option value="sandstone-muted">Sandstone Muted</option>
+                    </optgroup>
+                    <optgroup label="Forge light">
+                        <option value="forge-light">Forge Light</option>
+                        <option value="forge-steel">Forge Steel</option>
+                        <option value="forge-graphite">Forge Graphite</option>
+                    </optgroup>
                 </select>
             </label>
             <label class="ui-field" title="Display scale, saved in this browser">
