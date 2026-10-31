@@ -1,7 +1,7 @@
-<div class="intro-card" id="intro-card" role="region" aria-label="What this app does">
+<div class="intro-card" id="intro-card@(IdSuffix)" role="region" aria-label="What this app does">
     <div class="intro-head">
         <h2 class="intro-title">What is this?</h2>
-        <button type="button" class="link" id="intro-dismiss" @onclick="Dismiss">Hide</button>
+        <button type="button" class="link" id="intro-dismiss@(IdSuffix)" @onclick="Dismiss">Hide</button>
     </div>
     <p class="intro-lead">It turns the mods you want into one short search string for the game's Highlight box.</p>
     <ul class="intro-goals">
@@ -13,6 +13,9 @@
 
 @code {
     [Parameter] public EventCallback OnDismiss { get; set; }
+
+    /// <summary>Keeps the card/dismiss ids unique when two instances are rendered for responsive placement.</summary>
+    [Parameter] public string IdSuffix { get; set; } = "";
 
     private Task Dismiss() => OnDismiss.InvokeAsync();
 }
