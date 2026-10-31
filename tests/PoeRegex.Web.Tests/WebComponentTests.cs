@@ -177,6 +177,34 @@ public class WebComponentTests
             .Query.Should().Be(query);
     }
 
+    [Fact]
+    public async Task QueryImportPanel_ShowsFamilyTextForCrossClassFamilyAnchor()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+        const string query =
+            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
+            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
+            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
+            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
+            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-text").Input(query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-preview");
+
+        var preview = cut.Find("#query-import-preview").TextContent;
+        preview.Should().Contain("+ to Level of all Melee Skills");
+        preview.Should().NotContain("GlobalMeleeSkillGemLevel1");
+    }
+
     private static WantedMod ClassFamilyPick(EngineService engine, string classId)
     {
         var family = ModFamilies.Group(engine.ModsForClasses([classId]))

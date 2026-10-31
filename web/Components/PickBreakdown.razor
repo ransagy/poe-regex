@@ -162,7 +162,7 @@
                     var frag = Model.PickFragment(inc, cls);
                     var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
                     var own = Model.PickBlock(slot, inc);
-                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId);
+                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"

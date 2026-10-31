@@ -288,6 +288,35 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void LongMultiClassPaste_WeaponFamilyAnchorIsClassValid()
+    {
+        // The melee-skill-level family spans Gloves and weapon classes; the
+        // weapon slot's anchor must be a weapon mod so the chip can show the
+        // family text, not the internal Gloves id.
+        const string query =
+            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
+            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
+            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
+            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
+            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+
+        var recovered = Reconstruction.ReconstructWorkbench(query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(query);
+        var weapon = recovered.Slots.Single(s => s.SlotId == "weapon");
+        weapon.ClassId.Should().Be("One Hand Mace");
+        weapon.Includes.Should().ContainSingle();
+        var mod = Engine.FindMod(weapon.Includes[0].ModId);
+        mod.Should().NotBeNull();
+        mod!.Classes.Should().Contain(weapon.ClassId,
+            "the family anchor must exist on the slot's class for the chip label");
+        mod.Family.Should().Be("GlobalIncreaseMeleeSkillGemLevel");
+    }
+
+    [Fact]
     public void Simple_MixedNameAndFragmentGroup_RoundTrips()
     {
         // A real app string: six affix names plus four fragments in one group.

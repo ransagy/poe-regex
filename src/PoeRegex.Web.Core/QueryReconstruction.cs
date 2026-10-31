@@ -547,6 +547,22 @@ public sealed class QueryReconstructionService
         return true;
     }
 
+    /// <summary>
+    /// A family pick whose anchor is legal in the slot scope. The family is
+    /// global, but its lowest tier may exist only on another class (the melee
+    /// skill-level family has Gloves and weapon tiers); Your picks labels the
+    /// anchor from the slot's own mods.
+    /// </summary>
+    private static WantedMod FamilyPickFor(ModFamily family, string? itemClass)
+    {
+        var pick = family.Pick();
+        if (itemClass is null) return pick;
+        var anchor = family.Tiers
+            .SelectMany(t => t.Members)
+            .FirstOrDefault(m => m.Classes.Contains(itemClass, StringComparer.Ordinal));
+        return anchor is null ? pick : pick with { ModId = anchor.Id };
+    }
+
     /// <summary>One multi-name pick in the picker's canonical tier-or-better order.</summary>
     private static WantedMod NamePickFor(ModFamily family, ModTier tier, string? itemClass)
     {
@@ -642,7 +658,7 @@ public sealed class QueryReconstructionService
             .ToList();
         if (families.Count == 1 && _familyByKey.TryGetValue(families[0]!, out var family))
         {
-            var candidate = family.Pick();
+            var candidate = FamilyPickFor(family, itemClass);
             if (forbiddenIds?.Contains(candidate.ModId) != true &&
                 !Conflicts(candidate, used) && CompilesToTerm(candidate, term, itemClass))
             {
@@ -873,7 +889,7 @@ public sealed class QueryReconstructionService
                      .OrderBy(f => f, StringComparer.Ordinal))
         {
             if (!_familyByKey.TryGetValue(familyKey, out var family)) continue;
-            var candidate = family.Pick();
+            var candidate = FamilyPickFor(family, itemClass);
             if (forbiddenIds?.Contains(candidate.ModId) == true) continue;
             if (Conflicts(candidate, used)) continue;
             if (CompilesToTerm(candidate, branch, itemClass))

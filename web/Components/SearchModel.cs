@@ -198,9 +198,22 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
 
     public static string SlotLabel(string slot) => GearSlot.ById(slot)?.Label ?? slot;
 
-    public static string FamilyText(IReadOnlyList<ModFamily> families, IReadOnlyList<ModEntry> mods, string modId)
+    public static string FamilyText(
+        IReadOnlyList<ModFamily> families, IReadOnlyList<ModEntry> mods, string modId,
+        EngineService? engine = null)
     {
         var mod = mods.FirstOrDefault(m => m.Id == modId);
+        if (mod is null && engine?.FindMod(modId) is { } globalMod)
+        {
+            // A family anchor may live on another class (the melee skill-level
+            // family has Gloves and weapon tiers); still show the family text.
+            var globalFamily = ModFamilies.CachedGroup(engine.PlayableMods())
+                .FirstOrDefault(f => f.Key == ModFamilies.KeyOf(globalMod));
+            if (globalFamily is not null) return globalFamily.DisplayText;
+            return globalMod.StatLines.Count > 0
+                ? ModSearch.DisplayLine(globalMod.StatLines[0])
+                : globalMod.Name.Length > 0 ? globalMod.Name : modId;
+        }
         if (mod is null) return modId;
         var fam = families.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(mod));
         return fam?.DisplayText
