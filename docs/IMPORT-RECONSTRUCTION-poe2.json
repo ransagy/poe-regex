@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-31T22:02:11.1593785+00:00",
+  "generated": "2026-10-31T22:32:12.9370732+00:00",
   "dataVersion": "2026-08-09",
   "targetModel": "advanced-ranges-v1",
   "fragmentTable": "2026-08-09",
@@ -215,7 +215,7 @@
           "classId": "Ring",
           "matchAll": false,
           "includes": [
-            "family:ChaosDamagePrefixOnTwoHandWeapon1"
+            "family:ChaosDamagePercent1"
           ]
         }
       ],
@@ -237,7 +237,7 @@
           "classId": "Ring",
           "matchAll": false,
           "includes": [
-            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ChaosDamagePercent1",
             "family:ColdDamagePercent1"
           ]
         }
@@ -260,7 +260,7 @@
           "classId": "Ring",
           "matchAll": true,
           "includes": [
-            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ChaosDamagePercent1",
             "family:ColdDamagePercent1"
           ]
         }
@@ -283,7 +283,7 @@
           "classId": "Ring",
           "matchAll": false,
           "includes": [
-            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ChaosDamagePercent1",
             "family:ColdDamagePercent1"
           ]
         }
@@ -314,7 +314,7 @@
           "classId": "Shield",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         }
       ],
@@ -336,7 +336,7 @@
           "classId": "Boots",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         },
         {
@@ -344,7 +344,7 @@
           "classId": "Gloves",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         },
         {
@@ -352,7 +352,7 @@
           "classId": "Helmet",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         }
       ],
@@ -374,7 +374,7 @@
           "classId": "Boots",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         },
         {
@@ -382,7 +382,7 @@
           "classId": "Helmet",
           "matchAll": false,
           "includes": [
-            "family:IncreasedPhysicalDamageReductionRatingPercent1"
+            "family:LocalIncreasedPhysicalDamageReductionRatingPercent1"
           ]
         }
       ],
@@ -406,7 +406,7 @@
           "classId": "Ring",
           "matchAll": false,
           "includes": [
-            "family:ChaosDamagePrefixOnTwoHandWeapon1",
+            "family:ChaosDamagePercent1",
             "family:ColdDamagePercent1"
           ]
         }
@@ -427,7 +427,7 @@
       "excludes": [],
       "warnings": [],
       "diagnostics": [
-        "a class-only advanced string cannot be represented by a slot without picks"
+        "a class-only advanced string cannot be represented by a slot without picks or exclusions"
       ]
     },
     {

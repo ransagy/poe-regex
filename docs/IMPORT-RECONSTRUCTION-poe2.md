@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-10-31 22:02 UTC._
+_Generated 2026-10-31 22:32 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -49,7 +49,7 @@ strings, and minimum values fail closed or are accepted losses.
 | `paste-armour` | paste | **pass** | advanced | Boots, Gloves, Helmet | 3 | no | identical recompile |
 | `paste-exclusion` | paste | **pass** | advanced | Boots, Helmet | 2 | no | identical recompile |
 | `paste-same-class-allof` | paste | **pass** | advanced | Ring | 2 | no | identical; same-class all-of falls back to any-of (accepted) |
-| `edge-class-anchor` | edge | fail-closed | simple | — | 0 | no | a class-only advanced string cannot be represented by a slot without picks |
+| `edge-class-anchor` | edge | fail-closed | simple | — | 0 | no | a class-only advanced string cannot be represented by a slot without picks or exclusions |
 | `edge-old-anchor` | edge | fail-closed | simple | — | 0 | no | recompiled query differs (any: '": On.+M"'; all: '": On.+M"') |
 | `edge-unknown-token` | edge | fail-closed | simple | — | 0 | no | fragment 'zzzz' is not an unfactored table fragment for this scope |
 | `edge-shape` | edge | fail-closed | simple | — | 0 | no | invalid query shape: unterminated quoted block |
@@ -109,60 +109,60 @@ strings, and minimum values fail closed or are accepted losses.
 ### `advanced-family` — Ring family pick
 - query: `": Ri" "d Ch"`
 - mode: advanced
-- ring1 · Ring — any of: `family:ChaosDamagePrefixOnTwoHandWeapon1`
+- ring1 · Ring — any of: `family:ChaosDamagePercent1`
 - recompile: identical
 
 ### `advanced-any-2` — Ring two picks, any-of
 - query: `": Ri" "d Ch\|ed Co"`
 - mode: advanced
-- ring1 · Ring — any of: `family:ChaosDamagePrefixOnTwoHandWeapon1`, `family:ColdDamagePercent1`
+- ring1 · Ring — any of: `family:ChaosDamagePercent1`, `family:ColdDamagePercent1`
 - recompile: identical
 
 ### `advanced-all-2` — Ring two picks, all-of
 - query: `": Ri" "d Ch" "ed Co"`
 - mode: advanced
-- ring1 · Ring — all of: `family:ChaosDamagePrefixOnTwoHandWeapon1`, `family:ColdDamagePercent1`
+- ring1 · Ring — all of: `family:ChaosDamagePercent1`, `family:ColdDamagePercent1`
 - recompile: identical
 
 ### `paste-rings` — ring1 + ring2
 - query: `": Ri" "d Ch\|ed Co"`
 - mode: advanced
-- ring1 · Ring — any of: `family:ChaosDamagePrefixOnTwoHandWeapon1`, `family:ColdDamagePercent1`
+- ring1 · Ring — any of: `family:ChaosDamagePercent1`, `family:ColdDamagePercent1`
 - recompile: identical
 
 ### `paste-weapon-offhand` — weapon + offhand
 - query: `": (Cro\|Shi.+s)" ": (Shi.+s)\|ith" ": (Cro)\|i.*ur$"`
 - mode: advanced
 - weapon · Crossbow — any of: `family:WeaponElementalDamage1`
-- offhand · Shield — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
+- offhand · Shield — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
 - recompile: identical
 
 ### `paste-armour` — helmet + boots + gloves
 - query: `": (Boo\|Gl\|Hel)" "i.*ur$"`
 - mode: advanced
-- boots · Boots — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
-- gloves · Gloves — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
-- helmet · Helmet — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
+- boots · Boots — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
+- gloves · Gloves — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
+- helmet · Helmet — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
 - recompile: identical
 
 ### `paste-exclusion` — two slots + exclusion
 - query: `": (Boo\|Hel)" "i.*ur$" !"o Str"`
 - mode: advanced
-- boots · Boots — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
-- helmet · Helmet — any of: `family:IncreasedPhysicalDamageReductionRatingPercent1`
+- boots · Boots — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
+- helmet · Helmet — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
 - exclusions: `Strength1`
 - recompile: identical
 
 ### `paste-same-class-allof` — ring1 + ring2 all-of (accepted fallback)
 - query: `": Ri" "d Ch\|ed Co"`
 - mode: advanced
-- ring1 · Ring — any of: `family:ChaosDamagePrefixOnTwoHandWeapon1`, `family:ColdDamagePercent1`
+- ring1 · Ring — any of: `family:ChaosDamagePercent1`, `family:ColdDamagePercent1`
 - recompile: identical
 
 ## Fail-closed examples
 
 - `simple-min` (simple) — fragment '\+(\d{3,}\|[2-9]\d\|1[0-9])\(\d+-\d+\) to maximum Life' is not an unfactored table fragment for thi...
-- `edge-class-anchor` (edge) — a class-only advanced string cannot be represented by a slot without picks
+- `edge-class-anchor` (edge) — a class-only advanced string cannot be represented by a slot without picks or exclusions
 - `edge-old-anchor` (edge) — recompiled query differs (any: '": On.+M"'; all: '": On.+M"')
 - `edge-unknown-token` (edge) — fragment 'zzzz' is not an unfactored table fragment for this scope
 - `edge-shape` (edge) — invalid query shape: unterminated quoted block

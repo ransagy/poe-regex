@@ -71,14 +71,11 @@ public sealed record ReconstructedWorkbench(
                 state.SetSlotClass(slot.SlotId, slot.ClassId);
                 state.AddIncludes(slot.SlotId, slot.Includes);
                 state.SetMatchAll(slot.SlotId, slot.MatchAll);
-                if (Slots.Count == 1)
-                    foreach (var id in Excludes)
-                        state.AddExclude(slot.SlotId, id);
-            }
-
-            if (Slots.Count > 1)
+                // Exclusions are global in the string, but a slot with only
+                // exclusions still needs one to enroll (or it would vanish).
                 foreach (var id in Excludes)
-                    state.AddExclude(null, id);
+                    state.AddExclude(slot.SlotId, id);
+            }
             state.FocusSlot(Slots[0].SlotId);
         });
     }
@@ -150,6 +147,24 @@ public sealed class QueryReconstructionService
     /// paste. The caller compares <see cref="ReconstructedWorkbench.Recompile"/>
     /// with the source string before applying.
     /// </summary>
+    /// <summary>
+    /// Resolves only the class-anchor term(s), never the whole query. Running
+    /// QueryImportService on a large mixed group can scan the corpus through
+    /// explain and freeze the UI.
+    /// </summary>
+    private IReadOnlyList<string> AnchorClasses(string query)
+    {
+        var classes = new List<string>();
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        {
+            if (excluded || !phrase.StartsWith(": ", StringComparison.Ordinal)) continue;
+            if (TopLevelSeparator(phrase) >= 0) continue; // a paste group, not the anchor
+            classes.AddRange(_anchors.Import(Poe2Syntax.Quote(phrase)).Classes);
+            break;
+        }
+        return classes.Distinct(StringComparer.Ordinal).ToList();
+    }
+
     public ReconstructedWorkbench ReconstructWorkbench(string query)
     {
         if (!_engine.DataReady)
@@ -161,16 +176,16 @@ public sealed class QueryReconstructionService
         if (shape.Count > 0)
             return ReconstructedWorkbench.Failed("invalid query shape: " + shape[0]);
 
-        var anchored = _anchors.Import(query);
-        if (anchored.Classes.Count > 1)
-            return ReconstructPaste(query, anchored.Classes);
+        var anchored = AnchorClasses(query);
+        if (anchored.Count > 1)
+            return ReconstructPaste(query, anchored);
 
         var single = Reconstruct(query);
         if (!single.Ok)
             return ReconstructedWorkbench.Failed(single.Diagnostics.FirstOrDefault() ?? "reconstruction failed");
-        if (single.ItemClass is not null && single.Includes.Count == 0)
+        if (single.ItemClass is not null && single.Includes.Count == 0 && single.Excludes.Count == 0)
             return ReconstructedWorkbench.Failed(
-                "a class-only advanced string cannot be represented by a slot without picks");
+                "a class-only advanced string cannot be represented by a slot without picks or exclusions");
 
         var slotId = single.ItemClass is null
             ? "global"
@@ -187,14 +202,17 @@ public sealed class QueryReconstructionService
         var builds = classes.ToDictionary(c => c, c => new SlotBuild(c), StringComparer.Ordinal);
         var excludes = new List<string>();
         var warnings = new List<string>();
+        var used = new List<WantedMod>();
 
         foreach (var (phrase, excluded) in Explainer.Tokenize(query))
         {
             if (excluded)
             {
-                if (!TryFragmentPicks(phrase, null, out var excludedPicks, out var why))
+                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out var why,
+                        new HashSet<string>(excludes, StringComparer.Ordinal)))
                     return ReconstructedWorkbench.Failed(why);
-                excludes.AddRange(excludedPicks.Select(p => p.ModId));
+                excludes.Add(excludedPick!.ModId);
+                used.Add(excludedPick);
                 continue;
             }
 
@@ -212,19 +230,26 @@ public sealed class QueryReconstructionService
                 if (targets.Count == 0)
                     return ReconstructedWorkbench.Failed($"group '{classPart}' targets no selected class");
 
-                if (!TryFragmentPicks(fragPart, targets[0], out var picks, out var why))
+                if (!TryResolveGroup(fragPart, targets[0], used, out var picks, out var why))
                     return ReconstructedWorkbench.Failed(why);
                 foreach (var target in targets) builds[target].Add(picks);
+                used.AddRange(picks);
                 continue;
             }
 
-            if (!TryFragmentPicks(phrase, classes[0], out var shared, out var sharedWhy))
+            if (!TryResolveGroup(phrase, classes[0], used, out var shared, out var sharedWhy))
                 return ReconstructedWorkbench.Failed(sharedWhy);
             foreach (var target in classes) builds[target].Add(shared);
+            used.AddRange(shared);
         }
 
+        var multiPickGroup = builds.Values.FirstOrDefault(b => b.Tokens > 1 && b.HasMultiPick);
+        if (multiPickGroup is not null)
+            return ReconstructedWorkbench.Failed(
+                $"class '{multiPickGroup.ClassId}' has an all-of group that is not a single pick");
+
         var empty = builds.Values.FirstOrDefault(b => b.Picks.Count == 0);
-        if (empty is not null)
+        if (empty is not null && excludes.Count == 0)
             return ReconstructedWorkbench.Failed(
                 $"class '{empty.ClassId}' has no recoverable picks; a class-only anchor cannot be applied");
 
@@ -269,15 +294,30 @@ public sealed class QueryReconstructionService
             $"recompiled paste differs (got '{recompiled}'; any-of '{fallback}')");
     }
 
+    private bool TryResolveGroup(
+        string term, string itemClass, IReadOnlyList<WantedMod> used,
+        out List<WantedMod> picks, out string failure)
+    {
+        if (TryResolveSinglePick(term, itemClass, used, out var single, out _))
+        {
+            picks = [single!];
+            failure = "";
+            return true;
+        }
+        return TryResolveTerm(term, itemClass, used, out picks, out failure);
+    }
+
     private sealed class SlotBuild(string classId)
     {
         public string ClassId { get; } = classId;
         public List<WantedMod> Picks { get; } = [];
         public int Tokens { get; private set; }
+        public bool HasMultiPick { get; private set; }
 
-        public void Add(IEnumerable<WantedMod> picks)
+        public void Add(IReadOnlyList<WantedMod> picks)
         {
             Tokens++;
+            if (picks.Count > 1) HasMultiPick = true;
             foreach (var pick in picks)
                 if (!Picks.Any(p => p.SamePick(pick)))
                     Picks.Add(pick);
@@ -346,41 +386,52 @@ public sealed class QueryReconstructionService
         if (shape.Count > 0)
             return ReconstructedQuery.Failed(query, "invalid query shape: " + shape[0]);
 
-        var anchored = _anchors.Import(query);
-        if (anchored.Classes.Count > 1)
+        var anchored = AnchorClasses(query);
+        if (anchored.Count > 1)
             return ReconstructedQuery.Failed(query, "multi-class paste reconstruction is not in Phase 1");
-        var itemClass = anchored.Classes.Count == 1 ? anchored.Classes[0] : null;
+        var itemClass = anchored.Count == 1 ? anchored[0] : null;
 
         var includes = new List<WantedMod>();
         var excludes = new List<string>();
+        // Occurrence-aware: a duplicate fragment must resolve to a distinct
+        // pick, or applying it would collapse the duplicate.
+        var used = new List<WantedMod>();
+        var tokens = Explainer.Tokenize(query).ToList();
+        var includeTerms = tokens
+            .Where(t => !t.Excluded && !t.Phrase.StartsWith(": ", StringComparison.Ordinal))
+            .ToList();
+        // One group is any-of; one group per pick is all-of. Each all-of term
+        // must resolve to one pick (a family's variants are ORed inside it).
+        var allOf = includeTerms.Count > 1;
 
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in tokens)
         {
             if (!excluded && phrase.StartsWith(": ", StringComparison.Ordinal))
                 continue; // the class anchor is already resolved
 
-            if (TryNamePick(phrase, itemClass, out var namePick, out var nameFailure))
-            {
-                if (excluded)
-                    return ReconstructedQuery.Failed(query, "name exclusions are not in Phase 1");
-                includes.Add(namePick!);
-                continue;
-            }
-            if (nameFailure is not null)
-                return ReconstructedQuery.Failed(query, nameFailure);
-
-            if (!TryFragmentPicks(phrase, itemClass, out var resolved, out var why))
-                return ReconstructedQuery.Failed(query, why);
-
             if (excluded)
             {
-                if (resolved.Count != 1)
-                    return ReconstructedQuery.Failed(query, "multi-branch exclusions are not in Phase 1");
-                excludes.Add(resolved[0].ModId);
+                if (!TryResolveSinglePick(phrase, itemClass, used, out var excludedPick,
+                        out var excludeWhy, new HashSet<string>(excludes, StringComparer.Ordinal)))
+                    return ReconstructedQuery.Failed(query, excludeWhy);
+                excludes.Add(excludedPick!.ModId);
+                used.Add(excludedPick);
+                continue;
+            }
+
+            if (allOf)
+            {
+                if (!TryResolveSinglePick(phrase, itemClass, used, out var single, out var singleWhy))
+                    return ReconstructedQuery.Failed(query, singleWhy);
+                includes.Add(single!);
+                used.Add(single!);
             }
             else
             {
+                if (!TryResolveTerm(phrase, itemClass, used, out var resolved, out var why))
+                    return ReconstructedQuery.Failed(query, why);
                 includes.AddRange(resolved);
+                used.AddRange(resolved);
             }
         }
 
@@ -397,18 +448,160 @@ public sealed class QueryReconstructionService
             itemClass, includes, excludes, !anyMatch && allMatch, []);
     }
 
+    /// <summary>Resolves an any-of term: every top-level branch may be a name or a fragment.</summary>
+    private bool TryResolveTerm(
+        string term, string? itemClass, IReadOnlyList<WantedMod> used,
+        out List<WantedMod> picks, out string failure)
+    {
+        picks = [];
+        failure = "";
+        if (TryNamePick(term, itemClass, out var namePick, out var nameFailure))
+        {
+            picks.Add(namePick!);
+            return true;
+        }
+        if (nameFailure is not null)
+        {
+            failure = nameFailure;
+            return false;
+        }
+
+        foreach (var branch in SplitAlternatives(term))
+        {
+            if (TryNamePick(branch, itemClass, out var branchName, out var branchNameFailure))
+            {
+                AddUnique(picks, branchName!);
+                continue;
+            }
+            if (branchNameFailure is not null)
+            {
+                failure = branchNameFailure;
+                return false;
+            }
+            if (!TryFragmentPicks(branch, itemClass, used, out var fragments, out var fragmentFailure))
+            {
+                failure = fragmentFailure;
+                return false;
+            }
+            foreach (var pick in fragments) AddUnique(picks, pick);
+        }
+
+        if (picks.Count == 0)
+        {
+            failure = $"term '{term}' has no recoverable picks";
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves an all-of term to exactly one pick. A family pick is one pick
+    /// even though its variants compile to several ORed fragments; splitting it
+    /// into separate picks would turn the family OR into AND.
+    /// </summary>
+    private bool TryResolveSinglePick(
+        string term, string? itemClass, IReadOnlyList<WantedMod> used,
+        out WantedMod? pick, out string failure, ISet<string>? forbiddenIds = null)
+    {
+        pick = null;
+        failure = "";
+        if (TryNamePick(term, itemClass, out var namePick, out var nameFailure))
+        {
+            pick = namePick;
+            return true;
+        }
+        if (nameFailure is not null)
+        {
+            failure = nameFailure;
+            return false;
+        }
+
+        if (TryFragmentPick(term, itemClass, used, out var direct, forbiddenIds))
+        {
+            pick = direct;
+            return true;
+        }
+
+        var candidates = new List<WantedMod>();
+        foreach (var branch in SplitAlternatives(term))
+        {
+            foreach (var candidate in ExpandFactored(branch))
+            {
+                if (!TryFragmentPick(candidate, itemClass, used, out var branchPick, forbiddenIds))
+                {
+                    failure = $"fragment '{candidate}' is not an unfactored table fragment for this scope";
+                    return false;
+                }
+                AddUnique(candidates, branchPick!);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            failure = $"term '{term}' has no recoverable pick";
+            return false;
+        }
+        if (candidates.Count == 1 || candidates.All(p => p.SamePick(candidates[0])))
+        {
+            pick = candidates[0];
+            return true;
+        }
+
+        // All alternatives from one family are one tierless pick.
+        var families = candidates
+            .Select(p => _engine.FindMod(p.ModId)?.Family)
+            .Where(f => !string.IsNullOrEmpty(f))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (families.Count == 1 && _familyByKey.TryGetValue(families[0]!, out var family))
+        {
+            var candidate = family.Pick();
+            if (forbiddenIds?.Contains(candidate.ModId) != true &&
+                !Conflicts(candidate, used) && CompilesToTerm(candidate, term, itemClass))
+            {
+                pick = candidate;
+                return true;
+            }
+        }
+
+        failure = "all-of term is not a single pick (mixed families/names)";
+        return false;
+    }
+
+    /// <summary>
+    /// True when adding the candidate would collapse into an existing pick:
+    /// same identity, or an identical requirement list (which the paste
+    /// composer merges across slots).
+    /// </summary>
+    private static bool Conflicts(WantedMod candidate, IReadOnlyList<WantedMod> used) =>
+        used.Any(u => u.SamePick(candidate) ||
+                      u.Requirements().SequenceEqual(candidate.Requirements()));
+
+    private static void AddUnique(List<WantedMod> picks, WantedMod pick)
+    {
+        if (!picks.Any(p => p.SamePick(pick))) picks.Add(pick);
+    }
+
     private bool TryNamePick(string phrase, string? itemClass, out WantedMod? pick, out string? failure)
     {
         pick = null;
         failure = null;
-        if (TryBuildNamePick(SplitAlternatives(phrase), itemClass, out pick, out failure))
-            return true;
-        if (failure is not null) return false;
 
-        // Factored name sets, e.g. `of the (Bear|Brute|...)`.
-        var expanded = ExpandFactored(phrase);
-        return expanded.Count > 1 &&
-               TryBuildNamePick(expanded, itemClass, out pick, out failure);
+        // Collect names branch by branch so a term can mix plain names and
+        // factored name groups: Mal(evolent|ignant)|Twisted|Vile.
+        var names = new List<string>();
+        foreach (var branch in SplitAlternatives(phrase))
+        {
+            foreach (var part in ExpandFactored(branch))
+            {
+                var name = UnescapeLiteral(part.Trim());
+                if (name.Length == 0 || IsRegexLike(name)) return false;
+                names.Add(name);
+            }
+        }
+
+        if (names.Count == 0) return false;
+        return TryBuildNamePick(names, itemClass, out pick, out failure);
     }
 
     private bool TryBuildNamePick(
@@ -427,10 +620,10 @@ public sealed class QueryReconstructionService
         var found = names.Select(name => (Name: name, Mods: LookupName(name, itemClass))).ToList();
         if (found.All(x => x.Mods.Count == 0)) return false; // not a name set; try fragments
 
-        var missing = found.FirstOrDefault(x => x.Mods.Count == 0);
-        if (missing.Name is not null)
+        if (found.Any(x => x.Mods.Count == 0))
         {
-            failure = $"affix name '{missing.Name}' is not in the catalog for this scope";
+            // Mixed name/fragment groups are resolved branch by branch; a
+            // missing name alone is not enough to reject the term as a name set.
             return false;
         }
 
@@ -448,17 +641,20 @@ public sealed class QueryReconstructionService
     private List<ModEntry> LookupName(string name, string? itemClass)
     {
         if (!_byName.TryGetValue(name, out var mods)) return [];
-        return itemClass is null
-            ? mods
-            : mods.Where(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)).ToList();
+        if (itemClass is null) return mods;
+        var scoped = mods.Where(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)).ToList();
+        // Name literals are class-independent; a shared paste group may name a
+        // class whose first target does not own the affix.
+        return scoped.Count > 0 ? scoped : mods;
     }
 
     private bool TryFragmentPicks(
-        string term, string? itemClass, out List<WantedMod> picks, out string failure)
+        string term, string? itemClass, IReadOnlyList<WantedMod> used,
+        out List<WantedMod> picks, out string failure)
     {
         picks = [];
         failure = "";
-        if (TryFragmentPick(term, itemClass, out var direct))
+        if (TryFragmentPick(term, itemClass, used, out var direct))
         {
             picks.Add(direct!);
             return true;
@@ -476,7 +672,7 @@ public sealed class QueryReconstructionService
             var expanded = ExpandFactored(branch);
             foreach (var candidate in expanded)
             {
-                if (!TryFragmentPick(candidate, itemClass, out var pick))
+                if (!TryFragmentPick(candidate, itemClass, used, out var pick))
                 {
                     failure = $"fragment '{candidate}' is not an unfactored table fragment for this scope";
                     return false;
@@ -550,7 +746,9 @@ public sealed class QueryReconstructionService
         return -1;
     }
 
-    private bool TryFragmentPick(string branch, string? itemClass, out WantedMod? pick)
+    private bool TryFragmentPick(
+        string branch, string? itemClass, IReadOnlyList<WantedMod> used, out WantedMod? pick,
+        ISet<string>? forbiddenIds = null)
     {
         pick = null;
         if (!_byFragment.TryGetValue(branch, out var matches)) return false;
@@ -560,7 +758,13 @@ public sealed class QueryReconstructionService
             : matches.Where(m => m.Class is null || string.Equals(m.Class, itemClass, StringComparison.Ordinal)).ToList();
         if (scoped.Count == 0) return false;
 
-        var mods = _engine.ModsForPattern(scoped[0].Pattern)
+        // A fragment is class-specific in the table (`o Ev` vs `^\+.*on` for
+        // the same line), so try the class-scoped pattern(s) before global.
+        var mods = scoped
+            .OrderBy(m => m.Class is null ? 1 : 0)
+            .SelectMany(m => _engine.ModsForPattern(m.Pattern))
+            .Where(m => itemClass is null || m.Classes.Contains(itemClass, StringComparer.Ordinal))
+            .DistinctBy(m => m.Id, StringComparer.Ordinal)
             .OrderBy(m => m.Id, StringComparer.Ordinal)
             .ToList();
         if (mods.Count == 0) return false;
@@ -574,6 +778,8 @@ public sealed class QueryReconstructionService
         {
             if (!_familyByKey.TryGetValue(familyKey, out var family)) continue;
             var candidate = family.Pick();
+            if (forbiddenIds?.Contains(candidate.ModId) == true) continue;
+            if (Conflicts(candidate, used)) continue;
             if (CompilesToTerm(candidate, branch, itemClass))
             {
                 pick = candidate;
@@ -582,11 +788,16 @@ public sealed class QueryReconstructionService
         }
 
         // Fallback: a family pick that would broaden the query is not used.
-        var mod = itemClass is null
-            ? mods[0]
-            : mods.FirstOrDefault(m => m.Classes.Contains(itemClass, StringComparer.Ordinal)) ?? mods[0];
-        pick = new WantedMod(mod.Id);
-        return true;
+        foreach (var mod in mods)
+        {
+            if (forbiddenIds?.Contains(mod.Id) == true) continue;
+            if (Conflicts(new WantedMod(mod.Id), used)) continue;
+            var candidate = new WantedMod(mod.Id);
+            if (!CompilesToTerm(candidate, branch, itemClass)) continue;
+            pick = candidate;
+            return true;
+        }
+        return false;
     }
 
     private bool CompilesToTerm(WantedMod pick, string term, string? itemClass)
