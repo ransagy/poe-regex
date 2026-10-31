@@ -5,14 +5,14 @@
 (function () {
   const key = "poe-regex.theme";
   const themes = {
-    steel: { label: "Steel (current)", chrome: "#13171c" },
+    steel: { label: "Steel", chrome: "#13171c" },
     forge: { label: "Forge Black", chrome: "#070809" },
     coal: { label: "Coal & Copper", chrome: "#080706" },
     obsidian: { label: "Obsidian", chrome: "#050506" },
     graphite: { label: "Graphite Forge", chrome: "#0b0c0d" }
   };
   const names = Object.keys(themes);
-  const normalize = value => names.indexOf(value) >= 0 ? value : "steel";
+  const normalize = value => names.indexOf(value) >= 0 ? value : "forge";
 
   function apply(value) {
     const name = normalize(value);

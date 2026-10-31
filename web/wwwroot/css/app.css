@@ -1,42 +1,10 @@
+/*
+  Default palette: Forge Black. Near-black grounds with amber "forge" accents.
+  The other palettes are picked in the header and saved per browser; item-rarity
+  colors and the forge loading screen stay game-like in every theme.
+*/
 :root {
     color-scheme: dark;
-    --ground: #13171c;
-    --surface: #1a1f26;
-    --raised: #222932;
-    --well: #0e1115;
-    --line: #2a313a;
-    --line-strong: #3a4450;
-    --text: #e3e6ea;
-    --muted: #98a1ac;
-    --faint: #7b8591;
-    --ember: #f0a541;
-    --ember-hi: #ffbf66;
-    --ember-ink: #1c1306;
-    --ember-soft: rgba(240, 165, 65, 0.14);
-    --mod: #9aa6ff;
-    --mod-soft: rgba(154, 166, 255, 0.13);
-    --no: #ec7a65;
-    --no-soft: rgba(236, 122, 101, 0.13);
-    --ok: #93c47d;
-    /* Surfaces that used to be hardcoded so every theme can restyle them. */
-    --btn-hover: #29313b;
-    --btn-hover-line: #4a5562;
-    --anchor: #4c5763;
-    --card-bg: #0b0d10;
-    --r: 4px;
-    --r-lg: 7px;
-    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
-    --mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-}
-
-/*
-  Alternate palettes, picked in the header and saved per browser. The default
-  (:root) is the steel-blue look; the others are deeper near-black grounds with
-  amber "forge" accents. Item-rarity colors and the forge loading screen stay
-  game-like in every theme.
-*/
-:root[data-theme="forge"] {
     --ground: #070809;
     --surface: #0d0f11;
     --raised: #15181b;
@@ -50,15 +18,51 @@
     --ember-hi: #ffc06a;
     --ember-ink: #1a1207;
     --ember-soft: rgba(240, 165, 65, 0.13);
+    /* Primary buttons use a slightly calmer amber than focus rings/accents. */
+    --ember-btn: #d4923f;
+    --ember-btn-hi: #e5a854;
     --mod: #9aa6ff;
     --mod-soft: rgba(154, 166, 255, 0.12);
     --no: #e87964;
     --no-soft: rgba(232, 121, 100, 0.13);
     --ok: #9bc487;
+    /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
     --anchor: #4b4a45;
     --card-bg: #08090a;
+    --r: 4px;
+    --r-lg: 7px;
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
+    --mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+:root[data-theme="steel"] {
+    --ground: #13171c;
+    --surface: #1a1f26;
+    --raised: #222932;
+    --well: #0e1115;
+    --line: #2a313a;
+    --line-strong: #3a4450;
+    --text: #e3e6ea;
+    --muted: #98a1ac;
+    --faint: #7b8591;
+    --ember: #f0a541;
+    --ember-hi: #ffbf66;
+    --ember-ink: #1c1306;
+    --ember-soft: rgba(240, 165, 65, 0.14);
+    --ember-btn: var(--ember);
+    --ember-btn-hi: var(--ember-hi);
+    --mod: #9aa6ff;
+    --mod-soft: rgba(154, 166, 255, 0.13);
+    --no: #ec7a65;
+    --no-soft: rgba(236, 122, 101, 0.13);
+    --ok: #93c47d;
+    --btn-hover: #29313b;
+    --btn-hover-line: #4a5562;
+    --anchor: #4c5763;
+    --card-bg: #0b0d10;
 }
 
 :root[data-theme="coal"] {
@@ -75,6 +79,8 @@
     --ember-hi: #ffb35c;
     --ember-ink: #1b0f05;
     --ember-soft: rgba(232, 148, 58, 0.14);
+    --ember-btn: var(--ember);
+    --ember-btn-hi: var(--ember-hi);
     --mod: #9aa6ff;
     --mod-soft: rgba(154, 166, 255, 0.12);
     --no: #e67b62;
@@ -100,6 +106,8 @@
     --ember-hi: #ffc15c;
     --ember-ink: #1a1106;
     --ember-soft: rgba(242, 162, 59, 0.13);
+    --ember-btn: var(--ember);
+    --ember-btn-hi: var(--ember-hi);
     --mod: #9aa6ff;
     --mod-soft: rgba(154, 166, 255, 0.12);
     --no: #e87964;
@@ -125,6 +133,8 @@
     --ember-hi: #ffbf66;
     --ember-ink: #1a1207;
     --ember-soft: rgba(240, 165, 65, 0.13);
+    --ember-btn: var(--ember);
+    --ember-btn-hi: var(--ember-hi);
     --mod: #9aa6ff;
     --mod-soft: rgba(154, 166, 255, 0.12);
     --no: #e87964;
@@ -197,8 +207,8 @@ button { font: inherit; color: inherit; }
 }
 .btn:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-hover-line); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { background: var(--ember); border-color: var(--ember); color: var(--ember-ink); font-weight: 600; }
-.btn-primary:hover:not(:disabled) { background: var(--ember-hi); border-color: var(--ember-hi); }
+.btn-primary { background: var(--ember-btn); border-color: var(--ember-btn); color: var(--ember-ink); font-weight: 600; }
+.btn-primary:hover:not(:disabled) { background: var(--ember-btn-hi); border-color: var(--ember-btn-hi); }
 .btn-danger { color: var(--no); background: var(--no-soft); border-color: rgba(236, 122, 101, 0.45); }
 .btn-danger:hover:not(:disabled) { background: rgba(236, 122, 101, 0.22); border-color: var(--no); }
 
