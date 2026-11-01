@@ -728,6 +728,10 @@ input:disabled { opacity: 0.5; }
 .dlg textarea { min-height: 8rem; font-family: var(--mono); font-size: 0.84rem; }
 .dlg .modrow { flex-wrap: wrap; }
 .dlg .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+#query-import-guide-branches { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.35rem; }
+.guide-branch { display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; font-size: 0.84rem; }
+.guide-branch code { font-family: var(--mono); }
+.guide-branch select { max-width: 18rem; }
 #query-import-preview { margin-top: 0.35rem; padding-top: 0.55rem; border-top: 1px solid var(--line); }
 #query-import-preview .picks { gap: 0.45rem; }
 #query-import-preview .picks-title { font-size: 0.95rem; color: var(--muted); }

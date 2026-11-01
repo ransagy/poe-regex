@@ -153,6 +153,22 @@ public sealed class QueryReconstructionService
         return classes.Distinct(StringComparer.Ordinal).ToList();
     }
 
+    /// <summary>
+    /// Resolve one unquoted guide branch through the same name/fragment
+    /// indexes used by the string importer. Family-keyword reconciliation is
+    /// handled separately by <see cref="GuideImportService"/>.
+    /// </summary>
+    public bool TryResolveGuideTerm(
+        string term, out List<WantedMod> picks, out string failure)
+    {
+        var used = new List<WantedMod>();
+        return TryResolveTerm(term, null, used, out picks, out failure);
+    }
+
+    /// <summary>Global families for guide-keyword reconciliation.</summary>
+    public IReadOnlyList<ModFamily> Families =>
+        _familyByKey.Values.OrderBy(f => f.Key, StringComparer.Ordinal).ToList();
+
     public ReconstructedWorkbench ReconstructWorkbench(string query)
     {
         if (!_engine.DataReady)
