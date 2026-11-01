@@ -101,7 +101,7 @@ public static class VendorCorpus
                 array, CatalogJsonContext.Default.VendorLine).ConfigureAwait(false))
             {
                 lines.Add(line!);
-                if ((++count & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
+                if (++count % 500 == 0) await Task.Delay(1).ConfigureAwait(false);
             }
             var result = new VendorCorpusFile
             {
