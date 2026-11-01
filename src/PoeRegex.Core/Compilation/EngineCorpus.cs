@@ -470,6 +470,10 @@ public sealed class EngineCorpus
         return _fragments.TryGet(itemClass, pattern, out fragment);
     }
 
+    /// <summary>True when the shipped table marks this pick/scope as min-capable.</summary>
+    public bool IsPrecomputedMinCapable(string? itemClass, string key) =>
+        _fragments?.MinCapable.TryGet(itemClass, key, out var capable) == true && capable;
+
     /// <summary>
     /// Enumerates the shipped precomputed fragments. Query import uses this as
     /// a reverse index; it never triggers selection or a corpus scan.

@@ -104,7 +104,6 @@ public class PickerPolishTests
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
-        engine.PrewarmValuePath(null);
         var state = new WorkbenchState();
         state.AddInclude(null, new WantedMod("IncreasedLife6")); // supports a min
         state.AddInclude(null, new WantedMod("MovementVelocity1", ["Runner's"])); // name pick
@@ -143,7 +142,6 @@ public class PickerPolishTests
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
-        engine.PrewarmValuePath("Ring");
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.SelectSlot("ring1");
@@ -214,6 +212,8 @@ public class PickerPolishTests
         var engine = new EngineService();
         engine.ValuePathReady.Should().BeFalse("drawing a chip must not load the value corpus");
         engine.MayAcceptMin(new WantedMod("IncreasedLife6")).Should().BeTrue();
+        engine.PrecomputedMinCapability(new WantedMod("IncreasedLife6"), null)
+            .Should().BeTrue("the shipped table answers without the corpus");
 
         await engine.PrewarmValuePathAsync(null);
 

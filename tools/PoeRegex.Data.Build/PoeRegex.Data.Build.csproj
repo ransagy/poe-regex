@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PoeRegex.Core\PoeRegex.Core.csproj" />
+    <ProjectReference Include="..\..\src\PoeRegex.Web.Core\PoeRegex.Web.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

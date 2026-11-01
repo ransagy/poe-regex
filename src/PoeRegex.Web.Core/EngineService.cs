@@ -337,18 +337,23 @@ public sealed class EngineService
     public bool CanApplyMin(WantedMod pick, string? itemClass)
     {
         if (!MayAcceptMin(pick)) return false;
-        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
-        var key = (string.Join('\u0001', ids), itemClass);
-        return _minCapable.GetOrAdd(key, _ =>
-        {
-            // Probe with the smallest useful value: a threshold at 1 matches
-            // every roll >= 1, so it only differs when the build path can
-            // actually replace the value token with a range.
-            var baseQuery = Compile(pick.Requirements(), [], itemClass: itemClass, allowOverflow: true).Query;
-            var minQuery = Compile((pick with { MinValue = 1 }).Requirements(), [],
-                itemClass: itemClass, allowOverflow: true).Query;
-            return !string.Equals(baseQuery, minQuery, StringComparison.Ordinal);
-        });
+        var key = FragmentTable.MinCapableKey(pick.ModId, pick.VariantModIds);
+        if (_corpus.IsPrecomputedMinCapable(itemClass, key)) return true;
+        return _minCapable.GetOrAdd(
+            (key, itemClass),
+            _ => MinCapability.Probe(_compiler, FindMod, pick, itemClass));
+    }
+
+    /// <summary>
+    /// Exact capability from the shipped table, or null when the key is not
+    /// present (stale/older table) so the caller can fall back to the probe.
+    /// Name picks are known-false without consulting the table.
+    /// </summary>
+    public bool? PrecomputedMinCapability(WantedMod pick, string? itemClass)
+    {
+        if (!MayAcceptMin(pick)) return false;
+        var key = FragmentTable.MinCapableKey(pick.ModId, pick.VariantModIds);
+        return _corpus.IsPrecomputedMinCapable(itemClass, key) ? true : null;
     }
 
     /// <summary>
@@ -357,18 +362,8 @@ public sealed class EngineService
     /// fragment probe in <see cref="CanApplyMin"/> then decides whether the
     /// minimum actually changes the compiled text.
     /// </summary>
-    public bool MayAcceptMin(WantedMod pick)
-    {
-        if (pick.IsNamePick) return false;
-        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
-        foreach (var id in ids)
-        {
-            var mod = FindMod(id);
-            if (mod is not { StatLines.Count: 1 }) return false;
-            if (!mod.StatLines[0].Pattern.Contains(SuffixIndex.DigitPlaceholder)) return false;
-        }
-        return ids.Count > 0;
-    }
+    public bool MayAcceptMin(WantedMod pick) =>
+        MinCapability.MayAcceptMin(pick, FindMod);
 
     /// <summary>
     /// Warm the lazy real-line corpus used by value thresholds, so the first

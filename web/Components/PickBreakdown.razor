@@ -244,13 +244,13 @@
     };
 
     /// <summary>
-    /// Drawing a chip must never trigger the 14 MB value corpus. The box
-    /// appears once the background warm-up has finished; until then the exact
-    /// probe cannot run, so showing nothing is better than showing a box that
-    /// later turns out to be a no-op.
+    /// Prefer the shipped capability table so the box appears immediately and
+    /// drawing a chip never triggers the value corpus. A missing table entry
+    /// falls back to the live probe only after the scope is warm.
     /// </summary>
     private bool AcceptsMin(WantedMod pick, string? cls) =>
-        Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls);
+        Engine.PrecomputedMinCapability(pick, cls)
+        ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
 
     private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
     {
