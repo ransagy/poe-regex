@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
@@ -78,6 +79,137 @@ public class WebComponentTests
         cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
         cut.Find("#slot-copy-simple").Should().NotBeNull();
         cut.FindAll("#auto-copy").Should().BeEmpty(); // moved into the header Options popover
+    }
+
+    [Fact]
+    public async Task QueryImportPanel_ParsesAndAppliesASimpleString()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        var compiled = engine.CompilePicks([new WantedMod("IncreasedLife6")], [], false, null);
+        var closed = false;
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => closed = true));
+
+        cut.Find("#query-import-text").Input(compiled.Query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-apply:not([disabled])");
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
+
+        closed.Should().BeTrue();
+        state.Mode.Should().Be("simple");
+        state.Global.Included.Should().ContainSingle();
+        engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(compiled.Query);
+    }
+
+    [Fact]
+    public async Task QueryImportPanel_AppliesAMultiClassPaste()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        var combined = engine.Combine(
+        [
+            ("weapon", "Crossbow", new[] { ClassFamilyPick(engine, "Crossbow") }),
+            ("offhand", "Shield", new[] { ClassFamilyPick(engine, "Shield") }),
+        ], []);
+        var closed = false;
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => closed = true));
+
+        cut.Find("#query-import-text").Input(combined.Query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-apply:not([disabled])");
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
+
+        closed.Should().BeTrue();
+        state.Mode.Should().Be("advanced");
+        state.ActiveSlots().Should().HaveCount(2);
+        var recompiled = engine.Combine(
+            state.ActiveSlots().Select(s => (s, state.CriteriaFor(s).ClassId,
+                (IEnumerable<WantedMod>)state.CriteriaFor(s).Included,
+                state.CriteriaFor(s).MatchAll)),
+            state.Global.Excluded, allowOverflow: true).Query;
+        recompiled.Should().Be(combined.Query);
+    }
+
+    [Fact]
+    public async Task QueryImportPanel_PreviewsExactlyTheAppliedPicks()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        const string query =
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-text").Input(query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-preview");
+
+        // The preview is read-only and uses the real Your-picks rows.
+        state.Global.Included.Should().BeEmpty("nothing is applied until Apply");
+        var preview = cut.Find("#query-import-preview");
+        preview.TextContent.Should().Contain("\"Flaming\" or better");
+        preview.TextContent.Should().Contain("Adds 20–24 to 32–37 Fire Damage");
+        preview.TextContent.Should().NotContain("name:");
+        cut.FindAll("#query-import-preview .bd-row.inc").Count.Should().Be(5);
+        cut.FindAll("#query-import-preview .bd-x").Should().BeEmpty();
+        cut.FindAll("#query-import-preview .bd-min").Should().BeEmpty();
+        cut.FindAll("#query-import-preview .bd-clear").Should().BeEmpty();
+
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
+
+        state.Global.Included.Should().HaveCount(5);
+        engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(query);
+    }
+
+    [Fact]
+    public async Task QueryImportPanel_ShowsFamilyTextForCrossClassFamilyAnchor()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+        const string query =
+            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
+            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
+            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
+            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
+            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
+            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-text").Input(query);
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-preview");
+
+        var preview = cut.Find("#query-import-preview").TextContent;
+        preview.Should().Contain("+ to Level of all Melee Skills");
+        preview.Should().NotContain("GlobalMeleeSkillGemLevel1");
+    }
+
+    private static WantedMod ClassFamilyPick(EngineService engine, string classId)
+    {
+        var family = ModFamilies.Group(engine.ModsForClasses([classId]))
+            .First(f => f.Tiers.Count >= 2 && f.DisplayLines.Count > 0);
+        return family.Pick();
     }
 
     [Fact]

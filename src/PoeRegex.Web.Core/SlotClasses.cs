@@ -34,4 +34,15 @@ public static class SlotClasses
 
     private static IReadOnlyList<string> Filter(List<string> playable, string id) =>
         playable.Where(c => c.Equals(id, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    /// <summary>
+    /// Rings are the only intentional duplicate-class slots. Weapon and
+    /// offhand may not both target the same non-armour class; two armour
+    /// slots are 1:1 by definition.
+    /// </summary>
+    public static bool AllowsDuplicateClass(string classId, string slotA, string slotB) =>
+        !string.Equals(slotA, slotB, StringComparison.Ordinal) &&
+        string.Equals(classId, "Ring", StringComparison.OrdinalIgnoreCase) &&
+        slotA is "ring1" or "ring2" &&
+        slotB is "ring1" or "ring2";
 }

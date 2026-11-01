@@ -26,15 +26,14 @@ public sealed class QueryImportService
     private readonly EngineService _engine;
     private readonly Dictionary<string, List<(string Pattern, string? Class)>> _byFragment =
         new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<string>> _classByAnchor =
-        new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _classNames = new(StringComparer.Ordinal);
+    private Dictionary<string, List<string>>? _classByAnchor;
 
     public QueryImportService(EngineService engine)
     {
         _engine = engine;
         foreach (var (pattern, fragment, cls) in engine.PrecomputedFragments())
         {
+            if (fragment.Length == 0) continue;
             if (!_byFragment.TryGetValue(fragment, out var list))
             {
                 list = [];
@@ -42,29 +41,46 @@ public sealed class QueryImportService
             }
             list.Add((pattern, cls));
         }
-        foreach (var itemClass in engine.Classes)
+    }
+
+    /// <summary>The precomputed fragment reverse-index, shared with reconstruction.</summary>
+    internal IReadOnlyList<(string Pattern, string? Class)> FragmentsFor(string fragment) =>
+        _byFragment.TryGetValue(fragment, out var list) ? list : [];
+
+    /// <summary>
+    /// Built on first anchor lookup: the picker only ever emits in-game
+    /// classes, and indexing every catalog class made the first preview pay
+    /// for metadata classes nobody can search.
+    /// </summary>
+    private Dictionary<string, List<string>> ClassByAnchor =>
+        _classByAnchor ??= BuildClassByAnchor();
+
+    private Dictionary<string, List<string>> BuildClassByAnchor()
+    {
+        var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var itemClass in _engine.InGameClasses())
         {
-            _classNames[itemClass.Id] = itemClass.Name;
             // The optimized anchor is what this build emits; also accept the
             // literal prefix so queries compiled before the anchor change
             // still import cleanly.
             foreach (var anchor in new[]
                      {
-                         engine.ClassNameAnchor(itemClass.Id),
-                         Poe2Syntax.EscapeLiteral(engine.ClassNamePrefix(itemClass.Id)),
+                         _engine.ClassNameAnchor(itemClass.Id),
+                         Poe2Syntax.EscapeLiteral(_engine.ClassNamePrefix(itemClass.Id)),
                      }.Distinct(StringComparer.Ordinal))
             {
                 if (anchor.Length == 0) continue;
                 var phrase = ": " + anchor;
-                if (!_classByAnchor.TryGetValue(phrase, out var classes))
+                if (!map.TryGetValue(phrase, out var classes))
                 {
                     classes = [];
-                    _classByAnchor[phrase] = classes;
+                    map[phrase] = classes;
                 }
                 if (!classes.Contains(itemClass.Id, StringComparer.Ordinal))
                     classes.Add(itemClass.Id);
             }
         }
+        return map;
     }
 
     public QueryImportResult Import(string query, string? itemClass = null)
@@ -229,7 +245,7 @@ public sealed class QueryImportService
     private List<string> ResolveClassAnchor(string phrase)
     {
         if (!phrase.StartsWith(": ", StringComparison.Ordinal)) return [];
-        if (_classByAnchor.TryGetValue(phrase, out var exact))
+        if (ClassByAnchor.TryGetValue(phrase, out var exact))
             return exact;
 
         // Paste anchors are alternations: ": (Am|Ri)" and merged forms such

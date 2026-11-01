@@ -5,7 +5,7 @@
 @implements IDisposable
 
 <section class="picks" aria-labelledby="picks-title">
-    <h2 class="picks-title" id="picks-title">Your picks</h2>
+    <h2 class="picks-title" id="picks-title">@Title</h2>
     @if (!HasPicks)
     {
         <p class="picks-empty">@(State.Mode == "advanced" ? "Nothing picked yet. Choose a slot, then use + on a mod." : "Nothing picked yet. Use + on a mod to add it.")</p>
@@ -30,8 +30,15 @@
             <div class="bd-sec @(State.FocusedSlot == slot ? "focused" : "") @(blocks.Any(Model.IsHot) ? "hot" : "")"
                  @onmouseleave="Model.Cool">
                 <div class="bd-head" @onmouseenter="() => Model.Hot(blocks)">
-                    <button type="button" class="bd-name bd-slot" title="Edit @SearchModel.SlotLabel(slot) mods"
-                            @onclick="() => State.SelectSlot(slot)">@SearchModel.SlotLabel(slot)</button>
+                    @if (ReadOnly)
+                    {
+                        <span class="bd-name">@SearchModel.SlotLabel(slot)</span>
+                    }
+                    else
+                    {
+                        <button type="button" class="bd-name bd-slot" title="Edit @SearchModel.SlotLabel(slot) mods"
+                                @onclick="() => State.SelectSlot(slot)">@SearchModel.SlotLabel(slot)</button>
+                    }
                     @if (SlotSub(slot) is { } sub)
                     {
                         <span class="bd-sub">@sub</span>
@@ -40,8 +47,11 @@
                     {
                         <span class="bd-cost" title="@CostTitle(slot, blocks)">@Model.Cost(blocks)</span>
                     }
-                    <button type="button" class="link bd-clear" id="chips-clear-@slot"
-                            @onclick="() => State.ClearChips(slot)">Clear</button>
+                    @if (!ReadOnly)
+                    {
+                        <button type="button" class="link bd-clear" id="chips-clear-@slot"
+                                @onclick="() => State.ClearChips(slot)">Clear</button>
+                    }
                 </div>
                 @PickList(slot, crit, Engine.ModsForClass(State.SlotClassOrDefault(slot)))
             </div>
@@ -66,8 +76,11 @@
                 {
                     <span class="bd-cost" title="@($"{Model.Cost(blocks)} characters")">@Model.Cost(blocks)</span>
                 }
-                <button type="button" class="link bd-clear" id="chips-clear-global"
-                        @onclick="() => State.ClearChips(null)">Clear</button>
+                @if (!ReadOnly)
+                {
+                    <button type="button" class="link bd-clear" id="chips-clear-global"
+                            @onclick="() => State.ClearChips(null)">Clear</button>
+                }
             </div>
             @PickList(null, State.Global, Engine.PlayableMods())
         </div>
@@ -80,6 +93,13 @@
 
     [Parameter, EditorRequired]
     public required WorkbenchState State { get; set; }
+
+    /// <summary>Render the same rows without edit controls, for previews.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Your picks";
 
     private SearchModel? _subscribed;
     private WantedMod? _minBusy;
@@ -117,10 +137,12 @@
                     <span class="logic-seg" role="group" aria-label="How these picks combine">
                         <button type="button" id="logic-any-@scopeKey" class="@(crit.MatchAll ? "" : "on")"
                                 aria-pressed="@(crit.MatchAll ? "false" : "true")"
+                                disabled="@ReadOnly"
                                 title="Light up items with at least one of these mods"
                                 @onclick="() => State.SetMatchAll(slot, false)">Any of</button>
                         <button type="button" id="logic-all-@scopeKey" class="@(crit.MatchAll ? "on" : "")"
                                 aria-pressed="@(crit.MatchAll ? "true" : "false")"
+                                disabled="@ReadOnly"
                                 title="Light up only items with every one of these mods"
                                 @onclick="() => State.SetMatchAll(slot, true)">All of</button>
                     </span>
@@ -140,11 +162,11 @@
                     var frag = Model.PickFragment(inc, cls);
                     var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
                     var own = Model.PickBlock(slot, inc);
-                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId);
+                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
                     var busy = _minBusy?.SamePick(inc) == true;
-                    <li class="bd-row inc @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
+                    <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
                         <span class="bd-what">
                             @if (inc.IsNamePick)
@@ -160,7 +182,7 @@
                                 <span class="bd-label">@label</span>
                             }
                         </span>
-                        @if (AcceptsMin(inc, cls))
+                        @if (!ReadOnly && AcceptsMin(inc, cls))
                         {
                             <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="numeric" min="0" step="1"
                                    id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
@@ -184,9 +206,12 @@
                             <span class="bd-frag missing">no fragment</span>
                             <span class="bd-n"></span>
                         }
-                        <button type="button" class="bd-x" id="chip-remove-inc-@scopeKey-@ChipKey(inc)"
-                                title="@RemoveTitle(inc, label)" aria-label="@RemoveTitle(inc, label)"
-                                @onclick="() => State.RemoveInclude(slot, inc)">×</button>
+                        @if (!ReadOnly)
+                        {
+                            <button type="button" class="bd-x" id="chip-remove-inc-@scopeKey-@ChipKey(inc)"
+                                    title="@RemoveTitle(inc, label)" aria-label="@RemoveTitle(inc, label)"
+                                    @onclick="() => State.RemoveInclude(slot, inc)">×</button>
+                        }
                     </li>
                 }
             </ul>
@@ -200,15 +225,18 @@
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
                     var label = SearchModel.ExcludeLabel(exc, mods);
-                    <li class="bd-row exc @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
+                    <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what"><span class="bd-label">@label</span></span>
                         <span></span>
                         <code class="bd-frag" title="@frag">@frag</code>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
-                        <button type="button" class="bd-x" id="chip-remove-exc-@scopeKey-@exc"
-                                title="@($"Remove {label}")" aria-label="@($"Remove {label}")"
-                                @onclick="() => State.RemoveExclude(slot, exc)">×</button>
+                        @if (!ReadOnly)
+                        {
+                            <button type="button" class="bd-x" id="chip-remove-exc-@scopeKey-@exc"
+                                    title="@($"Remove {label}")" aria-label="@($"Remove {label}")"
+                                    @onclick="() => State.RemoveExclude(slot, exc)">×</button>
+                        }
                     </li>
                 }
             </ul>

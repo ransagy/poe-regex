@@ -19,21 +19,27 @@ namespace PoeRegex.ImportCoverage;
 /// Usage:
 ///   dotnet run --project tools/PoeRegex.ImportCoverage
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --guides /path/to/guides.txt
+///   dotnet run --project tools/PoeRegex.ImportCoverage -- --phase1
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --out docs/X.md --json docs/X.json
 ///
 /// Guide files use <c>Name = filter</c> per line; quoted filters may use several
 /// groups. Guide text is supplied locally and is never written to the report.
+/// <c>--phase1</c> runs the Phase 1 QueryReconstructionService over the same
+/// fixture matrix and writes a reconstruction report instead.
 /// </summary>
 public static class Program
 {
     private const string DefaultOut = "docs/IMPORT-COVERAGE-poe2.md";
     private const string DefaultJson = "docs/IMPORT-COVERAGE-poe2.json";
+    private const string Phase1Out = "docs/IMPORT-RECONSTRUCTION-poe2.md";
+    private const string Phase1Json = "docs/IMPORT-RECONSTRUCTION-poe2.json";
 
     public static int Main(string[] args)
     {
         string outPath = DefaultOut;
         string? jsonPath = DefaultJson;
         string? guidesPath = null;
+        var phase1 = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -51,8 +57,11 @@ public static class Program
                 case "--guides" when i + 1 < args.Length:
                     guidesPath = args[++i];
                     break;
+                case "--phase1":
+                    phase1 = true;
+                    break;
                 case "-h" or "--help":
-                    Console.WriteLine("Usage: --guides <file> [--out <md>] [--json <json>|--no-json]");
+                    Console.WriteLine("Usage: [--phase1] [--guides <file>] [--out <md>] [--json <json>|--no-json]");
                     return 0;
                 default:
                     Console.Error.WriteLine($"Unknown argument: {args[i]}");
@@ -60,27 +69,54 @@ public static class Program
             }
         }
 
+        if (phase1)
+        {
+            if (outPath == DefaultOut) outPath = Phase1Out;
+            if (jsonPath == DefaultJson) jsonPath = Phase1Json;
+        }
+
         try
         {
             var engine = new EngineService();
-            var importer = new QueryImportService(engine);
             var cases = BuildCases(engine);
-            var outcomes = cases.Select(c => Evaluate(engine, importer, c)).ToList();
+
+            if (phase1)
+            {
+                var reconstruction = new QueryReconstructionService(engine);
+                var outcomes = cases.Select(c => EvaluatePhase1(engine, reconstruction, c)).ToList();
+                var report = Phase1Report.Markdown(engine, outcomes);
+                Directory.CreateDirectory(Path.GetDirectoryName(outPath) ?? ".");
+                File.WriteAllText(outPath, report, new UTF8Encoding(false));
+                if (jsonPath is not null)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(jsonPath) ?? ".");
+                    File.WriteAllText(jsonPath, Phase1Report.Json(engine, outcomes), new UTF8Encoding(false));
+                }
+
+                var passed = outcomes.Count(x => x.Ok && x.SameQuery);
+                Console.WriteLine($"phase1 cases: {outcomes.Count}, reconstructed: {passed}, " +
+                                  $"fail-closed: {outcomes.Count - passed}");
+                Console.WriteLine($"wrote {outPath}" + (jsonPath is null ? "" : $" and {jsonPath}"));
+                return 0;
+            }
+
+            var importer = new QueryImportService(engine);
+            var importOutcomes = cases.Select(c => Evaluate(engine, importer, c)).ToList();
             var guides = guidesPath is null ? [] : GuideClassifier.Run(engine, guidesPath);
-            var report = ReportWriter.Markdown(engine, outcomes, guides, guidesPath is not null);
+            var importReport = ReportWriter.Markdown(engine, importOutcomes, guides, guidesPath is not null);
             Directory.CreateDirectory(Path.GetDirectoryName(outPath) ?? ".");
-            File.WriteAllText(outPath, report, new UTF8Encoding(false));
+            File.WriteAllText(outPath, importReport, new UTF8Encoding(false));
 
             if (jsonPath is not null)
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(jsonPath) ?? ".");
-                File.WriteAllText(jsonPath, ReportWriter.Json(engine, outcomes, guides), new UTF8Encoding(false));
+                File.WriteAllText(jsonPath, ReportWriter.Json(engine, importOutcomes, guides), new UTF8Encoding(false));
             }
 
-            var byClass = outcomes.GroupBy(x => x.Classification)
+            var byClass = importOutcomes.GroupBy(x => x.Classification)
                 .OrderByDescending(g => g.Count())
                 .Select(g => $"{g.Key}={g.Count()}");
-            Console.WriteLine($"cases: {outcomes.Count} ({string.Join(", ", byClass)})");
+            Console.WriteLine($"cases: {importOutcomes.Count} ({string.Join(", ", byClass)})");
             if (guides.Count > 0)
                 Console.WriteLine($"guides: {guides.Count}, branches: {guides.Sum(g => g.Branches.Count)}");
             Console.WriteLine($"wrote {outPath}" + (jsonPath is null ? "" : $" and {jsonPath}"));
@@ -289,6 +325,18 @@ public static class Program
         imported.Classes.Count == 1 &&
         imported.Includes.Count == 0 && imported.Excludes.Count == 0 && imported.Keywords.Count == 0;
 
+    private static Phase1Outcome EvaluatePhase1(
+        EngineService engine, QueryReconstructionService reconstruction, CaseSpec c)
+    {
+        var recovered = reconstruction.ReconstructWorkbench(c.Query);
+        var recompiled = recovered.Recompile(engine);
+        return new Phase1Outcome(
+            c.Id, c.Scope, c.Description, c.Query,
+            recovered.Ok, recovered.Mode, recovered.Slots,
+            recovered.Excludes, recompiled == c.Query,
+            recovered.Diagnostics, recovered.Warnings);
+    }
+
     private static bool IsRecovered(string message) =>
         message.Contains("recovered", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("maps to", StringComparison.OrdinalIgnoreCase) ||
@@ -314,6 +362,12 @@ public static class Program
         string ImportMode, int Classes, int Includes, int Excludes, int Keywords,
         IReadOnlyList<string> Diagnostics,
         bool HasMinValue, bool HasNamePick, bool HasFamilyPick, bool IsPaste, bool ArbitraryChoice);
+
+    public sealed record Phase1Outcome(
+        string Id, string Scope, string Description, string Query,
+        bool Ok, string Mode, IReadOnlyList<ReconstructedSlot> Slots,
+        IReadOnlyList<string> Excludes, bool SameQuery,
+        IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Warnings);
 }
 
 /// <summary>Classifies guide filter branches without retaining the guide text.</summary>
@@ -643,6 +697,175 @@ public static class ReportWriter
 
     private static string Short(string value) =>
         value.Length <= 90 ? value : value[..87] + "...";
+
+    private static string Escape(string value) =>
+        value.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
+}
+
+/// <summary>Writes the Phase 1 reconstruction report from the same fixture matrix.</summary>
+public static class Phase1Report
+{
+    public static string Markdown(EngineService engine, IReadOnlyList<Program.Phase1Outcome> cases)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# PoE2 query reconstruction — Phase 1 results");
+        sb.AppendLine();
+        sb.AppendLine($"_Generated {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC._");
+        sb.AppendLine();
+        sb.AppendLine($"- Data: `{engine.DataVersion}`");
+        sb.AppendLine($"- Target model: `{engine.TargetModel}`");
+        sb.AppendLine($"- Fragment table: `{engine.FragmentDataVersion ?? "unknown"}`");
+        sb.AppendLine();
+        sb.AppendLine("## Method");
+        sb.AppendLine();
+        sb.AppendLine("The same representative strings as the coverage spike are reconstructed with");
+        sb.AppendLine("`QueryReconstructionService`, then the recovered criteria are recompiled and");
+        sb.AppendLine("compared byte-for-byte with the original. A case passes only when it is both");
+        sb.AppendLine("reconstructed and recompiles to the identical string. Tierless fragments prefer");
+        sb.AppendLine("the family pick; name literals stay name picks; factored and multi-class forms");
+        sb.AppendLine("are expanded. The Import string panel applies the recovered slots; the same");
+        sb.AppendLine("comparison is exercised by the UI tests. Free text, legacy anchors, class-only");
+        sb.AppendLine("strings, and minimum values fail closed or are accepted losses.");
+        sb.AppendLine();
+
+        var passed = cases.Count(x => x.Ok && x.SameQuery);
+        sb.AppendLine("## Summary");
+        sb.AppendLine();
+        sb.AppendLine("| Scope | Cases | reconstructed | recompiled identically | fail-closed |");
+        sb.AppendLine("|---|---:|---:|---:|---:|");
+        foreach (var group in cases.GroupBy(x => x.Scope).OrderBy(g => g.Key))
+        {
+            var ok = group.Count(x => x.Ok && x.SameQuery);
+            sb.AppendLine($"| {group.Key} | {group.Count()} | {group.Count(x => x.Ok)} | {ok} | {group.Count() - ok} |");
+        }
+        sb.AppendLine();
+        sb.AppendLine($"**Overall:** {passed}/{cases.Count} cases reconstruct and recompile identically.");
+        sb.AppendLine();
+
+        sb.AppendLine("## Matrix");
+        sb.AppendLine();
+        sb.AppendLine("| Case | Scope | Result | Mode | Class | Picks | MatchAll | Notes |");
+        sb.AppendLine("|---|---|---|---|---|---:|---|---|");
+        foreach (var c in cases)
+        {
+            var result = c.Ok && c.SameQuery ? "**pass**" : "fail-closed";
+            var classes = string.Join(", ", c.Slots.Select(s => s.ClassId)
+                .Where(x => x.Length > 0).Distinct(StringComparer.Ordinal));
+            var picks = c.Slots.Sum(s => s.Includes.Count);
+            var matchAll = c.Slots.Any(s => s.MatchAll);
+            sb.AppendLine($"| `{c.Id}` | {c.Scope} | {result} | {c.Mode} | {(classes.Length == 0 ? "—" : classes)} | {picks} | {(matchAll ? "yes" : "no")} | {Escape(Short(NoteFor(c)))} |");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("## Passing examples");
+        sb.AppendLine();
+        foreach (var c in cases.Where(x => x.Ok && x.SameQuery))
+        {
+            sb.AppendLine($"### `{c.Id}` — {Escape(c.Description)}");
+            sb.AppendLine($"- query: `{Escape(c.Query)}`");
+            sb.AppendLine($"- mode: {c.Mode}");
+            foreach (var slot in c.Slots)
+            {
+                var picks = slot.Includes.Count == 0
+                    ? "—"
+                    : string.Join(", ", slot.Includes.Select(PickLabel).Select(x => $"`{Escape(x)}`"));
+                var cls = string.IsNullOrEmpty(slot.ClassId) ? "" : $" · {slot.ClassId}";
+                sb.AppendLine($"- {slot.SlotId}{cls} — {(slot.MatchAll ? "all of" : "any of")}: {picks}");
+            }
+            if (c.Excludes.Count > 0)
+                sb.AppendLine($"- exclusions: {string.Join(", ", c.Excludes.Select(x => $"`{Escape(x)}`"))}");
+            foreach (var warning in c.Warnings)
+                sb.AppendLine($"- warning: {Escape(warning)}");
+            sb.AppendLine("- recompile: identical");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("## Fail-closed examples");
+        sb.AppendLine();
+        foreach (var c in cases.Where(x => !x.Ok || !x.SameQuery))
+        {
+            var reason = c.Ok ? "recompiled string differs" : (c.Diagnostics.FirstOrDefault() ?? "rejected");
+            sb.AppendLine($"- `{c.Id}` ({c.Scope}) — {Escape(Short(reason))}");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("## Review notes");
+        sb.AppendLine();
+        sb.AppendLine("- **Simple affix-name picks choose one owning family when the names exist on");
+        sb.AppendLine("  multiple classes.** The names are the query term; the family only supplies");
+        sb.AppendLine("  identity, so the string is unchanged. An advanced anchor scopes it explicitly.");
+        sb.AppendLine("- **Legacy literal class anchors** (e.g. `\": One Hand M\"`) reconstruct the class");
+        sb.AppendLine("  but recompile to the current wildcard anchor, so they fail the same-string check.");
+        sb.AppendLine("- **Tierless fragments reconstruct as family picks**, not representative tiers.");
+        sb.AppendLine("  When a fragment or name set spans families, the chosen family is deterministic");
+        sb.AppendLine("  but arbitrary; the query is unchanged.");
+        sb.AppendLine("- **Ring1 + ring2 paste** reconstructs to one Ring scope; exact ring split is a");
+        sb.AppendLine("  non-goal and the string is unchanged.");
+        sb.AppendLine("- **Same-class all-of** falls back to any-of in the compiler; the reconstruction");
+        sb.AppendLine("  reports the any-of form (accepted).");
+        sb.AppendLine("- **Minimum values are genuinely lost**; the query encodes a threshold that the");
+        sb.AppendLine("  pick model cannot recover (accepted limitation).");
+        sb.AppendLine("- Factored fragments/name sets and multi-class pastes are supported by this");
+        sb.AppendLine("  path. The Import string panel applies the recovered slots; guide extraction is");
+        sb.AppendLine("  still later.");
+        sb.AppendLine();
+        sb.AppendLine("Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter \"FullyQualifiedName~QueryReconstructionTests\"`.");
+        return sb.ToString();
+    }
+
+    public static string Json(EngineService engine, IReadOnlyList<Program.Phase1Outcome> cases)
+    {
+        var payload = new
+        {
+            generated = DateTimeOffset.UtcNow,
+            dataVersion = engine.DataVersion,
+            targetModel = engine.TargetModel,
+            fragmentTable = engine.FragmentDataVersion,
+            passed = cases.Count(x => x.Ok && x.SameQuery),
+            total = cases.Count,
+            cases = cases.Select(c => new
+            {
+                id = c.Id,
+                scope = c.Scope,
+                description = c.Description,
+                query = c.Query,
+                ok = c.Ok,
+                sameQuery = c.SameQuery,
+                mode = c.Mode,
+                slots = c.Slots.Select(s => new
+                {
+                    slotId = s.SlotId,
+                    classId = s.ClassId,
+                    matchAll = s.MatchAll,
+                    includes = s.Includes.Select(PickLabel),
+                }),
+                excludes = c.Excludes,
+                warnings = c.Warnings,
+                diagnostics = c.Diagnostics,
+            }),
+        };
+        return JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private static string NoteFor(Program.Phase1Outcome c)
+    {
+        if (!c.Ok) return c.Diagnostics.FirstOrDefault() ?? "rejected";
+        if (!c.SameQuery) return "recompiled string differs";
+        return c.Id switch
+        {
+            "paste-rings" => "identical; rings merge into one Ring scope (accepted)",
+            "paste-same-class-allof" => "identical; same-class all-of falls back to any-of (accepted)",
+            _ => "identical recompile",
+        };
+    }
+
+    private static string PickLabel(WantedMod pick) =>
+        pick.Names is { Count: > 0 } ? "name:" + string.Join("|", pick.Names)
+        : pick.VariantModIds is { Count: > 0 } ? "family:" + pick.ModId
+        : pick.ModId;
+
+    private static string Short(string value) =>
+        value.Length <= 110 ? value : value[..107] + "...";
 
     private static string Escape(string value) =>
         value.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");

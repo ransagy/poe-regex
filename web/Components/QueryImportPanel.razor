@@ -13,55 +13,49 @@
                       value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
                       aria-label="Search string"></textarea>
             <div class="modrow">
-                <button id="query-import-parse" class="btn" @onclick="Parse">Preview</button>
-                <button id="query-import-apply" class="btn btn-primary" disabled="@(!CanApply)" @onclick="Apply">
+                <button id="query-import-parse" class="btn" disabled="@_busy" @onclick="Parse">
+                    @(_busy ? "Reading…" : "Preview")
+                </button>
+                <button id="query-import-apply" class="btn btn-primary" disabled="@(_busy || !CanApply)" @onclick="Apply">
                     Apply
                 </button>
                 <button id="query-import-cancel" class="btn" @onclick="Close">Cancel</button>
             </div>
 
-            @if (_result is null)
+            @if (_busy)
             {
-                <div class="more">Strings from this app or another tool work. Terms it cannot place are listed below and left out.</div>
+                <div class="more" id="query-import-busy" aria-live="polite">Reading the string…</div>
+            }
+            else if (_result is null)
+            {
+                <div class="more">Paste a search string this app produced. Picks it cannot place are reported and left out.</div>
             }
             else
             {
                 <div class="more" id="query-import-summary">
                     mode: @_result.Mode
-                    @if (_result.Classes.Count > 0)
+                    @foreach (var slot in _result.Slots)
                     {
-                        <span> · classes: @string.Join(", ", _result.Classes)</span>
+                        <span> · @slot.SlotId@(string.IsNullOrEmpty(slot.ClassId) ? "" : $" ({slot.ClassId})"): @slot.Includes.Count pick(s)</span>
                     }
-                    <span> · @_result.Includes.Count include(s) · @_result.Excludes.Count exclude(s) · @_result.Keywords.Count unknown</span>
+                    <span> · @_result.Excludes.Count exclude(s)</span>
                 </div>
                 if (!CanApply)
                 {
                     <div class="field-error" id="query-import-warning">
-                        @WhyNotApply()
+                        @(_result.Diagnostics.FirstOrDefault() ?? "nothing importable was found")
                     </div>
                 }
-                <div class="qexplain" id="query-import-tokens">
-                    @foreach (var t in _result.Tokens)
-                    {
-                        <div>
-                            @(t.Excluded ? "!" : "")"@t.Phrase"
-                            [@t.Kind] @t.Confidence
-                            @if (t.ModId is not null)
-                            {
-                                <span> · @t.ModId</span>
-                            }
-                            else if (t.Pattern is not null)
-                            {
-                                <span> · @t.Pattern</span>
-                            }
-                        </div>
-                    }
-                </div>
-                @if (_result.Keywords.Count > 0)
+                else if (_previewModel is not null && _previewState is not null)
                 {
-                    <div class="more" id="query-import-keywords">
-                        unknown/custom: @string.Join(", ", _result.Keywords)
+                    <div id="query-import-preview">
+                        <PickBreakdown Model="_previewModel" State="_previewState"
+                                       ReadOnly="true" Title="Your picks · after apply" />
                     </div>
+                }
+                @foreach (var warning in _result.Warnings)
+                {
+                    <div class="more">@warning</div>
                 }
                 @foreach (var d in _result.Diagnostics)
                 {
@@ -83,84 +77,86 @@
     public required EventCallback OnClose { get; set; }
 
     private string _text = "";
-    private QueryImportResult? _result;
-    private QueryImportService? _service;
+    private ReconstructedWorkbench? _result;
+    private QueryReconstructionService? _service;
+    private WorkbenchState? _previewState;
+    private SearchModel? _previewModel;
+    private bool _busy;
+    private int _parseVersion;
 
-    private bool CanApply =>
-        _result is not null &&
-        _result.Mode is "simple" or "advanced" &&
-        _result.Keywords.Count == 0 &&
-        _result.Tokens.All(t => t.Confidence != "ambiguous");
+    private bool CanApply => _result?.Ok == true;
 
-    private void Parse()
+    private async Task Parse()
     {
-        _service ??= new QueryImportService(Engine);
-        _result = _service.Import(_text);
+        if (_busy) return;
+        var version = ++_parseVersion;
+        _busy = true;
+        _result = null;
+        _previewState = null;
+        _previewModel = null;
+        StateHasChanged();
+        // Let the busy state paint before a cold index build blocks the WASM thread.
+        await Task.Delay(1);
+        try
+        {
+            _service ??= new QueryReconstructionService(Engine);
+            var result = _service.ReconstructWorkbench(_text);
+            if (version != _parseVersion) return;
+            _result = result;
+            if (result.Ok) BuildPreview(result);
+        }
+        catch (Exception ex)
+        {
+            if (version != _parseVersion) return;
+            _result = ReconstructedWorkbench.Failed("preview failed: " + ex.Message);
+        }
+        finally
+        {
+            if (version == _parseVersion) _busy = false;
+        }
     }
 
-    private string WhyNotApply()
+    /// <summary>
+    /// Applies to a throwaway clone and renders the real Your-picks view, so
+    /// the preview can never drift from what Apply will produce.
+    /// </summary>
+    private void BuildPreview(ReconstructedWorkbench result)
     {
-        if (_result is null) return "";
-        if (_result.Mode == "multi-class")
-            return "multi-class import is preview-only; apply is not wired for slot groups yet";
-        if (_result.Keywords.Count > 0)
-            return "unknown/custom terms are present; remove them or import a fully catalog-backed query";
-        if (_result.Tokens.Any(t => t.Confidence == "ambiguous"))
-            return "one or more fragments map to multiple mods; edit the source query or choose explicitly";
-        return "nothing importable was found";
+        var preview = new WorkbenchState();
+        WorkbenchSnapshot.RestoreCriteria(preview, WorkbenchSnapshot.Capture(State));
+        result.ApplyTo(preview);
+        _previewState = preview;
+        _previewModel = new SearchModel(Engine, preview);
+        var (simple, paste) = SearchModel.CompileForStrip(Engine, preview);
+        _previewModel.Update(simple, paste);
     }
 
     private void Apply()
     {
         if (!CanApply || _result is null) return;
-        var include = _result.Includes.Select(x => new WantedMod(x.Value)).ToList();
-        var exclude = _result.Excludes.Select(x => x.Value).ToList();
-        var targetSlot = _result.Mode == "advanced" ? SlotForClass(_result.Classes.FirstOrDefault()) : null;
-        var classId = _result.Classes.FirstOrDefault();
-
-        State.WithSuppressedNotifications(() =>
-        {
-            foreach (var slot in GearSlot.All)
-                State.ClearChips(slot.Id);
-            State.ClearChips(null);
-            State.SetMode(_result.Mode);
-            if (targetSlot is not null)
-            {
-                State.SetSlotClass(targetSlot, classId!);
-                State.FocusSlot(targetSlot);
-                State.AddIncludes(targetSlot, include);
-                State.SetMatchAll(targetSlot, _result.RequiresAll);
-                foreach (var id in exclude) State.AddExclude(targetSlot, id);
-            }
-            else
-            {
-                State.AddIncludes(null, include);
-                State.SetMatchAll(null, _result.RequiresAll);
-                foreach (var id in exclude) State.AddExclude(null, id);
-            }
-        });
+        _result.ApplyTo(State);
         OnClose.InvokeAsync();
-    }
-
-    private string? SlotForClass(string? classId)
-    {
-        if (string.IsNullOrEmpty(classId)) return GearSlot.All[0].Id;
-        var match = GearSlot.All.FirstOrDefault(s =>
-            string.Equals(State.Slots[s.Id].ClassId, classId, StringComparison.Ordinal));
-        return (match ?? GearSlot.All[0]).Id;
     }
 
     private void OnInput(ChangeEventArgs e)
     {
         _text = e.Value?.ToString() ?? "";
+        _parseVersion++;
+        _busy = false;
         _result = null;
+        _previewState = null;
+        _previewModel = null;
     }
 
     private Task OnBackdrop() => Close();
 
     private async Task Close()
     {
+        _parseVersion++;
+        _busy = false;
         _result = null;
+        _previewState = null;
+        _previewModel = null;
         await OnClose.InvokeAsync();
     }
 
