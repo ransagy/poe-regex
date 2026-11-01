@@ -479,10 +479,19 @@
             _warmKey = key;
             await InvokeAsync(StateHasChanged);
         }
+        catch
+        {
+            // Warm-up is best effort; remember the attempt so a failed scope
+            // does not retry forever.
+            _warmKey = key;
+        }
         finally
         {
             _warmScheduled = false;
         }
+        // The editing scope may have changed while the corpus was loading;
+        // warm the current target if it is different.
+        ScheduleValuePrewarm();
     }
 
     private async Task CopyBar(string query)
