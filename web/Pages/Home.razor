@@ -474,8 +474,10 @@
             // Let the pick that triggered this paint first.
             await Task.Yield();
             if (_disposed) return;
-            Engine.PrewarmValuePath(itemClass);
+            await Engine.PrewarmValuePathAsync(itemClass);
+            if (_disposed) return;
             _warmKey = key;
+            await InvokeAsync(StateHasChanged);
         }
         finally
         {

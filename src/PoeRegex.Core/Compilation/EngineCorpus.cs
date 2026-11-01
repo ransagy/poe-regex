@@ -16,8 +16,10 @@ public sealed class EngineCorpus
     private readonly IReadOnlyList<ItemClassEntry> _inGameCatalogClasses;
     private readonly IReadOnlyList<ItemClassEntry> _inGameClasses;
     private readonly HashSet<string> _inGameClassIds;
+    private readonly HashSet<string> _catalogClassIds;
     private readonly IReadOnlyList<ModEntry> _inGameMods;
-    private readonly Lazy<Dictionary<string, ClassIndex>> _byClass;
+    private readonly ConcurrentDictionary<string, Lazy<ClassIndex?>> _classIndexes =
+        new(StringComparer.Ordinal);
     private readonly Dictionary<string, ModEntry> _modsById;
     private readonly Lazy<IReadOnlyList<SafetyItem>> _safetyItems;
     private readonly Lazy<IReadOnlyList<VendorLine>> _vendorLines;
@@ -314,6 +316,7 @@ public sealed class EngineCorpus
         _catalog = catalog;
         _inGameCatalogClasses = GameItemClasses.InGame(catalog);
         _inGameClassIds = _inGameCatalogClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        _catalogClassIds = catalog.ItemClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         _inGameClasses = _inGameCatalogClasses
             .Where(c => catalog.Mods.Any(m => m.Classes.Contains(c.Id)))
             .ToList();
@@ -334,7 +337,6 @@ public sealed class EngineCorpus
         _vendorPatterns = new(() => InGameVendorLines()
             .Select(l => l.Pattern ?? CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
-        _byClass = new(() => BuildClassIndexes(catalog, _vendorLines.Value));
         _union = new(() => BuildUnionIndex(includeNotInGame: false), LazyThreadSafetyMode.ExecutionAndPublication);
         _fullUnion = new(() => BuildUnionIndex(includeNotInGame: true), LazyThreadSafetyMode.ExecutionAndPublication);
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
@@ -418,7 +420,7 @@ public sealed class EngineCorpus
             return _vendorNormalized.Value.Contains(normalized) ||
                    _vendorPatterns.Value.Contains(normalized) ||
                    KnownPatterns().Contains(normalized);
-        if (!_byClass.Value.TryGetValue(classId, out var ci)) return false;
+        if (!TryGetClassIndex(classId, out var ci)) return false;
         return ci.AllRealLines.Any(x =>
             string.Equals(CatalogLineNormalizer.Normalize(x.Real), normalized, StringComparison.Ordinal) ||
             string.Equals(x.Pattern, normalized, StringComparison.Ordinal));
@@ -499,7 +501,7 @@ public sealed class EngineCorpus
     /// including universal non-mod lines (used by the regex oracle).
     /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesForClass(string itemClass) =>
-        _byClass.Value.TryGetValue(itemClass, out var ci) ? ci.AllRealLines : [];
+        TryGetClassIndex(itemClass, out var ci) ? ci.AllRealLines : [];
 
     /// <summary>
     /// Normalized display shapes for a pattern in a scope. Ranged stats add
@@ -510,7 +512,7 @@ public sealed class EngineCorpus
     {
         var lines = itemClass is null
             ? _globalByPattern.Value.GetValueOrDefault(pattern) ?? []
-            : _byClass.Value.TryGetValue(itemClass, out var ci)
+            : TryGetClassIndex(itemClass, out var ci)
                 ? ci.LinesWithPattern(pattern)
                 : [];
         return lines
@@ -525,13 +527,61 @@ public sealed class EngineCorpus
     /// non-mod lines (used by explain/matching; the oracle still sees all).
     /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> MatchableLinesForClass(string itemClass) =>
-        _byClass.Value.TryGetValue(itemClass, out var ci)
+        TryGetClassIndex(itemClass, out var ci)
             ? ci.AllRealLines.Where(x => !UniversalPatterns.Contains(x.Pattern)).ToList()
             : [];
 
-    /// <summary>Union corpus over released classes only (global scope).</summary>
+    /// <summary>
+    /// Union corpus over released classes only (global scope).
+    /// </summary>
     public IReadOnlyList<(string Pattern, string Real)> RealLinesGlobal() =>
         _globalLines ??= BuildGlobalLines();
+
+    /// <summary>
+    /// Browser warm-up for the global scope: the same lines as
+    /// <see cref="BuildGlobalLines"/>, built over yields so a 100k-line vendor
+    /// pass never becomes one long task on the WASM thread.
+    /// </summary>
+    public async Task PrewarmGlobalLinesAsync()
+    {
+        if (_globalLines is not null) return;
+        var vendor = _vendorLines.Value;
+        var vendorCount = vendor.Count;
+        var vendorPatterns = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < vendorCount; i++)
+        {
+            var line = vendor[i];
+            if (line.ClassId is not null && !_inGameClassIds.Contains(line.ClassId)) continue;
+            if (!string.IsNullOrWhiteSpace(line.Pattern)) vendorPatterns.Add(line.Pattern!);
+            if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
+        }
+
+        var seen = new HashSet<(string Pattern, string Real)>();
+        var result = new List<(string Pattern, string Real)>(vendorCount + _inGameMods.Count);
+        void Add(string pattern, string real)
+        {
+            if (seen.Add((pattern, real))) result.Add((pattern, real));
+        }
+
+        foreach (var mod in _inGameMods)
+            foreach (var sl in mod.StatLines)
+                if (!vendorPatterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
+        foreach (var line in UniversalLines)
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        foreach (var cls in _inGameCatalogClasses)
+        {
+            var line = $"Item Class: {cls.Name}";
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        }
+        for (var i = 0; i < vendorCount; i++)
+        {
+            var line = vendor[i];
+            if (line.ClassId is not null && !_inGameClassIds.Contains(line.ClassId)) continue;
+            Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
+            if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
+        }
+        _globalLines = result;
+    }
 
     /// <summary>Global explain lines, excluding universal non-mod text.</summary>
     public IReadOnlyList<(string Pattern, string Real)> MatchableLinesGlobal() =>
@@ -578,20 +628,29 @@ public sealed class EngineCorpus
     private IReadOnlyList<(string Pattern, string Real)> BuildGlobalLines()
     {
         var vendor = InGameVendorLines().ToList();
-        var vendorPatterns = vendor
-            .Where(l => !string.IsNullOrWhiteSpace(l.Pattern))
-            .Select(l => l.Pattern!)
-            .ToHashSet(StringComparer.Ordinal);
-        return _inGameMods
-            .SelectMany(m => m.StatLines)
-            .Where(sl => !vendorPatterns.Contains(sl.Pattern))
-            .Select(sl => (sl.Pattern, sl.Line))
-            .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
-            .Concat(_inGameCatalogClasses.Select(c =>
-                (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
-            .Concat(vendor.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
-            .Distinct()
-            .ToList();
+        var vendorPatterns = new HashSet<string>(
+            vendor.Where(l => !string.IsNullOrWhiteSpace(l.Pattern)).Select(l => l.Pattern!),
+            StringComparer.Ordinal);
+        var seen = new HashSet<(string Pattern, string Real)>();
+        var result = new List<(string Pattern, string Real)>(vendor.Count + _inGameMods.Count);
+        void Add(string pattern, string real)
+        {
+            if (seen.Add((pattern, real))) result.Add((pattern, real));
+        }
+
+        foreach (var mod in _inGameMods)
+            foreach (var sl in mod.StatLines)
+                if (!vendorPatterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
+        foreach (var line in UniversalLines)
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        foreach (var cls in _inGameCatalogClasses)
+        {
+            var line = $"Item Class: {cls.Name}";
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        }
+        foreach (var line in vendor)
+            Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
+        return result;
     }
 
     /// <summary>
@@ -635,7 +694,7 @@ public sealed class EngineCorpus
                 }
             }
         }
-        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
+        if (!TryGetClassIndex(itemClass, out var ci)) return null;
         if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
         var index = caseInsensitive ? ci.FoldIndex : ci.Index;
         return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
@@ -652,7 +711,7 @@ public sealed class EngineCorpus
     {
         var entry = _catalog.ItemClasses.FirstOrDefault(c => c.Id == itemClass);
         if (!caseInsensitive && entry is not null && !string.IsNullOrEmpty(entry.BaseFingerprint)) return entry.BaseFingerprint;
-        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
+        if (!TryGetClassIndex(itemClass, out var ci)) return null;
         var index = caseInsensitive ? ci.FoldIndex : ci.Index;
         return index.ShortestUniqueSubstring(ci.ClassLineIndex);
     }
@@ -666,7 +725,7 @@ public sealed class EngineCorpus
         string itemClass, string fragment, IReadOnlyCollection<string> allowedPatterns,
         bool includeSafety = true, bool includeUniversal = true)
     {
-        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return false;
+        if (!TryGetClassIndex(itemClass, out var ci)) return false;
         var matched = ci.Index.LinesMatching(fragment);
         var any = false;
         foreach (var lineIndex in matched)
@@ -689,7 +748,7 @@ public sealed class EngineCorpus
     public bool RegexSafeOnClass(string itemClass, string regexFragment, IReadOnlyCollection<string> allowedPatterns,
         string? literal = null)
     {
-        if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return false;
+        if (!TryGetClassIndex(itemClass, out var ci)) return false;
         var matchedAny = false;
         var lines = literal is null ? ci.AllRealLines : ci.LinesWithLiteral(literal);
         foreach (var (pattern, real) in lines)
@@ -723,7 +782,7 @@ public sealed class EngineCorpus
     {
         if (itemClass is not null)
         {
-            if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return null;
+            if (!TryGetClassIndex(itemClass, out var ci)) return null;
             if (!ci.PatternToIndex.TryGetValue(linePattern, out var idx)) return null;
             var index = caseInsensitive ? ci.FoldIndex : ci.Index;
             return index.ShortestUniqueSubstring(idx, avoidPlaceholder);
@@ -810,7 +869,7 @@ public sealed class EngineCorpus
         if (literal.Length == 0) return [];
         if (itemClass is not null)
         {
-            if (!_byClass.Value.TryGetValue(itemClass, out var ci)) return [];
+            if (!TryGetClassIndex(itemClass, out var ci)) return [];
             return ci.FoldIndex.LinesMatching(literal).Select(i => ci.Corpus[i]).ToList();
         }
         var union = _union.Value;
@@ -853,19 +912,6 @@ public sealed class EngineCorpus
         };
     }
 
-    private static string SectionKindForGeneration(string generation) => generation switch
-    {
-        "implicit" => "implicit",
-        _ => "explicit",
-    };
-
-    private static string SectionForVendorKind(string? kind) => kind switch
-    {
-        "implicit" or "implicit-caption" => "implicit",
-        "base-name" or "base-property" or "magic-name" or "usage" or "universal" or "class" => "base",
-        _ => "explicit",
-    };
-
     /// <summary>Normalized pattern used for a real item line by the oracle.</summary>
     public string PatternForSafetyLine(string line) => VendorPattern(line, KnownPatterns());
 
@@ -896,86 +942,77 @@ public sealed class EngineCorpus
     private static string SafetyPattern(string line) =>
         SafetyPatternMarker + CatalogLineNormalizer.Normalize(line);
 
-    private static Dictionary<string, ClassIndex> BuildClassIndexes(Catalog catalog, IReadOnlyList<VendorLine> vendorLines)
+    private bool TryGetClassIndex(string classId, out ClassIndex ci)
     {
-        // Per class: distinct patterns for all mods that can appear on the class,
-        // plus the class line, tracking every real line for regex validation.
-        var patternsByClass = new Dictionary<string, HashSet<string>>();
-        var allRealByClass = new Dictionary<string, List<(string Pattern, string Real, string Kind)>>();
-        void Add(string cls, string pattern, string real, string kind)
+        if (!_catalogClassIds.Contains(classId))
         {
-            if (!patternsByClass.TryGetValue(cls, out var set))
+            ci = null!;
+            return false;
+        }
+        var lazy = _classIndexes.GetOrAdd(
+            classId,
+            id => new Lazy<ClassIndex?>(
+                () => BuildClassIndex(id), LazyThreadSafetyMode.ExecutionAndPublication));
+        var built = lazy.Value;
+        ci = built!;
+        return built is not null;
+    }
+
+    /// <summary>
+    /// Builds one class index on demand. The old eager build scanned every
+    /// vendor line once per class and made the first value-threshold compile
+    /// wait for all classes; a single class is enough for every caller.
+    /// </summary>
+    private ClassIndex? BuildClassIndex(string classId)
+    {
+        var cls = _catalog.ItemClasses.FirstOrDefault(c => c.Id == classId);
+        if (cls is null) return null;
+
+        var patterns = new HashSet<string>(StringComparer.Ordinal);
+        var reals = new HashSet<(string Pattern, string Real)>();
+        void Add(string pattern, string real)
+        {
+            patterns.Add(pattern);
+            reals.Add((pattern, real));
+        }
+
+        foreach (var u in UniversalLines)
+            Add(CatalogLineNormalizer.Normalize(u), u);
+        var classLine = $"Item Class: {cls.Name}";
+        Add(CatalogLineNormalizer.Normalize(classLine), classLine);
+        foreach (var line in _vendorLines.Value)
+        {
+            if (!string.Equals(line.ClassId, classId, StringComparison.Ordinal)) continue;
+            Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
+        }
+        var catalogPatterns = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var mod in _catalog.Mods)
+        {
+            if (!mod.Classes.Contains(classId, StringComparer.Ordinal)) continue;
+            foreach (var sl in mod.StatLines)
             {
-                set = new HashSet<string>();
-                patternsByClass[cls] = set;
-                allRealByClass[cls] = new List<(string, string, string)>();
-            }
-            set.Add(pattern);
-            allRealByClass[cls].Add((pattern, real, kind));
-        }
-
-        foreach (var cls in catalog.ItemClasses)
-        {
-            foreach (var u in UniversalLines)
-                Add(cls.Id, CatalogLineNormalizer.Normalize(u), u, "universal");
-            var classLine = $"Item Class: {cls.Name}";
-            Add(cls.Id, CatalogLineNormalizer.Normalize(classLine), classLine, "class");
-        }
-        foreach (var line in vendorLines)
-        {
-            if (line.ClassId is null) continue;
-            if (!catalog.ItemClasses.Any(c => c.Id == line.ClassId)) continue;
-            Add(line.ClassId, line.Pattern ?? SafetyPattern(line.Line), line.Line, line.Kind ?? "mod");
-        }
-        // Fallback for a catalog pattern that the vendor builder could not
-        // render (e.g. a new translation shape): keep the representative line
-        // so recall never silently disappears. Normally every catalog pattern
-        // is already covered by an actual display form above.
-        foreach (var mod in catalog.Mods)
-        {
-            var kind = SectionKindForGeneration(mod.GenerationType);
-            foreach (var cls in mod.Classes)
-            {
-                if (!patternsByClass.TryGetValue(cls, out var present)) continue;
-                foreach (var sl in mod.StatLines)
-                    if (!present.Contains(sl.Pattern)) Add(cls, sl.Pattern, sl.Line, kind);
+                catalogPatterns.Add(sl.Pattern);
+                if (!patterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
             }
         }
 
-        var result = new Dictionary<string, ClassIndex>();
-        foreach (var cls in catalog.ItemClasses)
-        {
-            var patterns = patternsByClass.GetValueOrDefault(cls.Id) ?? new HashSet<string>();
-            var classLinePattern = CatalogLineNormalizer.Normalize($"Item Class: {cls.Name}");
-            foreach (var u in UniversalLines) patterns.Add(CatalogLineNormalizer.Normalize(u));
-            var corpus = new List<string>(patterns) { classLinePattern };
-            corpus.Sort(StringComparer.Ordinal);
+        var corpus = patterns.ToList();
+        corpus.Sort(StringComparer.Ordinal);
+        var classLinePattern = CatalogLineNormalizer.Normalize(classLine);
+        var classLineIndex = corpus.IndexOf(classLinePattern);
+        var patternToIndex = new Dictionary<string, int>(corpus.Count, StringComparer.Ordinal);
+        for (var i = 0; i < corpus.Count; i++) patternToIndex[corpus[i]] = i;
 
-            var classLineIndex = corpus.IndexOf(classLinePattern);
-            var patternToIndex = new Dictionary<string, int>();
-            for (var i = 0; i < corpus.Count; i++) patternToIndex[corpus[i]] = i;
-            var catalogPatterns = catalog.Mods.Where(m => m.Classes.Contains(cls.Id))
-                .SelectMany(m => m.StatLines).Select(sl => sl.Pattern)
-                .Concat(UniversalPatterns)
-                .Append(classLinePattern)
-                .ToHashSet(StringComparer.Ordinal);
-            var safetyOnly = patterns.Where(p => !catalogPatterns.Contains(p)).ToHashSet(StringComparer.Ordinal);
-
-            var allReal = allRealByClass.GetValueOrDefault(cls.Id) ?? new List<(string, string, string)>();
-            var sortedReal = allReal
-                .Select(x => (x.Pattern, x.Real))
-                .Distinct()
-                .OrderBy(x => x.Pattern, StringComparer.Ordinal)
-                .ThenBy(x => x.Real, StringComparer.Ordinal)
-                .ToList();
-            result[cls.Id] = new ClassIndex(
-                corpus,
-                classLineIndex,
-                patternToIndex,
-                safetyOnly,
-                sortedReal);
-        }
-        return result;
+        var catalogSafety = new HashSet<string>(catalogPatterns, StringComparer.Ordinal);
+        catalogSafety.UnionWith(UniversalPatterns);
+        catalogSafety.Add(classLinePattern);
+        var safetyOnly = patterns.Where(p => !catalogSafety.Contains(p))
+            .ToHashSet(StringComparer.Ordinal);
+        var sortedReal = reals
+            .OrderBy(x => x.Pattern, StringComparer.Ordinal)
+            .ThenBy(x => x.Real, StringComparer.Ordinal)
+            .ToList();
+        return new ClassIndex(corpus, classLineIndex, patternToIndex, safetyOnly, sortedReal);
     }
 }
 

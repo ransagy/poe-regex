@@ -377,6 +377,34 @@ public sealed class EngineService
     {
         if (itemClass is null) _corpus.RealLinesGlobal();
         else _corpus.RealLinesForClass(itemClass);
+        _warmedValueScopes[itemClass ?? "global"] = 1;
+        _valuePathReady = true;
+    }
+
+    private volatile bool _valuePathReady;
+    private readonly ConcurrentDictionary<string, byte> _warmedValueScopes = new(StringComparer.Ordinal);
+    private Task<VendorCorpusFile?>? _vendorLoadTask;
+
+    /// <summary>True once the value corpus is loaded.</summary>
+    public bool ValuePathReady => _valuePathReady;
+
+    /// <summary>True when this exact scope's real lines are already built.</summary>
+    public bool IsValueScopeReady(string? itemClass) =>
+        _valuePathReady && _warmedValueScopes.ContainsKey(itemClass ?? "global");
+
+    /// <summary>
+    /// Browser warm-up: load the vendor corpus through the yielding stream,
+    /// then build the requested scope's real lines. Safe to call repeatedly;
+    /// the corpus load is shared and the line build is a cheap cached lookup.
+    /// </summary>
+    public async Task PrewarmValuePathAsync(string? itemClass)
+    {
+        _vendorLoadTask ??= VendorCorpus.ForCurrentGameAsync();
+        await _vendorLoadTask.ConfigureAwait(false);
+        if (itemClass is null) await _corpus.PrewarmGlobalLinesAsync().ConfigureAwait(false);
+        else _corpus.RealLinesForClass(itemClass);
+        _warmedValueScopes[itemClass ?? "global"] = 1;
+        _valuePathReady = true;
     }
 
     /// <summary>

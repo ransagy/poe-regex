@@ -104,6 +104,7 @@ public class PickerPolishTests
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
+        engine.PrewarmValuePath(null);
         var state = new WorkbenchState();
         state.AddInclude(null, new WantedMod("IncreasedLife6")); // supports a min
         state.AddInclude(null, new WantedMod("MovementVelocity1", ["Runner's"])); // name pick
@@ -142,6 +143,7 @@ public class PickerPolishTests
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
+        engine.PrewarmValuePath("Ring");
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.SelectSlot("ring1");
@@ -159,6 +161,21 @@ public class PickerPolishTests
 
         cut.Find("#min-ring1-IncreasedLife6").Should().NotBeNull();
         cut.FindAll(".bd-min").Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Engine_ValuePathReady_GatesTheExactMinProbe()
+    {
+        var engine = new EngineService();
+        engine.ValuePathReady.Should().BeFalse("drawing a chip must not load the value corpus");
+        engine.MayAcceptMin(new WantedMod("IncreasedLife6")).Should().BeTrue();
+
+        await engine.PrewarmValuePathAsync(null);
+
+        engine.ValuePathReady.Should().BeTrue();
+        engine.IsValueScopeReady(null).Should().BeTrue();
+        engine.IsValueScopeReady("Ring").Should().BeFalse("only the warmed scope may probe");
+        engine.CanApplyMin(new WantedMod("IncreasedLife6"), null).Should().BeTrue();
     }
 
     [Fact]
