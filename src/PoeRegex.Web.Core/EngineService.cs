@@ -23,6 +23,8 @@ public sealed class EngineService
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
     private readonly ConcurrentDictionary<(string PickKey, string? ItemClass), bool> _minCapable = new();
+    private readonly ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<string?>> _pickFragments = new();
+    private readonly ConcurrentDictionary<string, Lazy<string?>> _excludeFragments = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
@@ -335,18 +337,23 @@ public sealed class EngineService
     public bool CanApplyMin(WantedMod pick, string? itemClass)
     {
         if (!MayAcceptMin(pick)) return false;
-        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
-        var key = (string.Join('\u0001', ids), itemClass);
-        return _minCapable.GetOrAdd(key, _ =>
-        {
-            // Probe with the smallest useful value: a threshold at 1 matches
-            // every roll >= 1, so it only differs when the build path can
-            // actually replace the value token with a range.
-            var baseQuery = Compile(pick.Requirements(), [], itemClass: itemClass, allowOverflow: true).Query;
-            var minQuery = Compile((pick with { MinValue = 1 }).Requirements(), [],
-                itemClass: itemClass, allowOverflow: true).Query;
-            return !string.Equals(baseQuery, minQuery, StringComparison.Ordinal);
-        });
+        var key = FragmentTable.MinCapableKey(pick.ModId, pick.VariantModIds);
+        if (_corpus.IsPrecomputedMinCapable(itemClass, key)) return true;
+        return _minCapable.GetOrAdd(
+            (key, itemClass),
+            _ => MinCapability.Probe(_compiler, FindMod, pick, itemClass));
+    }
+
+    /// <summary>
+    /// Exact capability from the shipped table, or null when the key is not
+    /// present (stale/older table) so the caller can fall back to the probe.
+    /// Name picks are known-false without consulting the table.
+    /// </summary>
+    public bool? PrecomputedMinCapability(WantedMod pick, string? itemClass)
+    {
+        if (!MayAcceptMin(pick)) return false;
+        var key = FragmentTable.MinCapableKey(pick.ModId, pick.VariantModIds);
+        return _corpus.IsPrecomputedMinCapable(itemClass, key) ? true : null;
     }
 
     /// <summary>
@@ -355,18 +362,8 @@ public sealed class EngineService
     /// fragment probe in <see cref="CanApplyMin"/> then decides whether the
     /// minimum actually changes the compiled text.
     /// </summary>
-    public bool MayAcceptMin(WantedMod pick)
-    {
-        if (pick.IsNamePick) return false;
-        var ids = pick.VariantModIds is { Count: > 0 } ? pick.VariantModIds : [pick.ModId];
-        foreach (var id in ids)
-        {
-            var mod = FindMod(id);
-            if (mod is not { StatLines.Count: 1 }) return false;
-            if (!mod.StatLines[0].Pattern.Contains(SuffixIndex.DigitPlaceholder)) return false;
-        }
-        return ids.Count > 0;
-    }
+    public bool MayAcceptMin(WantedMod pick) =>
+        MinCapability.MayAcceptMin(pick, FindMod);
 
     /// <summary>
     /// Warm the lazy real-line corpus used by value thresholds, so the first
@@ -377,6 +374,69 @@ public sealed class EngineService
     {
         if (itemClass is null) _corpus.RealLinesGlobal();
         else _corpus.RealLinesForClass(itemClass);
+        _warmedValueScopes[itemClass ?? "global"] = 1;
+        _valuePathReady = true;
+    }
+
+    private volatile bool _valuePathReady;
+    private readonly ConcurrentDictionary<string, byte> _warmedValueScopes = new(StringComparer.Ordinal);
+    private Task<VendorCorpusFile?>? _vendorLoadTask;
+
+    /// <summary>True once the value corpus is loaded.</summary>
+    public bool ValuePathReady => _valuePathReady;
+
+    /// <summary>True when this exact scope's real lines are already built.</summary>
+    public bool IsValueScopeReady(string? itemClass) =>
+        _valuePathReady && _warmedValueScopes.ContainsKey(itemClass ?? "global");
+
+    /// <summary>
+    /// Browser warm-up: load the vendor corpus through the yielding stream,
+    /// then build the requested scope's real lines. Safe to call repeatedly;
+    /// the corpus load is shared and the line build is a cheap cached lookup.
+    /// </summary>
+    public async Task PrewarmValuePathAsync(string? itemClass)
+    {
+        _vendorLoadTask ??= VendorCorpus.ForCurrentGameAsync();
+        await _vendorLoadTask.ConfigureAwait(false);
+        if (itemClass is null)
+            await _corpus.PrewarmGlobalLinesAsync().ConfigureAwait(false);
+        else
+        {
+            await _corpus.PrewarmVendorByClassAsync().ConfigureAwait(false);
+            _corpus.RealLinesForClass(itemClass);
+        }
+        _warmedValueScopes[itemClass ?? "global"] = 1;
+        _valuePathReady = true;
+    }
+
+    /// <summary>Fragment one pick compiles to on its own, cached across models.</summary>
+    public string? PickFragment(WantedMod pick, string? cls) =>
+        _pickFragments.GetOrAdd(
+            (pick, cls),
+            key => new Lazy<string?>(() => ComputePickFragment(key.Pick, key.Class))).Value;
+
+    private string? ComputePickFragment(WantedMod pick, string? cls)
+    {
+        var result = Compile(pick.Requirements(), [], itemClass: cls, allowOverflow: true);
+        return Explainer.Tokenize(result.Query)
+            .Where(t => !t.Excluded)
+            .Select(t => t.Phrase)
+            .Skip(cls is null ? 0 : 1)
+            .FirstOrDefault();
+    }
+
+    public string? ExcludeFragment(string exc) =>
+        _excludeFragments.GetOrAdd(
+            exc,
+            key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
+
+    private string? ComputeExcludeFragment(string exc)
+    {
+        var result = Compile([], [new ModifierRequirement(exc)], allowOverflow: true);
+        return Explainer.Tokenize(result.Query)
+            .Where(t => t.Excluded)
+            .Select(t => t.Phrase)
+            .FirstOrDefault();
     }
 
     /// <summary>

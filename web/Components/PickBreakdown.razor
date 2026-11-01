@@ -190,7 +190,7 @@
                                    value="@inc.MinValue?.ToString(CultureInfo.InvariantCulture)"
                                    title="@(busy ? "Applying the minimum…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher (a longer fragment)")"
                                    aria-label="@($"Minimum value for {label}")"
-                                   @onchange="e => SetMin(slot, inc, e)" />
+                                   @onchange="e => SetMin(slot, inc, cls, e)" />
                         }
                         else
                         {
@@ -243,10 +243,16 @@
         }
     };
 
-    /// <summary>A minimum is offered only when it changes the compiled fragment safely.</summary>
-    private bool AcceptsMin(WantedMod pick, string? cls) => Engine.CanApplyMin(pick, cls);
+    /// <summary>
+    /// Prefer the shipped capability table so the box appears immediately and
+    /// drawing a chip never triggers the value corpus. A missing table entry
+    /// falls back to the live probe only after the scope is warm.
+    /// </summary>
+    private bool AcceptsMin(WantedMod pick, string? cls) =>
+        Engine.PrecomputedMinCapability(pick, cls)
+        ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
 
-    private async Task SetMin(string? slot, WantedMod pick, ChangeEventArgs e)
+    private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
     {
         var text = e.Value?.ToString()?.Trim();
         double? value = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
@@ -256,7 +262,9 @@
         // the first minimum never looks like a frozen input.
         _minBusy = pick;
         await InvokeAsync(StateHasChanged);
-        await Task.Yield();
+        // A min typed before the background warm-up finishes waits for the
+        // chunked corpus load instead of blocking the UI thread.
+        await Engine.PrewarmValuePathAsync(cls);
         State.SetMinValue(slot, pick, value);
         _minBusy = null;
         await InvokeAsync(StateHasChanged);

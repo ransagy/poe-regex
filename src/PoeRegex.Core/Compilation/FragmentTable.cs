@@ -56,6 +56,19 @@ public sealed class FragmentTable
     public Dictionary<string, Dictionary<string, string>> ByClassUnresolved { get; init; } =
         new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Picks whose min-value probe changes the compiled fragment. Only true
+    /// entries are stored; a missing key falls back to the live probe.
+    /// </summary>
+    public MinCapableTable MinCapable { get; init; } = new();
+
+    /// <summary>Stable table key: the plain mod id or the sorted variant ids.</summary>
+    public static string MinCapableKey(string modId, IReadOnlyList<string>? variantIds)
+    {
+        if (variantIds is not { Count: > 0 }) return modId;
+        return string.Join('\u0001', variantIds.OrderBy(x => x, StringComparer.Ordinal));
+    }
+
     public bool TryGet(string? scope, string pattern, out string? fragment)
     {
         if (scope is null) return Global.TryGetValue(pattern, out fragment);
@@ -68,6 +81,23 @@ public sealed class FragmentTable
     {
         if (scope is null) return GlobalUnresolved.GetValueOrDefault(pattern);
         return ByClassUnresolved.TryGetValue(scope, out var map) ? map.GetValueOrDefault(pattern) : null;
+    }
+}
+
+/// <summary>Picks whose minimum changes the compiled fragment, by scope.</summary>
+public sealed class MinCapableTable
+{
+    public HashSet<string> Global { get; init; } = new(StringComparer.Ordinal);
+    public Dictionary<string, HashSet<string>> ByClass { get; init; } =
+        new(StringComparer.Ordinal);
+
+    public bool TryGet(string? scope, string key, out bool capable)
+    {
+        var set = scope is null
+            ? Global
+            : ByClass.TryGetValue(scope, out var byClass) ? byClass : null;
+        capable = set?.Contains(key) == true;
+        return capable;
     }
 }
 

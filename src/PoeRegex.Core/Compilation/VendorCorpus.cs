@@ -20,9 +20,9 @@ public sealed record VendorLine(
 
 public sealed class VendorCorpusFile
 {
-    [JsonPropertyName("game")] public required string Game { get; init; }
-    [JsonPropertyName("dataVersion")] public required string DataVersion { get; init; }
-    [JsonPropertyName("lines")] public required IReadOnlyList<VendorLine> Lines { get; init; }
+    [property: JsonPropertyName("game")] public required string Game { get; init; }
+    [property: JsonPropertyName("dataVersion")] public required string DataVersion { get; init; }
+    [property: JsonPropertyName("lines")] public required IReadOnlyList<VendorLine> Lines { get; init; }
 }
 
 /// <summary>
@@ -32,12 +32,42 @@ public sealed class VendorCorpusFile
 /// </summary>
 public static class VendorCorpus
 {
-    private static readonly Lazy<VendorCorpusFile?> PoE2 =
-        new(() => Load("PoeRegex.Core.catalogs.poe2.vendor-corpus.json"));
+    private const string ResourceName = "PoeRegex.Core.catalogs.poe2.vendor-corpus.json";
+    private static readonly object CacheLock = new();
+    private static VendorCorpusFile? _cached;
+    private static Task<VendorCorpusFile?>? _loadTask;
 
-    public static VendorCorpusFile? ForCurrentGame => PoE2.Value;
+    /// <summary>Synchronous load for tests, CLI, and data builds.</summary>
+    public static VendorCorpusFile? ForCurrentGame
+    {
+        get
+        {
+            if (_cached is not null) return _cached;
+            lock (CacheLock)
+            {
+                if (_cached is not null) return _cached;
+                _cached = LoadSync(ResourceName);
+                return _cached;
+            }
+        }
+    }
 
-    private static VendorCorpusFile? Load(string resourceName)
+    /// <summary>
+    /// Browser load. The deserializer reads through <see cref="YieldingStream"/>,
+    /// which yields between small chunks so the 14.5 MB corpus never becomes a
+    /// single long task on the WASM main thread.
+    /// </summary>
+    public static Task<VendorCorpusFile?> ForCurrentGameAsync()
+    {
+        if (_cached is not null) return Task.FromResult<VendorCorpusFile?>(_cached);
+        lock (CacheLock)
+        {
+            if (_cached is not null) return Task.FromResult<VendorCorpusFile?>(_cached);
+            return _loadTask ??= LoadAsync(ResourceName);
+        }
+    }
+
+    private static VendorCorpusFile? LoadSync(string resourceName)
     {
         using var stream = typeof(VendorCorpus).Assembly.GetManifestResourceStream(resourceName);
         if (stream is null) return null;
@@ -50,4 +80,82 @@ public static class VendorCorpus
             return null;
         }
     }
+
+    private static async Task<VendorCorpusFile?> LoadAsync(string resourceName)
+    {
+        using var stream = typeof(VendorCorpus).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null) return null;
+        try
+        {
+            // Read the resource once, then parse only the lines array. The
+            // browser can paint between element chunks; the array slice also
+            // avoids the deserializer's many tiny reads on the embedded stream.
+            byte[] json;
+            if (stream.CanSeek && stream.Length > 0 && stream.Length <= int.MaxValue)
+            {
+                json = new byte[stream.Length];
+                stream.ReadExactly(json);
+            }
+            else
+            {
+                using var buffer = new MemoryStream();
+                stream.CopyTo(buffer);
+                json = buffer.ToArray();
+            }
+            var (start, length, game, dataVersion) = FindLinesArray(json);
+            using var array = new MemoryStream(json, start, length, writable: false);
+            var lines = new List<VendorLine>(110_000);
+            var count = 0;
+            await foreach (var line in JsonSerializer.DeserializeAsyncEnumerable(
+                array, CatalogJsonContext.Default.VendorLine).ConfigureAwait(false))
+            {
+                lines.Add(line!);
+                if (++count % 500 == 0) await Task.Delay(1).ConfigureAwait(false);
+            }
+            var result = new VendorCorpusFile
+            {
+                Game = game,
+                DataVersion = dataVersion,
+                Lines = lines,
+            };
+            _cached = result;
+            return result;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static (int Start, int Length, string Game, string DataVersion) FindLinesArray(byte[] json)
+    {
+        var reader = new Utf8JsonReader(json);
+        string? game = null;
+        string? dataVersion = null;
+        while (reader.Read())
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName) continue;
+            if (reader.ValueTextEquals("game"))
+            {
+                reader.Read();
+                game = reader.GetString();
+            }
+            else if (reader.ValueTextEquals("dataVersion"))
+            {
+                reader.Read();
+                dataVersion = reader.GetString();
+            }
+            else if (reader.ValueTextEquals("lines"))
+            {
+                if (!reader.Read() || reader.TokenType != JsonTokenType.StartArray)
+                    throw new JsonException("lines is not an array");
+                var start = (int)reader.TokenStartIndex;
+                reader.Skip();
+                var length = (int)reader.BytesConsumed - start;
+                return (start, length, game ?? "", dataVersion ?? "");
+            }
+        }
+        throw new JsonException("lines array not found");
+    }
+
 }

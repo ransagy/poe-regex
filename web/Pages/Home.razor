@@ -3,6 +3,7 @@
 @using PoeRegex.Core.Compilation
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
+@using web.Services
 @inject EngineService Engine
 @inject WorkbenchState State
 @inject web.Services.PersistenceService Persistence
@@ -255,7 +256,7 @@
     private bool _disposed;
     private ElementReference _staleReload;
     private DotNetObjectReference<Home>? _tabRef;
-    private string? _warmKey;
+    private readonly HashSet<string> _warmedValueKeys = new(StringComparer.Ordinal);
     private bool _warmScheduled;
 
     protected override void OnInitialized()
@@ -445,42 +446,46 @@
     private void ScheduleValuePrewarm()
     {
         if (_disposed || _warmScheduled) return;
-        var (key, itemClass) = PrewarmTarget();
-        if (key is null || string.Equals(key, _warmKey, StringComparison.Ordinal)) return;
+        var targets = ValuePrewarmTargets.For(State, Engine)
+            .Where(t => !_warmedValueKeys.Contains(t.Key))
+            .ToList();
+        if (targets.Count == 0) return;
         _warmScheduled = true;
-        _ = PrewarmAsync(key, itemClass);
+        _ = PrewarmAsync(targets);
     }
 
-    private (string? Key, string? ItemClass) PrewarmTarget()
-    {
-        if (State.Mode == "simple")
-            return State.Global.Included.Any(Engine.MayAcceptMin)
-                ? ("simple|global", null)
-                : (null, null);
-        if (State.FocusedSlot is { } slot)
-        {
-            var cls = State.SlotClassOrDefault(slot);
-            return State.CriteriaFor(slot).Included.Any(Engine.MayAcceptMin)
-                ? ($"advanced|{cls}", cls)
-                : (null, null);
-        }
-        return (null, null);
-    }
-
-    private async Task PrewarmAsync(string key, string? itemClass)
+    private async Task PrewarmAsync(IReadOnlyList<(string Key, string? ItemClass)> targets)
     {
         try
         {
             // Let the pick that triggered this paint first.
             await Task.Yield();
             if (_disposed) return;
-            Engine.PrewarmValuePath(itemClass);
-            _warmKey = key;
+            foreach (var (key, itemClass) in targets)
+            {
+                if (_warmedValueKeys.Contains(key)) continue;
+                try
+                {
+                    await Engine.PrewarmValuePathAsync(itemClass);
+                }
+                catch
+                {
+                    // Warm-up is best effort; remember the attempt so a failed
+                    // scope does not retry forever.
+                }
+                _warmedValueKeys.Add(key);
+                if (_disposed) return;
+                // Show this scope's min boxes before starting the next class.
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1);
+            }
         }
         finally
         {
             _warmScheduled = false;
         }
+        // New picks/classes may have appeared while the corpus was loading.
+        if (!_disposed) ScheduleValuePrewarm();
     }
 
     private async Task CopyBar(string query)

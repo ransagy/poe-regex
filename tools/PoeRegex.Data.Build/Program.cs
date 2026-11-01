@@ -256,6 +256,7 @@ public static class Program
         var groups = ClassGroupOptimizer.Build(
             corpus, inGameWithMods.Select(c => c.Id).ToList());
 
+        var compiler = new PoeRegexCompiler(corpus);
         var table = new FragmentTable
         {
             Game = catalog.Game,
@@ -266,6 +267,7 @@ public static class Program
             ClassAnchors = anchors,
             ClassPrefixes = prefixes,
             ClassGroups = groups,
+            MinCapable = MinCapabilityBuilder.Build(catalog, corpus, compiler),
         };
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, JsonSerializer.Serialize(table, new JsonSerializerOptions
