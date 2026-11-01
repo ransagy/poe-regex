@@ -61,6 +61,22 @@ flow, with per-item candidate pickers; edits are remembered per item and
 check and backpack-full are reported per card). Unmapped implicit lines stay
 quiet: the catalog holds affixes only and implicits never count in the rules.
 
+## Import a search string or guide filter
+
+**Import string** has two modes:
+
+- **App string** — paste a query this app produced. The preview reconstructs
+  the picks and renders the real Your-picks view; Apply replaces the workbench.
+  This is the byte-identical round-trip path.
+- **Guide filter** — paste a build-guide filter line. Top-level `|` branches
+  become picks through exact names, exact fragments, or scored mod-family
+  matches. Multi-family branches show a candidate select; unknown/base/vendor
+  branches are dropped with a warning. Guide apply is simple/global only.
+
+Current guide limits: base/vendor names, guide exclusions, and explicit class
+anchors are follow-ups. App-string import covers multi-class pastes, exclusions,
+and all-of.
+
 ## Test
 
 ```sh
