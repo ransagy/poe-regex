@@ -90,9 +90,18 @@ public static class VendorCorpus
             // Read the resource once, then parse only the lines array. The
             // browser can paint between element chunks; the array slice also
             // avoids the deserializer's many tiny reads on the embedded stream.
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            var json = buffer.ToArray();
+            byte[] json;
+            if (stream.CanSeek && stream.Length > 0 && stream.Length <= int.MaxValue)
+            {
+                json = new byte[stream.Length];
+                stream.ReadExactly(json);
+            }
+            else
+            {
+                using var buffer = new MemoryStream();
+                stream.CopyTo(buffer);
+                json = buffer.ToArray();
+            }
             var (start, length, game, dataVersion) = FindLinesArray(json);
             using var array = new MemoryStream(json, start, length, writable: false);
             var lines = new List<VendorLine>(110_000);

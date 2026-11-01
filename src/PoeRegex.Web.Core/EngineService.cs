@@ -23,6 +23,8 @@ public sealed class EngineService
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
     private readonly ConcurrentDictionary<(string PickKey, string? ItemClass), bool> _minCapable = new();
+    private readonly ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<string?>> _pickFragments = new();
+    private readonly ConcurrentDictionary<string, Lazy<string?>> _excludeFragments = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
@@ -401,10 +403,45 @@ public sealed class EngineService
     {
         _vendorLoadTask ??= VendorCorpus.ForCurrentGameAsync();
         await _vendorLoadTask.ConfigureAwait(false);
-        if (itemClass is null) await _corpus.PrewarmGlobalLinesAsync().ConfigureAwait(false);
-        else _corpus.RealLinesForClass(itemClass);
+        if (itemClass is null)
+            await _corpus.PrewarmGlobalLinesAsync().ConfigureAwait(false);
+        else
+        {
+            await _corpus.PrewarmVendorByClassAsync().ConfigureAwait(false);
+            _corpus.RealLinesForClass(itemClass);
+        }
         _warmedValueScopes[itemClass ?? "global"] = 1;
         _valuePathReady = true;
+    }
+
+    /// <summary>Fragment one pick compiles to on its own, cached across models.</summary>
+    public string? PickFragment(WantedMod pick, string? cls) =>
+        _pickFragments.GetOrAdd(
+            (pick, cls),
+            key => new Lazy<string?>(() => ComputePickFragment(key.Pick, key.Class))).Value;
+
+    private string? ComputePickFragment(WantedMod pick, string? cls)
+    {
+        var result = Compile(pick.Requirements(), [], itemClass: cls, allowOverflow: true);
+        return Explainer.Tokenize(result.Query)
+            .Where(t => !t.Excluded)
+            .Select(t => t.Phrase)
+            .Skip(cls is null ? 0 : 1)
+            .FirstOrDefault();
+    }
+
+    public string? ExcludeFragment(string exc) =>
+        _excludeFragments.GetOrAdd(
+            exc,
+            key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
+
+    private string? ComputeExcludeFragment(string exc)
+    {
+        var result = Compile([], [new ModifierRequirement(exc)], allowOverflow: true);
+        return Explainer.Tokenize(result.Query)
+            .Where(t => t.Excluded)
+            .Select(t => t.Phrase)
+            .FirstOrDefault();
     }
 
     /// <summary>

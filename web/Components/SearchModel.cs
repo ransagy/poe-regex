@@ -42,8 +42,6 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     private readonly HashSet<int> _hot = [];
     private readonly HashSet<int> _hotSegments = [];
     private readonly HashSet<WantedMod> _hotPicks = [];
-    private readonly Dictionary<(WantedMod Pick, string? Class), string?> _pickFragments = [];
-    private readonly Dictionary<string, string?> _excludeFragments = new(StringComparer.Ordinal);
 
     public void Update(CompileResult? simple, MultiPasteResult? paste)
     {
@@ -310,24 +308,9 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         Paste?.MergedToAnyClasses.Contains(cls, StringComparer.Ordinal) == true;
 
     /// <summary>The fragment one pick compiles to on its own (cached).</summary>
-    public string? PickFragment(WantedMod pick, string? cls)
-    {
-        if (_pickFragments.TryGetValue((pick, cls), out var cached)) return cached;
-        var result = engine.Compile(pick.Requirements(), [], itemClass: cls, allowOverflow: true);
-        var frag = Explainer.Tokenize(result.Query).Where(t => !t.Excluded).Select(t => t.Phrase)
-            .Skip(cls is null ? 0 : 1).FirstOrDefault();
-        _pickFragments[(pick, cls)] = frag;
-        return frag;
-    }
+    public string? PickFragment(WantedMod pick, string? cls) => engine.PickFragment(pick, cls);
 
-    public string? ExcludeFragment(string exc)
-    {
-        if (_excludeFragments.TryGetValue(exc, out var cached)) return cached;
-        var result = engine.Compile([], [new ModifierRequirement(exc)], allowOverflow: true);
-        var frag = Explainer.Tokenize(result.Query).Where(t => t.Excluded).Select(t => t.Phrase).FirstOrDefault();
-        _excludeFragments[exc] = frag;
-        return frag;
-    }
+    public string? ExcludeFragment(string exc) => engine.ExcludeFragment(exc);
 
     public bool IsHot(int index) => _hot.Contains(index);
 

@@ -30,6 +30,18 @@ public class VendorCorpusTests
     }
 
     [Fact]
+    public async Task PrewarmVendorByClass_MatchesTheSynchronousClassLines()
+    {
+        var syncCorpus = new EngineCorpus(new EmbeddedCatalogSource().Load());
+        var expected = syncCorpus.RealLinesForClass("Ring");
+
+        var warmCorpus = new EngineCorpus(new EmbeddedCatalogSource().Load());
+        await warmCorpus.PrewarmVendorByClassAsync();
+
+        warmCorpus.RealLinesForClass("Ring").Should().Equal(expected);
+    }
+
+    [Fact]
     public async Task PrewarmGlobalLines_IsIdempotent()
     {
         var corpus = new EngineCorpus(new EmbeddedCatalogSource().Load());

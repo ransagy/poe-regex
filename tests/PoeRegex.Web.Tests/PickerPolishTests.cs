@@ -164,6 +164,51 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void ValuePrewarmTargets_SimpleScopeOnlyWhenMinCapable()
+    {
+        var engine = new EngineService();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+
+        var targets = ValuePrewarmTargets.For(state, engine);
+
+        targets.Should().ContainSingle();
+        targets[0].ItemClass.Should().BeNull();
+        targets[0].Key.Should().Be("simple|global");
+    }
+
+    [Fact]
+    public void ValuePrewarmTargets_WarmsEveryActiveAdvancedClass()
+    {
+        var engine = new EngineService();
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.AddInclude("ring1", new WantedMod("IncreasedLife6"));
+        state.AddInclude("helmet", new WantedMod("IncreasedLife6"));
+        state.AddInclude("boots", new WantedMod("MovementVelocity1", ["Runner's"]));
+
+        var targets = ValuePrewarmTargets.For(state, engine);
+
+        targets.Select(t => t.ItemClass).Should().BeEquivalentTo(["Ring", "Helmet"]);
+        targets.Select(t => t.Key).Should().BeEquivalentTo(["advanced|Ring", "advanced|Helmet"]);
+    }
+
+    [Fact]
+    public void ValuePrewarmTargets_DeduplicatesSameClassSlots()
+    {
+        var engine = new EngineService();
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.AddInclude("ring1", new WantedMod("IncreasedLife6"));
+        state.AddInclude("ring2", new WantedMod("IncreasedLife6"));
+
+        var targets = ValuePrewarmTargets.For(state, engine);
+
+        targets.Should().ContainSingle();
+        targets[0].ItemClass.Should().Be("Ring");
+    }
+
+    [Fact]
     public async Task Engine_ValuePathReady_GatesTheExactMinProbe()
     {
         var engine = new EngineService();

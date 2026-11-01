@@ -35,6 +35,7 @@ public sealed class EngineCorpus
     private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _globalByLiteral =
         new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
+    private Dictionary<string, List<VendorLine>>? _vendorByClass;
     private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _computedAnchors = new(StringComparer.Ordinal);
@@ -531,6 +532,52 @@ public sealed class EngineCorpus
             ? ci.AllRealLines.Where(x => !UniversalPatterns.Contains(x.Pattern)).ToList()
             : [];
 
+    /// <summary>Vendor lines bucketed by class, built once and shared by every class index.</summary>
+    private Dictionary<string, List<VendorLine>> VendorByClass =>
+        _vendorByClass ??= BuildVendorByClass();
+
+    private Dictionary<string, List<VendorLine>> BuildVendorByClass()
+    {
+        var map = new Dictionary<string, List<VendorLine>>(StringComparer.Ordinal);
+        foreach (var line in _vendorLines.Value)
+        {
+            if (line.ClassId is null) continue;
+            if (!map.TryGetValue(line.ClassId, out var list))
+            {
+                list = [];
+                map[line.ClassId] = list;
+            }
+            list.Add(line);
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// Browser warm-up for the per-class index: bucket the vendor lines once
+    /// over yields instead of rescanning all 110k lines for every class.
+    /// </summary>
+    public async Task PrewarmVendorByClassAsync()
+    {
+        if (_vendorByClass is not null) return;
+        var map = new Dictionary<string, List<VendorLine>>(StringComparer.Ordinal);
+        var lines = _vendorLines.Value;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            if (line.ClassId is not null)
+            {
+                if (!map.TryGetValue(line.ClassId, out var list))
+                {
+                    list = [];
+                    map[line.ClassId] = list;
+                }
+                list.Add(line);
+            }
+            if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
+        }
+        _vendorByClass = map;
+    }
+
     /// <summary>
     /// Union corpus over released classes only (global scope).
     /// </summary>
@@ -546,18 +593,21 @@ public sealed class EngineCorpus
     {
         if (_globalLines is not null) return;
         var vendor = _vendorLines.Value;
-        var vendorCount = vendor.Count;
-        var vendorPatterns = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i < vendorCount; i++)
+        var inGame = new List<VendorLine>(vendor.Count);
+        for (var i = 0; i < vendor.Count; i++)
         {
             var line = vendor[i];
             if (line.ClassId is not null && !_inGameClassIds.Contains(line.ClassId)) continue;
-            if (!string.IsNullOrWhiteSpace(line.Pattern)) vendorPatterns.Add(line.Pattern!);
+            inGame.Add(line);
             if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
         }
 
+        var vendorPatterns = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var line in inGame)
+            if (!string.IsNullOrWhiteSpace(line.Pattern)) vendorPatterns.Add(line.Pattern!);
+
         var seen = new HashSet<(string Pattern, string Real)>();
-        var result = new List<(string Pattern, string Real)>(vendorCount + _inGameMods.Count);
+        var result = new List<(string Pattern, string Real)>(inGame.Count + _inGameMods.Count);
         void Add(string pattern, string real)
         {
             if (seen.Add((pattern, real))) result.Add((pattern, real));
@@ -573,10 +623,9 @@ public sealed class EngineCorpus
             var line = $"Item Class: {cls.Name}";
             Add(CatalogLineNormalizer.Normalize(line), line);
         }
-        for (var i = 0; i < vendorCount; i++)
+        for (var i = 0; i < inGame.Count; i++)
         {
-            var line = vendor[i];
-            if (line.ClassId is not null && !_inGameClassIds.Contains(line.ClassId)) continue;
+            var line = inGame[i];
             Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
             if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
         }
@@ -980,10 +1029,10 @@ public sealed class EngineCorpus
             Add(CatalogLineNormalizer.Normalize(u), u);
         var classLine = $"Item Class: {cls.Name}";
         Add(CatalogLineNormalizer.Normalize(classLine), classLine);
-        foreach (var line in _vendorLines.Value)
+        if (VendorByClass.TryGetValue(classId, out var classVendor))
         {
-            if (!string.Equals(line.ClassId, classId, StringComparison.Ordinal)) continue;
-            Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
+            foreach (var line in classVendor)
+                Add(line.Pattern ?? SafetyPattern(line.Line), line.Line);
         }
         var catalogPatterns = new HashSet<string>(StringComparer.Ordinal);
         foreach (var mod in _catalog.Mods)
