@@ -87,9 +87,28 @@ public static class VendorCorpus
         if (stream is null) return null;
         try
         {
-            using var yielding = new YieldingStream(stream);
-            var result = await JsonSerializer.DeserializeAsync(
-                yielding, CatalogJsonContext.Default.VendorCorpusFile).ConfigureAwait(false);
+            // Read the resource once, then parse only the lines array. The
+            // browser can paint between element chunks; the array slice also
+            // avoids the deserializer's many tiny reads on the embedded stream.
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            var json = buffer.ToArray();
+            var (start, length, game, dataVersion) = FindLinesArray(json);
+            using var array = new MemoryStream(json, start, length, writable: false);
+            var lines = new List<VendorLine>(110_000);
+            var count = 0;
+            await foreach (var line in JsonSerializer.DeserializeAsyncEnumerable(
+                array, CatalogJsonContext.Default.VendorLine).ConfigureAwait(false))
+            {
+                lines.Add(line!);
+                if ((++count & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
+            }
+            var result = new VendorCorpusFile
+            {
+                Game = game,
+                DataVersion = dataVersion,
+                Lines = lines,
+            };
             _cached = result;
             return result;
         }
@@ -99,49 +118,35 @@ public static class VendorCorpus
         }
     }
 
-    /// <summary>
-    /// Caps reads to 64 KiB and yields after each one. The JSON deserializer
-    /// calls <c>ReadAsync</c> repeatedly, so the browser gets a chance to paint
-    /// and handle input between chunks.
-    /// </summary>
-    private sealed class YieldingStream(Stream inner, int chunkSize = 64 * 1024) : Stream
+    private static (int Start, int Length, string Game, string DataVersion) FindLinesArray(byte[] json)
     {
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-        public override long Position
+        var reader = new Utf8JsonReader(json);
+        string? game = null;
+        string? dataVersion = null;
+        while (reader.Read())
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            if (reader.TokenType != JsonTokenType.PropertyName) continue;
+            if (reader.ValueTextEquals("game"))
+            {
+                reader.Read();
+                game = reader.GetString();
+            }
+            else if (reader.ValueTextEquals("dataVersion"))
+            {
+                reader.Read();
+                dataVersion = reader.GetString();
+            }
+            else if (reader.ValueTextEquals("lines"))
+            {
+                if (!reader.Read() || reader.TokenType != JsonTokenType.StartArray)
+                    throw new JsonException("lines is not an array");
+                var start = (int)reader.TokenStartIndex;
+                reader.Skip();
+                var length = (int)reader.BytesConsumed - start;
+                return (start, length, game ?? "", dataVersion ?? "");
+            }
         }
-
-        public override void Flush() { }
-
-        public override int Read(byte[] buffer, int offset, int count) =>
-            inner.Read(buffer, offset, Math.Min(count, chunkSize));
-
-        public override async ValueTask<int> ReadAsync(
-            Memory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            var read = await inner.ReadAsync(
-                buffer[..Math.Min(buffer.Length, chunkSize)], cancellationToken).ConfigureAwait(false);
-            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-            return read;
-        }
-
-        public override Task<int> ReadAsync(
-            byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
-            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing) inner.Dispose();
-            base.Dispose(disposing);
-        }
+        throw new JsonException("lines array not found");
     }
+
 }
