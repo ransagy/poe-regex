@@ -390,7 +390,19 @@ input:disabled { opacity: 0.5; }
 .suggest-row.fam-row { min-height: 2.15rem; padding: 0.1rem 0.15rem 0.1rem 0.35rem; border-bottom: 1px solid var(--line); }
 .suggest-row.fam-row:hover { background: var(--surface); }
 .suggest-row.fam-row.picked { background: var(--mod-soft); }
+.suggest-row.tier-row.covered { background: var(--surface); }
+.suggest-row.tier-row.covered .tier-name { color: var(--mod); }
+.suggest-row.fam-row.excluded, .suggest-row.tier-row.excluded {
+    background: var(--no-soft);
+}
+.suggest-row.fam-row.picked.excluded, .suggest-row.tier-row.picked.excluded {
+    background: linear-gradient(90deg, var(--mod-soft), var(--no-soft));
+}
 .picked-count { flex: none; color: var(--ember); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.excluded-count { flex: none; color: var(--no); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.summary-sep { flex: none; color: var(--faint); }
+.covered-note { flex: none; color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+.excluded .fam-text, .excluded .tier-name { color: var(--text); }
 .suggest-line { flex: 1; min-width: 0; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .suggest-line.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -425,9 +437,11 @@ input:disabled { opacity: 0.5; }
 }
 .suggest-row:hover > button:not(.fam-toggle) { border-color: var(--line-strong); }
 .suggest-row > button:not(.fam-toggle):hover:not(:disabled) { color: var(--mod); background: var(--mod-soft); border-color: rgba(154, 166, 255, 0.5); }
+.suggest-row > button.active { color: var(--mod); background: var(--mod-soft); border-color: var(--mod); }
 .suggest-row > button.exc { color: var(--faint); }
 .suggest-row > button.exc:hover:not(:disabled) { color: var(--no); background: var(--no-soft); border-color: rgba(236, 122, 101, 0.5); }
-.suggest-row > button:disabled { color: var(--mod); cursor: default; border-color: transparent; }
+.suggest-row > button.exc.active { color: var(--no); background: var(--no-soft); border-color: var(--no); }
+.suggest-row > button:disabled { color: var(--faint); cursor: not-allowed; border-color: transparent; opacity: 0.5; }
 .suggest-row > button.btn { width: 1.75rem; height: 1.75rem; }
 .suggest-row > button.btn:disabled { color: var(--faint); }
 
