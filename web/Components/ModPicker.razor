@@ -52,8 +52,8 @@
                         <ol class="suggest" aria-label="@header">
                             @foreach (var fam in list)
                             {
-                                var plainPick = fam.Pick();
                                 var pickedFamily = FamilyPicked(fam, crit.Included);
+                                var familyIncluded = FamilyPicks(fam, crit.Included).Count > 0;
                                 var pickedTiers = fam.Tiers.Count(t =>
                                     crit.Included.Any(m => TierPicked(t, m)));
                                 var excludedFamily = FamilyExcluded(fam, crit.Excluded);
@@ -80,10 +80,6 @@
                                                     }
                                                 }
                                             </span>
-                                            @if (pickedFamily)
-                                            {
-                                                <span class="state-badge included" title="This family is included">✓ Included</span>
-                                            }
                                             @if (excludedFamily)
                                             {
                                                 <span class="state-badge excluded" title="This family is excluded">⊘ Excluded</span>
@@ -102,9 +98,11 @@
                                                 <span class="excluded-count" title="@($"{excludedTiers} {(excludedTiers == 1 ? "tier" : "tiers")} excluded in this family")">@excludedTiers excluded</span>
                                             }
                                         </button>
-                                        <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)" aria-label="@FamilyIncludeTitle(fam)"
-                                                disabled="@pickedFamily"
-                                                @onclick="() => Include(plainPick)">@(pickedFamily ? "✓" : "+")</button>
+                                        <button id="pick-inc-@fam.Anchor.Id" class="inc @(familyIncluded ? "active" : "")"
+                                                title="@FamilyIncludeTitle(fam, familyIncluded)"
+                                                aria-label="@FamilyIncludeTitle(fam, familyIncluded)"
+                                                aria-pressed="@(familyIncluded ? "true" : "false")"
+                                                @onclick="() => ToggleFamilyInclude(fam)">@(familyIncluded ? "✓" : "+")</button>
                                         <button id="pick-exc-@fam.Anchor.Id" class="exc @(excludedFamily ? "active" : "")"
                                                 title="@FamilyExcludeTitle(fam, excludedFamily)"
                                                 aria-label="@FamilyExcludeTitle(fam, excludedFamily)"
@@ -116,14 +114,12 @@
                                         <ul class="tier-list">
                                             @foreach (var tier in fam.Tiers)
                                             {
-                                                var exactPick = new WantedMod(tier.Anchor.Id, [tier.Name]);
                                                 var upNames = fam.NamesFrom(tier);
-                                                var upPick = new WantedMod(tier.Anchor.Id, upNames);
-                                                var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
-                                                var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
-                                                var pickedTier = crit.Included.Any(m => TierPicked(tier, m));
+                                                var includedTier = TierExplicitPicks(fam, tier, crit.Included).Count > 0;
+                                                var upSelected = TierUpPicks(fam, tier, crit.Included).Count > 0;
+                                                var coveredByUp = TierCoveredByUp(fam, tier, crit.Included);
                                                 var excludedTier = TierExcluded(fam, tier, crit.Excluded);
-                                                <li class="suggest-row tier-row @(pickedTier ? "picked" : "") @(excludedTier ? "excluded" : "")">
+                                                <li class="suggest-row tier-row @(includedTier ? "picked" : "") @(coveredByUp ? "covered" : "") @(excludedTier ? "excluded" : "")">
                                                     <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
                                                         @foreach (var l in tier.DisplayLines)
                                                         {
@@ -131,22 +127,30 @@
                                                         }
                                                     </span>
                                                     <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
-                                                    @if (pickedTier)
+                                                    @if (includedTier)
                                                     {
-                                                        <span class="state-badge included" title="This tier is included">✓ Included</span>
+                                                        <span class="state-badge included" title="This tier is explicitly included">✓ Included</span>
+                                                    }
+                                                    @if (coveredByUp)
+                                                    {
+                                                        <span class="state-badge up" title="@(upSelected ? "This tier is the start of an or-better selection" : "Covered by an or-better selection below")">@(upSelected ? "↑ Or better" : "↑ Covered")</span>
                                                     }
                                                     @if (excludedTier)
                                                     {
                                                         <span class="state-badge excluded" title="This tier is excluded">⊘ Excluded</span>
                                                     }
-                                                    <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)" aria-label="@TierPickTitle(tier)"
-                                                            disabled="@pickedExact"
-                                                            @onclick="() => Include(exactPick)">@(pickedExact ? "✓" : "+")</button>
+                                                    <button id="pick-tier-@tier.Anchor.Id" class="inc @(includedTier ? "active" : "")"
+                                                            title="@TierPickTitle(tier, includedTier)"
+                                                            aria-label="@TierPickTitle(tier, includedTier)"
+                                                            aria-pressed="@(includedTier ? "true" : "false")"
+                                                            @onclick="() => ToggleTierExact(fam, tier)">@(includedTier ? "✓" : "+")</button>
                                                     @if (upNames.Count > 1)
                                                     {
-                                                        <button id="pick-tier-up-@tier.Anchor.Id" title="@TierUpTitle(tier, upNames)" aria-label="@TierUpTitle(tier, upNames)"
-                                                                disabled="@pickedUp"
-                                                                @onclick="() => Include(upPick)">↑</button>
+                                                        <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "")"
+                                                                title="@TierUpTitle(tier, upNames, upSelected)"
+                                                                aria-label="@TierUpTitle(tier, upNames, upSelected)"
+                                                                aria-pressed="@(upSelected ? "true" : "false")"
+                                                                @onclick="() => ToggleTierUp(fam, tier)">@(upSelected ? "✓" : "↑")</button>
                                                     }
                                                     <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(excludedTier ? "active" : "")"
                                                             title="@TierExcludeTitle(tier, excludedTier)"
@@ -364,6 +368,87 @@
                pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
     }
 
+    /// <summary>Whole-family picks, matched by family identity rather than exact equality.</summary>
+    private List<WantedMod> FamilyPicks(ModFamily fam, IReadOnlyList<WantedMod> included)
+    {
+        if (included.Count == 0) return [];
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return included.Where(pick => IsFamilyPick(fam, pick, memberIds)).ToList();
+    }
+
+    private bool IsFamilyPick(ModFamily fam, WantedMod pick, HashSet<string> memberIds)
+    {
+        if (pick.IsNamePick || pick.VariantModIds is not { Count: > 0 } variants) return false;
+        return variants.Any(memberIds.Contains) ||
+               variants.Any(id => SameFamilyAs(fam, id)) ||
+               SameFamilyAs(fam, pick.ModId);
+    }
+
+    /// <summary>Picks that explicitly choose this tier (a single affix name or a plain anchor).</summary>
+    private List<WantedMod> TierExplicitPicks(
+        ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
+    {
+        if (included.Count == 0) return [];
+        var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return included
+            .Where(pick => IsExplicitTierPick(fam, tier, pick, tierIds, memberIds))
+            .ToList();
+    }
+
+    private bool IsExplicitTierPick(
+        ModFamily fam, ModTier tier, WantedMod pick,
+        HashSet<string> tierIds, HashSet<string> memberIds)
+    {
+        if (pick.IsNamePick)
+        {
+            if (pick.Names!.Count != 1) return false;
+            if (!PickTouchesFamily(fam, pick, memberIds)) return false;
+            return tier.Name.Length > 0
+                ? string.Equals(pick.Names[0], tier.Name, StringComparison.Ordinal)
+                : tierIds.Contains(pick.ModId);
+        }
+        if (pick.VariantModIds is { Count: > 0 }) return false; // whole-family pick
+        if (tierIds.Contains(pick.ModId)) return true;
+        // Imported plain picks can be anchored to another scope's member.
+        var mod = Engine.FindMod(pick.ModId);
+        return mod is not null && tier.Name.Length > 0 && SameFamilyAs(fam, pick.ModId) &&
+               string.Equals(mod.Name ?? "", tier.Name, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Tier-or-better picks anchored at this tier. Their anchor is the lowest
+    /// covered tier, so choosing one lights the ↑ button on that row only;
+    /// better tiers are covered, not individually selected.
+    /// </summary>
+    private List<WantedMod> TierUpPicks(
+        ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
+    {
+        if (included.Count == 0) return [];
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return included
+            .Where(pick => IsUpPick(fam, pick, memberIds) &&
+                           UpAnchorTier(fam, pick) is { } anchor &&
+                           anchor.Anchor.Id == tier.Anchor.Id)
+            .ToList();
+    }
+
+    private bool IsUpPick(ModFamily fam, WantedMod pick, HashSet<string> memberIds) =>
+        pick.IsNamePick && pick.Names!.Count > 1 &&
+        PickTouchesFamily(fam, pick, memberIds);
+
+    private static ModTier? UpAnchorTier(ModFamily fam, WantedMod pick) =>
+        fam.Tiers.FirstOrDefault(t =>
+            t.Name.Length > 0 && pick.Names!.Contains(t.Name, StringComparer.Ordinal));
+
+    private bool TierCoveredByUp(ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
+    {
+        if (included.Count == 0 || tier.Name.Length == 0) return false;
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return included.Any(pick => IsUpPick(fam, pick, memberIds) &&
+                                    pick.Names!.Contains(tier.Name, StringComparer.Ordinal));
+    }
+
     /// <summary>
     /// Exclusions store either an affix name (picker tier excludes) or a mod
     /// id (imported/global excludes), so a family matches both its own ids
@@ -421,19 +506,32 @@
     private static string FamilyToggleTitle(ModFamily fam, bool expanded) =>
         $"{(expanded ? "Hide" : "Show")} {fam.Tiers.Count} tiers of {fam.DisplayText}";
 
-    private static string FamilyIncludeTitle(ModFamily fam) =>
-        $"Add {fam.DisplayText} (any tier)";
+    private static string FamilyIncludeTitle(ModFamily fam, bool included) =>
+        included
+            ? $"Included: {fam.DisplayText}. Remove inclusion."
+            : $"Include {fam.DisplayText} (any tier)";
 
     private static string FamilyExcludeTitle(ModFamily fam, bool excluded) =>
         excluded
             ? $"Excluded: {fam.DisplayText}. Remove exclusion."
             : $"Exclude {fam.DisplayText} (any tier)";
 
-    private static string TierPickTitle(ModTier tier) =>
-        $"Add \"{tier.Name}\"";
+    private static string TierPickTitle(ModTier tier, bool included)
+    {
+        var label = tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id;
+        return included
+            ? $"Included: \"{label}\". Remove inclusion."
+            : $"Add \"{label}\"";
+    }
 
-    private static string TierUpTitle(ModTier tier, IReadOnlyList<string> names) =>
-        $"Add \"{tier.Name}\" or better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
+    private static string TierUpTitle(
+        ModTier tier, IReadOnlyList<string> names, bool selected)
+    {
+        var label = tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id;
+        if (selected)
+            return $"Selected: \"{label}\" or better. Remove selection.";
+        return $"Add \"{label}\" or better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
+    }
 
     private static string TierExcludeTitle(ModTier tier, bool excluded)
     {
@@ -449,29 +547,94 @@
         Refresh();
     }
 
-    private void Include(WantedMod pick)
+    private void ToggleFamilyInclude(ModFamily fam)
     {
-        State.AddInclude(Scope, pick);
+        var crit = ScopeCriteria();
+        var existing = FamilyPicks(fam, crit.Included);
+        if (existing.Count > 0)
+        {
+            foreach (var pick in existing) State.RemoveInclude(Scope, pick);
+        }
+        else
+        {
+            foreach (var term in FamilyExclusionTerms(fam, crit.Excluded))
+                State.RemoveExclude(Scope, term);
+            State.AddInclude(Scope, fam.Pick());
+        }
         Refresh();
     }
 
     private void ToggleFamilyExclude(ModFamily fam)
     {
-        var existing = FamilyExclusionTerms(fam, ScopeCriteria().Excluded);
+        var crit = ScopeCriteria();
+        var existing = FamilyExclusionTerms(fam, crit.Excluded);
         if (existing.Count > 0)
+        {
             foreach (var term in existing) State.RemoveExclude(Scope, term);
+        }
         else
+        {
+            foreach (var pick in FamilyPicks(fam, crit.Included))
+                State.RemoveInclude(Scope, pick);
             State.AddExclude(Scope, fam.Anchor.Id);
+        }
+        Refresh();
+    }
+
+    private void ToggleTierExact(ModFamily fam, ModTier tier)
+    {
+        var crit = ScopeCriteria();
+        var existing = TierExplicitPicks(fam, tier, crit.Included);
+        if (existing.Count > 0)
+        {
+            foreach (var pick in existing) State.RemoveInclude(Scope, pick);
+        }
+        else
+        {
+            foreach (var pick in TierUpPicks(fam, tier, crit.Included))
+                State.RemoveInclude(Scope, pick);
+            foreach (var term in TierExclusionTerms(fam, tier, crit.Excluded))
+                State.RemoveExclude(Scope, term);
+            State.AddInclude(Scope, new WantedMod(tier.Anchor.Id, [tier.Name]));
+        }
+        Refresh();
+    }
+
+    private void ToggleTierUp(ModFamily fam, ModTier tier)
+    {
+        var crit = ScopeCriteria();
+        var existing = TierUpPicks(fam, tier, crit.Included);
+        if (existing.Count > 0)
+        {
+            foreach (var pick in existing) State.RemoveInclude(Scope, pick);
+        }
+        else
+        {
+            foreach (var pick in TierExplicitPicks(fam, tier, crit.Included))
+                State.RemoveInclude(Scope, pick);
+            foreach (var term in TierExclusionTerms(fam, tier, crit.Excluded))
+                State.RemoveExclude(Scope, term);
+            State.AddInclude(Scope, new WantedMod(tier.Anchor.Id, fam.NamesFrom(tier)));
+        }
         Refresh();
     }
 
     private void ToggleTierExclude(ModFamily fam, ModTier tier)
     {
-        var existing = TierExclusionTerms(fam, tier, ScopeCriteria().Excluded);
+        var crit = ScopeCriteria();
+        var existing = TierExclusionTerms(fam, tier, crit.Excluded);
         if (existing.Count > 0)
+        {
             foreach (var term in existing) State.RemoveExclude(Scope, term);
+        }
         else
+        {
+            foreach (var pick in TierExplicitPicks(fam, tier, crit.Included))
+                State.RemoveInclude(Scope, pick);
+            foreach (var pick in TierUpPicks(fam, tier, crit.Included))
+                State.RemoveInclude(Scope, pick);
             State.AddExclude(Scope, tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id);
+        }
         Refresh();
     }
 

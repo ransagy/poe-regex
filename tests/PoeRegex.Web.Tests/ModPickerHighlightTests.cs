@@ -57,8 +57,13 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods);
 
         FamilyRow(cut, family).ClassList.Should().Contain("picked");
-        cut.Find($"#pick-inc-{family.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
-        cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("✓");
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.HasAttribute("disabled").Should().BeFalse("selected buttons stay clickable");
+        include.GetAttribute("aria-pressed").Should().Be("true");
+        include.ClassList.Should().Contain("active");
+        include.TextContent.Should().Be("✓");
+        FamilyRow(cut, family).TextContent.Should().NotContain("✓ Included",
+            "the family row's picked count replaces the redundant tag");
     }
 
     [Fact]
@@ -76,7 +81,10 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods, "helmet");
 
         FamilyRow(cut, family).ClassList.Should().Contain("picked");
-        cut.Find($"#pick-inc-{family.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.HasAttribute("disabled").Should().BeFalse();
+        include.GetAttribute("aria-pressed").Should().Be("true");
+        include.TextContent.Should().Be("✓");
     }
 
     [Fact]
@@ -130,14 +138,31 @@ public class ModPickerHighlightTests
         row.ClassList.Should().Contain("picked");
         row.TextContent.Should().Contain($"{covered.Count} picked");
 
+        var upButton = cut.Find($"#pick-tier-up-{tier.Anchor.Id}");
+        upButton.GetAttribute("aria-pressed").Should().Be("true");
+        upButton.ClassList.Should().Contain("active");
+        upButton.TextContent.Should().Be("✓");
+        upButton.HasAttribute("disabled").Should().BeFalse();
+
         foreach (var t in family.Tiers)
         {
-            var tierClass = TierRow(cut, t).ClassList;
+            var tierRow = TierRow(cut, t);
             if (covered.Contains(t))
-                tierClass.Should().Contain("picked", $"\"{t.Name}\" is in the picked name set");
+            {
+                tierRow.ClassList.Should().Contain("covered");
+                tierRow.ClassList.Should().NotContain("picked",
+                    "or-better tiers are covered, not manually picked");
+                tierRow.TextContent.Should().NotContain("✓ Included");
+            }
             else
-                tierClass.Should().NotContain("picked", $"\"{t.Name}\" is a worse tier");
+            {
+                tierRow.ClassList.Should().NotContain("covered");
+                tierRow.ClassList.Should().NotContain("picked");
+            }
         }
+
+        TierRow(cut, tier).TextContent.Should().Contain("↑ Or better");
+        TierRow(cut, covered[^1]).TextContent.Should().Contain("↑ Covered");
     }
 
     [Fact]
@@ -199,7 +224,9 @@ public class ModPickerHighlightTests
         var button = cut.Find($"#pick-exc-{family.Anchor.Id}");
         button.GetAttribute("aria-pressed").Should().Be("true");
         button.GetAttribute("aria-label").Should().Contain("Remove exclusion");
+        button.ClassList.Should().Contain("active");
         button.TextContent.Should().Be("⊘");
+        row.TextContent.Should().NotContain("✓ Included");
     }
 
     [Fact]
@@ -223,6 +250,8 @@ public class ModPickerHighlightTests
         var button = cut.Find($"#pick-tier-exc-{tier.Anchor.Id}");
         button.GetAttribute("aria-pressed").Should().Be("true");
         button.GetAttribute("aria-label").Should().Contain("Remove exclusion");
+        button.ClassList.Should().Contain("active");
+        button.TextContent.Should().Be("⊘");
     }
 
     [Fact]
@@ -239,8 +268,10 @@ public class ModPickerHighlightTests
 
         var familyRow = FamilyRow(cut, family);
         familyRow.ClassList.Should().Contain("picked");
-        familyRow.TextContent.Should().Contain("✓ Included");
+        familyRow.TextContent.Should().NotContain("✓ Included",
+            "the family picked count replaces the redundant tag");
         familyRow.TextContent.Should().Contain("1 excluded", "the family summary keeps both counts");
+        cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
 
         var tierRow = TierRow(cut, tier);
         tierRow.ClassList.Should().Contain("excluded");
@@ -265,7 +296,8 @@ public class ModPickerHighlightTests
         familyRow.ClassList.Should().Contain("excluded");
         familyRow.ClassList.Should().Contain("picked");
         familyRow.TextContent.Should().Contain("⊘ Excluded");
-        familyRow.TextContent.Should().Contain("✓ Included");
+        familyRow.TextContent.Should().Contain("1 picked");
+        familyRow.TextContent.Should().NotContain("✓ Included");
 
         var tierRow = TierRow(cut, tier);
         tierRow.ClassList.Should().Contain("picked");
@@ -291,6 +323,10 @@ public class ModPickerHighlightTests
         row.TextContent.Should().Contain("✓ Included");
         row.TextContent.Should().Contain("⊘ Excluded");
         cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
+        var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
+        exact.GetAttribute("aria-pressed").Should().Be("true");
+        exact.HasAttribute("disabled").Should().BeFalse();
+        exact.TextContent.Should().Be("✓");
     }
 
     [Fact]
@@ -315,5 +351,148 @@ public class ModPickerHighlightTests
         state.CriteriaFor("helmet").Excluded.Should().BeEmpty();
         TierRow(cut, tier).ClassList.Should().NotContain("excluded");
         cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+    }
+
+    [Fact]
+    public void FamilyIncludeAndExclude_AreMutuallyExclusive_AndToggleOff()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var crit = state.CriteriaFor("helmet");
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        var exclude = cut.Find($"#pick-exc-{family.Anchor.Id}");
+
+        include.Click(); // include replaces the family exclusion
+        crit.Excluded.Should().BeEmpty();
+        crit.Included.Should().Contain(pick => pick.ModId == family.Anchor.Id);
+        include.GetAttribute("aria-pressed").Should().Be("true");
+        exclude.GetAttribute("aria-pressed").Should().Be("false");
+
+        include.Click(); // active selection toggles off
+        crit.Included.Should().BeEmpty();
+        include.GetAttribute("aria-pressed").Should().Be("false");
+
+        include.Click();
+        exclude.Click(); // exclude replaces the family inclusion
+        crit.Excluded.Should().Contain(family.Anchor.Id);
+        crit.Included.Should().BeEmpty();
+        include.GetAttribute("aria-pressed").Should().Be("false");
+        exclude.GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void TierExactInclude_RemovesUpAndExclude_AndTogglesOff()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 2];
+        var crit = state.CriteriaFor("helmet");
+        state.AddInclude("helmet", new WantedMod(tier.Anchor.Id, family.NamesFrom(tier)));
+        state.AddExclude("helmet", tier.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
+        exact.Click();
+
+        crit.Included.Should().ContainSingle(pick =>
+            pick.IsNamePick && pick.Names!.Count == 1 && pick.Names[0] == tier.Name);
+        crit.Excluded.Should().BeEmpty();
+        exact.GetAttribute("aria-pressed").Should().Be("true");
+        exact.TextContent.Should().Be("✓");
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+
+        exact.Click(); // active selection toggles off
+        crit.Included.Should().BeEmpty();
+        exact.GetAttribute("aria-pressed").Should().Be("false");
+    }
+
+    [Fact]
+    public void TierUp_RemovesExactAndExclude_AndMarksOnlyAnchorUpButton()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 2];
+        var covered = family.Tiers.Where(t => family.NamesFrom(tier).Contains(t.Name)).ToList();
+        covered.Should().HaveCountGreaterThan(1);
+        var crit = state.CriteriaFor("helmet");
+        state.AddInclude("helmet", new WantedMod(tier.Anchor.Id, [tier.Name]));
+        state.AddExclude("helmet", tier.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        var up = cut.Find($"#pick-tier-up-{tier.Anchor.Id}");
+        up.Click();
+
+        crit.Included.Should().ContainSingle(pick =>
+            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+        crit.Excluded.Should().BeEmpty();
+        up.GetAttribute("aria-pressed").Should().Be("true");
+        up.ClassList.Should().Contain("active");
+        up.TextContent.Should().Be("✓");
+        up.HasAttribute("disabled").Should().BeFalse();
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+
+        TierRow(cut, tier).ClassList.Should().Contain("covered");
+        TierRow(cut, tier).ClassList.Should().NotContain("picked");
+        TierRow(cut, tier).TextContent.Should().Contain("↑ Or better");
+        TierRow(cut, covered[^1]).ClassList.Should().Contain("covered");
+        TierRow(cut, covered[^1]).ClassList.Should().NotContain("picked");
+        TierRow(cut, covered[^1]).TextContent.Should().Contain("↑ Covered");
+        TierRow(cut, family.Tiers[0]).ClassList.Should().NotContain("covered",
+            "tiers below the chosen one are not covered");
+
+        up.Click(); // active selection toggles off
+        crit.Included.Should().BeEmpty();
+        TierRow(cut, tier).ClassList.Should().NotContain("covered");
+    }
+
+    [Fact]
+    public void TierExclude_RemovesExactAndUp()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 2];
+        var crit = state.CriteriaFor("helmet");
+        state.AddInclude("helmet", new WantedMod(tier.Anchor.Id, [tier.Name]));
+        state.AddInclude("helmet", new WantedMod(tier.Anchor.Id, family.NamesFrom(tier)));
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        var exclude = cut.Find($"#pick-tier-exc-{tier.Anchor.Id}");
+        exclude.Click();
+
+        crit.Included.Should().BeEmpty();
+        crit.Excluded.Should().Contain(tier.Name);
+        exclude.GetAttribute("aria-pressed").Should().Be("true");
+        exclude.TextContent.Should().Be("⊘");
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+        TierRow(cut, tier).ClassList.Should().Contain("excluded");
+        TierRow(cut, tier).ClassList.Should().NotContain("picked");
+        TierRow(cut, tier).ClassList.Should().NotContain("covered");
+    }
+
+    [Fact]
+    public void MixedFamilyStates_PreserveBothButOnlyShowExcludedTag()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        state.AddInclude("helmet", family.Pick());
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+
+        var row = FamilyRow(cut, family);
+        row.ClassList.Should().Contain("picked");
+        row.ClassList.Should().Contain("excluded");
+        row.TextContent.Should().Contain("⊘ Excluded");
+        row.TextContent.Should().NotContain("✓ Included",
+            "family rows have no Included tag; the picked count and row state carry it");
+        cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
     }
 }

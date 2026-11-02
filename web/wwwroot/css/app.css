@@ -390,6 +390,8 @@ input:disabled { opacity: 0.5; }
 .suggest-row.fam-row { min-height: 2.15rem; padding: 0.1rem 0.15rem 0.1rem 0.35rem; border-bottom: 1px solid var(--line); }
 .suggest-row.fam-row:hover { background: var(--surface); }
 .suggest-row.fam-row.picked { background: var(--mod-soft); }
+.suggest-row.tier-row.covered { box-shadow: inset 2px 0 0 var(--mod); }
+.suggest-row.tier-row.covered .tier-name { color: var(--mod); }
 .suggest-row.fam-row.excluded, .suggest-row.tier-row.excluded {
     background: var(--no-soft);
     box-shadow: inset 3px 0 0 var(--no);
@@ -406,6 +408,7 @@ input:disabled { opacity: 0.5; }
     font-size: 0.7rem; font-weight: 600; line-height: 1.45; white-space: nowrap;
 }
 .state-badge.included { color: var(--mod); background: var(--mod-soft); }
+.state-badge.up { color: var(--ember); background: var(--ember-soft); }
 .state-badge.excluded { color: var(--no); background: var(--no-soft); }
 .suggest-line { flex: 1; min-width: 0; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-line.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
@@ -441,6 +444,7 @@ input:disabled { opacity: 0.5; }
 }
 .suggest-row:hover > button:not(.fam-toggle) { border-color: var(--line-strong); }
 .suggest-row > button:not(.fam-toggle):hover:not(:disabled) { color: var(--mod); background: var(--mod-soft); border-color: rgba(154, 166, 255, 0.5); }
+.suggest-row > button.active { color: var(--mod); background: var(--mod-soft); border-color: var(--mod); }
 .suggest-row > button.exc { color: var(--faint); }
 .suggest-row > button.exc:hover:not(:disabled) { color: var(--no); background: var(--no-soft); border-color: rgba(236, 122, 101, 0.5); }
 .suggest-row > button.exc.active { color: var(--no); background: var(--no-soft); border-color: var(--no); }
