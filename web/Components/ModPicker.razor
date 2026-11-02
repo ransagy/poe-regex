@@ -53,12 +53,12 @@
                             @foreach (var fam in list)
                             {
                                 var plainPick = fam.Pick();
-                                var pickedPlain = crit.Included.Any(m => m.SamePick(plainPick));
+                                var pickedFamily = FamilyPicked(fam, crit.Included);
                                 var pickedTiers = fam.Tiers.Count(t =>
-                                    crit.Included.Any(m => m.IsNamePick && m.ModId == t.Anchor.Id));
+                                    crit.Included.Any(m => TierPicked(t, m)));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 <li class="fam-block">
-                                    <div class="suggest-row fam-row @(pickedPlain ? "picked" : "")">
+                                    <div class="suggest-row fam-row @(pickedFamily ? "picked" : "")">
                                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
                                                 aria-expanded="@(expanded ? "true" : "false")"
                                                 title="@FamilyToggleTitle(fam, expanded)"
@@ -84,8 +84,8 @@
                                             }
                                         </button>
                                         <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)" aria-label="@FamilyIncludeTitle(fam)"
-                                                disabled="@pickedPlain"
-                                                @onclick="() => Include(plainPick)">@(pickedPlain ? "✓" : "+")</button>
+                                                disabled="@pickedFamily"
+                                                @onclick="() => Include(plainPick)">@(pickedFamily ? "✓" : "+")</button>
                                         <button id="pick-exc-@fam.Anchor.Id" class="exc" title="@FamilyExcludeTitle(fam)" aria-label="@FamilyExcludeTitle(fam)"
                                                 @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
                                     </div>
@@ -99,7 +99,8 @@
                                                 var upPick = new WantedMod(tier.Anchor.Id, upNames);
                                                 var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
                                                 var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
-                                                <li class="suggest-row tier-row @(pickedExact || pickedUp ? "picked" : "")">
+                                                var pickedTier = crit.Included.Any(m => TierPicked(tier, m));
+                                                <li class="suggest-row tier-row @(pickedTier ? "picked" : "")">
                                                     <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
                                                         @foreach (var l in tier.DisplayLines)
                                                         {
@@ -277,6 +278,56 @@
     private void Toggle(string key)
     {
         if (!_expanded.Add(key)) _expanded.Remove(key);
+    }
+
+    /// <summary>
+    /// True when any included pick belongs to this family. Picks are matched
+    /// by member id, by variant id overlap, and finally by family key +
+    /// generation: an imported or global pick can carry another scope's
+    /// anchor and variant set, so exact <see cref="WantedMod.SamePick"/>
+    /// equality misses it even though the family is the same.
+    /// </summary>
+    private bool FamilyPicked(ModFamily fam, IReadOnlyList<WantedMod> included)
+    {
+        if (included.Count == 0) return false;
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return included.Any(pick => PickTouchesFamily(fam, pick, memberIds));
+    }
+
+    private bool PickTouchesFamily(ModFamily fam, WantedMod pick, HashSet<string> memberIds)
+    {
+        if (memberIds.Contains(pick.ModId)) return true;
+        if (pick.VariantModIds is { Count: > 0 } variants)
+        {
+            if (variants.Any(memberIds.Contains)) return true;
+            if (variants.Any(id => SameFamilyAs(fam, id))) return true;
+        }
+        return SameFamilyAs(fam, pick.ModId);
+    }
+
+    private bool SameFamilyAs(ModFamily fam, string modId)
+    {
+        var mod = Engine.FindMod(modId);
+        return mod is not null &&
+               string.Equals(ModFamilies.KeyOf(mod), fam.Key, StringComparison.Ordinal) &&
+               string.Equals(mod.GenerationType, fam.IsPrefix ? "prefix" : "suffix",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// True when a pick covers this tier: its anchor is one of the tier's
+    /// members (plain or name pick), or a name pick carries this tier's
+    /// affix name (a tier-or-better set anchored to another member). A plain
+    /// pick that carries family variants is the whole-family pick and covers
+    /// every tier; it is excluded so it does not inflate the picked count.
+    /// </summary>
+    private static bool TierPicked(ModTier tier, WantedMod pick)
+    {
+        if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 }) return false;
+        if (tier.Members.Any(m => string.Equals(m.Id, pick.ModId, StringComparison.Ordinal)))
+            return true;
+        return pick.IsNamePick && tier.Name.Length > 0 &&
+               pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
     }
 
     // Titles are built here, not as markup entities: Blazor sets attributes
