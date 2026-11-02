@@ -5,9 +5,9 @@
 @if (Open)
 {
     <div class="dlg-overlay" id="query-import-dialog" @onclick="OnBackdrop">
-        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import search string"
+        <div class="dlg dlg-import" @onclick:stopPropagation="true" role="dialog" aria-label="Import string"
              @onkeydown="OnDialogKeyDown">
-            <h2 class="panel-head">@(_guideMode ? "Import a guide filter" : "Import a search string")</h2>
+            <h2 class="panel-head">Import string</h2>
             <div class="import-source">
                 <div class="seg" role="group" aria-label="Import source">
                     <button type="button" id="query-import-mode-app" class="seg-opt @(_guideMode ? "" : "active")"
@@ -21,6 +21,12 @@
                     ? "Build guides and other regex sites"
                     : "A search string this app produced")</span>
             </div>
+            @if (_guideMode)
+            {
+                <div class="seg-hint" id="query-import-guide-note">
+                    Best-effort import from another site. Review the picks and adjust anything after applying.
+                </div>
+            }
             <textarea id="query-import-text" rows="5"
                       placeholder="@(_guideMode ? "Paste a build-guide filter…" : "Paste a search string…")"
                       value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
@@ -41,51 +47,74 @@
             }
             else if (_guideMode && _guideResult is not null)
             {
+                var multiBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.MultiFamily).ToList();
+                var exclusionBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.Exclusion).ToList();
+                var droppedBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.Dropped).ToList();
                 <div class="more" id="query-import-summary">
                     @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
                     · @_guideResult.Dropped dropped
                 </div>
-                @if (_guideResult.Branches.Any(b => b.Kind == GuideBranchKind.MultiFamily))
+                @if (multiBranches.Count > 0)
                 {
-                    <details class="guide-details" id="query-import-reconcile" open>
-                        <summary>Reconcile @_guideResult.Branches.Count(b => b.Kind == GuideBranchKind.MultiFamily) multi-family branch(es)</summary>
-                        @foreach (var branch in _guideResult.Branches.Where(b => b.Kind == GuideBranchKind.MultiFamily))
+                    <div class="guide-section" id="query-import-reconcile">
+                        <div class="guide-section-head">
+                            Choose families for @multiBranches.Count branch(es)
+                        </div>
+                        @foreach (var branch in multiBranches)
                         {
                             <div class="guide-branch" data-branch="@branch.Index">
                                 <code>@branch.Text</code>
-                                <select multiple size="@Math.Min(branch.Candidates.Count, 5)"
-                                        id="guide-branch-@branch.Index"
-                                        data-selected="@string.Join(",", branch.Selected)"
-                                        aria-label="@($"Families for {branch.Text}")"
-                                        @onchange="e => OnGuideCandidates(branch.Index, e)">
-                                    @foreach (var candidate in branch.Candidates)
-                                    {
-                                        <option value="@candidate.Key"
-                                                selected="@(branch.Selected.Contains(candidate.Key))">
-                                            @candidate.Label
-                                        </option>
-                                    }
-                                </select>
+                                <details class="guide-pick-menu" id="guide-branch-@branch.Index"
+                                         open="@(_openPicker == branch.Index)"
+                                         data-selected="@string.Join(",", branch.Selected)">
+                                    <summary>@branch.Selected.Count picked out of @branch.Candidates.Count options</summary>
+                                    <div class="guide-pick-list">
+                                        @foreach (var candidate in branch.Candidates)
+                                        {
+                                            <label class="guide-pick-option">
+                                                <input type="checkbox" value="@candidate.Key"
+                                                       checked="@branch.Selected.Contains(candidate.Key)"
+                                                       @onchange="e => OnGuideCandidate(branch.Index, candidate.Key, e)" />
+                                                <span>@candidate.Label</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </details>
                             </div>
                         }
-                    </details>
+                    </div>
                 }
-                @if (_guideResult.Branches.Any(b => b.Kind == GuideBranchKind.Dropped))
+                @if (exclusionBranches.Count > 0)
                 {
-                    <details class="guide-details" id="query-import-dropped">
-                        <summary>@_guideResult.Branches.Count(b => b.Kind == GuideBranchKind.Dropped) dropped branch(es)</summary>
-                        @foreach (var branch in _guideResult.Branches.Where(b => b.Kind == GuideBranchKind.Dropped))
+                    <div class="guide-section" id="query-import-exclusions">
+                        <div class="guide-section-head">Excluded from results</div>
+                        @foreach (var branch in exclusionBranches)
+                        {
+                            <div class="guide-branch">
+                                <code>@branch.Text</code>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (droppedBranches.Count > 0)
+                {
+                    <div class="guide-section" id="query-import-dropped">
+                        <div class="guide-section-head">@droppedBranches.Count not imported</div>
+                        @foreach (var branch in droppedBranches)
                         {
                             <div class="guide-branch">
                                 <code>@branch.Text</code>
                                 <span>@branch.Note</span>
                             </div>
                         }
-                    </details>
+                    </div>
                 }
                 @if (_guideResult.CompiledQuery is not null)
                 {
-                    <div class="more">compiled: <code>@_guideResult.CompiledQuery</code></div>
+                    <div class="more guide-query">compiled: <code>@_guideResult.CompiledQuery</code></div>
                 }
                 @if (!CanApply)
                 {
@@ -156,6 +185,7 @@
     private GuideImportResult? _guideResult;
     private bool _guideMode;
     private readonly Dictionary<int, IReadOnlyList<string>> _guideOverrides = [];
+    private int? _openPicker;
     private WorkbenchState? _previewState;
     private SearchModel? _previewModel;
     private bool _busy;
@@ -236,6 +266,7 @@
         _result = null;
         _guideResult = null;
         _guideOverrides.Clear();
+        _openPicker = null;
         _previewState = null;
         _previewModel = null;
     }
@@ -249,20 +280,29 @@
         _result = null;
         _guideResult = null;
         _guideOverrides.Clear();
+        _openPicker = null;
         _previewState = null;
         _previewModel = null;
     }
 
-    private async Task OnGuideCandidates(int index, ChangeEventArgs e)
+    private async Task OnGuideCandidate(int index, string key, ChangeEventArgs e)
     {
-        var values = e.Value switch
+        var current = _guideOverrides.TryGetValue(index, out var overridden)
+            ? overridden.ToList()
+            : _guideResult?.Branches.FirstOrDefault(b => b.Index == index)?.Selected.ToList() ?? [];
+        var selected = e.Value is bool value
+            ? value
+            : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (selected)
         {
-            string[] array => array,
-            IEnumerable<string> sequence => sequence.ToArray(),
-            string text when text.Length > 0 => [text],
-            _ => [],
-        };
-        _guideOverrides[index] = values;
+            if (!current.Contains(key, StringComparer.Ordinal)) current.Add(key);
+        }
+        else
+        {
+            current.RemoveAll(k => string.Equals(k, key, StringComparison.Ordinal));
+        }
+        _guideOverrides[index] = current;
+        _openPicker = index;
         await Parse();
     }
 
@@ -275,6 +315,7 @@
         _result = null;
         _guideResult = null;
         _guideOverrides.Clear();
+        _openPicker = null;
         _previewState = null;
         _previewModel = null;
         await OnClose.InvokeAsync();

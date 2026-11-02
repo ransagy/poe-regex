@@ -165,10 +165,12 @@ public sealed class PasteComposer
         // Exclusions union globally: block negation cannot be scoped per slot.
         foreach (var req in excluded.Distinct().ToList())
         {
-            var mod = _corpus.FindMod(req.Value);
-            var term = mod is not null
-                ? _compaction.SelectFragment(req, null) ?? req.Value
-                : Poe2Syntax.EscapeLiteral(req.Value);
+            var mod = req.IsRegex ? null : _corpus.FindMod(req.Value);
+            var term = req.IsRegex
+                ? req.Value
+                : mod is not null
+                    ? _compaction.SelectFragment(req, null) ?? req.Value
+                    : Poe2Syntax.EscapeLiteral(req.Value);
             blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 

@@ -10,6 +10,7 @@ public enum GuideBranchKind
     AffixName,
     Family,
     MultiFamily,
+    Exclusion,
     Dropped,
 }
 
@@ -32,7 +33,8 @@ public sealed record GuideImportResult(
     string? CompiledQuery)
 {
     public bool Ok => Workbench?.Ok == true;
-    public int Mapped => Branches.Count(b => b.Picks.Count > 0);
+    public int Mapped => Branches.Count(b =>
+        b.Picks.Count > 0 || b.Kind == GuideBranchKind.Exclusion);
     public int Dropped => Branches.Count(b => b.Kind == GuideBranchKind.Dropped);
 }
 
@@ -80,8 +82,8 @@ public sealed class GuideImportService(
         {
             if (group.Excluded)
             {
-                branches.Add(new GuideBranch(index++, group.Text, GuideBranchKind.Dropped,
-                    [], [], [], "exclusion groups are not supported yet"));
+                branches.Add(new GuideBranch(index++, group.Text,
+                    GuideBranchKind.Exclusion, [], [], [], "excluded from results"));
                 continue;
             }
             foreach (var raw in group.Branches)
@@ -93,20 +95,34 @@ public sealed class GuideImportService(
         }
 
         var picks = new List<WantedMod>();
+        var excludes = new List<string>();
         foreach (var branch in branches)
+        {
+            if (branch.Kind == GuideBranchKind.Exclusion)
+            {
+                var pattern = branch.Text.TrimStart('!', '-').Trim();
+                if (pattern.Length > 0)
+                {
+                    var encoded = RawExclusion.Encode(pattern);
+                    if (!excludes.Contains(encoded, StringComparer.Ordinal))
+                        excludes.Add(encoded);
+                }
+                continue;
+            }
             foreach (var pick in branch.Picks)
                 if (!picks.Any(p => p.SamePick(pick)))
                     picks.Add(pick);
+        }
 
-        if (picks.Count == 0)
+        if (picks.Count == 0 && excludes.Count == 0)
         {
-            warnings.Add("No guide branches mapped to a mod family.");
+            warnings.Add("No guide branches mapped to a mod family or exclusion.");
             return new GuideImportResult(null, branches, warnings, null);
         }
 
         var slot = new ReconstructedSlot("global", "", picks, false);
         var workbench = new ReconstructedWorkbench(
-            true, "simple", [slot], [], [], warnings);
+            true, "simple", [slot], excludes, [], warnings);
         return new GuideImportResult(
             workbench, branches, warnings, workbench.Recompile(engine));
     }
@@ -122,8 +138,8 @@ public sealed class GuideImportService(
     {
         if (text.StartsWith('!') || text.StartsWith('-'))
         {
-            return new GuideBranch(index, text, GuideBranchKind.Dropped,
-                [], [], [], "guide exclusions are not supported yet");
+            return new GuideBranch(index, text, GuideBranchKind.Exclusion,
+                [], [], [], "excluded from results");
         }
 
         var exactNames = reconstruction.Families
@@ -145,11 +161,20 @@ public sealed class GuideImportService(
         if (scored.Count > 0)
         {
             var top = scored[0].Score;
-            var candidates = scored
-                .Where(x => x.Score >= top - 15)
-                .Take(12)
-                .Select(x => new GuideCandidate(x.Family.Key, x.Family.DisplayText))
-                .ToList();
+            var candidates = new List<GuideCandidate>();
+            // Two families can share a display label (the global and weapon
+            // minion-skill families both read "+ to Level of all Minion
+            // Skills"). Keep one candidate per label so the picker never shows
+            // the same choice twice.
+            var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var scoredFamily in scored.Where(x => x.Score >= top - 15))
+            {
+                var label = NormalizeLabel(scoredFamily.Family.DisplayText);
+                if (label.Length == 0 || !labels.Add(label)) continue;
+                candidates.Add(new GuideCandidate(
+                    scoredFamily.Family.Key, scoredFamily.Family.DisplayText));
+                if (candidates.Count >= 12) break;
+            }
 
             var selected = ResolveSelection(index, candidates, scored, overrides);
             if (selected.Count == 0)
@@ -202,16 +227,27 @@ public sealed class GuideImportService(
 
         // Default to the common families near the top score. This makes a
         // branch like `i.+res` select the resistance families together, while
-        // a clear winner like `i.+mov` selects one family.
-        var top = scored[0].Score;
-        var common = scored
+        // a clear winner like `i.+mov` selects one family. Only families that
+        // survived label de-duplication can be selected.
+        var candidateKeys = candidates
+            .Select(c => c.Key)
+            .ToHashSet(StringComparer.Ordinal);
+        var ordered = scored
+            .Where(x => candidateKeys.Contains(x.Family.Key))
+            .ToList();
+        if (ordered.Count == 0) return [];
+        var top = ordered[0].Score;
+        var common = ordered
             .Where(x => x.Score >= top - 15 && ModFamilies.IsCommon(x.Family))
             .Select(x => x.Family.Key)
             .Distinct(StringComparer.Ordinal)
             .Take(6)
             .ToList();
-        return common.Count > 0 ? common : [scored[0].Family.Key];
+        return common.Count > 0 ? common : [ordered[0].Family.Key];
     }
+
+    private static string NormalizeLabel(string label) =>
+        Regex.Replace(label.Trim(), @"\s+", " ");
 
     private static List<(ModFamily Family, int Score)> MatchFamilies(
         IReadOnlyList<ModFamily> families, string query)
@@ -328,7 +364,8 @@ public sealed class GuideImportService(
         return (line, warning);
     }
 
-    private sealed record GuideGroup(bool Excluded, string Text, IReadOnlyList<string> Branches);
+    private sealed record GuideGroup(
+        bool Excluded, string Text, IReadOnlyList<string> Branches);
 
     /// <summary>
     /// Parse quoted/negative groups. A line without quotes or a leading ! is

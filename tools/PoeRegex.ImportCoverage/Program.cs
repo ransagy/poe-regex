@@ -809,8 +809,8 @@ public static class Phase1Report
         sb.AppendLine("  path. The Import string panel applies the recovered slots.");
         sb.AppendLine("- Guide-filter extraction ships as a separate mode: exact names/fragments and");
         sb.AppendLine("  regex matches against family/tier text map; multi-family branches use a");
-        sb.AppendLine("  multi-select. Base/vendor names, exclusions, and explicit class anchors are");
-        sb.AppendLine("  follow-ups.");
+        sb.AppendLine("  picker; negative groups apply as raw regex exclusions. Base/vendor names and");
+        sb.AppendLine("  explicit class anchors are follow-ups.");
         sb.AppendLine();
         sb.AppendLine("Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter \"FullyQualifiedName~QueryReconstructionTests\"`.");
         return sb.ToString();

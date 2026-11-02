@@ -212,9 +212,12 @@ public sealed class QueryReconstructionService
         {
             if (excluded)
             {
-                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out var why,
+                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out _,
                         new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedWorkbench.Failed(why);
+                {
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;
@@ -416,8 +419,14 @@ public sealed class QueryReconstructionService
             if (excluded)
             {
                 if (!TryResolveSinglePick(phrase, itemClass, used, out var excludedPick,
-                        out var excludeWhy, new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedQuery.Failed(query, excludeWhy);
+                        out _, new HashSet<string>(excludes, StringComparer.Ordinal)))
+                {
+                    // Guide-applied exclusions are raw regex groups, not
+                    // catalog picks. Preserve them verbatim so reapplying the
+                    // string keeps the same exclusion.
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;

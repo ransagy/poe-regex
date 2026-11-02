@@ -72,11 +72,12 @@ as search-string reconstruction:
 - every other branch is matched as a case-insensitive regex against family
   display text and tier text; multi-family branches get a multi-select with
   the common families selected by default;
+- negative groups (`!parry|bow|...`) are applied as raw regex exclusions;
 - unknown/base/vendor branches are dropped with a warning;
 - the preview and apply path reuse the read-only Your-picks view.
 
-Current guide limitations: no base-type list yet, exclusions are dropped, and
-explicit class anchors warn and import globally.
+Current guide limitations: no base-type list yet, and explicit class anchors
+warn and import globally.
 
 ## Remaining limitations
 
@@ -87,8 +88,8 @@ explicit class anchors warn and import globally.
   ambiguous (`+N`) in the preview.
 - Multi-class search-string import is applied by the reconstruction path;
   guide-filter apply is simple/global only.
-- Guide filters do not yet support base/vendor names, exclusions, or class
-  anchors.
+- Guide filters do not yet support base/vendor names or class anchors;
+  exclusions are applied as raw regex groups.
 - Unmodeled unique/socketable/base text is outside the safety corpus.
 
 ## Reproduce

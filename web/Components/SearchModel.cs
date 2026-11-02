@@ -394,6 +394,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     /// <summary>A family exclude names its stat text; a tier exclude is the quoted affix name.</summary>
     public static string ExcludeLabel(string exc, IReadOnlyList<ModEntry> mods)
     {
+        if (RawExclusion.IsRaw(exc)) return RawExclusion.Decode(exc);
         if (!mods.Any(m => m.Id == exc)) return $"\"{exc}\"";
         return FamilyText(ModFamilies.CachedGroup(mods), mods, exc);
     }

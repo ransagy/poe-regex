@@ -53,11 +53,63 @@ public class GuideImportTests
 
         result.Branches.Should().NotContain(b => b.Text.Contains("cross|mov"));
         result.Branches.Should().Contain(b =>
-            b.Kind == GuideBranchKind.Dropped && b.Text.Contains("!(uiv)"));
+            b.Kind == GuideBranchKind.Exclusion && b.Text.Contains("!(uiv)"));
+        result.Workbench!.Excludes.Should().Contain(RawExclusion.Encode("(uiv)"));
+        result.CompiledQuery.Should().Contain("!\"(uiv)\"");
         var movement = result.Branches.Single(b => b.Text == "mov");
         movement.Picks.Should().NotBeEmpty();
         movement.Candidates.Select(c => c.Key).Should().Contain("MovementVelocity");
         result.Warnings.Should().NotContain(w => w.Contains("Multiple positive groups"));
+    }
+
+    [Fact]
+    public void ExclusionGroup_IsAppliedAsARawRegex()
+    {
+        var result = Guide.Import(
+            "\"!parry|bow|scept|quiver|raise|spear|mace|talisman\" \"max.*life\"");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Dropped.Should().Be(0);
+        var exclusion = result.Branches.Single(b => b.Kind == GuideBranchKind.Exclusion);
+        exclusion.Text.Should().Be("!parry|bow|scept|quiver|raise|spear|mace|talisman");
+        result.Workbench!.Excludes.Should().Contain(
+            RawExclusion.Encode("parry|bow|scept|quiver|raise|spear|mace|talisman"));
+        result.CompiledQuery.Should().Contain("!\"parry|bow|scept|quiver|raise|spear|mace|talisman\"");
+
+        var state = new WorkbenchState();
+        result.Workbench.ApplyTo(state);
+        state.Global.Excluded.Should().Contain(
+            RawExclusion.Encode("parry|bow|scept|quiver|raise|spear|mace|talisman"));
+        Engine.CompilePicks(
+            state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
+            .Query.Should().Be(result.CompiledQuery);
+    }
+
+    [Fact]
+    public void RawExclusion_RoundTripsThroughReconstruction()
+    {
+        var query = Engine.CompilePicks(
+            [], [RawExclusion.Encode("parry|bow|scept")], false, null).Query;
+        query.Should().Be("!\"parry|bow|scept\"");
+
+        var reconstructed = Reconstruction.ReconstructWorkbench(query);
+
+        reconstructed.Ok.Should().BeTrue(string.Join("; ", reconstructed.Diagnostics));
+        reconstructed.Excludes.Should().Contain(RawExclusion.Encode("parry|bow|scept"));
+        reconstructed.Recompile(Engine).Should().Be(query);
+    }
+
+    [Fact]
+    public void MinionSkills_DeduplicatesIdenticalCandidateLabels()
+    {
+        var result = Guide.Import("minion skills|movement");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        var minions = result.Branches[0];
+        minions.Text.Should().Be("minion skills");
+        minions.Candidates.Should().ContainSingle();
+        minions.Candidates.Select(c => c.Label).Should().OnlyHaveUniqueItems();
+        minions.Picks.Should().ContainSingle();
     }
 
     [Fact]
