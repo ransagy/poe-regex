@@ -756,7 +756,7 @@ input:disabled { opacity: 0.5; }
 }
 .guide-query code { overflow-wrap: anywhere; }
 .guide-pick-desktop { position: relative; flex: 1 1 16rem; min-width: 0; }
-.guide-pick-summary { display: none; color: var(--muted); font-size: 0.8rem; }
+.guide-pick-mobile { display: none; }
 .guide-pick-trigger {
     display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
     width: 100%; padding: 0.32rem 0.6rem; font-size: 0.84rem; line-height: 1.3;
@@ -909,16 +909,20 @@ body.compact .out-dock {
         padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
     .dlg-import textarea { min-height: 6rem; }
-    .guide-pick-summary { display: block; }
-    .guide-pick-desktop { display: none; }
-    .guide-pick-native {
-        display: block; width: 100%; min-height: 2.4rem;
-        padding: 0.25rem 0.45rem; font-size: 0.84rem;
-        color: var(--text); background: var(--raised);
-        border: 1px solid var(--line-strong); border-radius: 6px;
-    }
     .builder-cols { flex-direction: column; }
     .builder-right .iprev { max-height: none; }
+}
+
+/* Touch devices: the native picker is the control; the styled face sits under
+   a transparent select so tapping opens the OS picker instead of a listbox. */
+@media (pointer: coarse) {
+    .guide-pick-desktop { display: none; }
+    .guide-pick-mobile { position: relative; display: block; flex: 1 1 16rem; min-width: 0; }
+    .guide-pick-native {
+        display: block;
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        opacity: 0; cursor: pointer;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

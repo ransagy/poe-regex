@@ -71,7 +71,6 @@
                             var summary = $"{branch.Selected.Count} picked out of {branch.Candidates.Count} options";
                             <div class="guide-branch" data-branch="@branch.Index">
                                 <code>@branch.Text</code>
-                                <span class="guide-pick-summary">@summary</span>
                                 <div class="guide-pick-desktop">
                                     <button type="button" class="guide-pick-trigger"
                                             id="guide-branch-@branch.Index"
@@ -98,18 +97,23 @@
                                         </div>
                                     }
                                 </div>
-                                <select multiple size="1" class="guide-pick-native"
-                                        id="guide-branch-native-@branch.Index"
-                                        aria-label="@($"Families for {branch.Text}")"
-                                        @onchange="e => OnGuideCandidates(branch.Index, e)">
-                                    @foreach (var candidate in branch.Candidates)
-                                    {
-                                        <option value="@candidate.Key"
-                                                selected="@(branch.Selected.Contains(candidate.Key))">
-                                            @candidate.Label
-                                        </option>
-                                    }
-                                </select>
+                                <div class="guide-pick-mobile">
+                                    <span class="guide-pick-trigger guide-pick-mobile-face" aria-hidden="true">
+                                        <span>@summary</span><span class="guide-pick-caret">▾</span>
+                                    </span>
+                                    <select multiple class="guide-pick-native"
+                                            id="guide-branch-native-@branch.Index"
+                                            aria-label="@($"Families for {branch.Text}. {summary}")"
+                                            @onchange="e => OnGuideCandidates(branch.Index, e)">
+                                        @foreach (var candidate in branch.Candidates)
+                                        {
+                                            <option value="@candidate.Key"
+                                                    selected="@(branch.Selected.Contains(candidate.Key))">
+                                                @candidate.Label
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
                             </div>
                         }
                     </div>
