@@ -56,9 +56,12 @@
                                 var pickedFamily = FamilyPicked(fam, crit.Included);
                                 var pickedTiers = fam.Tiers.Count(t =>
                                     crit.Included.Any(m => TierPicked(t, m)));
+                                var excludedFamily = FamilyExcluded(fam, crit.Excluded);
+                                var excludedTiers = fam.Tiers.Count(t =>
+                                    TierExcluded(fam, t, crit.Excluded));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 <li class="fam-block">
-                                    <div class="suggest-row fam-row @(pickedFamily ? "picked" : "")">
+                                    <div class="suggest-row fam-row @(pickedFamily ? "picked" : "") @(excludedFamily ? "excluded" : "")">
                                         <button class="suggest-line fam-toggle" id="fam-toggle-@fam.Anchor.Id"
                                                 aria-expanded="@(expanded ? "true" : "false")"
                                                 title="@FamilyToggleTitle(fam, expanded)"
@@ -77,17 +80,36 @@
                                                     }
                                                 }
                                             </span>
+                                            @if (pickedFamily)
+                                            {
+                                                <span class="state-badge included" title="This family is included">✓ Included</span>
+                                            }
+                                            @if (excludedFamily)
+                                            {
+                                                <span class="state-badge excluded" title="This family is excluded">⊘ Excluded</span>
+                                            }
                                             <span class="tier-count">@fam.Tiers.Count tiers</span>
                                             @if (pickedTiers > 0)
                                             {
                                                 <span class="picked-count" title="@($"{pickedTiers} {(pickedTiers == 1 ? "tier" : "tiers")} picked in this family")">@pickedTiers picked</span>
                                             }
+                                            @if (pickedTiers > 0 && excludedTiers > 0)
+                                            {
+                                                <span class="summary-sep" aria-hidden="true">·</span>
+                                            }
+                                            @if (excludedTiers > 0)
+                                            {
+                                                <span class="excluded-count" title="@($"{excludedTiers} {(excludedTiers == 1 ? "tier" : "tiers")} excluded in this family")">@excludedTiers excluded</span>
+                                            }
                                         </button>
                                         <button id="pick-inc-@fam.Anchor.Id" title="@FamilyIncludeTitle(fam)" aria-label="@FamilyIncludeTitle(fam)"
                                                 disabled="@pickedFamily"
                                                 @onclick="() => Include(plainPick)">@(pickedFamily ? "✓" : "+")</button>
-                                        <button id="pick-exc-@fam.Anchor.Id" class="exc" title="@FamilyExcludeTitle(fam)" aria-label="@FamilyExcludeTitle(fam)"
-                                                @onclick="() => AddExclude(fam.Anchor.Id)">−</button>
+                                        <button id="pick-exc-@fam.Anchor.Id" class="exc @(excludedFamily ? "active" : "")"
+                                                title="@FamilyExcludeTitle(fam, excludedFamily)"
+                                                aria-label="@FamilyExcludeTitle(fam, excludedFamily)"
+                                                aria-pressed="@(excludedFamily ? "true" : "false")"
+                                                @onclick="() => ToggleFamilyExclude(fam)">@(excludedFamily ? "⊘" : "−")</button>
                                     </div>
                                     @if (expanded)
                                     {
@@ -100,7 +122,8 @@
                                                 var pickedExact = crit.Included.Any(m => m.SamePick(exactPick));
                                                 var pickedUp = crit.Included.Any(m => m.SamePick(upPick));
                                                 var pickedTier = crit.Included.Any(m => TierPicked(tier, m));
-                                                <li class="suggest-row tier-row @(pickedTier ? "picked" : "")">
+                                                var excludedTier = TierExcluded(fam, tier, crit.Excluded);
+                                                <li class="suggest-row tier-row @(pickedTier ? "picked" : "") @(excludedTier ? "excluded" : "")">
                                                     <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
                                                         @foreach (var l in tier.DisplayLines)
                                                         {
@@ -108,6 +131,14 @@
                                                         }
                                                     </span>
                                                     <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
+                                                    @if (pickedTier)
+                                                    {
+                                                        <span class="state-badge included" title="This tier is included">✓ Included</span>
+                                                    }
+                                                    @if (excludedTier)
+                                                    {
+                                                        <span class="state-badge excluded" title="This tier is excluded">⊘ Excluded</span>
+                                                    }
                                                     <button id="pick-tier-@tier.Anchor.Id" title="@TierPickTitle(tier)" aria-label="@TierPickTitle(tier)"
                                                             disabled="@pickedExact"
                                                             @onclick="() => Include(exactPick)">@(pickedExact ? "✓" : "+")</button>
@@ -117,8 +148,11 @@
                                                                 disabled="@pickedUp"
                                                                 @onclick="() => Include(upPick)">↑</button>
                                                     }
-                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc" title="@TierExcludeTitle(tier)" aria-label="@TierExcludeTitle(tier)"
-                                                            @onclick="() => AddExclude(tier.Name)">−</button>
+                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(excludedTier ? "active" : "")"
+                                                            title="@TierExcludeTitle(tier, excludedTier)"
+                                                            aria-label="@TierExcludeTitle(tier, excludedTier)"
+                                                            aria-pressed="@(excludedTier ? "true" : "false")"
+                                                            @onclick="() => ToggleTierExclude(fam, tier)">@(excludedTier ? "⊘" : "−")</button>
                                                 </li>
                                             }
                                         </ul>
@@ -330,6 +364,57 @@
                pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// Exclusions store either an affix name (picker tier excludes) or a mod
+    /// id (imported/global excludes), so a family matches both its own ids
+    /// and same-family ids from another scope. A tier name never matches a
+    /// mod id; family identity is compared by key + generation to avoid
+    /// lighting up unrelated families that share an affix name.
+    /// </summary>
+    private bool FamilyExcluded(ModFamily fam, IReadOnlyList<string> excluded) =>
+        FamilyExclusionTerms(fam, excluded).Count > 0;
+
+    private bool TierExcluded(ModFamily fam, ModTier tier, IReadOnlyList<string> excluded) =>
+        TierExclusionTerms(fam, tier, excluded).Count > 0;
+
+    private List<string> FamilyExclusionTerms(ModFamily fam, IReadOnlyList<string> excluded)
+    {
+        if (excluded.Count == 0) return [];
+        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        return excluded
+            .Where(e => memberIds.Contains(e) || SameFamilyAs(fam, e))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private List<string> TierExclusionTerms(
+        ModFamily fam, ModTier tier, IReadOnlyList<string> excluded)
+    {
+        if (excluded.Count == 0) return [];
+        var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var matches = new List<string>();
+        foreach (var term in excluded)
+        {
+            if (tier.Name.Length > 0 && string.Equals(term, tier.Name, StringComparison.Ordinal))
+            {
+                matches.Add(term);
+                continue;
+            }
+            if (tierIds.Contains(term))
+            {
+                matches.Add(term);
+                continue;
+            }
+            // An imported exclude can carry another scope's member id for the
+            // same family; match it by affix name within that family.
+            var mod = Engine.FindMod(term);
+            if (mod is not null && tier.Name.Length > 0 && SameFamilyAs(fam, term) &&
+                string.Equals(mod.Name ?? "", tier.Name, StringComparison.Ordinal))
+                matches.Add(term);
+        }
+        return matches.Distinct(StringComparer.Ordinal).ToList();
+    }
+
     // Titles are built here, not as markup entities: Blazor sets attributes
     // through DOM APIs, so a literal `&quot;` would show verbatim. Family
     // titles name the content, like the tier titles do.
@@ -339,8 +424,10 @@
     private static string FamilyIncludeTitle(ModFamily fam) =>
         $"Add {fam.DisplayText} (any tier)";
 
-    private static string FamilyExcludeTitle(ModFamily fam) =>
-        $"Exclude {fam.DisplayText} (any tier)";
+    private static string FamilyExcludeTitle(ModFamily fam, bool excluded) =>
+        excluded
+            ? $"Excluded: {fam.DisplayText}. Remove exclusion."
+            : $"Exclude {fam.DisplayText} (any tier)";
 
     private static string TierPickTitle(ModTier tier) =>
         $"Add \"{tier.Name}\"";
@@ -348,8 +435,13 @@
     private static string TierUpTitle(ModTier tier, IReadOnlyList<string> names) =>
         $"Add \"{tier.Name}\" or better: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
 
-    private static string TierExcludeTitle(ModTier tier) =>
-        $"Exclude \"{tier.Name}\"";
+    private static string TierExcludeTitle(ModTier tier, bool excluded)
+    {
+        var label = tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id;
+        return excluded
+            ? $"Excluded: \"{label}\". Remove exclusion."
+            : $"Exclude \"{label}\"";
+    }
 
     private void OnSearch(ChangeEventArgs e)
     {
@@ -363,9 +455,23 @@
         Refresh();
     }
 
-    private void AddExclude(string term)
+    private void ToggleFamilyExclude(ModFamily fam)
     {
-        State.AddExclude(Scope, term);
+        var existing = FamilyExclusionTerms(fam, ScopeCriteria().Excluded);
+        if (existing.Count > 0)
+            foreach (var term in existing) State.RemoveExclude(Scope, term);
+        else
+            State.AddExclude(Scope, fam.Anchor.Id);
+        Refresh();
+    }
+
+    private void ToggleTierExclude(ModFamily fam, ModTier tier)
+    {
+        var existing = TierExclusionTerms(fam, tier, ScopeCriteria().Excluded);
+        if (existing.Count > 0)
+            foreach (var term in existing) State.RemoveExclude(Scope, term);
+        else
+            State.AddExclude(Scope, tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id);
         Refresh();
     }
 
