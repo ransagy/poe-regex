@@ -254,6 +254,7 @@ input:disabled { opacity: 0.5; }
 .seg-opt:hover { color: var(--text); }
 .seg-opt.active { background: var(--raised); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .seg-note { color: var(--ember); font-size: 0.86rem; }
+.seg-hint { color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
 .bench-bar { flex-wrap: wrap; row-gap: 0.5rem; }
 .bench-notice {
     flex: none; margin: 0; padding: 0.5rem 0.75rem; display: flex; align-items: baseline; gap: 0.75rem;
@@ -724,10 +725,40 @@ input:disabled { opacity: 0.5; }
     background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
 }
+/* Import stays one height and scrolls, so parsing never resizes the dialog. */
+.dlg-import { height: min(82vh, 44rem); max-height: 88vh; }
 .panel-head { font-size: 1.1rem; font-weight: 600; }
 .dlg textarea { min-height: 8rem; font-family: var(--mono); font-size: 0.84rem; }
 .dlg .modrow { flex-wrap: wrap; }
 .dlg .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.import-source { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; align-self: flex-start; }
+.import-source .seg { flex: none; }
+.guide-section {
+    display: flex; flex-direction: column; gap: 0.35rem;
+    padding-top: 0.45rem; border-top: 1px solid var(--line); font-size: 0.84rem;
+}
+.guide-section-head { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.guide-branch { display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; font-size: 0.84rem; }
+.guide-branch code { font-family: var(--mono); }
+.guide-query code { overflow-wrap: anywhere; }
+.guide-pick-menu { position: relative; flex: 1 1 16rem; min-width: 0; }
+.guide-pick-menu > summary {
+    display: block; padding: 0.32rem 0.6rem; font-size: 0.84rem; line-height: 1.3;
+    color: var(--text); background: var(--raised); border: 1px solid var(--line-strong);
+    border-radius: 6px; cursor: pointer; list-style: none;
+}
+.guide-pick-menu > summary::-webkit-details-marker { display: none; }
+.guide-pick-menu > summary::after { content: " \25be"; color: var(--muted); }
+.guide-pick-menu[open] > summary { border-color: var(--ember); }
+.guide-pick-menu[open] > summary::after { content: " \25b4"; }
+.guide-pick-list {
+    display: flex; flex-direction: column; gap: 0.1rem;
+    margin-top: 0.25rem; padding: 0.3rem; max-height: 15rem; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+}
+.guide-pick-option { display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.35rem; border-radius: 5px; cursor: pointer; }
+.guide-pick-option:hover { background: var(--card-hover); }
+.guide-pick-option input { accent-color: var(--ember); }
 #query-import-preview { margin-top: 0.35rem; padding-top: 0.55rem; border-top: 1px solid var(--line); }
 #query-import-preview .picks { gap: 0.45rem; }
 #query-import-preview .picks-title { font-size: 0.95rem; color: var(--muted); }
@@ -852,6 +883,7 @@ body.compact .out-dock {
     .shell-foot { padding: 0.5rem 0.75rem 4.5rem; }
     .foot-reset { margin-left: 0; }
     .dlg, .dlg-builder { width: 100%; max-height: none; }
+    .dlg.dlg-import { height: 90vh; max-height: 90vh; }
     .builder-cols { flex-direction: column; }
     .builder-right .iprev { max-height: none; }
 }

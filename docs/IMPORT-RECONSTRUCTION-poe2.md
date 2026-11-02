@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-10-31 22:57 UTC._
+_Generated 2026-11-02 00:04 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -133,7 +133,7 @@ strings, and minimum values fail closed or are accepted losses.
 ### `paste-weapon-offhand` — weapon + offhand
 - query: `": (Cro\|Shi.+s)" ": (Shi.+s)\|ith" ": (Cro)\|i.*ur$"`
 - mode: advanced
-- weapon · Crossbow — any of: `family:WeaponElementalDamage1`
+- weapon · Crossbow — any of: `family:WeaponElementalDamageOnTwohandWeapon1`
 - offhand · Shield — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
 - recompile: identical
 
@@ -185,7 +185,10 @@ strings, and minimum values fail closed or are accepted losses.
 - **Minimum values are genuinely lost**; the query encodes a threshold that the
   pick model cannot recover (accepted limitation).
 - Factored fragments/name sets and multi-class pastes are supported by this
-  path. The Import string panel applies the recovered slots; guide extraction is
-  still later.
+  path. The Import string panel applies the recovered slots.
+- Guide-filter extraction ships as a separate mode: exact names/fragments and
+  regex matches against family/tier text map; multi-family branches use a
+  multi-select. Base/vendor names, exclusions, and explicit class anchors are
+  follow-ups.
 
 Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter "FullyQualifiedName~QueryReconstructionTests"`.

@@ -153,6 +153,22 @@ public sealed class QueryReconstructionService
         return classes.Distinct(StringComparer.Ordinal).ToList();
     }
 
+    /// <summary>
+    /// Resolve one unquoted guide branch through the same name/fragment
+    /// indexes used by the string importer. Family-keyword reconciliation is
+    /// handled separately by <see cref="GuideImportService"/>.
+    /// </summary>
+    public bool TryResolveGuideTerm(
+        string term, out List<WantedMod> picks, out string failure)
+    {
+        var used = new List<WantedMod>();
+        return TryResolveTerm(term, null, used, out picks, out failure);
+    }
+
+    /// <summary>Global families for guide-keyword reconciliation.</summary>
+    public IReadOnlyList<ModFamily> Families =>
+        _familyByKey.Values.OrderBy(f => f.Key, StringComparer.Ordinal).ToList();
+
     public ReconstructedWorkbench ReconstructWorkbench(string query)
     {
         if (!_engine.DataReady)
@@ -196,9 +212,12 @@ public sealed class QueryReconstructionService
         {
             if (excluded)
             {
-                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out var why,
+                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out _,
                         new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedWorkbench.Failed(why);
+                {
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;
@@ -400,8 +419,14 @@ public sealed class QueryReconstructionService
             if (excluded)
             {
                 if (!TryResolveSinglePick(phrase, itemClass, used, out var excludedPick,
-                        out var excludeWhy, new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedQuery.Failed(query, excludeWhy);
+                        out _, new HashSet<string>(excludes, StringComparer.Ordinal)))
+                {
+                    // Guide-applied exclusions are raw regex groups, not
+                    // catalog picks. Preserve them verbatim so reapplying the
+                    // string keeps the same exclusion.
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;

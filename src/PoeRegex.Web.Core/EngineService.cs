@@ -298,10 +298,21 @@ public sealed class EngineService
         IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass) =>
         Compile(
             matchAll ? [] : picks.SelectMany(m => m.Requirements()),
-            excludes.Select(e => new ModifierRequirement(e)),
+            excludes.Select(ExclusionRequirement),
             itemClass: itemClass,
             allowOverflow: true,
             requiredGroups: matchAll ? picks.Select(m => m.Requirements()) : null);
+
+    /// <summary>
+    /// Workbench exclusions are usually catalog mod ids, but a guide import can
+    /// carry a raw regex group (for example `parry|bow|scept`). The marker
+    /// keeps the value round-trippable through state and lets the compiler emit
+    /// the pattern verbatim instead of escaping it as a literal.
+    /// </summary>
+    private static ModifierRequirement ExclusionRequirement(string exclusion) =>
+        RawExclusion.IsRaw(exclusion)
+            ? new ModifierRequirement(RawExclusion.Decode(exclusion), IsRegex: true)
+            : new ModifierRequirement(exclusion);
 
     /// <summary>
     /// The compiled fragment for each requirement of a pick, in compile order.
@@ -426,9 +437,11 @@ public sealed class EngineService
     }
 
     public string? ExcludeFragment(string exc) =>
-        _excludeFragments.GetOrAdd(
-            exc,
-            key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
+        RawExclusion.IsRaw(exc)
+            ? RawExclusion.Decode(exc)
+            : _excludeFragments.GetOrAdd(
+                exc,
+                key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
 
     private string? ComputeExcludeFragment(string exc)
     {
@@ -463,7 +476,7 @@ public sealed class EngineService
                     s.ClassId,
                     s.Includes.SelectMany(m => m.Requirements()).ToList(),
                     s.Label)).ToList(),
-            excludes.Select(e => new ModifierRequirement(e)),
+            excludes.Select(ExclusionRequirement),
             allowOverflow);
 
     /// <summary>

@@ -5,11 +5,30 @@
 @if (Open)
 {
     <div class="dlg-overlay" id="query-import-dialog" @onclick="OnBackdrop">
-        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import search string"
+        <div class="dlg dlg-import" @onclick:stopPropagation="true" role="dialog" aria-label="Import string"
              @onkeydown="OnDialogKeyDown">
-            <h2 class="panel-head">Import a search string</h2>
+            <h2 class="panel-head">Import string</h2>
+            <div class="import-source">
+                <div class="seg" role="group" aria-label="Import source">
+                    <button type="button" id="query-import-mode-app" class="seg-opt @(_guideMode ? "" : "active")"
+                            aria-pressed="@(_guideMode ? "false" : "true")"
+                            @onclick="() => SetGuideMode(false)">This app</button>
+                    <button type="button" id="query-import-mode-guide" class="seg-opt @(_guideMode ? "active" : "")"
+                            aria-pressed="@(_guideMode ? "true" : "false")"
+                            @onclick="() => SetGuideMode(true)">Others</button>
+                </div>
+                <span class="seg-note">@(_guideMode
+                    ? "Build guides and other regex sites"
+                    : "A search string this app produced")</span>
+            </div>
+            @if (_guideMode)
+            {
+                <div class="seg-hint" id="query-import-guide-note">
+                    Best-effort import from another site. Review the picks and adjust anything after applying.
+                </div>
+            }
             <textarea id="query-import-text" rows="5"
-                      placeholder="Paste a search string…"
+                      placeholder="@(_guideMode ? "Paste a build-guide filter…" : "Paste a search string…")"
                       value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
                       aria-label="Search string"></textarea>
             <div class="modrow">
@@ -26,20 +45,103 @@
             {
                 <div class="more" id="query-import-busy" aria-live="polite">Reading the string…</div>
             }
+            else if (_guideMode && _guideResult is not null)
+            {
+                var multiBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.MultiFamily).ToList();
+                var exclusionBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.Exclusion).ToList();
+                var droppedBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.Dropped).ToList();
+                <div class="more" id="query-import-summary">
+                    @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
+                    · @_guideResult.Dropped dropped
+                </div>
+                @if (multiBranches.Count > 0)
+                {
+                    <div class="guide-section" id="query-import-reconcile">
+                        <div class="guide-section-head">
+                            Choose families for @multiBranches.Count branch(es)
+                        </div>
+                        @foreach (var branch in multiBranches)
+                        {
+                            <div class="guide-branch" data-branch="@branch.Index">
+                                <code>@branch.Text</code>
+                                <details class="guide-pick-menu" id="guide-branch-@branch.Index"
+                                         open="@(_openPicker == branch.Index)"
+                                         data-selected="@string.Join(",", branch.Selected)">
+                                    <summary>@branch.Selected.Count picked out of @branch.Candidates.Count options</summary>
+                                    <div class="guide-pick-list">
+                                        @foreach (var candidate in branch.Candidates)
+                                        {
+                                            <label class="guide-pick-option">
+                                                <input type="checkbox" value="@candidate.Key"
+                                                       checked="@branch.Selected.Contains(candidate.Key)"
+                                                       @onchange="e => OnGuideCandidate(branch.Index, candidate.Key, e)" />
+                                                <span>@candidate.Label</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </details>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (exclusionBranches.Count > 0)
+                {
+                    <div class="guide-section" id="query-import-exclusions">
+                        <div class="guide-section-head">Excluded from results</div>
+                        @foreach (var branch in exclusionBranches)
+                        {
+                            <div class="guide-branch">
+                                <code>@branch.Text</code>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (droppedBranches.Count > 0)
+                {
+                    <div class="guide-section" id="query-import-dropped">
+                        <div class="guide-section-head">@droppedBranches.Count not imported</div>
+                        @foreach (var branch in droppedBranches)
+                        {
+                            <div class="guide-branch">
+                                <code>@branch.Text</code>
+                                <span>@branch.Note</span>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (_guideResult.CompiledQuery is not null)
+                {
+                    <div class="more guide-query">compiled: <code>@_guideResult.CompiledQuery</code></div>
+                }
+                @if (!CanApply)
+                {
+                    <div class="field-error" id="query-import-warning">
+                        @(_guideResult.Warnings.FirstOrDefault() ?? "nothing importable was found")
+                    </div>
+                }
+                else if (_previewModel is not null && _previewState is not null)
+                {
+                    <div id="query-import-preview">
+                        <PickBreakdown Model="_previewModel" State="_previewState"
+                                       ReadOnly="true" Title="Your picks · after apply" />
+                    </div>
+                }
+                @foreach (var warning in _guideResult.Warnings)
+                {
+                    <div class="more">@warning</div>
+                }
+            }
             else if (_result is null)
             {
-                <div class="more">Paste a search string this app produced. Picks it cannot place are reported and left out.</div>
+                <div class="more">@(_guideMode
+                    ? "Paste a build-guide filter. Branches this app can map become picks; the rest are reported and dropped."
+                    : "Paste a search string this app produced. Picks it cannot place are reported and left out.")</div>
             }
             else
             {
-                <div class="more" id="query-import-summary">
-                    mode: @_result.Mode
-                    @foreach (var slot in _result.Slots)
-                    {
-                        <span> · @slot.SlotId@(string.IsNullOrEmpty(slot.ClassId) ? "" : $" ({slot.ClassId})"): @slot.Includes.Count pick(s)</span>
-                    }
-                    <span> · @_result.Excludes.Count exclude(s)</span>
-                </div>
                 if (!CanApply)
                 {
                     <div class="field-error" id="query-import-warning">
@@ -79,6 +181,11 @@
     private string _text = "";
     private ReconstructedWorkbench? _result;
     private QueryReconstructionService? _service;
+    private GuideImportService? _guideService;
+    private GuideImportResult? _guideResult;
+    private bool _guideMode;
+    private readonly Dictionary<int, IReadOnlyList<string>> _guideOverrides = [];
+    private int? _openPicker;
     private WorkbenchState? _previewState;
     private SearchModel? _previewModel;
     private bool _busy;
@@ -100,10 +207,23 @@
         try
         {
             _service ??= new QueryReconstructionService(Engine);
-            var result = _service.ReconstructWorkbench(_text);
-            if (version != _parseVersion) return;
-            _result = result;
-            if (result.Ok) BuildPreview(result);
+            if (_guideMode)
+            {
+                _guideService ??= new GuideImportService(Engine, _service);
+                var guide = _guideService.Import(_text, _guideOverrides);
+                if (version != _parseVersion) return;
+                _guideResult = guide;
+                _result = guide.Workbench;
+                if (_result is { Ok: true }) BuildPreview(_result);
+            }
+            else
+            {
+                _guideResult = null;
+                var result = _service.ReconstructWorkbench(_text);
+                if (version != _parseVersion) return;
+                _result = result;
+                if (result.Ok) BuildPreview(result);
+            }
         }
         catch (Exception ex)
         {
@@ -144,8 +264,46 @@
         _parseVersion++;
         _busy = false;
         _result = null;
+        _guideResult = null;
+        _guideOverrides.Clear();
+        _openPicker = null;
         _previewState = null;
         _previewModel = null;
+    }
+
+    private void SetGuideMode(bool guide)
+    {
+        if (_guideMode == guide) return;
+        _guideMode = guide;
+        _parseVersion++;
+        _busy = false;
+        _result = null;
+        _guideResult = null;
+        _guideOverrides.Clear();
+        _openPicker = null;
+        _previewState = null;
+        _previewModel = null;
+    }
+
+    private async Task OnGuideCandidate(int index, string key, ChangeEventArgs e)
+    {
+        var current = _guideOverrides.TryGetValue(index, out var overridden)
+            ? overridden.ToList()
+            : _guideResult?.Branches.FirstOrDefault(b => b.Index == index)?.Selected.ToList() ?? [];
+        var selected = e.Value is bool value
+            ? value
+            : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (selected)
+        {
+            if (!current.Contains(key, StringComparer.Ordinal)) current.Add(key);
+        }
+        else
+        {
+            current.RemoveAll(k => string.Equals(k, key, StringComparison.Ordinal));
+        }
+        _guideOverrides[index] = current;
+        _openPicker = index;
+        await Parse();
     }
 
     private Task OnBackdrop() => Close();
@@ -155,6 +313,9 @@
         _parseVersion++;
         _busy = false;
         _result = null;
+        _guideResult = null;
+        _guideOverrides.Clear();
+        _openPicker = null;
         _previewState = null;
         _previewModel = null;
         await OnClose.InvokeAsync();

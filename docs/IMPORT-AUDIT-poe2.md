@@ -60,6 +60,25 @@ Regression tests:
 - `QueryImport_HandlesAlternationAndThreshold`
 - `QueryImport_RecoversThresholdOnly`
 
+## Guide filter import
+
+The Import string panel has an explicit **Guide filter** mode. It extracts one
+filter line (or the most branch-like line from a paste), splits top-level `|`
+branches, and maps each branch through the same name/fragment/family indexes
+as search-string reconstruction:
+
+- exact affix names become name picks;
+- exact table fragments become fragment picks;
+- every other branch is matched as a case-insensitive regex against family
+  display text and tier text; multi-family branches get a multi-select with
+  the common families selected by default;
+- negative groups (`!parry|bow|...`) are applied as raw regex exclusions;
+- unknown/base/vendor branches are dropped with a warning;
+- the preview and apply path reuse the read-only Your-picks view.
+
+Current guide limitations: no base-type list yet, and explicit class anchors
+warn and import globally.
+
 ## Remaining limitations
 
 - The catalog ships prefix/suffix generations only; implicits are intentionally
@@ -67,8 +86,10 @@ Regression tests:
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.
-- Multi-class search-string import is preview-only; apply is wired for one
-  simple/advanced scope.
+- Multi-class search-string import is applied by the reconstruction path;
+  guide-filter apply is simple/global only.
+- Guide filters do not yet support base/vendor names or class anchors;
+  exclusions are applied as raw regex groups.
 - Unmodeled unique/socketable/base text is outside the safety corpus.
 
 ## Reproduce

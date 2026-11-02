@@ -67,10 +67,14 @@ public sealed class PoeRegexCompiler
         // Exclusions → separate quoted blocks.
         foreach (var req in spec.ExcludedModifiers)
         {
-            var mod = _corpus.FindMod(req.Value);
-            var term = mod is not null
-                ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
-                : Poe2Syntax.EscapeLiteral(req.Value);
+            // A raw exclusion is already a regex fragment (guide imports);
+            // catalog exclusions still resolve to their shortest fragment.
+            var mod = req.IsRegex ? null : _corpus.FindMod(req.Value);
+            var term = req.IsRegex
+                ? req.Value
+                : mod is not null
+                    ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
+                    : Poe2Syntax.EscapeLiteral(req.Value);
             blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 
