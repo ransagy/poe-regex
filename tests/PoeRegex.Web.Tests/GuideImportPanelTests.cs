@@ -98,11 +98,11 @@ public class GuideImportPanelTests
         await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
         cut.WaitForElement("#query-import-exclusions");
 
+        cut.Find("#query-import-imported").TextContent.Should().Contain("None of");
         cut.Find("#query-import-exclusions").TextContent.Should().Contain("parry|bow");
-        cut.Find("#query-import-exclusions").TextContent.Should().Contain("Imported");
-        cut.FindAll("#query-import-preview .bd-row.exc").Count.Should().Be(1);
-        cut.FindAll("#query-import-preview .bd-row.exc.ext").Count.Should().Be(1);
-        cut.Find("#query-import-preview .bd-tag").TextContent.Should().Be("Imported");
+        cut.Find("#query-import-exclusions").TextContent.Should().NotContain("Imported");
+        cut.FindAll("#query-import-preview .bd-row.imported.exc").Count.Should().Be(1);
+        cut.FindAll("#query-import-preview .bd-tag").Should().BeEmpty();
 
         await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
@@ -127,15 +127,44 @@ public class GuideImportPanelTests
         await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
         cut.WaitForElement("#query-import-external");
 
-        cut.Find("#query-import-external").TextContent.Should().Contain("Imported");
+        cut.Find("#query-import-imported").TextContent.Should().Contain("Must match");
         cut.Find("#query-import-external").TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
-        cut.FindAll("#query-import-preview .bd-row.ext").Count.Should().Be(1);
-        cut.Find("#query-import-preview .bd-tag").TextContent.Should().Be("Imported");
+        cut.Find("#query-import-external").TextContent.Should().NotContain("Imported");
+        cut.FindAll("#query-import-preview .bd-row.imported").Count.Should().Be(1);
+        cut.FindAll("#query-import-preview .bd-tag").Should().BeEmpty();
 
         await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
         closed.Should().BeTrue();
         state.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+    }
+
+    [Fact]
+    public async Task ImportedIncludesAndExclusionsShareOneSection()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-mode-guide").Click();
+        cut.Find("#query-import-text").Input(
+            "\"!parry|bow\" \"s: (am|ri|be|Cross)|max.*life\"");
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-imported");
+
+        var imported = cut.Find("#query-import-imported");
+        imported.TextContent.Should().Contain("Must match");
+        imported.TextContent.Should().Contain("None of");
+        imported.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
+        imported.TextContent.Should().Contain("parry|bow");
+
+        cut.FindAll("#query-import-preview .bd-row.imported").Count.Should().Be(2);
+        cut.FindAll("#query-import-preview .bd-row.imported.exc").Count.Should().Be(1);
+        cut.FindAll("#query-import-preview .bd-tag").Should().BeEmpty();
     }
 
     [Fact]

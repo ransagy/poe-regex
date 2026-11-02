@@ -123,6 +123,37 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_SeparatesImportedTermsFromNormalExcludes()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddExclude(null, "ManaRegeneration1");
+        state.AddExclude(null, RawExclusion.Encode("parry|bow"));
+        state.SetExternalIncludes(["Item Class: (am|ri|be|Cross)"]);
+        var model = new SearchModel(engine, state);
+        model.Update(
+            engine.CompilePicks(
+                state.Global.Included, state.Global.Excluded, false, null,
+                state.ExternalIncludes),
+            null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var imported = cut.FindAll(".bd-sec")
+            .Single(s => s.TextContent.Contains("Imported terms"));
+        imported.QuerySelectorAll(".bd-row.imported").Length.Should().Be(2);
+        imported.QuerySelectorAll(".bd-row.exc").Length.Should().Be(1);
+        imported.TextContent.Should().Contain("Must match");
+        imported.TextContent.Should().Contain("None of");
+        cut.FindAll(".bd-row.exc:not(.imported)").Count.Should().Be(1);
+        cut.FindAll(".bd-tag").Should().BeEmpty();
+    }
+
+    [Fact]
     public void Engine_CanApplyMin_OnlyForPicksWhoseFragmentChanges()
     {
         var engine = new EngineService();

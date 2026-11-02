@@ -118,32 +118,36 @@
                         }
                     </div>
                 }
-                @if (externalBranches.Count > 0)
+                @if (externalBranches.Count > 0 || exclusionBranches.Count > 0)
                 {
-                    <div class="guide-section" id="query-import-external">
-                        <div class="guide-section-head">Imported terms (not built by the app)</div>
-                        @foreach (var branch in externalBranches)
+                    <div class="guide-section" id="query-import-imported">
+                        <div class="guide-section-head">Kept as-is (raw regex)</div>
+                        @if (externalBranches.Count > 0)
                         {
-                            <div class="guide-branch">
-                                <code>@branch.Text</code>
-                                <span class="guide-tag">Imported</span>
-                                @if (branch.ExternalTerm is { } term && term != branch.Text)
+                            <div class="guide-section-group" id="query-import-external">
+                                <div class="guide-section-sub">Must match</div>
+                                @foreach (var branch in externalBranches)
                                 {
-                                    <code>@term</code>
+                                    <div class="guide-branch">
+                                        <code>@branch.Text</code>
+                                        @if (branch.ExternalTerm is { } term && term != branch.Text)
+                                        {
+                                            <code>@term</code>
+                                        }
+                                    </div>
                                 }
                             </div>
                         }
-                    </div>
-                }
-                @if (exclusionBranches.Count > 0)
-                {
-                    <div class="guide-section" id="query-import-exclusions">
-                        <div class="guide-section-head">Excluded from results</div>
-                        @foreach (var branch in exclusionBranches)
+                        @if (exclusionBranches.Count > 0)
                         {
-                            <div class="guide-branch">
-                                <code>@branch.Text</code>
-                                <span class="guide-tag">Imported</span>
+                            <div class="guide-section-group" id="query-import-exclusions">
+                                <div class="guide-section-sub">None of</div>
+                                @foreach (var branch in exclusionBranches)
+                                {
+                                    <div class="guide-branch">
+                                        <code>@branch.Text</code>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>

@@ -327,7 +327,6 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         return i >= 0 && i < _externalBlocks.Count ? _externalBlocks[i] : null;
     }
 
-    public bool IsExternalExclude(string exc) => RawExclusion.IsRaw(exc);
 
     public bool MergedToAny(string cls) =>
         Paste?.MergedToAnyClasses.Contains(cls, StringComparer.Ordinal) == true;
