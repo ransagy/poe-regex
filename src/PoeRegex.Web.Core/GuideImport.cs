@@ -69,13 +69,27 @@ public sealed class GuideImportService(
                 return Empty(warnings, "The guide filter only contained a class anchor.");
         }
 
+        var groups = ParseGroups(line);
+        var positiveGroups = groups.Count(g => !g.Excluded);
+        if (positiveGroups > 1)
+            warnings.Add("Multiple positive groups are combined as any-of in this slice.");
+
         var branches = new List<GuideBranch>();
         var index = 0;
-        foreach (var raw in SplitBranches(line))
+        foreach (var group in groups)
         {
-            var text = raw.Trim().Trim('`', '"', '\'').Trim();
-            if (text.Length == 0) continue;
-            branches.Add(ResolveBranch(index++, text, overrides));
+            if (group.Excluded)
+            {
+                branches.Add(new GuideBranch(index++, group.Text, GuideBranchKind.Dropped,
+                    [], [], [], "exclusion groups are not supported yet"));
+                continue;
+            }
+            foreach (var raw in group.Branches)
+            {
+                var text = raw.Trim();
+                if (text.Length == 0) continue;
+                branches.Add(ResolveBranch(index++, text, overrides));
+            }
         }
 
         var picks = new List<WantedMod>();
@@ -210,8 +224,16 @@ public sealed class GuideImportService(
             if (matcher.Matches(family.DisplayText)) score = Math.Max(score, 70);
             foreach (var tier in family.Tiers)
             {
-                if (tier.Name.Length > 0 && matcher.Matches(tier.Name))
-                    score = Math.Max(score, 90);
+                if (tier.Name.Length > 0)
+                {
+                    if (string.Equals(tier.Name, query, StringComparison.OrdinalIgnoreCase))
+                        score = Math.Max(score, 90);
+                    else if (matcher.Matches(tier.Name))
+                        // A partial name hit (e.g. "mov" inside "Unmoving") is
+                        // weaker than a stat-text hit; otherwise "mov" would
+                        // prefer an armour suffix over Movement Speed.
+                        score = Math.Max(score, 35);
+                }
                 foreach (var line in tier.DisplayLines)
                     if (line.Length > 0 && matcher.Matches(line))
                         score = Math.Max(score, 60);
@@ -283,7 +305,7 @@ public sealed class GuideImportService(
             ? $"Used one filter line from {lines.Count} lines: {line}"
             : null;
 
-        line = line.Trim().Trim('`', '"', '\'').Trim();
+        line = line.Trim();
         foreach (var prefix in new[]
                  {
                      "filter:", "search:", "regex:", "query:", "guide:",
@@ -304,6 +326,106 @@ public sealed class GuideImportService(
             }
         }
         return (line, warning);
+    }
+
+    private sealed record GuideGroup(bool Excluded, string Text, IReadOnlyList<string> Branches);
+
+    /// <summary>
+    /// Parse quoted/negative groups. A line without quotes or a leading ! is
+    /// one positive group (the unquoted guide convention); otherwise groups
+    /// are separated by whitespace and their internals are never split by the
+    /// outer | scanner.
+    /// </summary>
+    private static List<GuideGroup> ParseGroups(string line)
+    {
+        if (!line.Contains('"') && !line.Contains('`') && !line.TrimStart().StartsWith('!'))
+        {
+            var branches = SplitBranches(line);
+            return [new GuideGroup(false, line, branches)];
+        }
+
+        var groups = new List<GuideGroup>();
+        var i = 0;
+        while (i < line.Length)
+        {
+            while (i < line.Length && char.IsWhiteSpace(line[i])) i++;
+            if (i >= line.Length) break;
+
+            var excluded = false;
+            if (line[i] == '!')
+            {
+                excluded = true;
+                i++;
+                if (i >= line.Length) break;
+            }
+
+            if (line[i] is '"' or '`')
+            {
+                var quote = line[i++];
+                var sb = new StringBuilder();
+                while (i < line.Length && line[i] != quote)
+                {
+                    if (line[i] == '\\' && i + 1 < line.Length)
+                    {
+                        sb.Append(line[i++]);
+                        sb.Append(line[i++]);
+                        continue;
+                    }
+                    sb.Append(line[i++]);
+                }
+                if (i < line.Length) i++;
+                var content = sb.ToString();
+                if (content.StartsWith('!'))
+                {
+                    excluded = true;
+                    content = content[1..];
+                }
+                groups.Add(new GuideGroup(
+                    excluded,
+                    excluded ? "!" + content : content,
+                    excluded ? [] : SplitBranches(content)));
+                continue;
+            }
+
+            if (line[i] == '(')
+            {
+                var start = i;
+                var depth = 0;
+                var inClass = false;
+                while (i < line.Length)
+                {
+                    var ch = line[i++];
+                    if (ch == '\\') { i++; continue; }
+                    if (inClass)
+                    {
+                        if (ch == ']') inClass = false;
+                        continue;
+                    }
+                    if (ch == '[') inClass = true;
+                    else if (ch == '(') depth++;
+                    else if (ch == ')')
+                    {
+                        depth--;
+                        if (depth == 0) break;
+                    }
+                }
+                var content = line[start..i];
+                groups.Add(new GuideGroup(
+                    excluded,
+                    excluded ? "!" + content : content,
+                    excluded ? [] : SplitBranches(content)));
+                continue;
+            }
+
+            var tokenStart = i;
+            while (i < line.Length && !char.IsWhiteSpace(line[i])) i++;
+            var token = line[tokenStart..i];
+            groups.Add(new GuideGroup(
+                excluded,
+                excluded ? "!" + token : token,
+                excluded ? [] : SplitBranches(token)));
+        }
+        return groups;
     }
 
     /// <summary>Split on top-level | only; leave groups/classes/escapes intact.</summary>

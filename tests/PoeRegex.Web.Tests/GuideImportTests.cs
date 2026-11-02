@@ -36,6 +36,31 @@ public class GuideImportTests
     }
 
     [Fact]
+    public void BareMovementKeyword_MapsToMovementSpeed()
+    {
+        var result = Guide.Import("mov");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Candidates.Select(c => c.Key)
+            .Should().Contain("MovementVelocity");
+        result.Branches[0].Selected.Should().Contain("MovementVelocity");
+    }
+
+    [Fact]
+    public void QuotedGroups_AreKeptTogetherAndExclusionIsReported()
+    {
+        var result = Guide.Import("\"!(uiv)\" \"cross|mov|[egdl] da.* to a\"");
+
+        result.Branches.Should().NotContain(b => b.Text.Contains("cross|mov"));
+        result.Branches.Should().Contain(b =>
+            b.Kind == GuideBranchKind.Dropped && b.Text.Contains("!(uiv)"));
+        var movement = result.Branches.Single(b => b.Text == "mov");
+        movement.Picks.Should().NotBeEmpty();
+        movement.Candidates.Select(c => c.Key).Should().Contain("MovementVelocity");
+        result.Warnings.Should().NotContain(w => w.Contains("Multiple positive groups"));
+    }
+
+    [Fact]
     public void MovementRegex_MapsToMovementSpeed()
     {
         var result = Guide.Import("i.+mov");
