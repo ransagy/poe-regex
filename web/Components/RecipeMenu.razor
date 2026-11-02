@@ -87,7 +87,7 @@
     private ElementReference _dialog;
 
     private bool HasPicks =>
-        State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+        State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0 ||
         State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
 
     protected override async Task OnParametersSetAsync()

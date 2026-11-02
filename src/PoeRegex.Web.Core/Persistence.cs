@@ -14,9 +14,10 @@ public sealed record WorkbenchSnapshot(
     string? MultiFocus,
     Dictionary<string, SlotCriteria> Slots,
     SlotCriteria Global,
-    List<TestItem> TestItems)
+    List<TestItem> TestItems,
+    List<string>? ExternalIncludes = null)
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state) => new(
         CurrentVersion,
@@ -25,7 +26,8 @@ public sealed record WorkbenchSnapshot(
         state.FocusedSlot,
         state.Slots.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
         state.Global,
-        state.TestItems.ToList());
+        state.TestItems.ToList(),
+        state.ExternalIncludes.ToList());
 
     /// <summary>Restore with light validation (unknown modes/slots/classes are dropped).</summary>
     public static void Restore(WorkbenchState state, WorkbenchSnapshot snap) =>
@@ -84,6 +86,9 @@ public sealed record WorkbenchSnapshot(
         state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
         state.Global.MatchAll = snap.Global.MatchAll;
         state.Global.NormalizeMatchAll();
+        state.ExternalIncludes.Clear();
+        state.ExternalIncludes.AddRange(
+            (snap.ExternalIncludes ?? []).Where(e => e.Length > 0).Distinct(StringComparer.Ordinal));
         if (!items) return;
         state.TestItems.Clear();
         if (snap.TestItems is null) return;

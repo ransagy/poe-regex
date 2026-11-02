@@ -1,6 +1,7 @@
 @using PoeRegex.Core
 @using PoeRegex.Web.Core
 @inject EngineService Engine
+@inject IJSRuntime JS
 
 @if (Open)
 {
@@ -49,13 +50,15 @@
             {
                 var multiBranches = _guideResult.Branches
                     .Where(b => b.Kind == GuideBranchKind.MultiFamily).ToList();
+                var externalBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.External).ToList();
                 var exclusionBranches = _guideResult.Branches
                     .Where(b => b.Kind == GuideBranchKind.Exclusion).ToList();
                 var droppedBranches = _guideResult.Branches
                     .Where(b => b.Kind == GuideBranchKind.Dropped).ToList();
                 <div class="more" id="query-import-summary">
                     @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
-                    · @_guideResult.Dropped dropped
+                    · @_guideResult.External imported · @_guideResult.Dropped dropped
                 </div>
                 @if (multiBranches.Count > 0)
                 {
@@ -65,24 +68,65 @@
                         </div>
                         @foreach (var branch in multiBranches)
                         {
+                            var summary = $"{branch.Selected.Count} picked out of {branch.Candidates.Count} options";
                             <div class="guide-branch" data-branch="@branch.Index">
                                 <code>@branch.Text</code>
-                                <details class="guide-pick-menu" id="guide-branch-@branch.Index"
-                                         open="@(_openPicker == branch.Index)"
-                                         data-selected="@string.Join(",", branch.Selected)">
-                                    <summary>@branch.Selected.Count picked out of @branch.Candidates.Count options</summary>
-                                    <div class="guide-pick-list">
-                                        @foreach (var candidate in branch.Candidates)
-                                        {
-                                            <label class="guide-pick-option">
-                                                <input type="checkbox" value="@candidate.Key"
-                                                       checked="@branch.Selected.Contains(candidate.Key)"
-                                                       @onchange="e => OnGuideCandidate(branch.Index, candidate.Key, e)" />
-                                                <span>@candidate.Label</span>
-                                            </label>
-                                        }
-                                    </div>
-                                </details>
+                                <span class="guide-pick-summary">@summary</span>
+                                <div class="guide-pick-desktop">
+                                    <button type="button" class="guide-pick-trigger"
+                                            id="guide-branch-@branch.Index"
+                                            data-selected="@string.Join(",", branch.Selected)"
+                                            aria-haspopup="listbox"
+                                            aria-expanded="@(_openPicker == branch.Index ? "true" : "false")"
+                                            @onclick="() => TogglePicker(branch.Index)">
+                                        <span>@summary</span><span class="guide-pick-caret" aria-hidden="true">▾</span>
+                                    </button>
+                                    @if (_openPicker == branch.Index)
+                                    {
+                                        <div class="guide-pick-backdrop" @onclick="ClosePicker"></div>
+                                        <div class="guide-pick-pop" id="guide-pick-pop-@branch.Index"
+                                             role="listbox" aria-multiselectable="true">
+                                            @foreach (var candidate in branch.Candidates)
+                                            {
+                                                <label class="guide-pick-option">
+                                                    <input type="checkbox" value="@candidate.Key"
+                                                           checked="@branch.Selected.Contains(candidate.Key)"
+                                                           @onchange="e => OnGuideCandidate(branch.Index, candidate.Key, e)" />
+                                                    <span>@candidate.Label</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <select multiple size="1" class="guide-pick-native"
+                                        id="guide-branch-native-@branch.Index"
+                                        aria-label="@($"Families for {branch.Text}")"
+                                        @onchange="e => OnGuideCandidates(branch.Index, e)">
+                                    @foreach (var candidate in branch.Candidates)
+                                    {
+                                        <option value="@candidate.Key"
+                                                selected="@(branch.Selected.Contains(candidate.Key))">
+                                            @candidate.Label
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (externalBranches.Count > 0)
+                {
+                    <div class="guide-section" id="query-import-external">
+                        <div class="guide-section-head">Imported terms (not built by the app)</div>
+                        @foreach (var branch in externalBranches)
+                        {
+                            <div class="guide-branch">
+                                <code>@branch.Text</code>
+                                <span class="guide-tag">Imported</span>
+                                @if (branch.ExternalTerm is { } term && term != branch.Text)
+                                {
+                                    <code>@term</code>
+                                }
                             </div>
                         }
                     </div>
@@ -95,6 +139,7 @@
                         {
                             <div class="guide-branch">
                                 <code>@branch.Text</code>
+                                <span class="guide-tag">Imported</span>
                             </div>
                         }
                     </div>
@@ -186,12 +231,55 @@
     private bool _guideMode;
     private readonly Dictionary<int, IReadOnlyList<string>> _guideOverrides = [];
     private int? _openPicker;
+    private int? _placedPicker;
+    private bool _wasOpen;
     private WorkbenchState? _previewState;
     private SearchModel? _previewModel;
     private bool _busy;
     private int _parseVersion;
 
     private bool CanApply => _result?.Ok == true;
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen) Reset();
+        _wasOpen = Open;
+    }
+
+    private void Reset()
+    {
+        _parseVersion++;
+        _text = "";
+        _guideMode = false;
+        _busy = false;
+        _result = null;
+        _guideResult = null;
+        _guideOverrides.Clear();
+        _openPicker = null;
+        _placedPicker = null;
+        _previewState = null;
+        _previewModel = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_openPicker is not int index)
+        {
+            _placedPicker = null;
+            return;
+        }
+        if (_placedPicker == index) return;
+        _placedPicker = index;
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "poeRegexPlacePopover", $"guide-branch-{index}", $"guide-pick-pop-{index}");
+        }
+        catch (JSException)
+        {
+            // Placement is cosmetic; the popover still works without it.
+        }
+    }
 
     private async Task Parse()
     {
@@ -214,6 +302,9 @@
                 if (version != _parseVersion) return;
                 _guideResult = guide;
                 _result = guide.Workbench;
+                if (_openPicker is int open &&
+                    !guide.Branches.Any(b => b.Index == open && b.Kind == GuideBranchKind.MultiFamily))
+                    _openPicker = null;
                 if (_result is { Ok: true }) BuildPreview(_result);
             }
             else
@@ -255,6 +346,7 @@
     {
         if (!CanApply || _result is null) return;
         _result.ApplyTo(State);
+        Reset();
         OnClose.InvokeAsync();
     }
 
@@ -267,6 +359,7 @@
         _guideResult = null;
         _guideOverrides.Clear();
         _openPicker = null;
+        _placedPicker = null;
         _previewState = null;
         _previewModel = null;
     }
@@ -281,6 +374,7 @@
         _guideResult = null;
         _guideOverrides.Clear();
         _openPicker = null;
+        _placedPicker = null;
         _previewState = null;
         _previewModel = null;
     }
@@ -303,26 +397,53 @@
         }
         _guideOverrides[index] = current;
         _openPicker = index;
+        _placedPicker = null;
         await Parse();
+    }
+
+    private async Task OnGuideCandidates(int index, ChangeEventArgs e)
+    {
+        var values = e.Value switch
+        {
+            string[] array => array,
+            IEnumerable<string> sequence => sequence.ToArray(),
+            string text when text.Length > 0 => [text],
+            _ => [],
+        };
+        _guideOverrides[index] = values.Distinct(StringComparer.Ordinal).ToList();
+        _openPicker = null;
+        _placedPicker = null;
+        await Parse();
+    }
+
+    private void TogglePicker(int index)
+    {
+        _openPicker = _openPicker == index ? null : index;
+        _placedPicker = null;
+    }
+
+    private void ClosePicker()
+    {
+        _openPicker = null;
+        _placedPicker = null;
     }
 
     private Task OnBackdrop() => Close();
 
     private async Task Close()
     {
-        _parseVersion++;
-        _busy = false;
-        _result = null;
-        _guideResult = null;
-        _guideOverrides.Clear();
-        _openPicker = null;
-        _previewState = null;
-        _previewModel = null;
+        Reset();
         await OnClose.InvokeAsync();
     }
 
     private async Task OnDialogKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape") await Close();
+        if (e.Key != "Escape") return;
+        if (_openPicker is not null)
+        {
+            ClosePicker();
+            return;
+        }
+        await Close();
     }
 }

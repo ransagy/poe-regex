@@ -24,7 +24,9 @@ public static class SnapshotValidator
         && snap.Slots.All(kv => GearSlot.ById(kv.Key) is not null && IsValid(kv.Value, classless: false))
         && IsValid(snap.Global, classless: true)
         && snap.TestItems is not null && snap.TestItems.Count <= MaxTestItems
-        && snap.TestItems.All(IsValid);
+        && snap.TestItems.All(IsValid)
+        && (snap.ExternalIncludes is null ||
+            (snap.ExternalIncludes.Count <= MaxPicks && snap.ExternalIncludes.All(IsText)));
 
     private static bool IsValid(SlotCriteria? crit, bool classless) =>
         crit is not null

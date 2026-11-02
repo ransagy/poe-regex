@@ -70,14 +70,19 @@ as search-string reconstruction:
 - exact affix names become name picks;
 - exact table fragments become fragment picks;
 - every other branch is matched as a case-insensitive regex against family
-  display text and tier text; multi-family branches get a multi-select with
-  the common families selected by default;
+  display text and tier text; multi-family branches get a picker dropdown
+  with the common families selected by default;
 - negative groups (`!parry|bow|...`) are applied as raw regex exclusions;
-- unknown/base/vendor branches are dropped with a warning;
+- class/rarity/base filters (`s: (...)`, `Item Class:`, `Rarity:`) and other
+  known non-mod terms are preserved as imported external terms and marked in
+  the UI;
+- unknown text that matches no known item line is dropped with a
+  verify-in-game diagnostic;
 - the preview and apply path reuse the read-only Your-picks view.
 
-Current guide limitations: no base-type list yet, and explicit class anchors
-warn and import globally.
+Current guide limitations: no base-type list yet, and explicit `:`/`s:`
+anchors are not mapped to slots; `s:` class filters are preserved as raw
+`Item Class:` terms.
 
 ## Remaining limitations
 
@@ -88,8 +93,8 @@ warn and import globally.
   ambiguous (`+N`) in the preview.
 - Multi-class search-string import is applied by the reconstruction path;
   guide-filter apply is simple/global only.
-- Guide filters do not yet support base/vendor names or class anchors;
-  exclusions are applied as raw regex groups.
+- Guide filters preserve class/rarity/base filters as imported raw terms but
+  do not map them to slots yet. Exclusions are applied as raw regex groups.
 - Unmodeled unique/socketable/base text is outside the safety corpus.
 
 ## Reproduce

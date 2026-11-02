@@ -86,6 +86,84 @@ public class GuideImportTests
     }
 
     [Fact]
+    public void ClassFilters_ArePreservedAsExternalTerms()
+    {
+        var result = Guide.Import(
+            "\"!Item Class: (One Hand Maces|Bows|Quivers)\" " +
+            "\"s: (am|ri|be|Cross)|max.*life\"");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.External.Should().Be(2);
+        result.Dropped.Should().Be(0);
+
+        var wanted = result.Branches.Single(b => b.Kind == GuideBranchKind.External);
+        wanted.ExternalTerm.Should().Be("Item Class: (am|ri|be|Cross)");
+        var excluded = result.Branches.Single(b => b.Kind == GuideBranchKind.Exclusion);
+        excluded.ExternalTerm.Should().Be("Item Class: (One Hand Maces|Bows|Quivers)");
+
+        result.Workbench!.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        result.Workbench.Excludes.Should().Contain(
+            RawExclusion.Encode("Item Class: (One Hand Maces|Bows|Quivers)"));
+        result.CompiledQuery.Should().Contain("\"Item Class: (am|ri|be|Cross)\"");
+        result.CompiledQuery.Should().Contain("!\"Item Class: (One Hand Maces|Bows|Quivers)\"");
+
+        var state = new WorkbenchState();
+        result.Workbench.ApplyTo(state);
+        state.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        Engine.CompilePicks(
+            state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null,
+            state.ExternalIncludes)
+            .Query.Should().Be(result.CompiledQuery);
+
+        var reconstructed = Reconstruction.ReconstructWorkbench(result.CompiledQuery!);
+        reconstructed.Ok.Should().BeTrue(string.Join("; ", reconstructed.Diagnostics));
+        reconstructed.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        reconstructed.Excludes.Should().Contain(
+            RawExclusion.Encode("Item Class: (One Hand Maces|Bows|Quivers)"));
+        reconstructed.Recompile(Engine).Should().Be(result.CompiledQuery);
+    }
+
+    [Fact]
+    public void KnownNonModTerms_BecomeExternalIncludes()
+    {
+        var rare = Guide.Import("rare");
+        rare.Ok.Should().BeTrue(string.Join("; ", rare.Warnings));
+        rare.Branches[0].Kind.Should().Be(GuideBranchKind.External);
+        rare.Workbench!.ExternalIncludes.Should().Contain("rare");
+        rare.CompiledQuery.Should().Be("\"rare\"");
+
+        var cross = Guide.Import("cross");
+        cross.Ok.Should().BeTrue(string.Join("; ", cross.Warnings));
+        cross.Branches[0].Kind.Should().Be(GuideBranchKind.External);
+        cross.Workbench!.ExternalIncludes.Should().Contain("cross");
+    }
+
+    [Fact]
+    public void UnknownText_IsDroppedAndNotTurnedIntoAnExternalTerm()
+    {
+        var result = Guide.Import("\\d cfl.+da");
+
+        result.Ok.Should().BeFalse();
+        result.Branches[0].Kind.Should().Be(GuideBranchKind.Dropped);
+        result.Branches[0].Note.Should().Contain("verify the regex in game");
+        result.Workbench.Should().BeNull();
+    }
+
+    [Fact]
+    public void ExternalInclude_RoundTripsThroughReconstruction()
+    {
+        var query = Engine.CompilePicks(
+            [new WantedMod("IncreasedLife1")], [], false, null,
+            ["Item Class: (am|ri|be|Cross)"]).Query;
+
+        var reconstructed = Reconstruction.ReconstructWorkbench(query);
+
+        reconstructed.Ok.Should().BeTrue(string.Join("; ", reconstructed.Diagnostics));
+        reconstructed.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        reconstructed.Recompile(Engine).Should().Be(query);
+    }
+
+    [Fact]
     public void RawExclusion_RoundTripsThroughReconstruction()
     {
         var query = Engine.CompilePicks(
@@ -188,7 +266,7 @@ public class GuideImportTests
         result.Workbench.Should().BeNull();
         result.Branches.Should().ContainSingle();
         result.Branches[0].Kind.Should().Be(GuideBranchKind.Dropped);
-        result.Branches[0].Note.Should().Contain("no mod family");
+        result.Branches[0].Note.Should().Contain("not a known item line");
     }
 
     [Fact]

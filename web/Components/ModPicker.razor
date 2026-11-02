@@ -254,7 +254,7 @@
             _bulkLimit = 250;
             return;
         }
-        var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks);
+        var preview = SlotBudget.Preview(Engine, crit, ScopeClassId, picks, State.ExternalIncludes);
         _bulkLength = preview.Length;
         _bulkLimit = preview.Limit;
         _bulkOverflow = preview.Exceeded;

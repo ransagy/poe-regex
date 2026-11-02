@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
@@ -68,13 +69,16 @@ public class GuideImportPanelTests
         await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
         cut.WaitForElement("#guide-branch-0");
 
-        cut.FindAll("#guide-branch-0 input[type=checkbox]").Count.Should().BeGreaterThan(1);
-        cut.Find("#guide-branch-0 summary").TextContent.Should().Contain("picked out of");
+        cut.Find("#guide-branch-0").Click();
+        cut.WaitForElement("#guide-pick-pop-0");
+        cut.FindAll("#guide-pick-pop-0 input[type=checkbox]").Count.Should().BeGreaterThan(1);
+        cut.Find("#guide-branch-0").TextContent.Should().Contain("picked out of");
 
-        cut.Find("#guide-branch-0 input[value='LifeGainPerTarget']").Change(true);
+        cut.Find("#guide-pick-pop-0 input[value='LifeGainPerTarget']").Change(true);
         cut.WaitForAssertion(() =>
             cut.Find("#guide-branch-0").GetAttribute("data-selected")
                 .Should().Contain("LifeGainPerTarget"));
+        cut.FindAll("#guide-pick-pop-0 input[type=checkbox]").Should().NotBeEmpty();
     }
 
     [Fact]
@@ -95,11 +99,90 @@ public class GuideImportPanelTests
         cut.WaitForElement("#query-import-exclusions");
 
         cut.Find("#query-import-exclusions").TextContent.Should().Contain("parry|bow");
+        cut.Find("#query-import-exclusions").TextContent.Should().Contain("Imported");
         cut.FindAll("#query-import-preview .bd-row.exc").Count.Should().Be(1);
+        cut.FindAll("#query-import-preview .bd-row.exc.ext").Count.Should().Be(1);
+        cut.Find("#query-import-preview .bd-tag").TextContent.Should().Be("Imported");
 
         await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
         closed.Should().BeTrue();
         state.Global.Excluded.Should().Contain(RawExclusion.Encode("parry|bow"));
+    }
+
+    [Fact]
+    public async Task GuideMode_AppliesExternalClassFilter()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+        var closed = false;
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => closed = true));
+
+        cut.Find("#query-import-mode-guide").Click();
+        cut.Find("#query-import-text").Input("\"s: (am|ri|be|Cross)\"");
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-external");
+
+        cut.Find("#query-import-external").TextContent.Should().Contain("Imported");
+        cut.Find("#query-import-external").TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
+        cut.FindAll("#query-import-preview .bd-row.ext").Count.Should().Be(1);
+        cut.Find("#query-import-preview .bd-tag").TextContent.Should().Be("Imported");
+
+        await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
+
+        closed.Should().BeTrue();
+        state.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+    }
+
+    [Fact]
+    public async Task GuideMode_NativeMultiSelectReimports()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-mode-guide").Click();
+        cut.Find("#query-import-text").Input("life");
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#guide-branch-native-0");
+
+        cut.Find("#guide-branch-native-0").Change(new ChangeEventArgs { Value = new[] { "LifeGainPerTarget" } });
+        cut.WaitForAssertion(() =>
+            cut.Find("#guide-branch-0").GetAttribute("data-selected")
+                .Should().Contain("LifeGainPerTarget"));
+    }
+
+    [Fact]
+    public async Task ClosingClearsTheDialogForTheNextOpening()
+    {
+        using var ctx = Context();
+        var state = new WorkbenchState();
+        var cut = ctx.Render<QueryImportPanel>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, () => { }));
+
+        cut.Find("#query-import-mode-guide").Click();
+        cut.Find("#query-import-text").Input("maximum Life|zzzz");
+        await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#query-import-summary");
+
+        await cut.Find("#query-import-cancel").ClickAsync(new MouseEventArgs());
+
+        cut.Find("#query-import-text").GetAttribute("value").Should().BeNullOrEmpty();
+        cut.Find("#query-import-mode-app").GetAttribute("aria-pressed").Should().Be("true");
+        cut.FindAll("#query-import-summary").Should().BeEmpty();
+        cut.FindAll("#query-import-guide-note").Should().BeEmpty();
+
+        // Reopening renders this same reset state; the component keeps its
+        // caches but no user-visible text, mode, or preview.
     }
 }

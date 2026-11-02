@@ -10,6 +10,7 @@ public enum GuideBranchKind
     AffixName,
     Family,
     MultiFamily,
+    External,
     Exclusion,
     Dropped,
 }
@@ -24,7 +25,8 @@ public sealed record GuideBranch(
     IReadOnlyList<GuideCandidate> Candidates,
     IReadOnlyList<string> Selected,
     IReadOnlyList<WantedMod> Picks,
-    string? Note);
+    string? Note,
+    string? ExternalTerm = null);
 
 public sealed record GuideImportResult(
     ReconstructedWorkbench? Workbench,
@@ -33,8 +35,9 @@ public sealed record GuideImportResult(
     string? CompiledQuery)
 {
     public bool Ok => Workbench?.Ok == true;
-    public int Mapped => Branches.Count(b =>
-        b.Picks.Count > 0 || b.Kind == GuideBranchKind.Exclusion);
+    public int Mapped => Branches.Count(b => b.Picks.Count > 0);
+    public int External => Branches.Count(b =>
+        b.Kind is GuideBranchKind.External or GuideBranchKind.Exclusion);
     public int Dropped => Branches.Count(b => b.Kind == GuideBranchKind.Dropped);
 }
 
@@ -43,6 +46,8 @@ public sealed record GuideImportResult(
 /// (the game's search semantics), not only exact table fragments. Exact names
 /// and table fragments keep their pick identity; anything else is matched
 /// against family display text and tier text, with multi-select reconciliation.
+/// Class/rarity/base filters that cannot be built as catalog picks are kept as
+/// imported external terms instead of being silently dropped.
 /// </summary>
 public sealed class GuideImportService(
     EngineService engine,
@@ -59,8 +64,7 @@ public sealed class GuideImportService(
         if (line.Length == 0)
             return Empty(warnings, "No guide filter found.");
 
-        if (line.StartsWith(": ", StringComparison.Ordinal) ||
-            line.StartsWith("s: ", StringComparison.Ordinal))
+        if (line.StartsWith(": ", StringComparison.Ordinal))
         {
             // Explicit class anchors are a later slice; do not silently attach
             // the picks to the wrong scope.
@@ -82,8 +86,9 @@ public sealed class GuideImportService(
         {
             if (group.Excluded)
             {
+                var pattern = NormalizeGuideTerm(group.Text.TrimStart('!', '-').Trim());
                 branches.Add(new GuideBranch(index++, group.Text,
-                    GuideBranchKind.Exclusion, [], [], [], "excluded from results"));
+                    GuideBranchKind.Exclusion, [], [], [], "excluded from results", pattern));
                 continue;
             }
             foreach (var raw in group.Branches)
@@ -96,11 +101,12 @@ public sealed class GuideImportService(
 
         var picks = new List<WantedMod>();
         var excludes = new List<string>();
+        var externalIncludes = new List<string>();
         foreach (var branch in branches)
         {
             if (branch.Kind == GuideBranchKind.Exclusion)
             {
-                var pattern = branch.Text.TrimStart('!', '-').Trim();
+                var pattern = branch.ExternalTerm ?? NormalizeGuideTerm(branch.Text.TrimStart('!', '-').Trim());
                 if (pattern.Length > 0)
                 {
                     var encoded = RawExclusion.Encode(pattern);
@@ -109,20 +115,26 @@ public sealed class GuideImportService(
                 }
                 continue;
             }
+            if (branch.Kind == GuideBranchKind.External && branch.ExternalTerm is { Length: > 0 } term)
+            {
+                if (!externalIncludes.Contains(term, StringComparer.Ordinal))
+                    externalIncludes.Add(term);
+                continue;
+            }
             foreach (var pick in branch.Picks)
                 if (!picks.Any(p => p.SamePick(pick)))
                     picks.Add(pick);
         }
 
-        if (picks.Count == 0 && excludes.Count == 0)
+        if (picks.Count == 0 && excludes.Count == 0 && externalIncludes.Count == 0)
         {
-            warnings.Add("No guide branches mapped to a mod family or exclusion.");
+            warnings.Add("No guide branches mapped to a mod family or imported item filter.");
             return new GuideImportResult(null, branches, warnings, null);
         }
 
         var slot = new ReconstructedSlot("global", "", picks, false);
         var workbench = new ReconstructedWorkbench(
-            true, "simple", [slot], excludes, [], warnings);
+            true, "simple", [slot], excludes, externalIncludes, [], warnings);
         return new GuideImportResult(
             workbench, branches, warnings, workbench.Recompile(engine));
     }
@@ -136,10 +148,29 @@ public sealed class GuideImportService(
     private GuideBranch ResolveBranch(
         int index, string text, IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides)
     {
+        var display = text;
+        if (text.StartsWith("s:", StringComparison.OrdinalIgnoreCase))
+        {
+            var classFilter = reconstruction.NormalizeClassFilter(text);
+            if (classFilter is not null)
+            {
+                return new GuideBranch(index, display, GuideBranchKind.External,
+                    [], [], [], "class filter imported as a raw term", classFilter);
+            }
+            text = text[2..].Trim();
+        }
+
+        if (IsExternalLiteral(text))
+        {
+            return new GuideBranch(index, display, GuideBranchKind.External,
+                [], [], [], "imported as a raw item filter", text);
+        }
+
         if (text.StartsWith('!') || text.StartsWith('-'))
         {
-            return new GuideBranch(index, text, GuideBranchKind.Exclusion,
-                [], [], [], "excluded from results");
+            var pattern = NormalizeGuideTerm(text.TrimStart('!', '-').Trim());
+            return new GuideBranch(index, display, GuideBranchKind.Exclusion,
+                [], [], [], "excluded from results", pattern);
         }
 
         var exactNames = reconstruction.Families
@@ -206,9 +237,34 @@ public sealed class GuideImportService(
             return new GuideBranch(index, text, kind, [], [], fallbackPicks, null);
         }
 
-        return new GuideBranch(index, text, GuideBranchKind.Dropped,
-            [], [], [], "no mod family matched (base/vendor names are not mapped yet)");
+        if (reconstruction.MatchesKnownItemText(text))
+        {
+            return new GuideBranch(index, display, GuideBranchKind.External,
+                [], [], [], "imported as a raw term", text);
+        }
+
+        return new GuideBranch(index, display, GuideBranchKind.Dropped,
+            [], [], [],
+            "not a known item line (base/vendor names are not mapped yet); verify the regex in game");
     }
+
+    private string NormalizeGuideTerm(string term)
+    {
+        var classFilter = reconstruction.NormalizeClassFilter(term);
+        if (classFilter is not null) return classFilter;
+        return term.StartsWith("s:", StringComparison.OrdinalIgnoreCase)
+            ? term[2..].Trim()
+            : term;
+    }
+
+    private static bool IsExternalLiteral(string term) =>
+        term.StartsWith("Item Class:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("Rarity:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("BaseType:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("Base Type:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("Sockets:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("Item Level:", StringComparison.OrdinalIgnoreCase) ||
+        term.StartsWith("Requires:", StringComparison.OrdinalIgnoreCase);
 
     private static List<string> ResolveSelection(
         int index,

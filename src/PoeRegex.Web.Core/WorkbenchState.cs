@@ -131,6 +131,13 @@ public sealed class WorkbenchState
     /// <summary>Classless global criteria.</summary>
     public SlotCriteria Global { get; } = new();
 
+    /// <summary>
+    /// Raw regex blocks that AND with the compiled query but cannot be built
+    /// from the mod picker (class/rarity/base filters, imported guide terms).
+    /// They are global because the game's search blocks are not scoped.
+    /// </summary>
+    public List<string> ExternalIncludes { get; } = [];
+
     /// <summary>Backpack lab test items (imported or freeform).</summary>
     public List<TestItem> TestItems { get; } = [];
 
@@ -299,6 +306,28 @@ public sealed class WorkbenchState
         return removed;
     }
 
+    public void AddExternalInclude(string pattern)
+    {
+        if (pattern.Length == 0 || ExternalIncludes.Contains(pattern, StringComparer.Ordinal)) return;
+        ExternalIncludes.Add(pattern);
+        Notify();
+    }
+
+    public void SetExternalIncludes(IEnumerable<string> patterns)
+    {
+        ExternalIncludes.Clear();
+        ExternalIncludes.AddRange(
+            patterns.Where(p => p.Length > 0).Distinct(StringComparer.Ordinal));
+        Notify();
+    }
+
+    public bool RemoveExternalInclude(string pattern)
+    {
+        var removed = ExternalIncludes.Remove(pattern);
+        if (removed) Notify();
+        return removed;
+    }
+
     /// <summary>Clear wanted/unwanted mods for one scope (slot or global).</summary>
     public void ClearChips(string? slot)
     {
@@ -306,6 +335,7 @@ public sealed class WorkbenchState
         c.Included.Clear();
         c.Excluded.Clear();
         c.MatchAll = false;
+        if (slot is null) ExternalIncludes.Clear();
         Notify();
     }
 
@@ -402,6 +432,7 @@ public sealed class WorkbenchState
         Global.Included.Clear();
         Global.Excluded.Clear();
         Global.MatchAll = false;
+        ExternalIncludes.Clear();
         TestItems.Clear();
         SelectedItemId = null;
         Notify();

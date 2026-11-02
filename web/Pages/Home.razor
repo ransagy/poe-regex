@@ -342,7 +342,7 @@
                 _notice = "That share link could not be read, so your picks are unchanged.";
                 return;
             }
-            var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+            var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0 ||
                            State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
             if (hadPicks && await BackupPicksAsync("Before shared link") == BackupOutcome.Added)
                 _recipesVersion++;
@@ -395,7 +395,7 @@
         if (_disposed || _stale) return;
         _stale = true;
         _staleShared = shared;
-        var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count > 0 ||
+        var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0 ||
                        State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
         if (hadPicks)
             _staleBackup = await BackupPicksAsync(shared

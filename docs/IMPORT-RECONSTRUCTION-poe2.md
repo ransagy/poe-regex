@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-11-02 00:04 UTC._
+_Generated 2026-11-02 18:23 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -53,7 +53,7 @@ strings, and minimum values fail closed or are accepted losses.
 | `edge-old-anchor` | edge | fail-closed | simple | — | 0 | no | recompiled query differs (any: '": On.+M"'; all: '": On.+M"') |
 | `edge-unknown-token` | edge | fail-closed | simple | — | 0 | no | fragment 'zzzz' is not an unfactored table fragment for this scope |
 | `edge-shape` | edge | fail-closed | simple | — | 0 | no | invalid query shape: unterminated quoted block |
-| `edge-free-text-and-mod` | edge | fail-closed | simple | — | 0 | no | fragment 'life' is not an unfactored table fragment for this scope |
+| `edge-free-text-and-mod` | edge | fail-closed | simple | — | 0 | no | fragment 'zzzz' is not an unfactored table fragment for this scope |
 
 ## Passing examples
 
@@ -166,7 +166,7 @@ strings, and minimum values fail closed or are accepted losses.
 - `edge-old-anchor` (edge) — recompiled query differs (any: '": On.+M"'; all: '": On.+M"')
 - `edge-unknown-token` (edge) — fragment 'zzzz' is not an unfactored table fragment for this scope
 - `edge-shape` (edge) — invalid query shape: unterminated quoted block
-- `edge-free-text-and-mod` (edge) — fragment 'life' is not an unfactored table fragment for this scope
+- `edge-free-text-and-mod` (edge) — fragment 'zzzz' is not an unfactored table fragment for this scope
 
 ## Review notes
 
@@ -188,7 +188,8 @@ strings, and minimum values fail closed or are accepted losses.
   path. The Import string panel applies the recovered slots.
 - Guide-filter extraction ships as a separate mode: exact names/fragments and
   regex matches against family/tier text map; multi-family branches use a
-  multi-select. Base/vendor names, exclusions, and explicit class anchors are
-  follow-ups.
+  picker; negative groups apply as raw regex exclusions and class/rarity
+  filters are preserved as imported external terms. Mapping those terms to
+  slots is a follow-up.
 
 Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter "FullyQualifiedName~QueryReconstructionTests"`.

@@ -85,6 +85,20 @@
             @PickList(null, State.Global, Engine.PlayableMods())
         </div>
     }
+    @if (State.ExternalIncludes.Count > 0)
+    {
+        <div class="bd-sec" @onmouseleave="Model.Cool">
+            <div class="bd-head">
+                <span class="bd-name">Imported terms</span>
+                @if (!ReadOnly)
+                {
+                    <button type="button" class="link bd-clear" id="chips-clear-external"
+                            @onclick="() => State.SetExternalIncludes([])">Clear</button>
+                }
+            </div>
+            @ExternalList()
+        </div>
+    }
 </section>
 
 @code {
@@ -105,8 +119,8 @@
     private WantedMod? _minBusy;
 
     private bool HasPicks => State.Mode == "advanced"
-        ? State.ActiveSlots().Count > 0
-        : State.Global.Included.Count + State.Global.Excluded.Count > 0;
+        ? State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0
+        : State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0;
 
     protected override void OnParametersSet()
     {
@@ -225,9 +239,16 @@
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
                     var label = SearchModel.ExcludeLabel(exc, mods);
-                    <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
+                    var imported = Model.IsExternalExclude(exc);
+                    <li class="bd-row exc @(imported ? "ext" : "") @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
-                        <span class="bd-what"><span class="bd-label">@label</span></span>
+                        <span class="bd-what">
+                            @if (imported)
+                            {
+                                <span class="bd-tag" title="Imported regex; the mod picker cannot create this term yet">Imported</span>
+                            }
+                            <span class="bd-label">@label</span>
+                        </span>
                         <span></span>
                         <code class="bd-frag" title="@frag">@frag</code>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
@@ -241,6 +262,35 @@
                 }
             </ul>
         }
+    };
+
+    private RenderFragment ExternalList() => __builder =>
+    {
+        <div class="bd-logic"><span>Imported</span></div>
+        <ul class="bd-list">
+            @foreach (var item in State.ExternalIncludes.Select((Term, Index) => (Term, Index)))
+            {
+                var block = Model.ExternalBlock(item.Term);
+                <li class="bd-row ext @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")"
+                    id="chip-ext-global-@item.Index"
+                    @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
+                    <span class="bd-what">
+                        <span class="bd-tag" title="Imported regex; the mod picker cannot create this term yet">Imported</span>
+                        <span class="bd-label">@item.Term</span>
+                    </span>
+                    <span></span>
+                    <code class="bd-frag" title="@item.Term">@item.Term</code>
+                    <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
+                    @if (!ReadOnly)
+                    {
+                        <button type="button" class="bd-x" id="chip-remove-ext-@item.Index"
+                                title="@($"Remove imported term {item.Term}")"
+                                aria-label="@($"Remove imported term {item.Term}")"
+                                @onclick="() => State.RemoveExternalInclude(item.Term)">×</button>
+                    }
+                </li>
+            }
+        </ul>
     };
 
     /// <summary>

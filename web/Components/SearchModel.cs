@@ -35,6 +35,8 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     private List<RulerSegment> _ruler = [];
     private List<PasteGroup> _groups = [];
     private List<string> _excludeOrder = [];
+    private List<string> _externalOrder = [];
+    private readonly List<Block> _externalBlocks = [];
     private readonly Dictionary<string, List<int>> _scopeBlocks = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Scope, WantedMod Pick), int> _pickBlock = [];
     private readonly Dictionary<int, List<int>> _segmentsByBlock = [];
@@ -65,6 +67,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
             ? state.ActiveSlots().SelectMany(s => state.CriteriaFor(s).Excluded)
                 .Concat(state.Global.Excluded).Distinct(StringComparer.Ordinal).ToList()
             : state.Global.Excluded.ToList();
+        _externalOrder = state.ExternalIncludes.ToList();
         _hot.Clear();
         _hotSegments.Clear();
         _hotPicks.Clear();
@@ -77,14 +80,16 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     private void BuildBlocks()
     {
         _blocks = [];
+        _externalBlocks.Clear();
         Anchor = null;
         if (Query.Length == 0) return;
-        var tokens = Explainer.Tokenize(Query);
+        var tokens = Explainer.Tokenize(Query).ToList();
         var texts = tokens.Select(t => (t.Excluded ? "!" : "") + "\"" + t.Phrase + "\"").ToList();
         if (!string.Equals(string.Join(" ", texts), Query, StringComparison.Ordinal)) return;
 
         var advanced = state.Mode == "advanced";
         var excIndex = 0;
+        var externalStart = Math.Max(0, tokens.Count - _externalOrder.Count);
         for (var i = 0; i < tokens.Count; i++)
         {
             var cost = texts[i].Length + (i > 0 ? 1 : 0);
@@ -95,6 +100,18 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
                 var exc = excIndex < _excludeOrder.Count ? _excludeOrder[excIndex] : tokens[i].Phrase;
                 excIndex++;
                 label = $"None of: {ExcludeLabel(exc, engine.PlayableMods())}";
+            }
+            else if (!advanced && i >= externalStart)
+            {
+                role = "external";
+                label = "Imported term";
+                _externalBlocks.Add(new Block(i, role, texts[i], cost, label));
+            }
+            else if (advanced && i >= externalStart)
+            {
+                role = "external";
+                label = "Imported term";
+                _externalBlocks.Add(new Block(i, role, texts[i], cost, label));
             }
             else if (advanced && i == 0)
             {
@@ -304,6 +321,14 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         return i < excBlocks.Count ? excBlocks[i] : null;
     }
 
+    public Block? ExternalBlock(string term)
+    {
+        var i = _externalOrder.IndexOf(term);
+        return i >= 0 && i < _externalBlocks.Count ? _externalBlocks[i] : null;
+    }
+
+    public bool IsExternalExclude(string exc) => RawExclusion.IsRaw(exc);
+
     public bool MergedToAny(string cls) =>
         Paste?.MergedToAnyClasses.Contains(cls, StringComparer.Ordinal) == true;
 
@@ -408,7 +433,8 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
     {
         if (state.Mode != "advanced")
             return (engine.CompilePicks(
-                state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null), null);
+                state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null,
+                state.ExternalIncludes), null);
 
         var active = state.ActiveSlots();
         if (active.Count == 0) return (null, null);
@@ -421,7 +447,8 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
             }),
             active.SelectMany(s => state.CriteriaFor(s).Excluded)
                 .Concat(state.Global.Excluded).Distinct(StringComparer.Ordinal),
-            allowOverflow: true);
+            allowOverflow: true,
+            externalIncludes: state.ExternalIncludes);
         return (null, paste);
     }
 }

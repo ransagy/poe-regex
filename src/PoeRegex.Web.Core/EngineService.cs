@@ -295,11 +295,13 @@ public sealed class EngineService
 
     /// <summary>Compiles picks the way a slot asks for them: one any-of block, or one block per pick when every pick is required.</summary>
     public CompileResult CompilePicks(
-        IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass) =>
+        IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass,
+        IEnumerable<string>? externalIncludes = null) =>
         Compile(
             matchAll ? [] : picks.SelectMany(m => m.Requirements()),
             excludes.Select(ExclusionRequirement),
             itemClass: itemClass,
+            keywords: externalIncludes,
             allowOverflow: true,
             requiredGroups: matchAll ? picks.Select(m => m.Requirements()) : null);
 
@@ -459,14 +461,17 @@ public sealed class EngineService
     public MultiPasteResult Combine(
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
-        bool allowOverflow = false) =>
-        Combine(slots.Select(s => (s.Label, s.ClassId, s.Includes, false)), excludes, allowOverflow);
+        bool allowOverflow = false,
+        IEnumerable<string>? externalIncludes = null) =>
+        Combine(slots.Select(s => (s.Label, s.ClassId, s.Includes, false)),
+            excludes, allowOverflow, externalIncludes);
 
     /// <summary>As above; a MatchAll slot requires every pick, each as its own group.</summary>
     public MultiPasteResult Combine(
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes, bool MatchAll)> slots,
         IEnumerable<string> excludes,
-        bool allowOverflow = false) =>
+        bool allowOverflow = false,
+        IEnumerable<string>? externalIncludes = null) =>
         new PasteComposer(_corpus, validateRecall: false).Compose(
             slots.Select(s => s.MatchAll && s.Includes.Any()
                 ? new PasteSlotCriterion(
@@ -477,7 +482,8 @@ public sealed class EngineService
                     s.Includes.SelectMany(m => m.Requirements()).ToList(),
                     s.Label)).ToList(),
             excludes.Select(ExclusionRequirement),
-            allowOverflow);
+            allowOverflow,
+            externalIncludes);
 
     /// <summary>
     /// Explain is the one intentionally expensive action. Results are cached

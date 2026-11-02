@@ -72,11 +72,14 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
   become picks through exact names, exact fragments, or case-insensitive regex
   matching against family/tier text. Multi-family branches use a picker
   dropdown (common families selected by default); negative groups are applied
-  as raw regex exclusions; unknown/base/vendor branches are dropped with a
-  warning. Guide apply is simple/global only.
+  as raw regex exclusions. Class/rarity/base filters such as `s: (...)`,
+  `Item Class:`, and `Rarity:` are kept as imported external terms and marked
+  in the UI; unknown text is dropped with a verify-in-game warning. Guide
+  apply is simple/global only.
 
-Current guide limits: base/vendor names and explicit class anchors are
-follow-ups. App-string import covers multi-class pastes, exclusions, and all-of.
+Current guide limits: class/rarity/base filters are preserved but not mapped
+to slots yet. App-string import covers multi-class pastes, exclusions, external
+terms, and all-of.
 
 ## Test
 

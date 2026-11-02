@@ -63,7 +63,8 @@ public sealed class PasteComposer
     public MultiPasteResult Compose(
         IReadOnlyList<PasteSlotCriterion> slots,
         IEnumerable<ModifierRequirement> excluded,
-        bool allowOverflow = false)
+        bool allowOverflow = false,
+        IEnumerable<string>? keywords = null)
     {
         var diagnostics = new List<CompilerDiagnostic>();
         var mergedToAnyClasses = new List<string>();
@@ -172,6 +173,16 @@ public sealed class PasteComposer
                     ? _compaction.SelectFragment(req, null) ?? req.Value
                     : Poe2Syntax.EscapeLiteral(req.Value);
             blocks.Add(Poe2Syntax.FormatExclusion(term));
+        }
+
+        // Imported raw terms AND with the paste; they are not part of any
+        // slot's OR group, so each becomes its own quoted block.
+        foreach (var keyword in keywords ?? [])
+        {
+            if (keyword.Length == 0) continue;
+            var diagnostic = Poe2Syntax.ValidateFragment(keyword);
+            if (diagnostic is not null) diagnostics.Add(diagnostic);
+            blocks.Add(Poe2Syntax.Quote(keyword));
         }
 
         var query = string.Join(" ", blocks);
