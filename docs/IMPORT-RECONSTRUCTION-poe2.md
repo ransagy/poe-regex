@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-11-01 22:42 UTC._
+_Generated 2026-11-02 00:04 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -187,8 +187,8 @@ strings, and minimum values fail closed or are accepted losses.
 - Factored fragments/name sets and multi-class pastes are supported by this
   path. The Import string panel applies the recovered slots.
 - Guide-filter extraction ships as a separate mode: exact names/fragments and
-  family keywords map; multi-family branches choose a deterministic primary
-  family with a candidate select. Base/vendor names, exclusions, and explicit
-  class anchors are follow-ups.
+  regex matches against family/tier text map; multi-family branches use a
+  multi-select. Base/vendor names, exclusions, and explicit class anchors are
+  follow-ups.
 
 Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter "FullyQualifiedName~QueryReconstructionTests"`.

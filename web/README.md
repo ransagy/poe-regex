@@ -69,9 +69,10 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
   the picks and renders the real Your-picks view; Apply replaces the workbench.
   This is the byte-identical round-trip path.
 - **Guide filter** — paste a build-guide filter line. Top-level `|` branches
-  become picks through exact names, exact fragments, or scored mod-family
-  matches. Multi-family branches show a candidate select; unknown/base/vendor
-  branches are dropped with a warning. Guide apply is simple/global only.
+  become picks through exact names, exact fragments, or case-insensitive regex
+  matching against family/tier text. Multi-family branches use a multi-select
+  (common families selected by default); unknown/base/vendor branches are
+  dropped with a warning. Guide apply is simple/global only.
 
 Current guide limits: base/vendor names, guide exclusions, and explicit class
 anchors are follow-ups. App-string import covers multi-class pastes, exclusions,

@@ -808,9 +808,9 @@ public static class Phase1Report
         sb.AppendLine("- Factored fragments/name sets and multi-class pastes are supported by this");
         sb.AppendLine("  path. The Import string panel applies the recovered slots.");
         sb.AppendLine("- Guide-filter extraction ships as a separate mode: exact names/fragments and");
-        sb.AppendLine("  family keywords map; multi-family branches choose a deterministic primary");
-        sb.AppendLine("  family with a candidate select. Base/vendor names, exclusions, and explicit");
-        sb.AppendLine("  class anchors are follow-ups.");
+        sb.AppendLine("  regex matches against family/tier text map; multi-family branches use a");
+        sb.AppendLine("  multi-select. Base/vendor names, exclusions, and explicit class anchors are");
+        sb.AppendLine("  follow-ups.");
         sb.AppendLine();
         sb.AppendLine("Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter \"FullyQualifiedName~QueryReconstructionTests\"`.");
         return sb.ToString();

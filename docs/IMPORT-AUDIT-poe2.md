@@ -69,8 +69,9 @@ as search-string reconstruction:
 
 - exact affix names become name picks;
 - exact table fragments become fragment picks;
-- word-like stat phrases are scored against mod families; a multi-family
-  branch gets a candidate select and a deterministic primary default;
+- every other branch is matched as a case-insensitive regex against family
+  display text and tier text; multi-family branches get a multi-select with
+  the common families selected by default;
 - unknown/base/vendor branches are dropped with a warning;
 - the preview and apply path reuse the read-only Your-picks view.
 
