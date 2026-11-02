@@ -268,6 +268,69 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void FamilyExclude_DoesNotMarkItsFirstTierExcluded()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+
+        FamilyRow(cut, family).ClassList.Should().Contain("excluded");
+        FamilyRow(cut, family).QuerySelector(".excluded-count").Should().BeNull();
+        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
+
+        foreach (var tier in family.Tiers)
+        {
+            TierRow(cut, tier).ClassList.Should().NotContain("excluded",
+                "a family anchor exclusion is not a tier exclusion");
+            cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").GetAttribute("aria-pressed")
+                .Should().Be("false", $"\"{tier.Name}\" is covered by the family exclusion, not excluded itself");
+        }
+    }
+
+    [Fact]
+    public void FirstTierExclude_MarksOnlyThatTier()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var first = family.Tiers[0];
+        state.AddExclude("helmet", first.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+
+        FamilyRow(cut, family).ClassList.Should().NotContain("excluded");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+
+        TierRow(cut, first).ClassList.Should().Contain("excluded");
+        cut.Find($"#pick-tier-exc-{first.Anchor.Id}").TextContent.Should().Be("⊘");
+        foreach (var other in family.Tiers.Skip(1))
+            TierRow(cut, other).ClassList.Should().NotContain("excluded",
+                "an explicit tier-name exclusion applies to that tier only");
+    }
+
+    [Fact]
+    public void FamilyAndFirstTierExclude_ShowsBothExcluded()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var first = family.Tiers[0];
+        state.AddExclude("helmet", family.Anchor.Id);
+        state.AddExclude("helmet", first.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+
+        FamilyRow(cut, family).ClassList.Should().Contain("excluded");
+        TierRow(cut, first).ClassList.Should().Contain("excluded");
+        cut.Find($"#pick-tier-exc-{first.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
+        foreach (var other in family.Tiers.Skip(1))
+            TierRow(cut, other).ClassList.Should().NotContain("excluded");
+    }
+
+    [Fact]
     public void FamilyIncluded_TierExcluded_ShowsBothStatesAndCounts()
     {
         using var ctx = Context();

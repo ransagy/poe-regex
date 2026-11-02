@@ -474,6 +474,11 @@
     /// and same-family ids from another scope. A tier name never matches a
     /// mod id; family identity is compared by key + generation to avoid
     /// lighting up unrelated families that share an affix name.
+    ///
+    /// A picker family exclusion stores the family anchor id, which is also
+    /// the first tier's anchor. Tier rows therefore ignore id-based matches
+    /// while the family is excluded; an explicitly excluded tier name still
+    /// applies, so mixed family+tier exclusions render both rows.
     /// </summary>
     private bool FamilyExcluded(ModFamily fam, IReadOnlyList<string> excluded) =>
         FamilyExclusionTerms(fam, excluded).Count > 0;
@@ -495,15 +500,21 @@
         ModFamily fam, ModTier tier, IReadOnlyList<string> excluded)
     {
         if (excluded.Count == 0) return [];
+        var familyExcluded = FamilyExcluded(fam, excluded);
         var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
         var matches = new List<string>();
         foreach (var term in excluded)
         {
+            // Name-based tier excludes always apply, including alongside a
+            // family exclusion.
             if (tier.Name.Length > 0 && string.Equals(term, tier.Name, StringComparison.Ordinal))
             {
                 matches.Add(term);
                 continue;
             }
+            // The family anchor is also the first tier's anchor; while the
+            // family is excluded, id matches are family-level, not tier-level.
+            if (familyExcluded) continue;
             if (tierIds.Contains(term))
             {
                 matches.Add(term);
