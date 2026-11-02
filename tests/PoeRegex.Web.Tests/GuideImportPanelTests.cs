@@ -67,6 +67,7 @@ public class GuideImportPanelTests
         cut.FindAll("#guide-branch-0 option").Count.Should().BeGreaterThan(1);
 
         cut.Find("#guide-branch-0").Change("LifeGainPerTarget");
+        cut.WaitForElement("#guide-branch-0");
         cut.WaitForAssertion(() =>
             cut.Find("#guide-branch-0").GetAttribute("data-selected")
                 .Should().Contain("LifeGainPerTarget"));
