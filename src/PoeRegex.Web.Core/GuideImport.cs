@@ -205,7 +205,7 @@ public sealed class GuideImportService(
         // a clear winner like `i.+mov` selects one family.
         var top = scored[0].Score;
         var common = scored
-            .Where(x => x.Score >= top - 10 && ModFamilies.IsCommon(x.Family))
+            .Where(x => x.Score >= top - 15 && ModFamilies.IsCommon(x.Family))
             .Select(x => x.Family.Key)
             .Distinct(StringComparer.Ordinal)
             .Take(6)
