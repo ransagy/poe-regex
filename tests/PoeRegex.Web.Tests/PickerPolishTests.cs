@@ -123,7 +123,7 @@ public class PickerPolishTests
     }
 
     [Fact]
-    public void PickBreakdown_SeparatesImportedTermsFromNormalExcludes()
+    public void PickBreakdown_SeparatesCustomTextFromNormalExcludes()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -143,12 +143,16 @@ public class PickerPolishTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
-        var imported = cut.FindAll(".bd-sec")
-            .Single(s => s.TextContent.Contains("Imported terms"));
-        imported.QuerySelectorAll(".bd-row.imported").Length.Should().Be(2);
-        imported.QuerySelectorAll(".bd-row.exc").Length.Should().Be(1);
-        imported.TextContent.Should().Contain("Must match");
-        imported.TextContent.Should().Contain("None of");
+        var custom = cut.FindAll(".bd-sec")
+            .Single(s => s.TextContent.Contains("Custom text"));
+        custom.QuerySelectorAll(".bd-row.imported").Length.Should().Be(2);
+        custom.QuerySelectorAll(".bd-row.exc").Length.Should().Be(1);
+        custom.TextContent.Should().Contain("Must match");
+        custom.TextContent.Should().Contain("None of");
+        // The custom row shows the text once (as the label), not again as a fragment.
+        custom.QuerySelectorAll(".bd-row.imported")
+            .Count(r => r.TextContent.Contains("Item Class: (am|ri|be|Cross)"))
+            .Should().Be(1);
         cut.FindAll(".bd-row.exc:not(.imported)").Count.Should().Be(1);
         cut.FindAll(".bd-tag").Should().BeEmpty();
     }

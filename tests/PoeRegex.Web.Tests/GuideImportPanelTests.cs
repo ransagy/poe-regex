@@ -157,6 +157,7 @@ public class GuideImportPanelTests
         cut.WaitForElement("#query-import-imported");
 
         var imported = cut.Find("#query-import-imported");
+        imported.TextContent.Should().Contain("Custom text");
         imported.TextContent.Should().Contain("Must match");
         imported.TextContent.Should().Contain("None of");
         imported.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");

@@ -810,8 +810,8 @@ public static class Phase1Report
         sb.AppendLine("- Guide-filter extraction ships as a separate mode: exact names/fragments and");
         sb.AppendLine("  regex matches against family/tier text map; multi-family branches use a");
         sb.AppendLine("  picker; negative groups apply as raw regex exclusions and class/rarity");
-        sb.AppendLine("  filters are preserved as imported external terms. Mapping those terms to");
-        sb.AppendLine("  slots is a follow-up.");
+        sb.AppendLine("  filters are preserved as custom text. Mapping those terms to slots is a");
+        sb.AppendLine("  follow-up.");
         sb.AppendLine();
         sb.AppendLine("Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter \"FullyQualifiedName~QueryReconstructionTests\"`.");
         return sb.ToString();

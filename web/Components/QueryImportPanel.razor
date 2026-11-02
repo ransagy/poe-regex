@@ -58,7 +58,7 @@
                     .Where(b => b.Kind == GuideBranchKind.Dropped).ToList();
                 <div class="more" id="query-import-summary">
                     @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
-                    · @_guideResult.External imported · @_guideResult.Dropped dropped
+                    · @_guideResult.External custom · @_guideResult.Dropped dropped
                 </div>
                 @if (multiBranches.Count > 0)
                 {
@@ -121,7 +121,7 @@
                 @if (externalBranches.Count > 0 || exclusionBranches.Count > 0)
                 {
                     <div class="guide-section" id="query-import-imported">
-                        <div class="guide-section-head">Kept as-is (raw regex)</div>
+                        <div class="guide-section-head">Custom text (raw regex)</div>
                         @if (externalBranches.Count > 0)
                         {
                             <div class="guide-section-group" id="query-import-external">
@@ -155,7 +155,7 @@
                 @if (droppedBranches.Count > 0)
                 {
                     <div class="guide-section" id="query-import-dropped">
-                        <div class="guide-section-head">@droppedBranches.Count not imported</div>
+                        <div class="guide-section-head">@droppedBranches.Count dropped</div>
                         @foreach (var branch in droppedBranches)
                         {
                             <div class="guide-branch">

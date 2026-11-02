@@ -91,7 +91,7 @@
     {
         <div class="bd-sec" @onmouseleave="Model.Cool">
             <div class="bd-head">
-                <span class="bd-name">Imported terms</span>
+                <span class="bd-name">Custom text</span>
                 @if (!ReadOnly)
                 {
                     <button type="button" class="link bd-clear" id="chips-clear-imported"
@@ -314,8 +314,6 @@
                         id="chip-import-inc-@item.Index"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what"><span class="bd-label">@item.Term</span></span>
-                        <span></span>
-                        <code class="bd-frag" title="@item.Term">@item.Term</code>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
                         @if (!ReadOnly)
                         {
@@ -340,8 +338,6 @@
                         id="chip-import-exc-@item.Index"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what"><span class="bd-label">@term</span></span>
-                        <span></span>
-                        <code class="bd-frag" title="@term">@term</code>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
                         @if (!ReadOnly)
                         {

@@ -73,13 +73,13 @@ quiet: the catalog holds affixes only and implicits never count in the rules.
   matching against family/tier text. Multi-family branches use a picker
   dropdown (common families selected by default); negative groups are applied
   as raw regex exclusions. Class/rarity/base filters such as `s: (...)`,
-  `Item Class:`, and `Rarity:` are kept as imported external terms and marked
-  in the UI; unknown text is dropped with a verify-in-game warning. Guide
-  apply is simple/global only.
+  `Item Class:`, and `Rarity:` are kept as **custom text** under one section
+  with Must match / None of roles; unknown text is dropped with a
+  verify-in-game warning. Guide apply is simple/global only.
 
-Current guide limits: class/rarity/base filters are preserved but not mapped
-to slots yet. App-string import covers multi-class pastes, exclusions, external
-terms, and all-of.
+Current guide limits: class/rarity/base filters are preserved as custom text
+but not mapped to slots yet. App-string import covers multi-class pastes,
+exclusions, custom text, and all-of.
 
 ## Test
 

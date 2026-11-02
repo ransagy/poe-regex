@@ -74,8 +74,8 @@ as search-string reconstruction:
   with the common families selected by default;
 - negative groups (`!parry|bow|...`) are applied as raw regex exclusions;
 - class/rarity/base filters (`s: (...)`, `Item Class:`, `Rarity:`) and other
-  known non-mod terms are preserved as imported external terms, grouped under
-  one Imported terms section with Must match / None of roles;
+  known non-mod terms are preserved as custom text, grouped under one Custom
+  text section with Must match / None of roles;
 - unknown text that matches no known item line is dropped with a
   verify-in-game diagnostic;
 - the preview and apply path reuse the read-only Your-picks view.
