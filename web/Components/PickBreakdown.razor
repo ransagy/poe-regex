@@ -120,6 +120,7 @@
 
     private SearchModel? _subscribed;
     private WantedMod? _minBusy;
+    private int? _hotAnyOfIndex;
 
     private bool HasPicks => State.Mode == "advanced"
         ? State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0 ||
@@ -338,9 +339,10 @@
                 {
                     var term = RawText.Decode(item.Entry.Pick.ModId);
                     var blocks = item.Entry.Slot is null ? Model.ScopeBlocks(null) : Model.ScopeBlocks(item.Entry.Slot);
-                    <li class="bd-row imported @(ReadOnly ? "ro" : "") @(blocks.Any(Model.IsHot) ? "hot" : "")"
+                    <li class="bd-row imported @(ReadOnly ? "ro" : "") @(_hotAnyOfIndex == item.Index ? "hot" : "")"
                         id="chip-import-any-@item.Index"
-                        @onmouseenter="() => Model.Hot(blocks)">
+                        @onmouseenter="() => { _hotAnyOfIndex = item.Index; Model.Hot(blocks); }"
+                        @onmouseleave="() => { _hotAnyOfIndex = null; Model.Cool(); }">
                         <span class="bd-what"><span class="bd-label">@term</span></span>
                         <span class="bd-n" title="@($"{term.Length} characters as part of the pick group")">@term.Length<span class="bd-unit"> chars</span></span>
                         @if (!ReadOnly)

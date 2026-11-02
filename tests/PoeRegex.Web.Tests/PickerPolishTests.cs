@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
@@ -145,6 +146,15 @@ public class PickerPolishTests
         custom.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
         model.Blocks.Count(b => b.Role == "inc").Should().Be(1);
         model.Blocks.Should().NotContain(b => b.Role == "external");
+
+        // Hovering a normal mod lights the shared block, but must not light the
+        // custom row that happens to live in the same any-of group.
+        cut.Find(".bd-row.inc").TriggerEvent("onmouseenter", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().NotContain("hot");
+        cut.Find(".bd-row.imported").TriggerEvent("onmouseenter", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().Contain("hot");
+        cut.Find(".bd-row.imported").TriggerEvent("onmouseleave", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().NotContain("hot");
     }
 
     [Fact]
