@@ -16,7 +16,7 @@ public class GuideImportTests
         result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
         result.Branches.Should().ContainSingle();
         result.Branches[0].Kind.Should().Be(GuideBranchKind.MultiFamily);
-        result.Branches[0].Selected.Should().Be("IncreasedLife");
+        result.Branches[0].Selected.Should().Contain("IncreasedLife");
         result.Branches[0].Candidates.Select(c => c.Key).Should().Contain("IncreasedLife");
         result.Branches[0].Picks.Should().ContainSingle();
         result.CompiledQuery.Should().NotBeNullOrEmpty();
@@ -36,19 +36,74 @@ public class GuideImportTests
     }
 
     [Fact]
-    public void TableFragment_BecomesAFragmentPick()
+    public void MovementRegex_MapsToMovementSpeed()
     {
-        var result = Guide.Import("\\+.*ife");
+        var result = Guide.Import("i.+mov");
 
         result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
-        result.Branches[0].Kind.Should().Be(GuideBranchKind.Fragment);
-        result.Branches[0].Picks.Should().ContainSingle();
-        result.Branches[0].Picks[0].IsNamePick.Should().BeFalse();
-        result.CompiledQuery.Should().Contain("ife");
+        result.Branches[0].Candidates.Select(c => c.Key)
+            .Should().Contain("MovementVelocity");
+        result.Branches[0].Selected.Should().Contain("MovementVelocity");
     }
 
     [Fact]
-    public void UnknownBranch_IsDroppedWithAWarning()
+    public void LifeRegex_MapsToIncreasedLife()
+    {
+        var result = Guide.Import("\\+.*life");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Candidates.Select(c => c.Key)
+            .Should().Contain("IncreasedLife");
+        result.Branches[0].Selected.Should().Contain("IncreasedLife");
+    }
+
+    [Fact]
+    public void ResistanceRegex_SelectsMultipleCommonFamilies()
+    {
+        var result = Guide.Import("i.+res");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Kind.Should().Be(GuideBranchKind.MultiFamily);
+        var keys = result.Branches[0].Candidates.Select(c => c.Key).ToList();
+        keys.Should().Contain("FireResistance");
+        keys.Should().Contain("LightningResistance");
+        result.Branches[0].Selected.Should().HaveCountGreaterThan(1);
+        result.Branches[0].Picks.Should().HaveCountGreaterThan(1);
+    }
+
+    [Fact]
+    public void MaxLifeRegex_MapsToLifeFamily()
+    {
+        var result = Guide.Import("max.*life");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Selected.Should().Contain("IncreasedLife");
+    }
+
+    [Fact]
+    public void DamageRegex_MapsToDamageFamilies()
+    {
+        var result = Guide.Import("i.+damage");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Candidates
+            .Any(c => c.Key.Contains("Damage", StringComparison.Ordinal))
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void EvasionRegex_MapsToAnEvasionFamily()
+    {
+        var result = Guide.Import("o Ev");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches[0].Candidates.Select(c => c.Key)
+            .Any(k => k.Contains("Evasion", StringComparison.Ordinal))
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void UnknownBranch_IsDroppedWithANote()
     {
         var result = Guide.Import("zzzz");
 
@@ -56,39 +111,58 @@ public class GuideImportTests
         result.Workbench.Should().BeNull();
         result.Branches.Should().ContainSingle();
         result.Branches[0].Kind.Should().Be(GuideBranchKind.Dropped);
-        result.Warnings.Should().Contain(w => w.Contains("Dropped 'zzzz'"));
+        result.Branches[0].Note.Should().Contain("no mod family");
     }
 
     [Fact]
-    public void MultiFamilyOverride_ChangesTheSelectedFamily()
+    public void MultiFamilyOverride_ChangesTheSelectedFamilies()
     {
         var initial = Guide.Import("life");
         initial.Branches[0].Kind.Should().Be(GuideBranchKind.MultiFamily);
         initial.Branches[0].Candidates.Select(c => c.Key).Should().Contain("LifeGainPerTarget");
 
         var overridden = Guide.Import(
-            "life", new Dictionary<int, string> { [0] = "LifeGainPerTarget" });
+            "life",
+            new Dictionary<int, IReadOnlyList<string>>
+            {
+                [0] = ["LifeGainPerTarget"],
+            });
 
-        overridden.Branches[0].Selected.Should().Be("LifeGainPerTarget");
+        overridden.Branches[0].Selected.Should().Equal("LifeGainPerTarget");
         var initialPick = initial.Branches[0].Picks.Single();
         var overriddenPick = overridden.Branches[0].Picks.Single();
         overriddenPick.SamePick(initialPick).Should().BeFalse();
     }
 
     [Fact]
+    public void MultiFamilyOverride_CanSelectSeveralFamilies()
+    {
+        var result = Guide.Import(
+            "i.+res",
+            new Dictionary<int, IReadOnlyList<string>>
+            {
+                [0] = ["FireResistance", "LightningResistance"],
+            });
+
+        result.Branches[0].Selected.Should().Equal(
+            "FireResistance", "LightningResistance");
+        result.Branches[0].Picks.Should().HaveCount(2);
+    }
+
+    [Fact]
     public void MixedGuideFilter_AppliesMappedBranchesAndDropsTheRest()
     {
-        var result = Guide.Import("of the Bear|\\+.*ife|resistance|zzzz");
+        var result = Guide.Import("of the Bear|\\+.*ife|zzzz");
 
         result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
-        result.Mapped.Should().Be(3);
+        result.Mapped.Should().Be(2);
         result.Dropped.Should().Be(1);
-        result.Branches.Should().HaveCount(4);
+        result.Branches.Should().HaveCount(3);
 
         var state = new WorkbenchState();
         result.Workbench!.ApplyTo(state);
         state.Mode.Should().Be("simple");
-        state.Global.Included.Should().HaveCount(3);
+        state.Global.Included.Should().HaveCount(2);
         Engine.CompilePicks(
             state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
             .Query.Should().Be(result.CompiledQuery);

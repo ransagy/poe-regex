@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using PoeRegex.Core.Data;
 
 namespace PoeRegex.Web.Core;
@@ -20,7 +21,7 @@ public sealed record GuideBranch(
     string Text,
     GuideBranchKind Kind,
     IReadOnlyList<GuideCandidate> Candidates,
-    string? Selected,
+    IReadOnlyList<string> Selected,
     IReadOnlyList<WantedMod> Picks,
     string? Note);
 
@@ -36,16 +37,18 @@ public sealed record GuideImportResult(
 }
 
 /// <summary>
-/// Best-effort build-guide filter extraction. A guide branch is mapped to the
-/// app's own picks; unsupported branches are dropped with a warning. No raw
-/// guide text is retained as a chip.
+/// Best-effort build-guide filter extraction. Branches are regex fragments
+/// (the game's search semantics), not only exact table fragments. Exact names
+/// and table fragments keep their pick identity; anything else is matched
+/// against family display text and tier text, with multi-select reconciliation.
 /// </summary>
 public sealed class GuideImportService(
     EngineService engine,
     QueryReconstructionService reconstruction)
 {
     public GuideImportResult Import(
-        string input, IReadOnlyDictionary<int, string>? overrides = null)
+        string input,
+        IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides = null)
     {
         var warnings = new List<string>();
         var (line, lineWarning) = ExtractFilter(input);
@@ -72,7 +75,7 @@ public sealed class GuideImportService(
         {
             var text = raw.Trim().Trim('`', '"', '\'').Trim();
             if (text.Length == 0) continue;
-            branches.Add(ResolveBranch(index++, text, overrides, warnings));
+            branches.Add(ResolveBranch(index++, text, overrides));
         }
 
         var picks = new List<WantedMod>();
@@ -101,31 +104,12 @@ public sealed class GuideImportService(
     }
 
     private GuideBranch ResolveBranch(
-        int index, string text, IReadOnlyDictionary<int, string>? overrides,
-        List<string> warnings)
+        int index, string text, IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides)
     {
         if (text.StartsWith('!') || text.StartsWith('-'))
         {
-            var note = "guide exclusions are not supported yet";
-            warnings.Add($"Dropped '{text}': {note}");
             return new GuideBranch(index, text, GuideBranchKind.Dropped,
-                [], null, [], note);
-        }
-
-        if (!LooksLikeKeyword(text))
-        {
-            if (reconstruction.TryResolveGuideTerm(text, out var fragmentPicks, out _) &&
-                fragmentPicks.Count > 0)
-            {
-                var kind = fragmentPicks.All(p => p.IsNamePick)
-                    ? GuideBranchKind.AffixName
-                    : GuideBranchKind.Fragment;
-                return new GuideBranch(index, text, kind, [], null, fragmentPicks, null);
-            }
-            var note = "not an exact table fragment or affix name";
-            warnings.Add($"Dropped '{text}': {note}");
-            return new GuideBranch(index, text, GuideBranchKind.Dropped,
-                [], null, [], note);
+                [], [], [], "guide exclusions are not supported yet");
         }
 
         var exactNames = reconstruction.Families
@@ -139,121 +123,149 @@ public sealed class GuideImportService(
                 .ThenBy(x => x.Family.Key, StringComparer.Ordinal)
                 .First();
             var pick = new WantedMod(chosen.Tier.Anchor.Id, Names: [chosen.Tier.Name]);
-            var note = exactNames.Count > 1
-                ? $"name exists in {exactNames.Count} families; picked '{chosen.Family.Key}'"
-                : null;
-            if (note is not null) warnings.Add($"'{text}': {note}");
             return new GuideBranch(index, text, GuideBranchKind.AffixName,
-                [], chosen.Family.Key, [pick], note);
+                [], [chosen.Family.Key], [pick], null);
         }
 
-        var scored = reconstruction.Families
-            .Select(f => (Family: f, Score: Score(f, text)))
-            .Where(x => x.Score > 0)
-            .OrderByDescending(x => x.Score)
-            .ThenBy(x => ModFamilies.IsCommon(x.Family) ? 0 : 1)
-            .ThenBy(x => x.Family.Key, StringComparer.Ordinal)
-            .ToList();
-        var candidates = scored.Count == 0
-            ? []
-            : scored
-                .Where(x => x.Score >= scored[0].Score - 15)
-                .Take(10)
+        var scored = MatchFamilies(reconstruction.Families, text);
+        if (scored.Count > 0)
+        {
+            var top = scored[0].Score;
+            var candidates = scored
+                .Where(x => x.Score >= top - 15)
+                .Take(12)
                 .Select(x => new GuideCandidate(x.Family.Key, x.Family.DisplayText))
                 .ToList();
-        if (candidates.Count > 0)
-        {
-            var selected = candidates[0].Key;
-            if (overrides is not null &&
-                overrides.TryGetValue(index, out var requested) &&
-                candidates.Any(c => string.Equals(c.Key, requested, StringComparison.Ordinal)))
-                selected = requested;
 
-            var family = reconstruction.Families.First(f => f.Key == selected);
-            if (candidates.Count == 1)
-                return new GuideBranch(index, text, GuideBranchKind.Family,
-                    candidates, selected, [family.Pick()], null);
+            var selected = ResolveSelection(index, candidates, scored, overrides);
+            if (selected.Count == 0)
+            {
+                return new GuideBranch(index, text, GuideBranchKind.MultiFamily,
+                    candidates, [], [], "no family selected");
+            }
 
-            var noteText =
-                $"matched {candidates.Count} families; picked '{selected}' " +
-                $"({string.Join(", ", candidates.Take(6).Select(c => c.Key))}" +
-                (candidates.Count > 6 ? ", …" : "") + ")";
-            warnings.Add($"'{text}': {noteText}");
-            return new GuideBranch(index, text, GuideBranchKind.MultiFamily,
-                candidates, selected, [family.Pick()], noteText);
+            var picks = selected
+                .Select(key => reconstruction.Families.First(f => f.Key == key).Pick())
+                .ToList();
+            var kind = candidates.Count > 1
+                ? GuideBranchKind.MultiFamily
+                : GuideBranchKind.Family;
+            var note = candidates.Count > 1
+                ? $"regex matched {candidates.Count} families; select one or more"
+                : null;
+            return new GuideBranch(index, text, kind, candidates, selected, picks, note);
         }
 
-        // A word-like branch can still be an exact table fragment or a name
-        // that the family search did not label (e.g. "d Ch").
+        // A branch that does not match the display corpus can still be an
+        // exact precomputed table fragment or name.
         if (reconstruction.TryResolveGuideTerm(text, out var fallbackPicks, out _) &&
             fallbackPicks.Count > 0)
         {
             var kind = fallbackPicks.All(p => p.IsNamePick)
                 ? GuideBranchKind.AffixName
                 : GuideBranchKind.Fragment;
-            return new GuideBranch(index, text, kind, [], null, fallbackPicks, null);
+            return new GuideBranch(index, text, kind, [], [], fallbackPicks, null);
         }
 
-        var dropped = "no mod family matched (base/vendor names are not mapped yet)";
-        warnings.Add($"Dropped '{text}': {dropped}");
         return new GuideBranch(index, text, GuideBranchKind.Dropped,
-            [], null, [], dropped);
+            [], [], [], "no mod family matched (base/vendor names are not mapped yet)");
     }
 
-    private static int Score(ModFamily family, string query)
+    private static List<string> ResolveSelection(
+        int index,
+        IReadOnlyList<GuideCandidate> candidates,
+        IReadOnlyList<(ModFamily Family, int Score)> scored,
+        IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides)
     {
-        var q = Normalize(query);
-        if (q.Length == 0) return 0;
-        var display = Normalize(family.DisplayText);
-        var score = string.Equals(display, q, StringComparison.Ordinal)
-            ? 100
-            : display.Contains(q, StringComparison.Ordinal) ? 60 : 0;
-        if (Normalize(family.Key).Contains(q, StringComparison.Ordinal))
-            score = Math.Max(score, 30);
-        foreach (var tier in family.Tiers)
+        if (overrides is not null && overrides.TryGetValue(index, out var requested))
         {
-            var name = Normalize(tier.Name);
-            if (string.Equals(name, q, StringComparison.Ordinal))
-                score = Math.Max(score, 95);
-            else if (name.Contains(q, StringComparison.Ordinal))
-                score = Math.Max(score, 55);
-            if (Normalize(tier.SearchText).Contains(q, StringComparison.Ordinal))
-                score = Math.Max(score, 35);
+            var valid = requested
+                .Where(key => candidates.Any(c => string.Equals(c.Key, key, StringComparison.Ordinal)))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            return valid;
         }
-        if (score > 0)
+
+        // Default to the common families near the top score. This makes a
+        // branch like `i.+res` select the resistance families together, while
+        // a clear winner like `i.+mov` selects one family.
+        var top = scored[0].Score;
+        var common = scored
+            .Where(x => x.Score >= top - 10 && ModFamilies.IsCommon(x.Family))
+            .Select(x => x.Family.Key)
+            .Distinct(StringComparer.Ordinal)
+            .Take(6)
+            .ToList();
+        return common.Count > 0 ? common : [scored[0].Family.Key];
+    }
+
+    private static List<(ModFamily Family, int Score)> MatchFamilies(
+        IReadOnlyList<ModFamily> families, string query)
+    {
+        var matcher = new GuideMatcher(query);
+        var scored = new List<(ModFamily Family, int Score)>();
+        foreach (var family in families)
         {
-            // Prefer families whose display text is close to the query (a
-            // primary stat) over hybrids that merely mention it on a second line.
-            score += Math.Max(0, 20 - (display.Length - q.Length));
+            var score = 0;
+            if (matcher.Matches(family.DisplayText)) score = Math.Max(score, 70);
+            foreach (var tier in family.Tiers)
+            {
+                if (tier.Name.Length > 0 && matcher.Matches(tier.Name))
+                    score = Math.Max(score, 90);
+                foreach (var line in tier.DisplayLines)
+                    if (line.Length > 0 && matcher.Matches(line))
+                        score = Math.Max(score, 60);
+                foreach (var line in tier.SearchText.Split('\n'))
+                    if (line.Length > 0 && matcher.Matches(line))
+                        score = Math.Max(score, 45);
+            }
+            if (score == 0) continue;
             if (ModFamilies.IsCommon(family)) score += 5;
+            scored.Add((family, score));
         }
-        return score;
+        return scored
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => ModFamilies.IsCommon(x.Family) ? 0 : 1)
+            .ThenBy(x => x.Family.Key, StringComparer.Ordinal)
+            .ToList();
     }
 
-    private static string Normalize(string value)
+    /// <summary>Regex matcher for guide semantics; falls back to a literal.</summary>
+    private sealed class GuideMatcher
     {
-        var sb = new StringBuilder(value.Length);
-        var space = false;
-        foreach (var ch in value.Trim().ToLowerInvariant())
-        {
-            if (char.IsWhiteSpace(ch))
-            {
-                space = sb.Length > 0;
-                continue;
-            }
-            if (space)
-            {
-                sb.Append(' ');
-                space = false;
-            }
-            sb.Append(ch);
-        }
-        return sb.ToString();
-    }
+        private readonly Regex? _regex;
+        private readonly string _literal;
 
-    private static bool LooksLikeKeyword(string text) =>
-        text.Any(char.IsLetter) &&
-        !text.Any(ch => @"^$*?()[]{}|\".Contains(ch));
+        public GuideMatcher(string query)
+        {
+            _literal = query;
+            try
+            {
+                _regex = new Regex(
+                    query,
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                    TimeSpan.FromMilliseconds(100));
+            }
+            catch (ArgumentException)
+            {
+                _regex = null;
+            }
+        }
+
+        public bool Matches(string text)
+        {
+            if (_regex is null)
+                return text.Contains(_literal, StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                return _regex.IsMatch(text);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return false;
+            }
+        }
+    }
 
     private static (string Line, string? Warning) ExtractFilter(string input)
     {

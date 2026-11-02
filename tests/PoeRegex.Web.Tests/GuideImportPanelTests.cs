@@ -34,12 +34,12 @@ public class GuideImportPanelTests
         cut.Find("#query-import-mode-guide").Click();
         cut.Find("#query-import-text").Input("maximum Life|of the Bear|zzzz");
         await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
-        cut.WaitForElement("#query-import-guide-branches");
+        cut.WaitForElement("#query-import-reconcile");
 
-        cut.Find("#query-import-guide-branches").TextContent.Should().Contain("MultiFamily");
-        cut.Find("#query-import-guide-branches").TextContent.Should().Contain("Dropped");
-        cut.FindAll("#query-import-preview .bd-row.inc").Count.Should().Be(2);
+        cut.Find("#query-import-summary").TextContent.Should().Contain("2 of 3");
         cut.Find("#query-import-summary").TextContent.Should().Contain("1 dropped");
+        cut.Find("#query-import-dropped").TextContent.Should().Contain("zzzz");
+        cut.FindAll("#query-import-preview .bd-row.inc").Count.Should().Be(2);
 
         await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
@@ -65,10 +65,10 @@ public class GuideImportPanelTests
         cut.WaitForElement("#guide-branch-0");
 
         cut.FindAll("#guide-branch-0 option").Count.Should().BeGreaterThan(1);
-        cut.Markup.Should().Contain("picked 'IncreasedLife'");
 
         cut.Find("#guide-branch-0").Change("LifeGainPerTarget");
         cut.WaitForAssertion(() =>
-            cut.Markup.Should().Contain("picked 'LifeGainPerTarget'"));
+            cut.Find("#guide-branch-0").GetAttribute("data-selected")
+                .Should().Contain("LifeGainPerTarget"));
     }
 }

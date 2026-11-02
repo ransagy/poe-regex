@@ -8,13 +8,18 @@
         <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import search string"
              @onkeydown="OnDialogKeyDown">
             <h2 class="panel-head">@(_guideMode ? "Import a guide filter" : "Import a search string")</h2>
-            <div class="logic-seg" role="group" aria-label="Import source">
-                <button type="button" id="query-import-mode-app" class="@(_guideMode ? "" : "on")"
-                        aria-pressed="@(_guideMode ? "false" : "true")"
-                        @onclick="() => SetGuideMode(false)">App string</button>
-                <button type="button" id="query-import-mode-guide" class="@(_guideMode ? "on" : "")"
-                        aria-pressed="@(_guideMode ? "true" : "false")"
-                        @onclick="() => SetGuideMode(true)">Guide filter</button>
+            <div class="import-source">
+                <div class="seg" role="group" aria-label="Import source">
+                    <button type="button" id="query-import-mode-app" class="seg-opt @(_guideMode ? "" : "active")"
+                            aria-pressed="@(_guideMode ? "false" : "true")"
+                            @onclick="() => SetGuideMode(false)">This app</button>
+                    <button type="button" id="query-import-mode-guide" class="seg-opt @(_guideMode ? "active" : "")"
+                            aria-pressed="@(_guideMode ? "true" : "false")"
+                            @onclick="() => SetGuideMode(true)">Others</button>
+                </div>
+                <span class="seg-note">@(_guideMode
+                    ? "Build guides and other regex sites"
+                    : "A search string this app produced")</span>
             </div>
             <textarea id="query-import-text" rows="5"
                       placeholder="@(_guideMode ? "Paste a build-guide filter…" : "Paste a search string…")"
@@ -37,39 +42,47 @@
             else if (_guideMode && _guideResult is not null)
             {
                 <div class="more" id="query-import-summary">
-                    guide: @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
+                    @_guideResult.Mapped of @_guideResult.Branches.Count branch(es) mapped
                     · @_guideResult.Dropped dropped
                 </div>
-                <div id="query-import-guide-branches">
-                    @foreach (var branch in _guideResult.Branches)
-                    {
-                        <div class="guide-branch" data-branch="@branch.Index">
-                            <code>@branch.Text</code>
-                            <span class="qexplain-kind">@branch.Kind</span>
-                            @if (branch.Kind == GuideBranchKind.MultiFamily)
-                            {
-                                <select id="guide-branch-@branch.Index" value="@branch.Selected"
-                                        aria-label="@($"Family for {branch.Text}")"
-                                        @onchange="e => OnGuideCandidate(branch.Index, e)">
+                @if (_guideResult.Branches.Any(b => b.Kind == GuideBranchKind.MultiFamily))
+                {
+                    <details class="guide-details" id="query-import-reconcile" open>
+                        <summary>Reconcile @_guideResult.Branches.Count(b => b.Kind == GuideBranchKind.MultiFamily) multi-family branch(es)</summary>
+                        @foreach (var branch in _guideResult.Branches.Where(b => b.Kind == GuideBranchKind.MultiFamily))
+                        {
+                            <div class="guide-branch" data-branch="@branch.Index">
+                                <code>@branch.Text</code>
+                                <select multiple size="@Math.Min(branch.Candidates.Count, 5)"
+                                        id="guide-branch-@branch.Index"
+                                        data-selected="@string.Join(",", branch.Selected)"
+                                        aria-label="@($"Families for {branch.Text}")"
+                                        @onchange="e => OnGuideCandidates(branch.Index, e)">
                                     @foreach (var candidate in branch.Candidates)
                                     {
-                                        <option value="@candidate.Key" selected="@(candidate.Key == branch.Selected)">
+                                        <option value="@candidate.Key"
+                                                selected="@(branch.Selected.Contains(candidate.Key))">
                                             @candidate.Label
                                         </option>
                                     }
                                 </select>
-                            }
-                            else if (branch.Selected is not null)
-                            {
-                                <span>→ @branch.Selected</span>
-                            }
-                            else if (branch.Picks.Count > 0)
-                            {
-                                <span>→ @branch.Picks.Count pick(s)</span>
-                            }
-                        </div>
-                    }
-                </div>
+                            </div>
+                        }
+                    </details>
+                }
+                @if (_guideResult.Branches.Any(b => b.Kind == GuideBranchKind.Dropped))
+                {
+                    <details class="guide-details" id="query-import-dropped">
+                        <summary>@_guideResult.Branches.Count(b => b.Kind == GuideBranchKind.Dropped) dropped branch(es)</summary>
+                        @foreach (var branch in _guideResult.Branches.Where(b => b.Kind == GuideBranchKind.Dropped))
+                        {
+                            <div class="guide-branch">
+                                <code>@branch.Text</code>
+                                <span>@branch.Note</span>
+                            </div>
+                        }
+                    </details>
+                }
                 @if (_guideResult.CompiledQuery is not null)
                 {
                     <div class="more">compiled: <code>@_guideResult.CompiledQuery</code></div>
@@ -100,14 +113,6 @@
             }
             else
             {
-                <div class="more" id="query-import-summary">
-                    mode: @_result.Mode
-                    @foreach (var slot in _result.Slots)
-                    {
-                        <span> · @slot.SlotId@(string.IsNullOrEmpty(slot.ClassId) ? "" : $" ({slot.ClassId})"): @slot.Includes.Count pick(s)</span>
-                    }
-                    <span> · @_result.Excludes.Count exclude(s)</span>
-                </div>
                 if (!CanApply)
                 {
                     <div class="field-error" id="query-import-warning">
@@ -150,7 +155,7 @@
     private GuideImportService? _guideService;
     private GuideImportResult? _guideResult;
     private bool _guideMode;
-    private readonly Dictionary<int, string> _guideOverrides = [];
+    private readonly Dictionary<int, IReadOnlyList<string>> _guideOverrides = [];
     private WorkbenchState? _previewState;
     private SearchModel? _previewModel;
     private bool _busy;
@@ -248,9 +253,16 @@
         _previewModel = null;
     }
 
-    private async Task OnGuideCandidate(int index, ChangeEventArgs e)
+    private async Task OnGuideCandidates(int index, ChangeEventArgs e)
     {
-        _guideOverrides[index] = e.Value?.ToString() ?? "";
+        var values = e.Value switch
+        {
+            string[] array => array,
+            IEnumerable<string> sequence => sequence.ToArray(),
+            string text when text.Length > 0 => [text],
+            _ => [],
+        };
+        _guideOverrides[index] = values;
         await Parse();
     }
 
