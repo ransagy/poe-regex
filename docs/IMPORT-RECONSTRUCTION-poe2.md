@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-11-02 21:12 UTC._
+_Generated 2026-11-02 22:34 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -189,7 +189,7 @@ strings, and minimum values fail closed or are accepted losses.
 - Guide-filter extraction ships as a separate mode: exact names/fragments and
   regex matches against family/tier text map; multi-family branches use a
   picker; negative groups apply as raw regex exclusions and class/rarity
-  filters are preserved as custom text. Mapping those terms to slots is a
-  follow-up.
+  filters are preserved as custom text, either ORed with mods or as a
+  separate AND filter. Mapping those terms to slots is a follow-up.
 
 Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter "FullyQualifiedName~QueryReconstructionTests"`.

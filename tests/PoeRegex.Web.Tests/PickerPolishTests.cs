@@ -123,6 +123,31 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_ShowsAnyOfCustomTextInsideThePickGroup()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddInclude(null, new WantedMod(RawText.Encode("Item Class: (am|ri|be|Cross)")));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.FindAll(".bd-row.inc").Should().ContainSingle();
+        var custom = cut.FindAll(".bd-sec")
+            .Single(s => s.TextContent.Contains("Custom text"));
+        custom.TextContent.Should().Contain("Any of");
+        custom.QuerySelectorAll(".bd-row.imported").Length.Should().Be(1);
+        custom.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
+        model.Blocks.Count(b => b.Role == "inc").Should().Be(1);
+        model.Blocks.Should().NotContain(b => b.Role == "external");
+    }
+
+    [Fact]
     public void PickBreakdown_SeparatesCustomTextFromNormalExcludes()
     {
         using var ctx = Context();

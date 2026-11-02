@@ -158,14 +158,19 @@ public class GuideImportPanelTests
 
         var imported = cut.Find("#query-import-imported");
         imported.TextContent.Should().Contain("Custom text");
-        imported.TextContent.Should().Contain("Must match");
+        imported.TextContent.Should().Contain("Any of");
         imported.TextContent.Should().Contain("None of");
         imported.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
         imported.TextContent.Should().Contain("parry|bow");
+        cut.Find("#query-import-anyof").TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
+        cut.Find("#query-import-exclusions").TextContent.Should().Contain("parry|bow");
 
         cut.FindAll("#query-import-preview .bd-row.imported").Count.Should().Be(2);
         cut.FindAll("#query-import-preview .bd-row.imported.exc").Count.Should().Be(1);
         cut.FindAll("#query-import-preview .bd-tag").Should().BeEmpty();
+        cut.FindAll("#query-import-preview .bd-logic")
+            .Select(x => x.TextContent.Trim())
+            .Should().Contain(["Any of", "None of"]);
     }
 
     [Fact]

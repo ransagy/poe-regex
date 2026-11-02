@@ -11,6 +11,7 @@ public enum GuideBranchKind
     Family,
     MultiFamily,
     External,
+    AnyOf,
     Exclusion,
     Dropped,
 }
@@ -37,7 +38,7 @@ public sealed record GuideImportResult(
     public bool Ok => Workbench?.Ok == true;
     public int Mapped => Branches.Count(b => b.Picks.Count > 0);
     public int External => Branches.Count(b =>
-        b.Kind is GuideBranchKind.External or GuideBranchKind.Exclusion);
+        b.Kind is GuideBranchKind.External or GuideBranchKind.AnyOf or GuideBranchKind.Exclusion);
     public int Dropped => Branches.Count(b => b.Kind == GuideBranchKind.Dropped);
 }
 
@@ -91,15 +92,17 @@ public sealed class GuideImportService(
                     GuideBranchKind.Exclusion, [], [], [], "excluded from results", pattern));
                 continue;
             }
+            var anyOfGroup = group.Branches.Count > 1;
             foreach (var raw in group.Branches)
             {
                 var text = raw.Trim();
                 if (text.Length == 0) continue;
-                branches.Add(ResolveBranch(index++, text, overrides));
+                branches.Add(ResolveBranch(index++, text, overrides, anyOfGroup));
             }
         }
 
         var picks = new List<WantedMod>();
+        var anyOfPicks = new List<WantedMod>();
         var excludes = new List<string>();
         var externalIncludes = new List<string>();
         foreach (var branch in branches)
@@ -121,10 +124,22 @@ public sealed class GuideImportService(
                     externalIncludes.Add(term);
                 continue;
             }
+            if (branch.Kind == GuideBranchKind.AnyOf && branch.ExternalTerm is { Length: > 0 } anyTerm)
+            {
+                var raw = new WantedMod(RawText.Encode(anyTerm));
+                if (!anyOfPicks.Any(p => p.SamePick(raw)))
+                    anyOfPicks.Add(raw);
+                continue;
+            }
             foreach (var pick in branch.Picks)
                 if (!picks.Any(p => p.SamePick(pick)))
                     picks.Add(pick);
         }
+        // Custom text alternatives compile after the mod alternatives. OR order
+        // is immaterial in-game and this keeps app-string reconstruction stable.
+        foreach (var pick in anyOfPicks)
+            if (!picks.Any(p => p.SamePick(pick)))
+                picks.Add(pick);
 
         if (picks.Count == 0 && excludes.Count == 0 && externalIncludes.Count == 0)
         {
@@ -146,15 +161,17 @@ public sealed class GuideImportService(
     }
 
     private GuideBranch ResolveBranch(
-        int index, string text, IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides)
+        int index, string text, IReadOnlyDictionary<int, IReadOnlyList<string>>? overrides,
+        bool anyOfGroup)
     {
         var display = text;
+        var externalKind = anyOfGroup ? GuideBranchKind.AnyOf : GuideBranchKind.External;
         if (text.StartsWith("s:", StringComparison.OrdinalIgnoreCase))
         {
             var classFilter = reconstruction.NormalizeClassFilter(text);
             if (classFilter is not null)
             {
-                return new GuideBranch(index, display, GuideBranchKind.External,
+                return new GuideBranch(index, display, externalKind,
                     [], [], [], "class filter imported as a raw term", classFilter);
             }
             text = text[2..].Trim();
@@ -162,7 +179,7 @@ public sealed class GuideImportService(
 
         if (IsExternalLiteral(text))
         {
-            return new GuideBranch(index, display, GuideBranchKind.External,
+            return new GuideBranch(index, display, externalKind,
                 [], [], [], "imported as a raw item filter", text);
         }
 
@@ -231,6 +248,12 @@ public sealed class GuideImportService(
         if (reconstruction.TryResolveGuideTerm(text, out var fallbackPicks, out _) &&
             fallbackPicks.Count > 0)
         {
+            if (fallbackPicks.All(p => p.IsRawText))
+            {
+                var term = RawText.Decode(fallbackPicks[0].ModId);
+                return new GuideBranch(index, display, externalKind,
+                    [], [], [], "imported as a raw term", term);
+            }
             var kind = fallbackPicks.All(p => p.IsNamePick)
                 ? GuideBranchKind.AffixName
                 : GuideBranchKind.Fragment;
@@ -239,7 +262,7 @@ public sealed class GuideImportService(
 
         if (reconstruction.MatchesKnownItemText(text))
         {
-            return new GuideBranch(index, display, GuideBranchKind.External,
+            return new GuideBranch(index, display, externalKind,
                 [], [], [], "imported as a raw term", text);
         }
 

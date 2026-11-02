@@ -42,6 +42,10 @@ public sealed record WantedMod(
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNamePick => Names is { Count: > 0 };
 
+    /// <summary>An imported raw regex term (for example a class filter) that participates in the pick group.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsRawText => RawText.IsRaw(ModId);
+
     /// <summary>Exact-pick identity: same anchor, names, and family variants in order (the minimum is a setting, not identity).</summary>
     public bool SamePick(WantedMod other) =>
         ModId == other.ModId &&
@@ -72,6 +76,8 @@ public sealed record WantedMod(
     /// </summary>
     public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements()
     {
+        if (IsRawText)
+            return [new PoeRegex.Core.ModifierRequirement(RawText.Decode(ModId), IsRegex: true)];
         if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
         if (VariantModIds is { Count: > 0 })
             return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id, MinValue));

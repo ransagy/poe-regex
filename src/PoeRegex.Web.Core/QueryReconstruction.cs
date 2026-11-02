@@ -600,8 +600,16 @@ public sealed class QueryReconstructionService
         // an app-built tier-or-better set becomes one pick, not one per name.
         var names = new List<string>();
         var fragments = new List<string>();
+        var raws = new List<string>();
         foreach (var branch in SplitAlternatives(term))
         {
+            // Custom metadata terms must not be factored/expanded as if they
+            // were mod fragments: `Item Class: (am|ri|be|Cross)` is one term.
+            if (IsExternalLiteral(branch.Trim()))
+            {
+                raws.Add(branch.Trim());
+                continue;
+            }
             foreach (var candidate in ExpandFactored(branch))
             {
                 if (TryNamePick(candidate, itemClass, out var branchName, out var branchNameFailure))
@@ -628,11 +636,20 @@ public sealed class QueryReconstructionService
         {
             if (!TryFragmentPicks(fragment, itemClass, used, out var resolved, out var fragmentFailure))
             {
+                // A mixed app-built group can contain custom text alongside
+                // mod fragments (for example an imported slot filter).
+                if (MatchesKnownItemText(fragment))
+                {
+                    raws.Add(fragment);
+                    continue;
+                }
                 failure = fragmentFailure;
                 return false;
             }
             foreach (var pick in resolved) AddUnique(picks, pick);
         }
+        foreach (var raw in raws)
+            AddUnique(picks, new WantedMod(RawText.Encode(raw)));
 
         if (picks.Count == 0)
         {

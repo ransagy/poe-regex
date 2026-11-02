@@ -87,7 +87,8 @@
             @PickList(null, State.Global, Engine.PlayableMods())
         </div>
     }
-    @if (State.ExternalIncludes.Count > 0 || ImportedExclusions().Count > 0)
+    @if (State.ExternalIncludes.Count > 0 || ImportedAnyOf().Count > 0 ||
+         ImportedExclusions().Count > 0)
     {
         <div class="bd-sec" @onmouseleave="Model.Cool">
             <div class="bd-head">
@@ -122,7 +123,7 @@
 
     private bool HasPicks => State.Mode == "advanced"
         ? State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0 ||
-          ImportedExclusions().Count > 0
+          ImportedAnyOf().Count > 0 || ImportedExclusions().Count > 0
         : State.Global.Included.Count + State.Global.Excluded.Count > 0;
 
     protected override void OnParametersSet()
@@ -146,7 +147,8 @@
         var cls = slot is null ? null : State.SlotClassOrDefault(slot);
         var scopeKey = slot ?? "global";
         var scopeBlocks = Model.ScopeBlocks(slot);
-        if (crit.Included.Count > 0)
+        var regularIncluded = crit.Included.Where(p => !p.IsRawText).ToList();
+        if (regularIncluded.Count > 0)
         {
             <div class="bd-logic">
                 @if (crit.Included.Count > 1)
@@ -174,7 +176,7 @@
                 }
             </div>
             <ul class="bd-list" @onmouseenter="() => { if (!crit.MatchAll) Model.Hot(scopeBlocks); }">
-                @foreach (var inc in crit.Included)
+                @foreach (var inc in regularIncluded)
                 {
                     var frag = Model.PickFragment(inc, cls);
                     var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
@@ -261,6 +263,28 @@
         }
     };
 
+    /// <summary>Raw custom text included in the pick group (Any of), with its owning scope.</summary>
+    private IReadOnlyList<(string? Slot, WantedMod Pick)> ImportedAnyOf()
+    {
+        var picks = new List<(string? Slot, WantedMod Pick)>();
+        if (State.Mode == "advanced")
+            foreach (var slot in State.ActiveSlots())
+                picks.AddRange(State.CriteriaFor(slot).Included
+                    .Where(p => p.IsRawText)
+                    .Select(p => ((string?)slot, p)));
+        picks.AddRange(State.Global.Included
+            .Where(p => p.IsRawText)
+            .Select(p => ((string?)null, p)));
+        return picks
+            .GroupBy(p => p.Pick.ModId, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
+    }
+
+    private bool ImportedAnyOfMatchAll =>
+        ImportedAnyOf().Any(p =>
+            (p.Slot is null ? State.Global : State.CriteriaFor(p.Slot)).MatchAll);
+
     /// <summary>Raw exclusions stored in the normal exclusion list, but shown in the imported group.</summary>
     private IReadOnlyList<string> ImportedExclusions()
     {
@@ -291,6 +315,8 @@
     {
         State.WithSuppressedNotifications(() =>
         {
+            foreach (var (slot, pick) in ImportedAnyOf())
+                State.RemoveInclude(slot, pick);
             State.SetExternalIncludes([]);
             if (State.Mode == "advanced")
                 foreach (var slot in State.ActiveSlots())
@@ -301,8 +327,33 @@
 
     private RenderFragment ImportedList() => __builder =>
     {
+        var anyOf = ImportedAnyOf();
         var includes = State.ExternalIncludes;
         var excludes = ImportedExclusions();
+        if (anyOf.Count > 0)
+        {
+            <div class="bd-logic"><span>@(ImportedAnyOfMatchAll ? "Must match" : "Any of")</span></div>
+            <ul class="bd-list">
+                @foreach (var item in anyOf.Select((Entry, Index) => (Entry, Index)))
+                {
+                    var term = RawText.Decode(item.Entry.Pick.ModId);
+                    var blocks = item.Entry.Slot is null ? Model.ScopeBlocks(null) : Model.ScopeBlocks(item.Entry.Slot);
+                    <li class="bd-row imported @(ReadOnly ? "ro" : "") @(blocks.Any(Model.IsHot) ? "hot" : "")"
+                        id="chip-import-any-@item.Index"
+                        @onmouseenter="() => Model.Hot(blocks)">
+                        <span class="bd-what"><span class="bd-label">@term</span></span>
+                        <span class="bd-n" title="@($"{term.Length} characters as part of the pick group")">@term.Length<span class="bd-unit"> chars</span></span>
+                        @if (!ReadOnly)
+                        {
+                            <button type="button" class="bd-x" id="chip-remove-import-any-@item.Index"
+                                    title="@($"Remove custom text {term}")"
+                                    aria-label="@($"Remove custom text {term}")"
+                                    @onclick="() => State.RemoveInclude(item.Entry.Slot, item.Entry.Pick)">×</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
         if (includes.Count > 0)
         {
             <div class="bd-logic"><span>Must match</span></div>
@@ -318,8 +369,8 @@
                         @if (!ReadOnly)
                         {
                             <button type="button" class="bd-x" id="chip-remove-import-inc-@item.Index"
-                                    title="@($"Remove imported term {item.Term}")"
-                                    aria-label="@($"Remove imported term {item.Term}")"
+                                    title="@($"Remove custom text {item.Term}")"
+                                    aria-label="@($"Remove custom text {item.Term}")"
                                     @onclick="() => State.RemoveExternalInclude(item.Term)">×</button>
                         }
                     </li>

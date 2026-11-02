@@ -246,6 +246,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         var inc = _blocks.Where(b => b.Role == "inc").ToList();
         if (inc.Count != 1) return null;
         var block = inc[0];
+        if (state.Global.Included.Any(p => p.IsRawText)) return null;
         var picks = state.Global.Included.Where(p => PickFragment(p, null) is not null).ToList();
         if (picks.Count < 2) return null;
 
@@ -298,6 +299,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
 
     private string PickLabel(WantedMod pick)
     {
+        if (pick.IsRawText) return RawText.Decode(pick.ModId);
         if (pick.IsNamePick) return $"\"{pick.Names![0]}\"";
         var mods = engine.PlayableMods();
         return FamilyText(ModFamilies.CachedGroup(mods), mods, pick.ModId);

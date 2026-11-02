@@ -86,7 +86,7 @@ public class GuideImportTests
     }
 
     [Fact]
-    public void ClassFilters_ArePreservedAsExternalTerms()
+    public void ClassFilters_UseAnyOfWhenGroupedWithMods()
     {
         var result = Guide.Import(
             "\"!Item Class: (One Hand Maces|Bows|Quivers)\" " +
@@ -96,20 +96,23 @@ public class GuideImportTests
         result.External.Should().Be(2);
         result.Dropped.Should().Be(0);
 
-        var wanted = result.Branches.Single(b => b.Kind == GuideBranchKind.External);
+        var wanted = result.Branches.Single(b => b.Kind == GuideBranchKind.AnyOf);
         wanted.ExternalTerm.Should().Be("Item Class: (am|ri|be|Cross)");
         var excluded = result.Branches.Single(b => b.Kind == GuideBranchKind.Exclusion);
         excluded.ExternalTerm.Should().Be("Item Class: (One Hand Maces|Bows|Quivers)");
 
-        result.Workbench!.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
-        result.Workbench.Excludes.Should().Contain(
-            RawExclusion.Encode("Item Class: (One Hand Maces|Bows|Quivers)"));
-        result.CompiledQuery.Should().Contain("\"Item Class: (am|ri|be|Cross)\"");
-        result.CompiledQuery.Should().Contain("!\"Item Class: (One Hand Maces|Bows|Quivers)\"");
+        // The slot filter is ORed with the mods, not a separate AND block.
+        result.Workbench!.ExternalIncludes.Should().BeEmpty();
+        result.Workbench.Slots[0].Includes.Should().Contain(p =>
+            p.IsRawText && RawText.Decode(p.ModId) == "Item Class: (am|ri|be|Cross)");
+        result.CompiledQuery.Should().MatchRegex(
+            "\"[^\"]*Item Class: \\(am\\|ri\\|be\\|Cross\\)[^\"]*\"");
+        result.CompiledQuery.Should().Contain(
+            "!\"Item Class: (One Hand Maces|Bows|Quivers)\"");
 
         var state = new WorkbenchState();
         result.Workbench.ApplyTo(state);
-        state.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        state.Global.Included.Should().Contain(p => p.IsRawText);
         Engine.CompilePicks(
             state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null,
             state.ExternalIncludes)
@@ -117,10 +120,20 @@ public class GuideImportTests
 
         var reconstructed = Reconstruction.ReconstructWorkbench(result.CompiledQuery!);
         reconstructed.Ok.Should().BeTrue(string.Join("; ", reconstructed.Diagnostics));
-        reconstructed.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
-        reconstructed.Excludes.Should().Contain(
-            RawExclusion.Encode("Item Class: (One Hand Maces|Bows|Quivers)"));
+        reconstructed.Slots[0].Includes.Should().Contain(p => p.IsRawText);
         reconstructed.Recompile(Engine).Should().Be(result.CompiledQuery);
+    }
+
+    [Fact]
+    public void StandaloneClassFilters_StayMustMatch()
+    {
+        var result = Guide.Import("\"s: (am|ri|be|Cross)\"");
+
+        result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
+        result.Branches.Single().Kind.Should().Be(GuideBranchKind.External);
+        result.Workbench!.ExternalIncludes.Should().Contain("Item Class: (am|ri|be|Cross)");
+        result.Workbench.Slots[0].Includes.Should().BeEmpty();
+        result.CompiledQuery.Should().Be("\"Item Class: (am|ri|be|Cross)\"");
     }
 
     [Fact]

@@ -326,6 +326,11 @@ public sealed class EngineService
         var fragments = new List<string>();
         foreach (var req in pick.Requirements())
         {
+            if (req.IsRegex)
+            {
+                fragments.Add(req.Value);
+                continue;
+            }
             var mod = _corpus.FindMod(req.Value);
             string? fragment;
             if (mod is not null)

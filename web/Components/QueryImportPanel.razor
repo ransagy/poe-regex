@@ -50,6 +50,8 @@
             {
                 var multiBranches = _guideResult.Branches
                     .Where(b => b.Kind == GuideBranchKind.MultiFamily).ToList();
+                var anyOfBranches = _guideResult.Branches
+                    .Where(b => b.Kind == GuideBranchKind.AnyOf).ToList();
                 var externalBranches = _guideResult.Branches
                     .Where(b => b.Kind == GuideBranchKind.External).ToList();
                 var exclusionBranches = _guideResult.Branches
@@ -118,10 +120,27 @@
                         }
                     </div>
                 }
-                @if (externalBranches.Count > 0 || exclusionBranches.Count > 0)
+                @if (anyOfBranches.Count > 0 || externalBranches.Count > 0 ||
+                     exclusionBranches.Count > 0)
                 {
                     <div class="guide-section" id="query-import-imported">
                         <div class="guide-section-head">Custom text (raw regex)</div>
+                        @if (anyOfBranches.Count > 0)
+                        {
+                            <div class="guide-section-group" id="query-import-anyof">
+                                <div class="guide-section-sub">Any of</div>
+                                @foreach (var branch in anyOfBranches)
+                                {
+                                    <div class="guide-branch">
+                                        <code>@branch.Text</code>
+                                        @if (branch.ExternalTerm is { } term && term != branch.Text)
+                                        {
+                                            <code>@term</code>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
                         @if (externalBranches.Count > 0)
                         {
                             <div class="guide-section-group" id="query-import-external">

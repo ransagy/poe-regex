@@ -66,6 +66,12 @@ public class WebComponentTests
         cut.WaitForAssertion(() =>
             cut.Find("#slot-query-simple").TextContent.Should()
                 .Contain("Item Class: (am|ri|be|Cross)"));
+
+        state.SetExternalIncludes([]);
+        state.AddInclude(null, new WantedMod(RawText.Encode("Item Class: (am|ri|be|Bow)")));
+        cut.WaitForAssertion(() =>
+            cut.Find("#slot-query-simple").TextContent.Should()
+                .Contain("Item Class: (am|ri|be|Bow)"));
     }
 
     [Fact]

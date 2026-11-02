@@ -37,31 +37,48 @@ public sealed class PoeRegexCompiler
 
         // Included modifiers → one quoted block with | alternation.
         var included = new List<string>();
+        var includedRaw = new List<string>();
         foreach (var req in spec.IncludedModifiers)
         {
             var frag = SelectFragment(req, spec.ItemClass, diagnostics);
-            if (frag is not null) included.Add(frag);
-            else diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
-                $"Modifier '{req.Value}' could not be resolved; skipped."));
+            if (frag is null)
+            {
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                    $"Modifier '{req.Value}' could not be resolved; skipped."));
+                continue;
+            }
+            (req.IsRegex ? includedRaw : included).Add(frag);
         }
-        if (included.Count > 0)
+        if (included.Count > 0 || includedRaw.Count > 0)
         {
-            var factored = CompactionEngine.FactorCommonPrefixes(included);
-            blocks.Add(Poe2Syntax.Quote(string.Join("|", factored)));
+            // Factor/dedupe catalog fragments, but keep imported custom text
+            // verbatim instead of factoring it with mod fragments.
+            var terms = CompactionEngine.FactorCommonPrefixes(included).ToList();
+            terms.AddRange(includedRaw);
+            blocks.Add(Poe2Syntax.Quote(string.Join("|", terms)));
         }
 
         foreach (var group in spec.RequiredGroups)
         {
             var fragments = new List<string>();
+            var rawFragments = new List<string>();
             foreach (var req in group)
             {
                 var frag = SelectFragment(req, spec.ItemClass, diagnostics);
-                if (frag is not null) fragments.Add(frag);
-                else diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
-                    $"Modifier '{req.Value}' could not be resolved; skipped."));
+                if (frag is null)
+                {
+                    diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                        $"Modifier '{req.Value}' could not be resolved; skipped."));
+                    continue;
+                }
+                (req.IsRegex ? rawFragments : fragments).Add(frag);
             }
-            if (fragments.Count > 0)
-                blocks.Add(Poe2Syntax.Quote(string.Join("|", CompactionEngine.FactorCommonPrefixes(fragments))));
+            if (fragments.Count > 0 || rawFragments.Count > 0)
+            {
+                var terms = CompactionEngine.FactorCommonPrefixes(fragments).ToList();
+                terms.AddRange(rawFragments);
+                blocks.Add(Poe2Syntax.Quote(string.Join("|", terms)));
+            }
         }
 
         // Exclusions → separate quoted blocks.
@@ -106,6 +123,8 @@ public sealed class PoeRegexCompiler
 
     private string? SelectFragment(ModifierRequirement req, string? itemClass, List<CompilerDiagnostic> diagnostics)
     {
+        // Imported custom text is already a regex fragment; emit it verbatim.
+        if (req.IsRegex) return req.Value;
         var mod = _corpus.FindMod(req.Value);
         if (mod is not null)
         {

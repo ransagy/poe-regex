@@ -75,7 +75,8 @@ as search-string reconstruction:
 - negative groups (`!parry|bow|...`) are applied as raw regex exclusions;
 - class/rarity/base filters (`s: (...)`, `Item Class:`, `Rarity:`) and other
   known non-mod terms are preserved as custom text, grouped under one Custom
-  text section with Must match / None of roles;
+  text section with Any of / Must match / None of roles; custom text in the
+  same quoted group as mods is ORed with them;
 - unknown text that matches no known item line is dropped with a
   verify-in-game diagnostic;
 - the preview and apply path reuse the read-only Your-picks view.

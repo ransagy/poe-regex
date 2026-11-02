@@ -136,6 +136,7 @@ public sealed class PasteComposer
             foreach (var reqs in required)
             {
                 var frags = new List<string>();
+                var rawFrags = new List<string>();
                 var sources = new List<string>();
                 foreach (var req in reqs.Distinct().ToList())
                 {
@@ -146,14 +147,15 @@ public sealed class PasteComposer
                             $"Modifier '{req.Value}' could not be resolved; skipped."));
                         continue;
                     }
-                    frags.Add(frag);
+                    (req.IsRegex ? rawFrags : frags).Add(frag);
                     if (_corpus.FindMod(req.Value) is not null) sources.Add(req.Value);
                 }
-                if (frags.Count == 0) continue;
-                var factored = CompactionEngine.FactorCommonPrefixes(frags);
+                if (frags.Count == 0 && rawFrags.Count == 0) continue;
+                var terms = CompactionEngine.FactorCommonPrefixes(frags).ToList();
+                terms.AddRange(rawFrags);
                 var token = others.Count > 0
-                    ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", factored)
-                    : string.Join("|", factored);
+                    ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", terms)
+                    : string.Join("|", terms);
                 var tokenDiag = Poe2Syntax.ValidateFragment(token);
                 if (tokenDiag is not null) diagnostics.Add(tokenDiag);
                 groups.Add(new PasteGroup(label, targets, token));
@@ -212,6 +214,7 @@ public sealed class PasteComposer
 
     private string? FragmentFor(ModifierRequirement req, string itemClass, List<CompilerDiagnostic> diagnostics)
     {
+        if (req.IsRegex) return req.Value;
         var mod = _corpus.FindMod(req.Value);
         if (mod is not null) return _compaction.SelectFragment(req, itemClass);
         var diag = Poe2Syntax.ValidateFragment(req.Value);
