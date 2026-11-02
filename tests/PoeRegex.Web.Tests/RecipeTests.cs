@@ -41,6 +41,21 @@ public class RecipeTests
     }
 
     [Fact]
+    public void Encode_Decode_RoundTripsExternalIncludes()
+    {
+        var state = Picked();
+        state.SetExternalIncludes(["Item Class: (am|ri|be|Cross)", "rare"]);
+
+        var token = RecipeCodec.Encode(WorkbenchSnapshot.Capture(state));
+        var back = RecipeCodec.Decode(token)!;
+        var restored = new WorkbenchState();
+        WorkbenchSnapshot.RestoreCriteria(restored, back);
+
+        restored.ExternalIncludes.Should().Equal("Item Class: (am|ri|be|Cross)", "rare");
+        back.ExternalIncludes.Should().HaveCount(2);
+    }
+
+    [Fact]
     public void CaptureCriteria_IsDetachedFromLaterEdits()
     {
         var state = Picked();

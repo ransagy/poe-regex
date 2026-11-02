@@ -295,13 +295,26 @@ public sealed class EngineService
 
     /// <summary>Compiles picks the way a slot asks for them: one any-of block, or one block per pick when every pick is required.</summary>
     public CompileResult CompilePicks(
-        IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass) =>
+        IReadOnlyList<WantedMod> picks, IEnumerable<string> excludes, bool matchAll, string? itemClass,
+        IEnumerable<string>? externalIncludes = null) =>
         Compile(
             matchAll ? [] : picks.SelectMany(m => m.Requirements()),
-            excludes.Select(e => new ModifierRequirement(e)),
+            excludes.Select(ExclusionRequirement),
             itemClass: itemClass,
+            keywords: externalIncludes,
             allowOverflow: true,
             requiredGroups: matchAll ? picks.Select(m => m.Requirements()) : null);
+
+    /// <summary>
+    /// Workbench exclusions are usually catalog mod ids, but a guide import can
+    /// carry a raw regex group (for example `parry|bow|scept`). The marker
+    /// keeps the value round-trippable through state and lets the compiler emit
+    /// the pattern verbatim instead of escaping it as a literal.
+    /// </summary>
+    private static ModifierRequirement ExclusionRequirement(string exclusion) =>
+        RawExclusion.IsRaw(exclusion)
+            ? new ModifierRequirement(RawExclusion.Decode(exclusion), IsRegex: true)
+            : new ModifierRequirement(exclusion);
 
     /// <summary>
     /// The compiled fragment for each requirement of a pick, in compile order.
@@ -313,6 +326,11 @@ public sealed class EngineService
         var fragments = new List<string>();
         foreach (var req in pick.Requirements())
         {
+            if (req.IsRegex)
+            {
+                fragments.Add(req.Value);
+                continue;
+            }
             var mod = _corpus.FindMod(req.Value);
             string? fragment;
             if (mod is not null)
@@ -426,9 +444,11 @@ public sealed class EngineService
     }
 
     public string? ExcludeFragment(string exc) =>
-        _excludeFragments.GetOrAdd(
-            exc,
-            key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
+        RawExclusion.IsRaw(exc)
+            ? RawExclusion.Decode(exc)
+            : _excludeFragments.GetOrAdd(
+                exc,
+                key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
 
     private string? ComputeExcludeFragment(string exc)
     {
@@ -446,14 +466,17 @@ public sealed class EngineService
     public MultiPasteResult Combine(
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes)> slots,
         IEnumerable<string> excludes,
-        bool allowOverflow = false) =>
-        Combine(slots.Select(s => (s.Label, s.ClassId, s.Includes, false)), excludes, allowOverflow);
+        bool allowOverflow = false,
+        IEnumerable<string>? externalIncludes = null) =>
+        Combine(slots.Select(s => (s.Label, s.ClassId, s.Includes, false)),
+            excludes, allowOverflow, externalIncludes);
 
     /// <summary>As above; a MatchAll slot requires every pick, each as its own group.</summary>
     public MultiPasteResult Combine(
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes, bool MatchAll)> slots,
         IEnumerable<string> excludes,
-        bool allowOverflow = false) =>
+        bool allowOverflow = false,
+        IEnumerable<string>? externalIncludes = null) =>
         new PasteComposer(_corpus, validateRecall: false).Compose(
             slots.Select(s => s.MatchAll && s.Includes.Any()
                 ? new PasteSlotCriterion(
@@ -463,8 +486,9 @@ public sealed class EngineService
                     s.ClassId,
                     s.Includes.SelectMany(m => m.Requirements()).ToList(),
                     s.Label)).ToList(),
-            excludes.Select(e => new ModifierRequirement(e)),
-            allowOverflow);
+            excludes.Select(ExclusionRequirement),
+            allowOverflow,
+            externalIncludes);
 
     /// <summary>
     /// Explain is the one intentionally expensive action. Results are cached

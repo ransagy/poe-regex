@@ -1,7 +1,7 @@
 namespace PoeRegex.Core;
 
 /// <summary>One modifier requirement: a catalog ModId or free text, with an optional minimum value.</summary>
-public sealed record ModifierRequirement(string Value, double? MinValue = null);
+public sealed record ModifierRequirement(string Value, double? MinValue = null, bool IsRegex = false);
 
 /// <summary>
 /// The full description of a desired trade-filter query. Each included/excluded

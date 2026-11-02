@@ -19,13 +19,14 @@ public sealed record ReconstructedQuery(
     IReadOnlyList<WantedMod> Includes,
     IReadOnlyList<string> Excludes,
     bool MatchAll,
-    IReadOnlyList<string> Diagnostics)
+    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<string> ExternalIncludes)
 {
     public static ReconstructedQuery Failed(string query, string reason) =>
-        new(false, query, "simple", null, [], [], false, [reason]);
+        new(false, query, "simple", null, [], [], false, [reason], []);
 
     public CompileResult? Recompile(EngineService engine) =>
-        Ok ? engine.CompilePicks(Includes, Excludes, MatchAll, ItemClass) : null;
+        Ok ? engine.CompilePicks(Includes, Excludes, MatchAll, ItemClass, ExternalIncludes) : null;
 }
 
 /// <summary>One reconstructed slot/scope with canonical picks.</summary>
@@ -41,11 +42,12 @@ public sealed record ReconstructedWorkbench(
     string Mode,
     IReadOnlyList<ReconstructedSlot> Slots,
     IReadOnlyList<string> Excludes,
+    IReadOnlyList<string> ExternalIncludes,
     IReadOnlyList<string> Diagnostics,
     IReadOnlyList<string> Warnings)
 {
     public static ReconstructedWorkbench Failed(string reason) =>
-        new(false, "simple", [], [], [reason], []);
+        new(false, "simple", [], [], [], [reason], []);
 
     /// <summary>Replaces the workbench criteria with the recovered picks.</summary>
     public void ApplyTo(WorkbenchState state)
@@ -62,10 +64,12 @@ public sealed record ReconstructedWorkbench(
             {
                 state.AddIncludes(null, Slots[0].Includes);
                 state.SetMatchAll(null, Slots[0].MatchAll);
+                state.SetExternalIncludes(ExternalIncludes);
                 foreach (var id in Excludes) state.AddExclude(null, id);
                 return;
             }
 
+            state.SetExternalIncludes(ExternalIncludes);
             foreach (var slot in Slots)
             {
                 state.SetSlotClass(slot.SlotId, slot.ClassId);
@@ -85,12 +89,15 @@ public sealed record ReconstructedWorkbench(
     {
         if (!Ok || Slots.Count == 0) return null;
         if (Mode == "simple")
-            return engine.CompilePicks(Slots[0].Includes, Excludes, Slots[0].MatchAll, null).Query;
+            return engine.CompilePicks(
+                Slots[0].Includes, Excludes, Slots[0].MatchAll, null, ExternalIncludes).Query;
         if (Slots.Count == 1)
-            return engine.CompilePicks(Slots[0].Includes, Excludes, Slots[0].MatchAll, Slots[0].ClassId).Query;
+            return engine.CompilePicks(
+                Slots[0].Includes, Excludes, Slots[0].MatchAll, Slots[0].ClassId,
+                ExternalIncludes).Query;
         return engine.Combine(
             Slots.Select(s => (s.SlotId, s.ClassId, (IEnumerable<WantedMod>)s.Includes, s.MatchAll)),
-            Excludes, allowOverflow: true).Query;
+            Excludes, allowOverflow: true, externalIncludes: ExternalIncludes).Query;
     }
 }
 
@@ -106,6 +113,7 @@ public sealed class QueryReconstructionService
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ModFamily> _familyByKey =
         new(StringComparer.Ordinal);
+    private IReadOnlyList<string>? _knownLines;
 
     public QueryReconstructionService(EngineService engine)
     {
@@ -153,6 +161,78 @@ public sealed class QueryReconstructionService
         return classes.Distinct(StringComparer.Ordinal).ToList();
     }
 
+    /// <summary>
+    /// Resolve one unquoted guide branch through the same name/fragment
+    /// indexes used by the string importer. Family-keyword reconciliation is
+    /// handled separately by <see cref="GuideImportService"/>.
+    /// </summary>
+    public bool TryResolveGuideTerm(
+        string term, out List<WantedMod> picks, out string failure)
+    {
+        var used = new List<WantedMod>();
+        return TryResolveTerm(term, null, used, out picks, out failure);
+    }
+
+    /// <summary>Global families for guide-keyword reconciliation.</summary>
+    public IReadOnlyList<ModFamily> Families =>
+        _familyByKey.Values.OrderBy(f => f.Key, StringComparer.Ordinal).ToList();
+
+    /// <summary>
+    /// True when a raw regex matches a known non-mod item line (class,
+    /// rarity, requirement, item level) that the app can preserve as an
+    /// imported external term. This is deliberately conservative: a typo such
+    /// as `zzzz` should stay dropped instead of silently becoming a no-op.
+    /// </summary>
+    public bool MatchesKnownItemText(string pattern)
+    {
+        if (pattern.Length == 0) return false;
+        Regex regex;
+        try
+        {
+            regex = new Regex(
+                pattern,
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(100));
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        _knownLines ??= BuildKnownLines();
+        foreach (var line in _knownLines)
+        {
+            try
+            {
+                if (regex.IsMatch(line)) return true;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private IReadOnlyList<string> BuildKnownLines()
+    {
+        var lines = new List<string>();
+        foreach (var itemClass in _engine.Classes)
+            lines.Add($"Item Class: {itemClass.Name}");
+        lines.AddRange(EngineCorpus.UniversalLines);
+        return lines;
+    }
+
+    /// <summary>Normalize a guide class filter prefix (`s:`/`S:`) to the literal item-class line.</summary>
+    public string? NormalizeClassFilter(string term)
+    {
+        if (!term.StartsWith("s:", StringComparison.OrdinalIgnoreCase)) return null;
+        var content = term[2..].Trim();
+        if (content.Length == 0) return null;
+        var candidate = "Item Class: " + content;
+        return MatchesKnownItemText(candidate) ? candidate : null;
+    }
+
     public ReconstructedWorkbench ReconstructWorkbench(string query)
     {
         if (!_engine.DataReady)
@@ -171,7 +251,8 @@ public sealed class QueryReconstructionService
         var single = Reconstruct(query);
         if (!single.Ok)
             return ReconstructedWorkbench.Failed(single.Diagnostics.FirstOrDefault() ?? "reconstruction failed");
-        if (single.ItemClass is not null && single.Includes.Count == 0 && single.Excludes.Count == 0)
+        if (single.ItemClass is not null && single.Includes.Count == 0 &&
+            single.Excludes.Count == 0 && single.ExternalIncludes.Count == 0)
             return ReconstructedWorkbench.Failed(
                 "a class-only advanced string cannot be represented by a slot without picks or exclusions");
 
@@ -181,7 +262,7 @@ public sealed class QueryReconstructionService
         var slot = new ReconstructedSlot(slotId, single.ItemClass ?? "", single.Includes, single.MatchAll);
         return new ReconstructedWorkbench(
             true, single.ItemClass is null ? "simple" : "advanced",
-            [slot], single.Excludes, [], []);
+            [slot], single.Excludes, single.ExternalIncludes, [], []);
     }
 
     private ReconstructedWorkbench ReconstructPaste(string query, IReadOnlyList<string> scope)
@@ -189,6 +270,7 @@ public sealed class QueryReconstructionService
         var classes = scope.Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
         var builds = classes.ToDictionary(c => c, c => new SlotBuild(c), StringComparer.Ordinal);
         var excludes = new List<string>();
+        var externalIncludes = new List<string>();
         var warnings = new List<string>();
         var used = new List<WantedMod>();
 
@@ -196,9 +278,12 @@ public sealed class QueryReconstructionService
         {
             if (excluded)
             {
-                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out var why,
+                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out _,
                         new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedWorkbench.Failed(why);
+                {
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;
@@ -226,7 +311,14 @@ public sealed class QueryReconstructionService
             }
 
             if (!TryResolveGroup(phrase, classes[0], used, out var shared, out var sharedWhy))
+            {
+                if (IsExternalLiteral(phrase) || MatchesKnownItemText(phrase))
+                {
+                    externalIncludes.Add(phrase);
+                    continue;
+                }
                 return ReconstructedWorkbench.Failed(sharedWhy);
+            }
             foreach (var target in classes) builds[target].Add(shared);
             used.AddRange(shared);
         }
@@ -264,18 +356,22 @@ public sealed class QueryReconstructionService
             slots.Add(new ReconstructedSlot(slotId, build.ClassId, build.Picks, build.Tokens > 1));
         }
 
-        var recompiled = new ReconstructedWorkbench(true, "advanced", slots, excludes, [], warnings).Recompile(_engine);
+        var recompiled = new ReconstructedWorkbench(
+            true, "advanced", slots, excludes, externalIncludes, [], warnings).Recompile(_engine);
         if (recompiled == query)
-            return new ReconstructedWorkbench(true, "advanced", slots, excludes, [], warnings);
+            return new ReconstructedWorkbench(
+                true, "advanced", slots, excludes, externalIncludes, [], warnings);
 
         // Same-class all-of falls back to any-of in the shipped composer; try
         // the any-of form before failing.
         var anyOf = slots.Select(s => s with { MatchAll = false }).ToList();
-        var fallback = new ReconstructedWorkbench(true, "advanced", anyOf, excludes, [], warnings).Recompile(_engine);
+        var fallback = new ReconstructedWorkbench(
+            true, "advanced", anyOf, excludes, externalIncludes, [], warnings).Recompile(_engine);
         if (fallback == query)
         {
             warnings.Add("same-class all-of falls back to any-of (accepted)");
-            return new ReconstructedWorkbench(true, "advanced", anyOf, excludes, [], warnings);
+            return new ReconstructedWorkbench(
+                true, "advanced", anyOf, excludes, externalIncludes, [], warnings);
         }
 
         return ReconstructedWorkbench.Failed(
@@ -381,27 +477,63 @@ public sealed class QueryReconstructionService
 
         var includes = new List<WantedMod>();
         var excludes = new List<string>();
+        var externalIncludes = new List<string>();
         // Occurrence-aware: a duplicate fragment must resolve to a distinct
         // pick, or applying it would collapse the duplicate.
         var used = new List<WantedMod>();
         var tokens = Explainer.Tokenize(query).ToList();
         var includeTerms = tokens
             .Where(t => !t.Excluded && !t.Phrase.StartsWith(": ", StringComparison.Ordinal))
+            .Select(t => t.Phrase)
             .ToList();
+
+        // Imported class/rarity/base filters are not mod picks. Recognize them
+        // before deciding whether the remaining include groups are any-of or
+        // all-of; otherwise one external class filter would turn a multi-pick
+        // any-of group into an all-of group that cannot be represented.
+        var pickTerms = new List<string>();
+        foreach (var phrase in includeTerms)
+        {
+            if (IsExternalLiteral(phrase))
+            {
+                externalIncludes.Add(phrase);
+                continue;
+            }
+            if (TryResolveTerm(phrase, itemClass, [], out _, out var externalWhy))
+            {
+                pickTerms.Add(phrase);
+                continue;
+            }
+            if (MatchesKnownItemText(phrase))
+            {
+                externalIncludes.Add(phrase);
+                continue;
+            }
+            return ReconstructedQuery.Failed(query, externalWhy);
+        }
+
         // One group is any-of; one group per pick is all-of. Each all-of term
         // must resolve to one pick (a family's variants are ORed inside it).
-        var allOf = includeTerms.Count > 1;
+        var allOf = pickTerms.Count > 1;
 
         foreach (var (phrase, excluded) in tokens)
         {
             if (!excluded && phrase.StartsWith(": ", StringComparison.Ordinal))
                 continue; // the class anchor is already resolved
+            if (!excluded && externalIncludes.Contains(phrase, StringComparer.Ordinal))
+                continue;
 
             if (excluded)
             {
                 if (!TryResolveSinglePick(phrase, itemClass, used, out var excludedPick,
-                        out var excludeWhy, new HashSet<string>(excludes, StringComparer.Ordinal)))
-                    return ReconstructedQuery.Failed(query, excludeWhy);
+                        out _, new HashSet<string>(excludes, StringComparer.Ordinal)))
+                {
+                    // Guide-applied exclusions are raw regex groups, not
+                    // catalog picks. Preserve them verbatim so reapplying the
+                    // string keeps the same exclusion.
+                    excludes.Add(RawExclusion.Encode(phrase));
+                    continue;
+                }
                 excludes.Add(excludedPick!.ModId);
                 used.Add(excludedPick);
                 continue;
@@ -423,8 +555,8 @@ public sealed class QueryReconstructionService
             }
         }
 
-        var any = _engine.CompilePicks(includes, excludes, false, itemClass);
-        var all = _engine.CompilePicks(includes, excludes, true, itemClass);
+        var any = _engine.CompilePicks(includes, excludes, false, itemClass, externalIncludes);
+        var all = _engine.CompilePicks(includes, excludes, true, itemClass, externalIncludes);
         var anyMatch = any.Query == query;
         var allMatch = includes.Count > 1 && all.Query == query;
         if (!anyMatch && !allMatch)
@@ -433,8 +565,18 @@ public sealed class QueryReconstructionService
 
         return new ReconstructedQuery(
             true, query, itemClass is null ? "simple" : "advanced",
-            itemClass, includes, excludes, !anyMatch && allMatch, []);
+            itemClass, includes, excludes, !anyMatch && allMatch, [], externalIncludes);
     }
+
+    /// <summary>Literal item metadata prefixes are imported terms, never mod picks.</summary>
+    private static bool IsExternalLiteral(string phrase) =>
+        phrase.StartsWith("Item Class:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("Rarity:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("BaseType:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("Base Type:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("Sockets:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("Item Level:", StringComparison.OrdinalIgnoreCase) ||
+        phrase.StartsWith("Requires:", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Resolves an any-of term: every top-level branch may be a name or a fragment.</summary>
     private bool TryResolveTerm(
@@ -458,8 +600,16 @@ public sealed class QueryReconstructionService
         // an app-built tier-or-better set becomes one pick, not one per name.
         var names = new List<string>();
         var fragments = new List<string>();
+        var raws = new List<string>();
         foreach (var branch in SplitAlternatives(term))
         {
+            // Custom metadata terms must not be factored/expanded as if they
+            // were mod fragments: `Item Class: (am|ri|be|Cross)` is one term.
+            if (IsExternalLiteral(branch.Trim()))
+            {
+                raws.Add(branch.Trim());
+                continue;
+            }
             foreach (var candidate in ExpandFactored(branch))
             {
                 if (TryNamePick(candidate, itemClass, out var branchName, out var branchNameFailure))
@@ -486,11 +636,20 @@ public sealed class QueryReconstructionService
         {
             if (!TryFragmentPicks(fragment, itemClass, used, out var resolved, out var fragmentFailure))
             {
+                // A mixed app-built group can contain custom text alongside
+                // mod fragments (for example an imported slot filter).
+                if (MatchesKnownItemText(fragment))
+                {
+                    raws.Add(fragment);
+                    continue;
+                }
                 failure = fragmentFailure;
                 return false;
             }
             foreach (var pick in resolved) AddUnique(picks, pick);
         }
+        foreach (var raw in raws)
+            AddUnique(picks, new WantedMod(RawText.Encode(raw)));
 
         if (picks.Count == 0)
         {

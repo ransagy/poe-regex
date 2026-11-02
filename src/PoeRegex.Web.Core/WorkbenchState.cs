@@ -42,6 +42,10 @@ public sealed record WantedMod(
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNamePick => Names is { Count: > 0 };
 
+    /// <summary>An imported raw regex term (for example a class filter) that participates in the pick group.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsRawText => RawText.IsRaw(ModId);
+
     /// <summary>Exact-pick identity: same anchor, names, and family variants in order (the minimum is a setting, not identity).</summary>
     public bool SamePick(WantedMod other) =>
         ModId == other.ModId &&
@@ -72,6 +76,8 @@ public sealed record WantedMod(
     /// </summary>
     public IEnumerable<PoeRegex.Core.ModifierRequirement> Requirements()
     {
+        if (IsRawText)
+            return [new PoeRegex.Core.ModifierRequirement(RawText.Decode(ModId), IsRegex: true)];
         if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
         if (VariantModIds is { Count: > 0 })
             return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id, MinValue));
@@ -130,6 +136,13 @@ public sealed class WorkbenchState
 
     /// <summary>Classless global criteria.</summary>
     public SlotCriteria Global { get; } = new();
+
+    /// <summary>
+    /// Raw regex blocks that AND with the compiled query but cannot be built
+    /// from the mod picker (class/rarity/base filters, imported guide terms).
+    /// They are global because the game's search blocks are not scoped.
+    /// </summary>
+    public List<string> ExternalIncludes { get; } = [];
 
     /// <summary>Backpack lab test items (imported or freeform).</summary>
     public List<TestItem> TestItems { get; } = [];
@@ -299,6 +312,28 @@ public sealed class WorkbenchState
         return removed;
     }
 
+    public void AddExternalInclude(string pattern)
+    {
+        if (pattern.Length == 0 || ExternalIncludes.Contains(pattern, StringComparer.Ordinal)) return;
+        ExternalIncludes.Add(pattern);
+        Notify();
+    }
+
+    public void SetExternalIncludes(IEnumerable<string> patterns)
+    {
+        ExternalIncludes.Clear();
+        ExternalIncludes.AddRange(
+            patterns.Where(p => p.Length > 0).Distinct(StringComparer.Ordinal));
+        Notify();
+    }
+
+    public bool RemoveExternalInclude(string pattern)
+    {
+        var removed = ExternalIncludes.Remove(pattern);
+        if (removed) Notify();
+        return removed;
+    }
+
     /// <summary>Clear wanted/unwanted mods for one scope (slot or global).</summary>
     public void ClearChips(string? slot)
     {
@@ -306,6 +341,7 @@ public sealed class WorkbenchState
         c.Included.Clear();
         c.Excluded.Clear();
         c.MatchAll = false;
+        if (slot is null) ExternalIncludes.Clear();
         Notify();
     }
 
@@ -402,6 +438,7 @@ public sealed class WorkbenchState
         Global.Included.Clear();
         Global.Excluded.Clear();
         Global.MatchAll = false;
+        ExternalIncludes.Clear();
         TestItems.Clear();
         SelectedItemId = null;
         Notify();

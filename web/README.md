@@ -61,6 +61,28 @@ flow, with per-item candidate pickers; edits are remembered per item and
 check and backpack-full are reported per card). Unmapped implicit lines stay
 quiet: the catalog holds affixes only and implicits never count in the rules.
 
+## Import a search string or guide filter
+
+**Import string** has two modes:
+
+- **App string** — paste a query this app produced. The preview reconstructs
+  the picks and renders the real Your-picks view; Apply replaces the workbench.
+  This is the byte-identical round-trip path.
+- **Guide filter** — paste a build-guide filter line. Top-level `|` branches
+  become picks through exact names, exact fragments, or case-insensitive regex
+  matching against family/tier text. Multi-family branches use a picker
+  dropdown (common families selected by default); negative groups are applied
+  as raw regex exclusions. Class/rarity/base filters such as `s: (...)`,
+  `Item Class:`, and `Rarity:` are kept as **custom text** under one section
+  with Any of / Must match / None of roles. A custom term in the same quoted
+  group as mods is ORed with them; a standalone quoted group is an AND filter.
+  Unknown text is dropped with a verify-in-game warning. Guide apply is
+  simple/global only.
+
+Current guide limits: class/rarity/base filters are preserved as custom text
+but not mapped to slots yet. App-string import covers multi-class pastes,
+exclusions, custom text, and all-of.
+
 ## Test
 
 ```sh

@@ -9,6 +9,7 @@ public sealed record SavedRecipe(string Name, DateTimeOffset SavedAt, WorkbenchS
 {
     public int PickCount =>
         Snapshot.Global.Included.Count + Snapshot.Global.Excluded.Count +
+        (Snapshot.ExternalIncludes?.Count ?? 0) +
         Snapshot.Slots.Values.Sum(c => c.Included.Count + c.Excluded.Count);
 }
 

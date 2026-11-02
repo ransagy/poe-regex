@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
@@ -120,6 +121,75 @@ public class PickerPolishTests
         cut.Find("#min-global-IncreasedLife6").Should().NotBeNull();
         cut.FindAll(".bd-min.ignored").Should().BeEmpty();
         cut.FindAll(".bd-min.noop").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PickBreakdown_ShowsAnyOfCustomTextInsideThePickGroup()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddInclude(null, new WantedMod(RawText.Encode("Item Class: (am|ri|be|Cross)")));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.FindAll(".bd-row.inc").Should().ContainSingle();
+        var custom = cut.FindAll(".bd-sec")
+            .Single(s => s.TextContent.Contains("Custom text"));
+        custom.TextContent.Should().Contain("Any of");
+        custom.QuerySelectorAll(".bd-row.imported").Length.Should().Be(1);
+        custom.TextContent.Should().Contain("Item Class: (am|ri|be|Cross)");
+        model.Blocks.Count(b => b.Role == "inc").Should().Be(1);
+        model.Blocks.Should().NotContain(b => b.Role == "external");
+
+        // Hovering a normal mod lights the shared block, but must not light the
+        // custom row that happens to live in the same any-of group.
+        cut.Find(".bd-row.inc").TriggerEvent("onmouseenter", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().NotContain("hot");
+        cut.Find(".bd-row.imported").TriggerEvent("onmouseenter", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().Contain("hot");
+        cut.Find(".bd-row.imported").TriggerEvent("onmouseleave", new MouseEventArgs());
+        cut.Find(".bd-row.imported").ClassList.Should().NotContain("hot");
+    }
+
+    [Fact]
+    public void PickBreakdown_SeparatesCustomTextFromNormalExcludes()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("IncreasedLife6"));
+        state.AddExclude(null, "ManaRegeneration1");
+        state.AddExclude(null, RawExclusion.Encode("parry|bow"));
+        state.SetExternalIncludes(["Item Class: (am|ri|be|Cross)"]);
+        var model = new SearchModel(engine, state);
+        model.Update(
+            engine.CompilePicks(
+                state.Global.Included, state.Global.Excluded, false, null,
+                state.ExternalIncludes),
+            null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var custom = cut.FindAll(".bd-sec")
+            .Single(s => s.TextContent.Contains("Custom text"));
+        custom.QuerySelectorAll(".bd-row.imported").Length.Should().Be(2);
+        custom.QuerySelectorAll(".bd-row.exc").Length.Should().Be(1);
+        custom.TextContent.Should().Contain("Must match");
+        custom.TextContent.Should().Contain("None of");
+        // The custom row shows the text once (as the label), not again as a fragment.
+        custom.QuerySelectorAll(".bd-row.imported")
+            .Count(r => r.TextContent.Contains("Item Class: (am|ri|be|Cross)"))
+            .Should().Be(1);
+        cut.FindAll(".bd-row.exc:not(.imported)").Count.Should().Be(1);
+        cut.FindAll(".bd-tag").Should().BeEmpty();
     }
 
     [Fact]

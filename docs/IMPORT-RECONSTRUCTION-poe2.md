@@ -1,6 +1,6 @@
 # PoE2 query reconstruction — Phase 1 results
 
-_Generated 2026-10-31 22:57 UTC._
+_Generated 2026-11-02 22:34 UTC._
 
 - Data: `2026-08-09`
 - Target model: `advanced-ranges-v1`
@@ -53,7 +53,7 @@ strings, and minimum values fail closed or are accepted losses.
 | `edge-old-anchor` | edge | fail-closed | simple | — | 0 | no | recompiled query differs (any: '": On.+M"'; all: '": On.+M"') |
 | `edge-unknown-token` | edge | fail-closed | simple | — | 0 | no | fragment 'zzzz' is not an unfactored table fragment for this scope |
 | `edge-shape` | edge | fail-closed | simple | — | 0 | no | invalid query shape: unterminated quoted block |
-| `edge-free-text-and-mod` | edge | fail-closed | simple | — | 0 | no | fragment 'life' is not an unfactored table fragment for this scope |
+| `edge-free-text-and-mod` | edge | fail-closed | simple | — | 0 | no | fragment 'zzzz' is not an unfactored table fragment for this scope |
 
 ## Passing examples
 
@@ -133,7 +133,7 @@ strings, and minimum values fail closed or are accepted losses.
 ### `paste-weapon-offhand` — weapon + offhand
 - query: `": (Cro\|Shi.+s)" ": (Shi.+s)\|ith" ": (Cro)\|i.*ur$"`
 - mode: advanced
-- weapon · Crossbow — any of: `family:WeaponElementalDamage1`
+- weapon · Crossbow — any of: `family:WeaponElementalDamageOnTwohandWeapon1`
 - offhand · Shield — any of: `family:LocalIncreasedPhysicalDamageReductionRatingPercent1`
 - recompile: identical
 
@@ -166,7 +166,7 @@ strings, and minimum values fail closed or are accepted losses.
 - `edge-old-anchor` (edge) — recompiled query differs (any: '": On.+M"'; all: '": On.+M"')
 - `edge-unknown-token` (edge) — fragment 'zzzz' is not an unfactored table fragment for this scope
 - `edge-shape` (edge) — invalid query shape: unterminated quoted block
-- `edge-free-text-and-mod` (edge) — fragment 'life' is not an unfactored table fragment for this scope
+- `edge-free-text-and-mod` (edge) — fragment 'zzzz' is not an unfactored table fragment for this scope
 
 ## Review notes
 
@@ -185,7 +185,11 @@ strings, and minimum values fail closed or are accepted losses.
 - **Minimum values are genuinely lost**; the query encodes a threshold that the
   pick model cannot recover (accepted limitation).
 - Factored fragments/name sets and multi-class pastes are supported by this
-  path. The Import string panel applies the recovered slots; guide extraction is
-  still later.
+  path. The Import string panel applies the recovered slots.
+- Guide-filter extraction ships as a separate mode: exact names/fragments and
+  regex matches against family/tier text map; multi-family branches use a
+  picker; negative groups apply as raw regex exclusions and class/rarity
+  filters are preserved as custom text, either ORed with mods or as a
+  separate AND filter. Mapping those terms to slots is a follow-up.
 
 Tests: `dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release --filter "FullyQualifiedName~QueryReconstructionTests"`.

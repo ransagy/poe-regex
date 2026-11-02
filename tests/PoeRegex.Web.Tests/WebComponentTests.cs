@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PoeRegex.Web.Core;
 using web.Components;
 using web.Layout;
+using web.Pages;
 using web.Services;
 
 namespace PoeRegex.Web.Tests;
@@ -42,6 +43,35 @@ public class WebComponentTests
         model.Query.Should().NotBeEmpty();
         model.Blocks.Should().Contain(b => b.Role == "inc");
         model.PickBlock(null, state.Global.Included[0]).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public void Home_SimpleQueryIncludesCustomText()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
+        var state = new WorkbenchState();
+        ctx.Services.AddSingleton(new EngineService());
+        ctx.Services.AddSingleton(state);
+        ctx.Services.AddSingleton(persistence);
+        ctx.Services.AddSingleton(new IntroState(persistence));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+
+        var cut = ctx.Render<Home>();
+        cut.WaitForElement("#slot-query-simple");
+
+        state.SetExternalIncludes(["Item Class: (am|ri|be|Cross)"]);
+
+        cut.WaitForAssertion(() =>
+            cut.Find("#slot-query-simple").TextContent.Should()
+                .Contain("Item Class: (am|ri|be|Cross)"));
+
+        state.SetExternalIncludes([]);
+        state.AddInclude(null, new WantedMod(RawText.Encode("Item Class: (am|ri|be|Bow)")));
+        cut.WaitForAssertion(() =>
+            cut.Find("#slot-query-simple").TextContent.Should()
+                .Contain("Item Class: (am|ri|be|Bow)"));
     }
 
     [Fact]

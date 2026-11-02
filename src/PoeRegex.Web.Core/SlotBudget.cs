@@ -16,12 +16,14 @@ public static class SlotBudget
     /// without exceptions.
     /// </summary>
     public static CompileResult Preview(
-        EngineService engine, SlotCriteria crit, string? itemClass, IEnumerable<WantedMod> extra)
+        EngineService engine, SlotCriteria crit, string? itemClass, IEnumerable<WantedMod> extra,
+        IEnumerable<string>? externalIncludes = null)
     {
         var picks = new List<WantedMod>(crit.Included);
         foreach (var pick in extra)
             if (!picks.Any(m => m.SamePick(pick)))
                 picks.Add(pick);
-        return engine.CompilePicks(picks, crit.Excluded, crit.MatchAll, itemClass);
+        return engine.CompilePicks(
+            picks, crit.Excluded, crit.MatchAll, itemClass, externalIncludes);
     }
 }
