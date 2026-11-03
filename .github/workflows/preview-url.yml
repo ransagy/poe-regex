@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 concurrency:
@@ -37,19 +38,19 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          alias=$(printf '%s' "$BRANCH" \
+          preview_alias=$(printf '%s' "$BRANCH" \
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
             | cut -c1-28)
-          alias=${alias%-}
-          if [ -z "$alias" ]; then
+          preview_alias=${preview_alias%-}
+          if [ -z "$preview_alias" ]; then
             echo "Branch '$BRANCH' has no usable preview alias; skipping."
             exit 0
           fi
           short=${SHA:0:12}
           body=$(cat <<EOF
           <!-- preview-url -->
-          **Preview:** https://preview-$alias.renlys.tools
+          **Preview:** https://preview-$preview_alias.renlys.tools
 
           Commit: \`$short\`
 
