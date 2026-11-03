@@ -180,6 +180,25 @@ custom preview hostnames are not attached as Pages custom domains, so no
 per-PR DNS or certificate work is required. Preview cleanup still deletes the
 underlying Pages deployments; the Worker routes need no cleanup.
 
+## Pages host protection
+
+The generated Pages hosts are internal. `functions/_middleware.js` guards
+them:
+
+- `https://renlys-recipes.pages.dev/*` redirects permanently to
+  `https://renlys.tools` with the same path and query.
+- `https://<branch-or-hash>.renlys-recipes.pages.dev/*` returns `404` unless
+  the request carries the preview router's secret header.
+
+The router sends `X-Renlys-Preview-Key` on its upstream fetch. The value is
+stored as a `secret_text` Pages environment variable named `PREVIEW_KEY` in
+both the production and preview environments, and as the Worker secret
+`PREVIEW_KEY`. `web/wwwroot/_routes.json` includes every path so the guard
+also covers static assets.
+
+The guard applies to every new deployment. Old deployments built before it
+were deleted; the same cleanup removes previews when their PR closes.
+
 ## What build.sh does
 
 The Pages build image does not include .NET, so `build.sh`:
@@ -204,6 +223,8 @@ Reproduce the Cloudflare build locally with:
 
 - `web/wwwroot/_redirects` — `/* /index.html 200` gives SPA deep links
   (client-side routes survive a full page reload).
+- `web/wwwroot/_routes.json` — `/*` invokes the host guard on every path, so
+  direct Pages-host requests cannot bypass it by asking for a static file.
 - `web/wwwroot/_headers` — `no-cache` on `index.html` so deployments
   roll out immediately; `immutable` caching for `_framework/*` (every
   file is content-fingerprinted in .NET 10, and fingerprints change per
@@ -254,3 +275,5 @@ its internal branch alias.
       refresh on new commits, one upserted preview comment, cleanup on PR
       close, and `/preview-cleanup`
 - [x] custom domain + branded previews
+- [x] Pages hosts guarded: root redirects to `renlys.tools`, branch/hash hosts
+      require the router secret header

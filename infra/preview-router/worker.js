@@ -9,6 +9,14 @@
 const APEX = "renlys.tools";
 const PAGES_PROJECT = "renlys-recipes";
 const PREVIEW_PREFIX = "preview-";
+const PREVIEW_KEY_HEADER = "X-Renlys-Preview-Key";
+
+// In service-worker syntax, secret bindings are global variables. Keep the
+// header optional so a missing secret fails closed in the Pages middleware.
+function previewKey() {
+  if (typeof PREVIEW_KEY === "string") return PREVIEW_KEY;
+  return typeof globalThis.PREVIEW_KEY === "string" ? globalThis.PREVIEW_KEY : "";
+}
 
 addEventListener("fetch", (event) => {
   event.respondWith(handle(event.request));
@@ -50,6 +58,8 @@ async function handle(request) {
 
   const headers = new Headers(request.headers);
   headers.delete("host");
+  const key = previewKey();
+  if (key) headers.set(PREVIEW_KEY_HEADER, key);
 
   const response = await fetch(target.toString(), {
     method: request.method,
