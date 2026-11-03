@@ -1,7 +1,7 @@
 # QA and performance — PoE2 workbench
 
-_Last run: 2026-11-04. App code unchanged since `aa609f1`; measured from the
-current `main` publish._
+_Last run: 2026-11-04. Baseline captured before the prewarm debounce; the
+post-fix numbers are below._
 
 This is the quality-gate ledger for the web workbench. It records automated
 browser measurements, accessibility/viewport checks, and the manual in-game
@@ -17,7 +17,7 @@ runs:       3 normal at each viewport, 1 at 4x CPU throttle
 harness:    tools/web-perf/run.mjs
 ```
 
-## Automated performance
+## Baseline before the prewarm debounce
 
 ### 1920×1080
 
@@ -68,21 +68,53 @@ boot 4.15 s · bulk add 1.50 s · advanced pick 138–262 ms
 explain cold 415 ms · import 323 ms · max long task 1.24 s
 ```
 
+## After the prewarm debounce
+
+The prewarm now waits for 250 ms of quiet and is cancelled by newer state
+changes. This keeps the corpus warm-up from competing with the visible update.
+
+### 1920×1080
+
+| Action | p50 | p95 |
+|---|---:|---:|
+| boot | 938 ms | 960 ms |
+| bulk add `++` | **60 ms** | 60 ms |
+| mode: advanced | 47 ms | 51 ms |
+| builder open | 43 ms | 46 ms |
+| 10-slot paste update | 46 ms | 46 ms |
+| explain cold | 94 ms | 94 ms |
+| import parse 5 items | 62 ms | 66 ms |
+
+Advanced picks: 51–65 ms. Long tasks: **6 over 50 ms, 0 over 200 ms, max 87 ms**.
+
+### 900×1200
+
+```text
+boot 950 ms · bulk add 59 ms · advanced picks 53–65 ms
+explain cold 94 ms · import 64 ms · long tasks 6 over 50, 0 over 200, max 87 ms
+```
+
+### 4× CPU throttle
+
+```text
+boot 3.96 s · bulk add 267 ms · advanced pick 108–228 ms
+explain cold 389 ms · import 273 ms · max long task 355 ms
+```
+
 ## Regression against the 2026-10-30 report
 
-| Metric | Old | Current |
-|---|---:|---:|
-| bulk add `++` | 50 ms | 386 ms |
-| explain cold | 149 ms | 94 ms |
-| advanced weapon pick | 58 ms | 72 ms |
-| long tasks over 200 ms | 0 | 3 |
-| 4× max long task | 584 ms | 1241 ms |
+| Metric | Old | Before fix | After fix |
+|---|---:|---:|---:|
+| bulk add `++` | 50 ms | 386 ms | 60 ms |
+| explain cold | 149 ms | 94 ms | 94 ms |
+| advanced weapon pick | 58 ms | 72 ms | 55 ms |
+| long tasks over 200 ms | 0 | 3 | 0 |
+| 4× max long task | 584 ms | 1241 ms | 355 ms |
 
-Boot and import remain healthy; explain improved. The bulk-add path is the
-clear regression and the first profiling target. Deferring the value-prewarm
-work until after render was tried locally and did not move the bulk-add number
-(366 ms), so the cost is in the add/recompute/render path, not prewarm alone.
-The advanced pick path and long tasks likely share that work.
+The bulk-add regression was caused by prewarm work competing with the visible
+update. Debouncing the warm-up restored the action budget and removed the
+long-task spike. Advanced picks are still a little over 50 ms but are much
+closer; the 4× numbers are diagnostic.
 
 ## Accessibility and viewport
 
@@ -107,11 +139,10 @@ The advanced pick path and long tasks likely share that work.
 
 ## Follow-ups
 
-- [ ] Profile the bulk-add path (`State.AddIncludes` → `Recompute` → render →
-      value prewarm) and restore the <50 ms budget.
-- [ ] Re-check advanced picks and long tasks after that fix.
 - [ ] Add the 1920×1080 perf run to CI as a smoke check, or document the
       manual command if the runtime cost is too high.
+- [ ] Keep an eye on advanced picks (51–65 ms) and 4× CPU numbers after
+      future UI changes.
 - [ ] Run the keyboard/focus audit across every dialog.
 - [ ] Record the manual in-game results above.
 

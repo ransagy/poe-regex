@@ -258,6 +258,7 @@
     private DotNetObjectReference<Home>? _tabRef;
     private readonly HashSet<string> _warmedValueKeys = new(StringComparer.Ordinal);
     private bool _warmScheduled;
+    private int _warmVersion;
 
     protected override void OnInitialized()
     {
@@ -445,24 +446,27 @@
     /// </summary>
     private void ScheduleValuePrewarm()
     {
-        if (_disposed || _warmScheduled) return;
-        var targets = ValuePrewarmTargets.For(State, Engine)
-            .Where(t => !_warmedValueKeys.Contains(t.Key))
-            .ToList();
-        if (targets.Count == 0) return;
+        if (_disposed) return;
+        var version = ++_warmVersion;
+        if (_warmScheduled) return;
         _warmScheduled = true;
-        _ = PrewarmAsync(targets);
+        _ = PrewarmAsync(version);
     }
 
-    private async Task PrewarmAsync(IReadOnlyList<(string Key, string? ItemClass)> targets)
+    private async Task PrewarmAsync(int version)
     {
         try
         {
-            // Let the pick that triggered this paint first.
-            await Task.Yield();
-            if (_disposed) return;
+            // Let rapid edits settle; a newer state change cancels this warm-up
+            // before it can compete with the visible update.
+            await Task.Delay(250);
+            if (_disposed || version != _warmVersion) return;
+            var targets = ValuePrewarmTargets.For(State, Engine)
+                .Where(t => !_warmedValueKeys.Contains(t.Key))
+                .ToList();
             foreach (var (key, itemClass) in targets)
             {
+                if (_disposed || version != _warmVersion) return;
                 if (_warmedValueKeys.Contains(key)) continue;
                 try
                 {
@@ -473,8 +477,8 @@
                     // Warm-up is best effort; remember the attempt so a failed
                     // scope does not retry forever.
                 }
+                if (_disposed || version != _warmVersion) return;
                 _warmedValueKeys.Add(key);
-                if (_disposed) return;
                 // Show this scope's min boxes before starting the next class.
                 await InvokeAsync(StateHasChanged);
                 await Task.Delay(1);
@@ -485,7 +489,7 @@
             _warmScheduled = false;
         }
         // New picks/classes may have appeared while the corpus was loading.
-        if (!_disposed) ScheduleValuePrewarm();
+        if (!_disposed && version != _warmVersion) ScheduleValuePrewarm();
     }
 
     private async Task CopyBar(string query)
