@@ -80,6 +80,7 @@ subsystem notes remain in the linked documents below.
 - **Historical web design/work log:** [`WEB-APP-PLAN.md`](WEB-APP-PLAN.md)
 - **Engine exact table/proof:** [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json),
   [`CANDIDATE-REPORT-poe2.md`](CANDIDATE-REPORT-poe2.md)
+- **QA and performance:** [`QA-poe2.md`](QA-poe2.md)
 - **Architecture:** [`DESIGN.md`](DESIGN.md)
 - **Web app details and known limitations:** [`../web/README.md`](../web/README.md)
 - **Active engine plan:** maintained in the local OpenCode plan workspace

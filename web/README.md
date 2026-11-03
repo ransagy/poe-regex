@@ -330,6 +330,9 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
 
 ## Known limitations (all flagged for maintainer QA)
 
+QA ledger and current browser measurements:
+[`docs/QA-poe2.md`](../docs/QA-poe2.md).
+
 - Slot footprints/arrangement and backpack dims are the author's reading of
   the provided screenshot — confirm visually.
 - Backpack footprints: confirmed table in `ItemFootprints` (belts 2×1,
