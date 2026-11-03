@@ -64,7 +64,7 @@ jobs:
             gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" >/dev/null
             echo "Updated preview comment $existing"
           else
-            gh pr comment "$PR" --body "$body"
+            gh pr comment "$PR" -R "$REPO" --body "$body"
             echo "Created preview comment for PR #$PR"
           fi
 
