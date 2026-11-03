@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace PoeRegex.Web.Core;
 
 /// <summary>A named set of picks (modes, classes, picks; never test items).</summary>
-public sealed record SavedRecipe(string Name, DateTimeOffset SavedAt, WorkbenchSnapshot Snapshot)
+public sealed record SavedPick(string Name, DateTimeOffset SavedAt, WorkbenchSnapshot Snapshot)
 {
     public int PickCount =>
         Snapshot.Global.Included.Count + Snapshot.Global.Excluded.Count +
@@ -14,7 +14,7 @@ public sealed record SavedRecipe(string Name, DateTimeOffset SavedAt, WorkbenchS
 }
 
 /// <summary>Captures picks as a detached copy and packs them into a share-link fragment.</summary>
-public static class RecipeCodec
+public static class SnapshotCodec
 {
     public const string FragmentPrefix = "r=";
     private const int MaxJsonBytes = 64 * 1024;
@@ -38,7 +38,7 @@ public static class RecipeCodec
         return Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
-    /// <summary>Null for anything that is not a well-formed recipe; shared links are untrusted input.</summary>
+    /// <summary>Null for anything that is not a well-formed saved pick; shared links are untrusted input.</summary>
     public static WorkbenchSnapshot? Decode(string token)
     {
         if (token.Length > MaxTokenLength) return null;

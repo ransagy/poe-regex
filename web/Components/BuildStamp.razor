@@ -3,12 +3,11 @@
 
 @if (_label is not null)
 {
-    <div class="hint" id="build-stamp" title="@_url">build: @_label</div>
+    <div class="hint" id="build-stamp">build: @_label</div>
 }
 
 @code {
     private string? _label;
-    private string? _url;
 
     protected override async Task OnInitializedAsync()
     {
@@ -18,7 +17,6 @@
             if (info?.Commit is { Length: >= 7 } commit)
             {
                 _label = $"{commit[..7]}{(string.IsNullOrWhiteSpace(info.Branch) ? "" : $" · {info.Branch}")}";
-                _url = string.IsNullOrWhiteSpace(info.Url) ? null : info.Url;
             }
         }
         catch
@@ -27,5 +25,5 @@
         }
     }
 
-    private sealed record BuildInfo(string? Commit, string? Branch, string? Url);
+    private sealed record BuildInfo(string? Commit, string? Branch);
 }

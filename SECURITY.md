@@ -11,7 +11,7 @@ reproduction. You can expect an initial response within a few days.
 
 ## Scope
 
-- The web workbench ("Renly's Recipes") is a static, serverless Blazor
+- The web workbench ("Renly's Tools") is a static, serverless Blazor
   WebAssembly app: no backend, no accounts, and state lives only in the
   browser's localStorage. The deployed copy is served by Cloudflare Pages.
 - The CLI and the data-build tooling run locally on the user's machine.

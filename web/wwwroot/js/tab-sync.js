@@ -39,7 +39,7 @@ window.poeRegexWatchTabs = function (dotnet) {
     if (event.key === handoffKey && event.newValue) {
       freeze();
       if (timer) { clearTimeout(timer); timer = null; }
-      invoke('OnSharedRecipeOpenedElsewhere');
+      invoke('OnSharedPicksOpenedElsewhere');
       return;
     }
     if (event.key === workbenchKey || event.key === null) {

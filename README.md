@@ -11,10 +11,10 @@ target text is the advanced in-game item-search text; normal display is
 presentation only.
 
 The repository contains the engine, its data pipeline, the CLI, and the web
-reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly
+reference implementation — **"Renly's Tools"**, a Blazor WebAssembly
 workbench that compiles queries in-browser for the in-game Highlight search.
-The deployed build is at <https://renlys-recipes.pages.dev> (link-only;
-excluded from search engines).
+The deployed build is at <https://renlys.tools> (link-only; preview
+hosts are excluded from search engines).
 
 ## Design
 
@@ -30,7 +30,7 @@ excluded from search engines).
   factors common prefixes across included mods, and enforces the 250-character
   limit. Output is deterministic.
 - **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.
-- **Web workbench** (`web/`, "Renly's Recipes"): Blazor WebAssembly running
+- **Web workbench** (`web/`, "Renly's Tools"): Blazor WebAssembly running
   `PoeRegex.Core` in the browser — gear slots, live queries for the in-game
   Highlight box, an item-import lab, and a test-item backpack. Static site,
   no backend; the app makes no network calls of its own (the Cloudflare-hosted
@@ -84,9 +84,9 @@ Every command also supports `--json` for machine-readable stdout — that's the
 cross-language integration surface (Python, Node, shell, etc.). See
 [`docs/USING-THE-ENGINE.md`](docs/USING-THE-ENGINE.md#12-using-the-engine-from-any-language-the-cli-subprocess-contract).
 
-The web reference implementation, "Renly's Recipes", runs the engine
+The web reference implementation, "Renly's Tools", runs the engine
 in-browser (Blazor WASM): see [`web/`](web/README.md). The deployed build is
-at <https://renlys-recipes.pages.dev>; deployment notes are in
+at <https://renlys.tools>; deployment notes are in
 [`docs/DEPLOYING-WEB.md`](docs/DEPLOYING-WEB.md).
 
 Exit codes: `0` ok, `1` error (including a query over the character limit),
@@ -145,7 +145,7 @@ Nods and kudos to the projects that made this possible:
 ## License
 
 MIT. The repository also contains the web reference implementation
-("Renly's Recipes"). This project is not affiliated with Grinding Gear Games;
+("Renly's Tools"). This project is not affiliated with Grinding Gear Games;
 Path of Exile is a registered trademark of GGG. Derived catalog data is
 community extraction from RePoE (GGG-owned data) — see `NOTICE` and
 [`docs/PROVENANCE.md`](docs/PROVENANCE.md).

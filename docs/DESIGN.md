@@ -5,7 +5,7 @@
 (see `NOTICE`). Catalog data is a derived subset of GGG-owned game data
 extracted by RePoE — see `PROVENANCE.md`.
 **Scope:** English client, PoE2 only. The web reference implementation
-("Renly's Recipes") lives in `web/`, documented in `WEB-APP-PLAN.md` and
+("Renly's Tools") lives in `web/`, documented in `WEB-APP-PLAN.md` and
 `DEPLOYING-WEB.md`.
 
 ---
@@ -49,7 +49,7 @@ poe-regex/
     raw/                           # gitignored RePoE downloads
     catalogs/                      # checked-in PoE2 catalog, vendor corpus,
                                    # safety fixtures, exact fragment table
-  web/                             # "Renly's Recipes" Blazor WASM
+  web/                             # "Renly's Tools" Blazor WASM
   docs/
 ```
 

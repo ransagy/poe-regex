@@ -10,7 +10,7 @@
 > and remaining backlog live in the active shortest-form plan; this file stays
 > a historical design/work log.
 
-Blazor WebAssembly workbench — "Renly's Recipes" — with the PoE2 inventory
+Blazor WebAssembly workbench — "Renly's Tools" — with the PoE2 inventory
 look-and-feel, editable gear slots, per-slot and global regex compilation
 in-browser, a backpack-grid test area with match highlighting, and English
 advanced-item import. The CLI contract is untouched. The deployed static build

@@ -207,7 +207,7 @@ jobs:
           sha=$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}' | cut -c1-12)
           body=$(cat <<EOF
           <!-- preview-contrib -->
-          Preview branch: https://$BRANCH.renlys-recipes.pages.dev
+          Preview branch: https://preview-$BRANCH.renlys.tools
 
           Commit: $sha
 

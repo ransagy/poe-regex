@@ -14,7 +14,7 @@ body:
       options:
         - Engine (PoeRegex.Core)
         - CLI
-        - Web workbench (Renly's Recipes)
+        - Web workbench (Renly's Tools)
         - Data pipeline / catalogs
         - Documentation
     validations:

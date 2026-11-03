@@ -4,13 +4,13 @@
 @inject IJSRuntime JS
 @implements IDisposable
 
-<div class="recipes" @onkeydown="OnKeyDown">
-    <button type="button" class="btn" id="recipes-open" aria-expanded="@(_open ? "true" : "false")"
+<div class="saved-picks" @onkeydown="OnKeyDown">
+    <button type="button" class="btn" id="saved-picks-open" aria-expanded="@(_open ? "true" : "false")"
             aria-haspopup="dialog" @ref="_openButton" @onclick="Toggle">
-        Recipes
-        @if (_recipes.Count > 0)
+        Saved picks
+        @if (_savedPicks.Count > 0)
         {
-            <span class="recipes-count">@_recipes.Count</span>
+            <span class="saved-picks-count">@_savedPicks.Count</span>
         }
     </button>
     <button type="button" class="btn" id="share-link" disabled="@(!HasPicks)"
@@ -20,38 +20,38 @@
     @if (_open)
     {
         <div class="help-backdrop" @onclick="Close"></div>
-        <div class="recipes-pop" role="dialog" aria-modal="true" aria-label="Saved recipes"
+        <div class="saved-picks-pop" role="dialog" aria-modal="true" aria-label="Saved picks"
              @ref="_dialog" @onkeydown="OnKeyDown">
-            <form class="recipes-save" @onsubmit="Save">
-                <input id="recipe-name" placeholder="Name these picks…" autocomplete="off" aria-label="Recipe name"
-                       maxlength="@SnapshotValidator.MaxRecipeName" @ref="_nameInput"
+            <form class="saved-picks-save" @onsubmit="Save">
+                <input id="saved-pick-name" placeholder="Name these picks…" autocomplete="off" aria-label="Saved pick name"
+                       maxlength="@SnapshotValidator.MaxSavedPickName" @ref="_nameInput"
                        value="@_name" @oninput="e => _name = e.Value?.ToString() ?? string.Empty" />
-                <button type="submit" class="btn btn-primary" id="recipe-save" disabled="@(!HasPicks)">Save</button>
+                <button type="submit" class="btn btn-primary" id="saved-pick-save" disabled="@(!HasPicks)">Save</button>
             </form>
             @if (_undo is { } undo)
             {
-                <p class="recipes-undo" role="status">
+                <p class="saved-picks-undo" role="status">
                     @undo.Message
-                    <button type="button" class="link" id="recipe-undo" @onclick="Undo">Undo</button>
+                    <button type="button" class="link" id="saved-pick-undo" @onclick="Undo">Undo</button>
                 </p>
             }
-            @if (_recipes.Count == 0)
+            @if (_savedPicks.Count == 0)
             {
-                <p class="more">No saved recipes yet. Save your picks here to switch between setups.</p>
+                <p class="more">No saved picks yet. Save your picks here to switch between setups.</p>
             }
             else
             {
-                <ul class="recipes-list">
-                    @foreach (var r in _recipes)
+                <ul class="saved-picks-list">
+                    @foreach (var savedPick in _savedPicks)
                     {
-                        <li class="recipe-row">
-                            <span class="recipe-what">
-                                <span class="recipe-name">@r.Name</span>
-                                <span class="recipe-meta">@ModeLabel(r), @r.PickCount @(r.PickCount == 1 ? "mod" : "mods")</span>
+                        <li class="saved-pick-row">
+                            <span class="saved-pick-what">
+                                <span class="saved-pick-name">@savedPick.Name</span>
+                                <span class="saved-pick-meta">@ModeLabel(savedPick), @savedPick.PickCount @(savedPick.PickCount == 1 ? "mod" : "mods")</span>
                             </span>
-                            <button type="button" class="btn" @onclick="() => Load(r)">Load</button>
-                            <button type="button" class="bd-x" title="@($"Delete {r.Name}")" aria-label="@($"Delete {r.Name}")"
-                                    @onclick="() => Delete(r)">×</button>
+                            <button type="button" class="btn" @onclick="() => Load(savedPick)">Load</button>
+                            <button type="button" class="bd-x" title="@($"Delete {savedPick.Name}")" aria-label="@($"Delete {savedPick.Name}")"
+                                    @onclick="() => Delete(savedPick)">×</button>
                         </li>
                     }
                 </ul>
@@ -68,11 +68,11 @@
     [Parameter]
     public int Version { get; set; }
 
-    private sealed record UndoStep(string Message, List<SavedRecipe> Recipes, WorkbenchSnapshot? Picks);
+    private sealed record UndoStep(string Message, List<SavedPick> SavedPicks, WorkbenchSnapshot? Picks);
 
     private const int MaxShareUrlLength = 8000;
 
-    private List<SavedRecipe> _recipes = [];
+    private List<SavedPick> _savedPicks = [];
     private bool _open;
     private string _name = "";
     private string? _shareState;
@@ -94,8 +94,8 @@
     {
         if (_loadedVersion == Version) return;
         _loadedVersion = Version;
-        var recipes = await Persistence.LoadRecipesAsync();
-        if (!_disposed) _recipes = recipes;
+        var savedPicks = await Persistence.LoadSavedPicksAsync();
+        if (!_disposed) _savedPicks = savedPicks;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -122,7 +122,8 @@
         }
     }
 
-    private static string ModeLabel(SavedRecipe r) => r.Snapshot.Mode == "advanced" ? "Per slot" : "All gear";
+    private static string ModeLabel(SavedPick savedPick) =>
+        savedPick.Snapshot.Mode == "advanced" ? "Per slot" : "All gear";
 
     private async Task Toggle()
     {
@@ -134,8 +135,8 @@
         _open = true;
         _undo = null;
         _focusPending = true;
-        var recipes = await Persistence.LoadRecipesAsync();
-        if (!_disposed) _recipes = recipes;
+        var savedPicks = await Persistence.LoadSavedPicksAsync();
+        if (!_disposed) _savedPicks = savedPicks;
     }
 
     private void Close()
@@ -156,49 +157,50 @@
     {
         if (_disposed || !HasPicks) return;
         var name = _name.Trim();
-        if (name.Length == 0) name = $"Recipe {_recipes.Count + 1}";
-        var before = _recipes.ToList();
-        _recipes.RemoveAll(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
-        _recipes.Insert(0, new SavedRecipe(name, DateTimeOffset.UtcNow, RecipeCodec.CaptureCriteria(State)));
-        await Persistence.SaveRecipesAsync(_recipes);
+        if (name.Length == 0) name = $"Saved pick {_savedPicks.Count + 1}";
+        var before = _savedPicks.ToList();
+        _savedPicks.RemoveAll(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+        _savedPicks.Insert(0, new SavedPick(name, DateTimeOffset.UtcNow, SnapshotCodec.CaptureCriteria(State)));
+        await Persistence.SaveSavedPicksAsync(_savedPicks);
         if (_disposed) return;
         _undo = new UndoStep($"Saved “{name}”.", before, null);
         _name = "";
     }
 
-    private void Load(SavedRecipe recipe)
+    private void Load(SavedPick savedPick)
     {
-        var before = RecipeCodec.CaptureCriteria(State);
-        WorkbenchSnapshot.RestoreCriteria(State, recipe.Snapshot);
-        _undo = new UndoStep($"Loaded “{recipe.Name}”.", _recipes.ToList(), before);
+        var before = SnapshotCodec.CaptureCriteria(State);
+        WorkbenchSnapshot.RestoreCriteria(State, savedPick.Snapshot);
+        _undo = new UndoStep($"Loaded “{savedPick.Name}”.", _savedPicks.ToList(), before);
     }
 
-    private async Task Delete(SavedRecipe recipe)
+    private async Task Delete(SavedPick savedPick)
     {
         if (_disposed) return;
-        var before = _recipes.ToList();
-        _recipes.Remove(recipe);
-        await Persistence.SaveRecipesAsync(_recipes);
+        var before = _savedPicks.ToList();
+        _savedPicks.Remove(savedPick);
+        await Persistence.SaveSavedPicksAsync(_savedPicks);
         if (_disposed) return;
-        _undo = new UndoStep($"Deleted “{recipe.Name}”.", before, null);
+        _undo = new UndoStep($"Deleted “{savedPick.Name}”.", before, null);
     }
 
     private async Task Undo()
     {
         if (_disposed || _undo is null) return;
         if (_undo.Picks is { } picks) WorkbenchSnapshot.RestoreCriteria(State, picks);
-        _recipes = _undo.Recipes;
-        await Persistence.SaveRecipesAsync(_recipes);
+        _savedPicks = _undo.SavedPicks;
+        await Persistence.SaveSavedPicksAsync(_savedPicks);
         if (!_disposed) _undo = null;
     }
 
     private async Task Share()
     {
         if (_disposed) return;
-        var url = Nav.BaseUri + "#" + RecipeCodec.FragmentPrefix + RecipeCodec.Encode(RecipeCodec.CaptureCriteria(State));
+        var url = Nav.BaseUri + "#" + SnapshotCodec.FragmentPrefix +
+                  SnapshotCodec.Encode(SnapshotCodec.CaptureCriteria(State));
         if (url.Length > MaxShareUrlLength)
         {
-            await FlashShare("Link too long; save a recipe instead");
+            await FlashShare("Link too long; save your picks instead");
             return;
         }
         try

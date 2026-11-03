@@ -2,18 +2,18 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace PoeRegex.Web.Core;
 
-/// <summary>Strict checks for snapshots from localStorage, share links, or saved recipes; all are untrusted.</summary>
+/// <summary>Strict checks for snapshots from localStorage, share links, or saved picks; all are untrusted.</summary>
 public static class SnapshotValidator
 {
-    public const int MaxRecipeName = 100;
+    public const int MaxSavedPickName = 100;
     private const int MaxPicks = 256;
     private const int MaxNames = 64;
     private const int MaxTestItems = 64;
 
-    public static bool IsValid([NotNullWhen(true)] SavedRecipe? recipe) =>
-        recipe is not null
-        && IsText(recipe.Name) && recipe.Name.Length <= MaxRecipeName
-        && IsValid(recipe.Snapshot);
+    public static bool IsValid([NotNullWhen(true)] SavedPick? savedPick) =>
+        savedPick is not null
+        && IsText(savedPick.Name) && savedPick.Name.Length <= MaxSavedPickName
+        && IsValid(savedPick.Snapshot);
 
     public static bool IsValid([NotNullWhen(true)] WorkbenchSnapshot? snap) =>
         snap is not null
