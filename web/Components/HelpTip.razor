@@ -4,7 +4,7 @@
    press Escape to close. Used sparingly: one per region that needs more than
    a label can say. *@
 <span class="help @Class">
-    <button type="button" class="help-btn" title="@Title" aria-expanded="@_open"
+    <button type="button" class="help-btn" @ref="_button" title="@Title" aria-expanded="@_open"
             aria-label="@Title" @onclick="Toggle">?</button>
     @if (_open)
     {
@@ -22,7 +22,9 @@
 
     private bool _open;
     private bool _focusPending;
+    private bool _restoreFocus;
     private ElementReference _pop;
+    private ElementReference _button;
 
     private void Toggle()
     {
@@ -30,18 +32,31 @@
         if (_open) _focusPending = true;
     }
 
-    private void Close() => _open = false;
+    private void Close()
+    {
+        if (!_open) return;
+        _open = false;
+        _restoreFocus = true;
+    }
 
     private void OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape") _open = false;
+        if (e.Key == "Escape") Close();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusPending) return;
-        _focusPending = false;
-        try { await _pop.FocusAsync(); }
-        catch { /* element already gone */ }
+        if (_focusPending)
+        {
+            _focusPending = false;
+            try { await _pop.FocusAsync(); }
+            catch { /* element already gone */ }
+        }
+        else if (_restoreFocus)
+        {
+            _restoreFocus = false;
+            try { await _button.FocusAsync(); }
+            catch { /* trigger already gone */ }
+        }
     }
 }

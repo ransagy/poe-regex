@@ -6,8 +6,8 @@
 @if (Open)
 {
     <div class="dlg-overlay" id="query-import-dialog" @onclick="OnBackdrop">
-        <div class="dlg dlg-import" @onclick:stopPropagation="true" role="dialog" aria-label="Import string"
-             @onkeydown="OnDialogKeyDown">
+        <div class="dlg dlg-import" @ref="_dialog" @onclick:stopPropagation="true" role="dialog"
+             aria-modal="true" aria-label="Import string" @onkeydown="OnDialogKeyDown">
             <h2 class="panel-head">Import string</h2>
             <div class="import-source">
                 <div class="seg" role="group" aria-label="Import source">
@@ -28,9 +28,10 @@
                     Best-effort import from another site. Review the picks and adjust anything after applying.
                 </div>
             }
-            <textarea id="query-import-text" rows="5"
+            <textarea id="query-import-text" @ref="_firstFocus" rows="5"
                       placeholder="@(_guideMode ? "Paste a build-guide filter…" : "Paste a search string…")"
-                      value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
+                      value="@_text" @oninput="OnInput"
+                      @onkeydown="OnTextareaKeyDown" @onkeydown:stopPropagation="true"
                       aria-label="Search string"></textarea>
             <div class="modrow">
                 <button id="query-import-parse" class="btn" disabled="@_busy" @onclick="Parse">
@@ -260,6 +261,10 @@
     private int? _openPicker;
     private int? _placedPicker;
     private bool _wasOpen;
+    private ElementReference _dialog;
+    private ElementReference _firstFocus;
+    private bool _focusPending;
+    private bool _restoreFocus;
     private WorkbenchState? _previewState;
     private SearchModel? _previewModel;
     private bool _busy;
@@ -269,7 +274,15 @@
 
     protected override void OnParametersSet()
     {
-        if (Open && !_wasOpen) Reset();
+        if (Open && !_wasOpen)
+        {
+            Reset();
+            _focusPending = true;
+        }
+        else if (!Open && _wasOpen)
+        {
+            _restoreFocus = true;
+        }
         _wasOpen = Open;
     }
 
@@ -290,6 +303,25 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_focusPending && Open)
+        {
+            _focusPending = false;
+            try
+            {
+                await JS.InvokeVoidAsync("poeRegexRememberFocus");
+                await JS.InvokeVoidAsync("poeRegexTrapFocus", _dialog);
+                await _firstFocus.FocusAsync();
+            }
+            catch
+            {
+                // Focus management is best effort.
+            }
+        }
+        else if (_restoreFocus && !Open)
+        {
+            _restoreFocus = false;
+            try { await JS.InvokeVoidAsync("poeRegexRestoreFocus"); } catch { }
+        }
         if (_openPicker is not int index)
         {
             _placedPicker = null;
@@ -472,5 +504,10 @@
             return;
         }
         await Close();
+    }
+
+    private void OnTextareaKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _ = Close();
     }
 }
