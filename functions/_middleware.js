@@ -20,6 +20,11 @@ export async function onRequest(context) {
   const url = new URL(context.request.url);
   const host = url.hostname.toLowerCase();
 
+  // Let certificate validation reach the origin even on the project host.
+  if (url.pathname.startsWith("/.well-known/acme-challenge/")) {
+    return context.next();
+  }
+
   if (host === PAGES_ROOT) {
     return Response.redirect(`https://${APEX}${url.pathname}${url.search}`, 301);
   }
