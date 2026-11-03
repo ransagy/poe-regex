@@ -28,8 +28,26 @@ jobs:
       !startsWith(github.event.pull_request.head.ref, 'dependabot/')
     runs-on: ubuntu-latest
     steps:
-      - name: Upsert branded preview link
+      - name: Check for Pages watch-path changes
         if: github.event.action != 'closed'
+        id: app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          # Keep in sync with the Pages build watch paths in docs/DEPLOYING-WEB.md.
+          if printf '%s\n' "$files" | grep -Eq '^(web/|src/|functions/|data/catalogs/|build\.sh$|LICENSE$|NOTICE$|docs/PROVENANCE\.md$)'; then
+            echo "preview=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "preview=false" >> "$GITHUB_OUTPUT"
+            echo "No Pages watch-path changes; skipping the preview comment."
+          fi
+
+      - name: Upsert branded preview link
+        if: github.event.action != 'closed' && steps.app.outputs.preview == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}

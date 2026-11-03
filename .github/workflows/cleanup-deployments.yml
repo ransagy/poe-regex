@@ -1,0 +1,67 @@
+name: cleanup-deployments
+
+# Periodic safety net for Cloudflare Pages and temporary contributor branches.
+# PR-close cleanup handles the normal case; this catches deployments left by
+# failed runs, branches without a PR, and old production history.
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only list what would be deleted"
+        type: boolean
+        default: true
+      retention_days:
+        description: "Keep orphan previews newer than this many days"
+        type: string
+        default: "7"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: cleanup-deployments
+  cancel-in-progress: false
+
+jobs:
+  deployments:
+    name: prune Pages deployments
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+      CF_PROJECT: renlys-recipes
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      CLEANUP_MODE: deployments
+      DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+      RETENTION_DAYS: ${{ inputs.retention_days || '7' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prune deployments
+        run: python3 .github/scripts/cleanup_deployments.py
+
+  branches:
+    name: prune contributor branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      CLEANUP_MODE: branches
+      DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prune contributor branches
+        run: python3 .github/scripts/cleanup_deployments.py
