@@ -110,6 +110,12 @@ def deployment_status(deployment: dict) -> str:
     return ((deployment.get("latest_stage") or {}).get("status") or "").lower()
 
 
+def deployment_in_progress(deployment: dict) -> bool:
+    if deployment.get("is_skipped"):
+        return False
+    return deployment_status(deployment) not in {"success", "failure", "canceled", "skipped"}
+
+
 def plan_deployment_cleanup(
     deployments: list[dict],
     canonical_id: str,
@@ -141,19 +147,27 @@ def plan_deployment_cleanup(
         environment = deployment.get("environment")
         if environment == "production":
             if deployment_id != canonical_id:
-                delete.append((deployment, "old production"))
+                if deployment_in_progress(deployment):
+                    keep[deployment_id] = "in-progress production"
+                else:
+                    delete.append((deployment, "old production"))
             continue
         if environment != "preview":
             continue
 
         branch = deployment_branch(deployment)
         if branch.startswith("dependabot/"):
-            delete.append((deployment, "dependabot preview"))
+            if deployment_in_progress(deployment):
+                keep[deployment_id] = "in-progress dependabot preview"
+            else:
+                delete.append((deployment, "dependabot preview"))
             continue
         if branch in open_branches or branch in open_contrib:
             continue
         created = parse_time(deployment.get("created_on"))
-        if created is None:
+        if deployment_in_progress(deployment):
+            keep[deployment_id] = "in-progress preview"
+        elif created is None:
             keep[deployment_id] = "unknown age, keeping"
         elif created >= now - timedelta(days=retention_days):
             keep[deployment_id] = "inside retention window"
@@ -174,7 +188,11 @@ def plan_deployment_cleanup(
         if successful:
             keep[successful[0]["id"]] = "newest successful preview for open PR"
         for deployment in ordered:
-            if deployment["id"] not in keep:
+            if deployment["id"] in keep:
+                continue
+            if deployment_in_progress(deployment):
+                keep[deployment["id"]] = "in-progress preview for open PR"
+            else:
                 delete.append((deployment, "older preview for open PR"))
 
     return delete, keep
