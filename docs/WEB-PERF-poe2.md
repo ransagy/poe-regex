@@ -1,5 +1,8 @@
 # Web performance report — PoE2 workbench
 
+> Historical baseline from 2026-10-30. Current QA measurements and the
+> bulk-add regression are tracked in [`QA-poe2.md`](QA-poe2.md).
+
 Measured with `tools/web-perf/run.mjs` against a locally served Release
 publish. The harness drives headless Chromium over CDP, disables cache, waits
 for DOM stability after each action, and reports p50/p95 over repeated runs.
