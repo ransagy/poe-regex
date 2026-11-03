@@ -8,8 +8,8 @@ subsystem notes remain in the linked documents below.
 ## Current
 
 - **Production:** <https://renlys.tools>. The live commit is in
-  `/build-info.json`; at the time of this update it was `aa609f1`. The Pages
-  project is the internal `renlys-recipes` project.
+  `/build-info.json`; the Pages project is the internal `renlys-recipes`
+  project.
 - **Web app:** "Renly's Tools", with **Saved picks** as the saved-build
   feature. Saved picks migrate from `poe-regex.recipes.v1` to
   `poe-regex.saved-picks.v1`.
