@@ -63,6 +63,23 @@ The same workflow can be run manually (Actions → *cleanup-preview* → Run
 workflow) with a branch name. It is also called by the contributor-preview
 workflow below.
 
+### Periodic cleanup
+
+`.github/workflows/cleanup-deployments.yml` runs daily and is the safety net
+for anything PR-close cleanup cannot see:
+
+- old production deployments other than the canonical one;
+- preview deployments for branches with no open PR, after a 7-day grace
+  period;
+- older duplicate previews for open PRs, keeping the newest and newest
+  successful deployment;
+- `dependabot/*` previews, which the Pages build filters exclude;
+- orphaned `contrib-pr-<number>` branches whose PR is closed.
+
+It uses the same `CF_ACCOUNT_ID` variable and `CF_API_TOKEN` secret. A manual
+run defaults to a dry run; set `dry_run: false` to apply. `retention_days`
+controls the orphan-preview grace period.
+
 ## Contributor (fork) previews
 
 Fork PRs do not receive the automatic Pages preview because the Pages GitHub
@@ -253,11 +270,13 @@ settings if you redeploy this site without analytics. Details:
 
 ## Deployment retention
 
-Only the current production deployment is kept. A one-time cleanup removed the
-historical production and preview deployments; their internal hash and branch
-hosts stopped resolving. Preview deployments are deleted when their PR closes.
-Every deployment built after the host guard was added rejects direct access, so
-any deployment that predates the guard must be deleted once.
+Only the canonical production deployment is kept. The one-time cleanup removed
+the historical production and preview deployments; their internal hash and
+branch hosts stopped resolving. The daily `cleanup-deployments` workflow keeps
+it that way: it deletes old production deployments, stale previews, and orphan
+contributor branches. Every deployment built after the host guard was added
+rejects direct access, so any deployment that predates the guard must be
+deleted once.
 
 ## Status
 
@@ -277,3 +296,5 @@ any deployment that predates the guard must be deleted once.
 - [x] custom domain + branded previews
 - [x] Pages hosts guarded: root redirects to `renlys.tools`, branch/hash hosts
       require the router secret header
+- [x] daily cleanup for old production deployments, stale previews, and
+      orphan contributor branches
