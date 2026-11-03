@@ -5,7 +5,7 @@ PoE2-inventory-style workbench with editable gear slots, live-compiled regex
 queries, a backpack test-items lab, and English advanced-description import.
 No backend and no app-level network calls; no game assets (all panels are
 hand-drawn CSS/SVG). The deployed static build is at
-<https://renlys-recipes.pages.dev> (link-only; noindex) and includes
+<https://renlys.tools> (link-only; preview hosts are noindex) and includes
 Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 

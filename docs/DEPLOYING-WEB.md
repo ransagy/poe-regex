@@ -9,8 +9,8 @@ GitHub App — there are no deploy secrets in this repository.
 
 | Event | Deployment | URL |
 | --- | --- | --- |
-| Push to production branch (`main`) | production | <https://renlys-recipes.pages.dev> |
-| Push to any other branch (except `dependabot/*`) / any PR | preview | `<branch>.<project>.pages.dev` and `<hash>.<project>.pages.dev` |
+| Push to production branch (`main`) | production | <https://renlys.tools> (`www` redirects to apex) |
+| Push to any other branch (except `dependabot/*`) / any PR | preview | `https://preview-<branch>.renlys.tools` and the underlying `<branch>.renlys-recipes.pages.dev` / `<hash>.renlys-recipes.pages.dev` |
 
 Every pull request from an in-repo branch gets a preview deployment, except
 Dependabot branches; merging to `main` is the production deploy.
@@ -65,7 +65,7 @@ by commenting:
    `refs/pull/<number>/merge` (or the head ref when no merge ref exists) —
    without checking out or executing the fork code;
 5. comments the preview URL:
-   `https://contrib-pr-<number>.renlys-recipes.pages.dev`.
+   `https://preview-contrib-pr-<number>.renlys.tools`.
 
 Cloudflare Pages builds that branch like any other preview. Once the preview
 branch exists, new commits on the PR refresh it automatically; `/preview` still
@@ -113,8 +113,54 @@ still compiles the PR's source; review the diff before opting in.
 | Build output directory | `out/web/wwwroot` |
 | Production branch | `main` |
 
-Project name: `renlys-recipes` (the app's name), production URL
+Project name: `renlys-recipes` (the app's name). Production custom domain:
+`https://renlys.tools`; the internal deployment host remains
 `https://renlys-recipes.pages.dev`.
+
+## Custom domain and branded previews
+
+The production domain is registered at Porkbun and its DNS zone lives in
+Cloudflare. `renlys.tools` is attached to the Pages project. The apex record
+is a proxied CNAME to `renlys-recipes.pages.dev`.
+
+Branded previews use a small Worker in `infra/preview-router/`:
+
+```text
+https://preview-<branch>.renlys.tools
+  -> https://<branch>.renlys-recipes.pages.dev
+
+https://preview-contrib-pr-<number>.renlys.tools
+  -> https://contrib-pr-<number>.renlys-recipes.pages.dev
+```
+
+`<branch>` is the Cloudflare Pages branch alias: lowercased, with
+non-alphanumeric characters replaced by hyphens (`feat/guide-import` becomes
+`feat-guide-import`). The Worker adds `X-Robots-Tag: noindex` and
+`Cache-Control: no-store`.
+
+DNS:
+
+```text
+renlys.tools       CNAME  renlys-recipes.pages.dev  proxied
+www.renlys.tools   A      192.0.2.1                  proxied
+*.renlys.tools     A      192.0.2.1                  proxied
+```
+
+Worker routes:
+
+```text
+*.renlys.tools/*
+www.renlys.tools/*
+```
+
+Cloudflare route patterns only allow a wildcard at the start of the hostname
+and the end of the path, so the Worker filters the wildcard host by its
+`preview-` prefix. Non-preview subdomains return 404.
+
+`www.renlys.tools` permanently redirects to `https://renlys.tools`. The
+custom preview hostnames are not attached as Pages custom domains, so no
+per-PR DNS or certificate work is required. Preview cleanup still deletes the
+underlying Pages deployments; the Worker routes need no cleanup.
 
 ## What build.sh does
 
@@ -183,9 +229,11 @@ alias (`<branch>.<project>.pages.dev`).
       rendered app; SPA deep links, wasm MIME, cache + noindex headers)
 - [x] production deploy verified on `main` (build-info trace, noindex,
       `_framework` immutable caching)
+- [x] production custom domain `renlys.tools`; branded previews via
+      `preview-<branch>.renlys.tools` Worker router
 - [x] build filters: no previews for `dependabot/*`, docs-only pushes skip
       the build (watch paths)
 - [x] manual contributor (fork) preview opt-in with `/preview`, automatic
       refresh on new commits, one upserted preview comment, cleanup on PR
       close, and `/preview-cleanup`
-- [ ] custom domain (optional, later)
+- [x] custom domain + branded previews

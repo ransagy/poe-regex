@@ -13,8 +13,8 @@ presentation only.
 The repository contains the engine, its data pipeline, the CLI, and the web
 reference implementation — **"Renly's Recipes"**, a Blazor WebAssembly
 workbench that compiles queries in-browser for the in-game Highlight search.
-The deployed build is at <https://renlys-recipes.pages.dev> (link-only;
-excluded from search engines).
+The deployed build is at <https://renlys.tools> (link-only; preview
+hosts are excluded from search engines).
 
 ## Design
 
@@ -86,7 +86,7 @@ cross-language integration surface (Python, Node, shell, etc.). See
 
 The web reference implementation, "Renly's Recipes", runs the engine
 in-browser (Blazor WASM): see [`web/`](web/README.md). The deployed build is
-at <https://renlys-recipes.pages.dev>; deployment notes are in
+at <https://renlys.tools>; deployment notes are in
 [`docs/DEPLOYING-WEB.md`](docs/DEPLOYING-WEB.md).
 
 Exit codes: `0` ok, `1` error (including a query over the character limit),
