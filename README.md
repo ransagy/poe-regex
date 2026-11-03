@@ -16,6 +16,8 @@ workbench that compiles queries in-browser for the in-game Highlight search.
 The deployed build is at <https://renlys.tools> (link-only; preview
 hosts are excluded from search engines).
 
+Current status and parked work: [`docs/STATUS.md`](docs/STATUS.md).
+
 ## Design
 
 - **Data pipeline** (`tools/PoeRegex.Data.Build`): fetches RePoE's hosted

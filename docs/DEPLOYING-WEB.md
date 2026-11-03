@@ -1,5 +1,7 @@
 # Deploying the web app (Cloudflare Pages)
 
+> Current status and parked work: [`STATUS.md`](STATUS.md).
+
 The Blazor WebAssembly app in `web/` — "Renly's Tools", this project's web
 reference implementation — is deployed as a static site on Cloudflare Pages.
 Deployments are built by Cloudflare through the Cloudflare Workers & Pages
