@@ -119,12 +119,19 @@ closer; the 4× numbers are diagnostic.
 ## Accessibility and viewport
 
 - Lighthouse accessibility score on the initial page: **100**.
+- axe-core WCAG 2.1 A/AA: **0 violations** on the initial page and on the
+  import string, saved picks, options, test items, import item, builder, and
+  "what it matches" states.
 - 1920×1080 and 900×1200 screenshots show no horizontal overflow; the narrow
   layout stacks the intro/search/picker cleanly.
 - Include/exclude states use icon/text (`✓` / `⊘`, `picked` / `excluded`) in
   addition to color, but a color-vision-emulation pass is still needed.
-- Lighthouse covers the initial page only. The picker, import, builder,
-  saved-picks, and settings dialogs still need a keyboard/focus audit.
+- Keyboard checks: focus enters the first control, Tab wraps inside the
+  import-string, import-item, and builder dialogs, and Escape closes and
+  restores the opener for those dialogs plus saved picks, options, and help.
+- Fixed in this pass: backpack `role="group"`, options-note contrast,
+  `aria-modal` on the three import/builder dialogs, Escape handling, focus
+  traps, and opener restoration.
 
 ## Manual in-game checklist
 
@@ -143,7 +150,7 @@ closer; the 4× numbers are diagnostic.
       manual command if the runtime cost is too high.
 - [ ] Keep an eye on advanced picks (51–65 ms) and 4× CPU numbers after
       future UI changes.
-- [ ] Run the keyboard/focus audit across every dialog.
+- [ ] Run the color-vision-emulation pass.
 - [ ] Record the manual in-game results above.
 
 ## Reproduce

@@ -8,7 +8,7 @@
   empty pack space dismisses it. Unplaced items (legacy over-capacity
   snapshots) stay hidden until space frees.
 *@
-<div class="pack" aria-label="Backpack (test items)" @onclick="() => State.SelectTestItem(null)">
+<div class="pack" role="group" aria-label="Backpack (test items)" @onclick="() => State.SelectTestItem(null)">
     @foreach (var t in State.TestItems)
     {
         if (t.Row < 0 || t.Col < 0) continue;

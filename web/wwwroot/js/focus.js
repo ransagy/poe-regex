@@ -31,3 +31,17 @@ window.poeRegexTrapFocus = function (root) {
   root.addEventListener('keydown', handler);
   root.__poeTrap = handler;
 };
+
+// Remember and restore the opener when a dialog is mounted outside its own
+// trigger component (import, builder, query import).
+window.poeRegexRememberFocus = function () {
+  window.__poePreviousFocus = document.activeElement;
+};
+
+window.poeRegexRestoreFocus = function () {
+  const previous = window.__poePreviousFocus;
+  window.__poePreviousFocus = null;
+  if (previous && previous.isConnected && typeof previous.focus === 'function') {
+    previous.focus();
+  }
+};

@@ -1,15 +1,18 @@
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
+@inject IJSRuntime JS
 
 @if (Open)
 {
     <div class="dlg-overlay" id="import-dialog" @onclick="OnBackdrop">
-        <div class="dlg" @onclick:stopPropagation="true" role="dialog" aria-label="Import item"
-             @onkeydown="OnDialogKeyDown">
+        <div class="dlg" @ref="_dialog" @onclick:stopPropagation="true" role="dialog" aria-modal="true"
+             aria-label="Import item" @onkeydown="OnDialogKeyDown">
             <h2 class="panel-head">Import items</h2>
-            <textarea id="import-text" rows="8" placeholder="Paste item text copied in game with Ctrl+Alt+C (English)…"
-                      value="@_text" @oninput="OnInput" @onkeydown:stopPropagation="true"
+            <textarea id="import-text" @ref="_firstFocus" rows="8"
+                      placeholder="Paste item text copied in game with Ctrl+Alt+C (English)…"
+                      value="@_text" @oninput="OnInput"
+                      @onkeydown="OnTextareaKeyDown" @onkeydown:stopPropagation="true"
                       aria-label="Item text"></textarea>
             <div class="modrow">
                 <button id="import-parse" class="btn" @onclick="Parse">Preview</button>
@@ -121,6 +124,11 @@
     private ItemImport.Mapped? _singleMapped;
     private List<RuleViolation> _violations = [];
     private string? _saveError;
+    private ElementReference _dialog;
+    private ElementReference _firstFocus;
+    private bool _wasOpen;
+    private bool _focusPending;
+    private bool _restoreFocus;
 
     private bool IsBatch => _items.Count > 1;
 
@@ -183,9 +191,49 @@
     /// </summary>
     private void OnDialogKeyDown(KeyboardEventArgs e)
     {
+        if (e.Key == "Escape")
+        {
+            _ = Close();
+            return;
+        }
         if (e.CtrlKey || e.AltKey || e.MetaKey || e.ShiftKey) return;
         if (e.Key == "ArrowLeft") SelectBatch(_batchIndex - 1);
         else if (e.Key == "ArrowRight") SelectBatch(_batchIndex + 1);
+    }
+
+    private void OnTextareaKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _ = Close();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen) _focusPending = true;
+        else if (!Open && _wasOpen) _restoreFocus = true;
+        _wasOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusPending && Open)
+        {
+            _focusPending = false;
+            try
+            {
+                await JS.InvokeVoidAsync("poeRegexRememberFocus");
+                await JS.InvokeVoidAsync("poeRegexTrapFocus", _dialog);
+                await _firstFocus.FocusAsync();
+            }
+            catch
+            {
+                // Focus management is best effort.
+            }
+        }
+        else if (_restoreFocus && !Open)
+        {
+            _restoreFocus = false;
+            try { await JS.InvokeVoidAsync("poeRegexRestoreFocus"); } catch { }
+        }
     }
 
     private async Task Close()

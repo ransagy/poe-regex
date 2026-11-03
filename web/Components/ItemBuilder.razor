@@ -1,16 +1,19 @@
 @using PoeRegex.Core.Data
 @using PoeRegex.Web.Core
 @inject EngineService Engine
+@inject IJSRuntime JS
 
 @if (Open)
 {
     <div class="dlg-overlay" id="builder-dialog" @onclick="OnBackdrop">
-        <div class="dlg dlg-builder" @onclick:stopPropagation="true" role="dialog" aria-label="Assemble item">
+        <div class="dlg dlg-builder" @ref="_dialog" @onclick:stopPropagation="true" role="dialog"
+             aria-modal="true" aria-label="Assemble item" @onkeydown="OnDialogKeyDown">
             <h2 class="panel-head">Assemble a test item</h2>
             <div class="builder-cols">
                 <div class="builder-left">
                     <div class="modrow">
-                        <select id="builder-class" value="@_classId" @onchange="OnClass" aria-label="Builder class">
+                        <select id="builder-class" @ref="_firstFocus" value="@_classId" @onchange="OnClass"
+                                aria-label="Builder class">
                             @foreach (var c in Engine.InGameClasses())
                             {
                                 <option value="@c.Id">@c.Name</option>
@@ -133,10 +136,46 @@
     private List<string> _added = [];
     private List<RuleViolation> _violations = [];
     private string? _saveError;
+    private ElementReference _dialog;
+    private ElementReference _firstFocus;
+    private bool _wasOpen;
+    private bool _focusPending;
+    private bool _restoreFocus;
 
     protected override void OnParametersSet()
     {
+        if (Open && !_wasOpen) _focusPending = true;
+        else if (!Open && _wasOpen) _restoreFocus = true;
+        _wasOpen = Open;
         if (Open) Refresh();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusPending && Open)
+        {
+            _focusPending = false;
+            try
+            {
+                await JS.InvokeVoidAsync("poeRegexRememberFocus");
+                await JS.InvokeVoidAsync("poeRegexTrapFocus", _dialog);
+                await _firstFocus.FocusAsync();
+            }
+            catch
+            {
+                // Focus management is best effort.
+            }
+        }
+        else if (_restoreFocus && !Open)
+        {
+            _restoreFocus = false;
+            try { await JS.InvokeVoidAsync("poeRegexRestoreFocus"); } catch { }
+        }
+    }
+
+    private void OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _ = Close();
     }
 
     private void Refresh()

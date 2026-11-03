@@ -183,7 +183,7 @@ h1:focus { outline: none; }
 .options-seg button { border: 0; background: none; padding: 0.28rem 0.7rem; border-radius: 3px; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
 .options-seg button:hover { color: var(--text); }
 .options-seg button.on { background: var(--surface); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.options-note { margin: 0; color: var(--faint); font-size: 0.75rem; }
+.options-note { margin: 0; color: var(--muted); font-size: 0.75rem; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
 
