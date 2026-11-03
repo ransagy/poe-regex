@@ -22,9 +22,9 @@ Two filters on the Pages project decide whether a push builds at all
 
 - **Preview branches**: all branches except `dependabot/*` — dependency PRs
   change manifests, not the site, and stay out of the deployment history.
-- **Build watch paths**: `web/*`, `src/*`, `data/catalogs/*`, `build.sh`,
-  `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md` (directory entries need the
-  trailing `*`; exact file paths do not). Docs-only or workflow-only
+- **Build watch paths**: `web/*`, `src/*`, `functions/*`, `data/catalogs/*`,
+  `build.sh`, `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md` (directory entries
+  need the trailing `*`; exact file paths do not). Docs-only or workflow-only
   pushes (including merges) skip the build, so the current deployment — and
   its `build-info.json` commit — stays until the next app-relevant change.
 
@@ -180,6 +180,25 @@ custom preview hostnames are not attached as Pages custom domains, so no
 per-PR DNS or certificate work is required. Preview cleanup still deletes the
 underlying Pages deployments; the Worker routes need no cleanup.
 
+## Pages host protection
+
+The generated Pages hosts are internal. `functions/_middleware.js` guards
+them:
+
+- `https://renlys-recipes.pages.dev/*` redirects permanently to
+  `https://renlys.tools` with the same path and query.
+- `https://<branch-or-hash>.renlys-recipes.pages.dev/*` returns `404` unless
+  the request carries the preview router's secret header.
+
+The router sends `X-Renlys-Preview-Key` on its upstream fetch. The value is
+stored as a `secret_text` Pages environment variable named `PREVIEW_KEY` in
+both the production and preview environments, and as the Worker secret
+`PREVIEW_KEY`. `web/wwwroot/_routes.json` includes every path so the guard
+also covers static assets.
+
+The guard applies to every new deployment. Old deployments built before it
+were deleted; the same cleanup removes previews when their PR closes.
+
 ## What build.sh does
 
 The Pages build image does not include .NET, so `build.sh`:
@@ -204,6 +223,8 @@ Reproduce the Cloudflare build locally with:
 
 - `web/wwwroot/_redirects` — `/* /index.html 200` gives SPA deep links
   (client-side routes survive a full page reload).
+- `web/wwwroot/_routes.json` — `/*` invokes the host guard on every path, so
+  direct Pages-host requests cannot bypass it by asking for a static file.
 - `web/wwwroot/_headers` — `no-cache` on `index.html` so deployments
   roll out immediately; `immutable` caching for `_framework/*` (every
   file is content-fingerprinted in .NET 10, and fingerprints change per
@@ -232,11 +253,11 @@ settings if you redeploy this site without analytics. Details:
 
 ## Deployment retention
 
-Only the current production deployment is kept. After a deploy is verified on
-the production URL (build-info trace plus an app boot check), older production
-and preview deployments are deleted through the Cloudflare API so their
-internal hash and branch hosts stop resolving. Deleting a preview also removes
-its internal branch alias.
+Only the current production deployment is kept. A one-time cleanup removed the
+historical production and preview deployments; their internal hash and branch
+hosts stopped resolving. Preview deployments are deleted when their PR closes.
+Every deployment built after the host guard was added rejects direct access, so
+any deployment that predates the guard must be deleted once.
 
 ## Status
 
@@ -254,3 +275,5 @@ its internal branch alias.
       refresh on new commits, one upserted preview comment, cleanup on PR
       close, and `/preview-cleanup`
 - [x] custom domain + branded previews
+- [x] Pages hosts guarded: root redirects to `renlys.tools`, branch/hash hosts
+      require the router secret header

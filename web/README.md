@@ -312,6 +312,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   picks, behind an `IShareStore`-style seam. Workbench loads and saved picks
   are checked by `SnapshotValidator`; share links are `SnapshotCodec`
   fragments; short links and accounts are future work (see the plan doc).
+- `functions/_middleware.js` — Pages host guard: the bare project host
+  redirects to `renlys.tools`, and branch/hash hosts require the preview
+  router's secret header. `wwwroot/_routes.json` makes the guard run on every
+  path.
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
 - `wwwroot/js/focus.js` — keeps Tab inside the Saved picks dialog.
 - `wwwroot/js/tab-sync.js` — cross-tab workbench freeze and share-link handoff.
