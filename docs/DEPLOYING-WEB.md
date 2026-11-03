@@ -22,9 +22,9 @@ Two filters on the Pages project decide whether a push builds at all
 
 - **Preview branches**: all branches except `dependabot/*` — dependency PRs
   change manifests, not the site, and stay out of the deployment history.
-- **Build watch paths**: `web/*`, `src/*`, `data/catalogs/*`, `build.sh`,
-  `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md` (directory entries need the
-  trailing `*`; exact file paths do not). Docs-only or workflow-only
+- **Build watch paths**: `web/*`, `src/*`, `functions/*`, `data/catalogs/*`,
+  `build.sh`, `LICENSE`, `NOTICE`, and `docs/PROVENANCE.md` (directory entries
+  need the trailing `*`; exact file paths do not). Docs-only or workflow-only
   pushes (including merges) skip the build, so the current deployment — and
   its `build-info.json` commit — stays until the next app-relevant change.
 
@@ -253,11 +253,11 @@ settings if you redeploy this site without analytics. Details:
 
 ## Deployment retention
 
-Only the current production deployment is kept. After a deploy is verified on
-the production URL (build-info trace plus an app boot check), older production
-and preview deployments are deleted through the Cloudflare API so their
-internal hash and branch hosts stop resolving. Deleting a preview also removes
-its internal branch alias.
+Only the current production deployment is kept. A one-time cleanup removed the
+historical production and preview deployments; their internal hash and branch
+hosts stopped resolving. Preview deployments are deleted when their PR closes.
+Every deployment built after the host guard was added rejects direct access, so
+any deployment that predates the guard must be deleted once.
 
 ## Status
 
