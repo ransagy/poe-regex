@@ -5,10 +5,11 @@
 > not part of the current product. Entries below are kept as a record of the
 > design rounds.
 >
-> **Current status (2026-10-30):** all phases P0–P7 are implemented. Pass 2
-> (PWA, URL-share, custom domain, accounts) remains deferred. The phase ledger
-> and remaining backlog live in the active shortest-form plan; this file stays
-> a historical design/work log.
+> **Current status (2026-11-03):** all phases P0–P7 are implemented. The
+> custom domain and branded previews shipped; Pass 2 remaining work is PWA,
+> URL-share/short links, and accounts. See [`STATUS.md`](STATUS.md) for the
+> current ledger; this file stays a historical design/work log. Detailed
+> engine work remains in the active shortest-form plan.
 
 Blazor WebAssembly workbench — "Renly's Tools" — with the PoE2 inventory
 look-and-feel, editable gear slots, per-slot and global regex compilation
@@ -779,3 +780,13 @@ mappings, enforcement + class gate, Accept adds to backpack and closes).
   best-effort toggle. UI: combined paste + copy in the slot-query bar,
   per-slot cards + group breakdown in Advanced, lab badges test the paste.
   Core suite gains `MultiPasteTests` (5 tests). Full slnx 6+63+60 green.
+- **2026-11-03 — brand, domain, and Pages hygiene.** Renamed the visible brand
+  to "Renly's Tools" and the saved-recipe feature to "Saved picks", including
+  the `poe-regex.saved-picks.v1` storage key and migration from the legacy
+  key. Moved production to <https://renlys.tools> with branded
+  `preview-<branch>.renlys.tools` URLs. Hid the internal Pages hosts: the bare
+  project host redirects to the apex, branch/hash hosts require the preview
+  router secret, and a daily cleanup workflow removes old production and
+  stale preview deployments plus orphan contributor branches. Deployment
+  details and the current ledger are in [`DEPLOYING-WEB.md`](DEPLOYING-WEB.md)
+  and [`STATUS.md`](STATUS.md).

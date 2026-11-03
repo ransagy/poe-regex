@@ -9,6 +9,7 @@ hand-drawn CSS/SVG). The deployed static build is at
 Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 
+Current status and parked work: [`docs/STATUS.md`](../docs/STATUS.md).
 Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
 Deployment: [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
 Performance: [`docs/WEB-PERF-poe2.md`](../docs/WEB-PERF-poe2.md).
