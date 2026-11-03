@@ -6,10 +6,10 @@ Cloudflare Worker for `renlys.tools` previews.
 
 ```text
 https://preview-<branch>.renlys.tools
-  -> https://<branch>.renlys-recipes.pages.dev
+  -> internal Pages branch host for <branch>
 
 https://preview-contrib-pr-<number>.renlys.tools
-  -> https://contrib-pr-<number>.renlys-recipes.pages.dev
+  -> internal Pages branch host for contrib-pr-<number>
 
 https://www.renlys.tools/*
   -> 301 https://renlys.tools/*
@@ -37,9 +37,9 @@ for the `preview-` prefix. Non-preview subdomains return 404.
 DNS:
 
 ```text
-renlys.tools       CNAME  renlys-recipes.pages.dev  proxied
-www.renlys.tools   A      192.0.2.1                  proxied
-*.renlys.tools     A      192.0.2.1                  proxied
+renlys.tools       CNAME  <internal Pages host>  proxied
+www.renlys.tools   A      192.0.2.1             proxied
+*.renlys.tools     A      192.0.2.1             proxied
 ```
 
 The proxied wildcard record makes the preview hostnames resolve; the Worker

@@ -12,7 +12,7 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-<PageTitle>Renly's Recipes</PageTitle>
+<PageTitle>Renly's Tools</PageTitle>
 
 <div class="bench mode-@State.Mode">
     @if (Intro.Visible == true)
@@ -43,7 +43,7 @@
                 </button>
             </div>
             <div class="hero-lib">
-                <RecipeMenu State="State" Version="_recipesVersion" />
+                <SavedPicksMenu State="State" Version="_savedPicksVersion" />
                 <button type="button" class="btn" id="query-import-open"
                         title="Turn a search string back into picks" @onclick="() => _queryImportOpen = true">Import string</button>
             </div>
@@ -204,20 +204,20 @@
     <div class="dlg-overlay" id="stale-overlay">
         <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="stale-title">
             <h2 class="panel-head" id="stale-title">
-                @(_staleShared ? "Shared recipe opened in another tab" : "Workbench changed in another tab")
+                @(_staleShared ? "Shared picks opened in another tab" : "Workbench changed in another tab")
             </h2>
             <p class="more">
                 @(_staleShared
-                    ? "A shared recipe was opened in another tab. This tab is frozen so it cannot overwrite the new workbench."
+                    ? "Shared picks were opened in another tab. This tab is frozen so it cannot overwrite the new workbench."
                     : "Another tab changed the workbench. This tab is frozen so it cannot overwrite the newer state.")
             </p>
             @if (_staleBackup == BackupOutcome.Added)
             {
-                <p class="more">Your picks from this tab were saved under Recipes.</p>
+                <p class="more">Your picks from this tab were saved under Saved picks.</p>
             }
             else if (_staleBackup == BackupOutcome.AlreadyPresent)
             {
-                <p class="more">Your picks from this tab are already saved under Recipes.</p>
+                <p class="more">Your picks from this tab are already saved under Saved picks.</p>
             }
             <div class="modrow">
                 <button type="button" class="btn btn-primary" id="stale-reload" @ref="_staleReload" @onclick="ReloadStale">Reload</button>
@@ -247,7 +247,7 @@
     private double _ttX;
     private double _ttY;
     private string? _notice;
-    private int _recipesVersion;
+    private int _savedPicksVersion;
     private bool _openingShared;
     private bool _stale;
     private bool _staleShared;
@@ -280,7 +280,7 @@
         foreach (var item in State.TestItems)
             if (item.Reheal(Engine)) healed = true;
         if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
-        await OpenSharedRecipeAsync();
+        await OpenSharedPicksAsync();
         Recompute();
     }
 
@@ -308,15 +308,15 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         if (_disposed || _stale) return;
-        if (RecipeCodec.TokenFromFragment(new Uri(e.Location).Fragment) is not null)
-            _ = OpenSharedRecipeFromNavigationAsync();
+        if (SnapshotCodec.TokenFromFragment(new Uri(e.Location).Fragment) is not null)
+            _ = OpenSharedPicksFromNavigationAsync();
     }
 
-    private async Task OpenSharedRecipeFromNavigationAsync()
+    private async Task OpenSharedPicksFromNavigationAsync()
     {
         try
         {
-            await OpenSharedRecipeAsync();
+            await OpenSharedPicksAsync();
             await InvokeAsync(StateHasChanged);
         }
         catch
@@ -326,17 +326,17 @@
         }
     }
 
-    /// <summary>A share link replaces the picks; earlier picks are saved as a recipe first so nothing is lost.</summary>
-    private async Task OpenSharedRecipeAsync()
+    /// <summary>A share link replaces the picks; earlier picks are saved as a saved pick first so nothing is lost.</summary>
+    private async Task OpenSharedPicksAsync()
     {
-        var token = RecipeCodec.TokenFromFragment(new Uri(Nav.Uri).Fragment);
+        var token = SnapshotCodec.TokenFromFragment(new Uri(Nav.Uri).Fragment);
         if (token is null || _openingShared || _stale) return;
         _openingShared = true;
         try
         {
             try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
             catch { }
-            var shared = RecipeCodec.Decode(token);
+            var shared = SnapshotCodec.Decode(token);
             if (shared is null)
             {
                 _notice = "That share link could not be read, so your picks are unchanged.";
@@ -345,15 +345,15 @@
             var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0 ||
                            State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
             if (hadPicks && await BackupPicksAsync("Before shared link") == BackupOutcome.Added)
-                _recipesVersion++;
+                _savedPicksVersion++;
             WorkbenchSnapshot.RestoreCriteria(State, shared);
             // Persist before announcing the handoff so another tab cannot
             // reload into the previous workbench.
             await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
             await Persistence.MarkSharedHandoffAsync();
             _notice = hadPicks
-                ? "Opened a shared recipe. Your earlier picks are saved under Recipes."
-                : "Opened a shared recipe.";
+                ? "Opened shared picks. Your earlier picks are saved under Saved picks."
+                : "Opened shared picks.";
         }
         finally
         {
@@ -365,17 +365,17 @@
     {
         try
         {
-            var current = RecipeCodec.CaptureCriteria(State);
-            var fingerprint = RecipeCodec.Encode(current);
-            var recipes = await Persistence.LoadRecipesAsync();
-            if (recipes.Any(r =>
-                    string.Equals(RecipeCodec.Encode(r.Snapshot), fingerprint, StringComparison.Ordinal)))
+            var current = SnapshotCodec.CaptureCriteria(State);
+            var fingerprint = SnapshotCodec.Encode(current);
+            var savedPicks = await Persistence.LoadSavedPicksAsync();
+            if (savedPicks.Any(r =>
+                    string.Equals(SnapshotCodec.Encode(r.Snapshot), fingerprint, StringComparison.Ordinal)))
                 return BackupOutcome.AlreadyPresent;
 
-            recipes.Insert(0, new SavedRecipe(
+            savedPicks.Insert(0, new SavedPick(
                 $"{prefix}, {DateTime.Now:yyyy-MM-dd HH:mm}",
                 DateTimeOffset.UtcNow, current));
-            await Persistence.SaveRecipesAsync(recipes);
+            await Persistence.SaveSavedPicksAsync(savedPicks);
             return BackupOutcome.Added;
         }
         catch
@@ -385,7 +385,7 @@
     }
 
     [JSInvokable]
-    public Task OnSharedRecipeOpenedElsewhere() => FreezeStaleAsync(shared: true);
+    public Task OnSharedPicksOpenedElsewhere() => FreezeStaleAsync(shared: true);
 
     [JSInvokable]
     public Task OnWorkbenchChangedInOtherTab() => FreezeStaleAsync(shared: false);

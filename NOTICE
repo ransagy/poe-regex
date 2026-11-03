@@ -5,7 +5,7 @@ Poe Regex Compiler
 Copyright (c) 2026 poe-regex contributors
 
 This repository contains the engine (src/), its data pipeline (tools/), the CLI,
-and the web reference implementation "Renly's Recipes" (web/). The project is
+and the web reference implementation "Renly's Tools" (web/). The project is
 MIT licensed; see LICENSE. The complete data and asset lineage is documented in
 docs/PROVENANCE.md.
 
@@ -56,7 +56,7 @@ Tests:
 Trademarks
 ----------
 Path of Exile is a registered trademark of Grinding Gear Games Limited.
-"Renly's Recipes" is the name of this project's web reference implementation.
+"Renly's Tools" is the name of this project's web reference implementation.
 
 This is an independent community project and is not affiliated with,
 authorized by, or endorsed by Grinding Gear Games or Tencent.

@@ -10,7 +10,11 @@ public sealed class PersistenceService(IJSRuntime js)
     public const string StorageKey = "poe-regex.workbench.v1";
     public const string HandoffKey = "poe-regex.handoff.v1";
     private const string IntroKey = "poe-regex.intro.v1";
-    private const string RecipesKey = "poe-regex.recipes.v1";
+    private const string SavedPicksKey = "poe-regex.saved-picks.v1";
+
+    // One-release migration fallback for saved picks created before the
+    // Renly's Tools rename. Remove this key after the next release.
+    private const string LegacySavedPicksKey = "poe-regex.recipes.v1";
 
     public async Task<WorkbenchSnapshot?> LoadAsync()
     {
@@ -55,14 +59,32 @@ public sealed class PersistenceService(IJSRuntime js)
         }
     }
 
-    public async Task<List<SavedRecipe>> LoadRecipesAsync()
+    public async Task<List<SavedPick>> LoadSavedPicksAsync()
     {
         try
         {
-            var raw = await js.InvokeAsync<string?>("localStorage.getItem", RecipesKey);
+            var raw = await js.InvokeAsync<string?>("localStorage.getItem", SavedPicksKey);
+            if (string.IsNullOrEmpty(raw))
+            {
+                // Copy the pre-rename list under the new key once. If the copy
+                // fails (quota/privacy mode), still load the legacy value.
+                var legacy = await js.InvokeAsync<string?>("localStorage.getItem", LegacySavedPicksKey);
+                if (!string.IsNullOrEmpty(legacy))
+                {
+                    raw = legacy;
+                    try
+                    {
+                        await js.InvokeVoidAsync("localStorage.setItem", SavedPicksKey, legacy);
+                        await js.InvokeVoidAsync("localStorage.removeItem", LegacySavedPicksKey);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
             if (string.IsNullOrEmpty(raw)) return [];
-            var recipes = JsonSerializer.Deserialize(raw, WebJsonContext.Default.ListSavedRecipe) ?? [];
-            return recipes.Where(SnapshotValidator.IsValid).ToList();
+            var savedPicks = JsonSerializer.Deserialize(raw, WebJsonContext.Default.ListSavedPick) ?? [];
+            return savedPicks.Where(SnapshotValidator.IsValid).ToList();
         }
         catch
         {
@@ -70,12 +92,12 @@ public sealed class PersistenceService(IJSRuntime js)
         }
     }
 
-    public async Task SaveRecipesAsync(List<SavedRecipe> recipes)
+    public async Task SaveSavedPicksAsync(List<SavedPick> savedPicks)
     {
         try
         {
-            var raw = JsonSerializer.Serialize(recipes, WebJsonContext.Default.ListSavedRecipe);
-            await js.InvokeVoidAsync("localStorage.setItem", RecipesKey, raw);
+            var raw = JsonSerializer.Serialize(savedPicks, WebJsonContext.Default.ListSavedPick);
+            await js.InvokeVoidAsync("localStorage.setItem", SavedPicksKey, raw);
         }
         catch
         {

@@ -62,7 +62,7 @@ dotnet publish src/PoeRegex.Cli -c Release -r linux-x64 \
   clipboard — neither needs extra setup.
 - Everything else (catalogs, game rules) is self-contained in the binary.
 
-## Web workbench ("Renly's Recipes")
+## Web workbench ("Renly's Tools")
 
 The Blazor WebAssembly app lives in `web/` and embeds the catalogs, so it needs
 no data fetch for development:

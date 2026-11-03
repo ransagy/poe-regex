@@ -1,4 +1,4 @@
-# Renly's Recipes — the poe-regex web workbench
+# Renly's Tools — the poe-regex web workbench
 
 Blazor WebAssembly app that runs `PoeRegex.Core` **in the browser**: a
 PoE2-inventory-style workbench with editable gear slots, live-compiled regex
@@ -115,8 +115,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   in Your picks so every slot follows the same rule; weapon/offhand name their
   base class under the slot label),
   `SearchBar` and `PickBreakdown` (the string and what it is made of — see
-  below; they share a `SearchModel` for blocks and hover), `RecipeMenu`
-  (saved recipes and share links — see below),
+  below; they share a `SearchModel` for blocks and hover), `SavedPicksMenu`
+  (saved picks and share links — see below),
   `BackpackGrid` (12×5 test area; integer-snapped square
   cells in a bounded-width grid; the bar toggle reports `k lit`;
   matching items highlight and non-matching ones dim; clicking
@@ -255,26 +255,29 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   name, `or better` when it carries higher tiers, and the tier's range.
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.
-- `RecipeMenu`: `Recipes` saves the current picks under a name (modes,
-  classes, picks, match mode and minimums; never test items) in
-  `poe-regex.recipes.v1`, loads one back, or deletes one, each with a
-  one-step undo. `Copy share link` copies `/#r=<token>`, the picks as
-  deflated, base64url JSON (`RecipeCodec`; a few hundred characters).
+- `SavedPicksMenu`: `Saved picks` saves the current picks under a name
+  (modes, classes, picks, match mode and minimums; never test items) in
+  `poe-regex.saved-picks.v1`, loads one back, or deletes one, each with a
+  one-step undo. Saved picks from the pre-rename `poe-regex.recipes.v1` key
+  are migrated once and the old key is removed. `Copy share link` copies
+  `/#r=<token>`, the picks as deflated, base64url JSON (`SnapshotCodec`; a
+  few hundred characters).
   Opening a link replaces the picks, keeps the backpack, saves any earlier
-  picks as a "Before shared link" recipe first, clears the fragment, and says
+  picks as a "Before shared link" entry first, clears the fragment, and says
   so in a dismissible notice. A same-tab `#r=` fragment applies without a
   reload. Any external workbench write freezes the other tabs; a shared link
   gets a specific handoff dialog, ordinary edits get a generic one. The frozen
-  tab saves its own picks as a recipe, blocks further workbench writes, and
+  tab saves its own picks, blocks further workbench writes, and
   offers a hard reload so it cannot overwrite the newer state. Automatic
-  backups are skipped when an identical recipe already exists. Links and saved
-  recipes are untrusted:
+  backups are skipped when an identical saved pick already exists. Links and
+  saved picks are untrusted:
   `SnapshotValidator` rejects missing or blank strings, null list entries,
   out-of-range minimums, unknown slots, unknown versions and implausible
   counts, and decoding also rejects tokens past the length cap or more than
-  64 KB of JSON. Saved recipes that fail the check are skipped on load. The
-  recipe dialog traps focus and restores it to the opener; share URLs longer
-  than 8,000 characters are refused with a “save a recipe instead” message.
+  64 KB of JSON. Saved picks that fail the check are skipped on load. The
+  saved-picks dialog traps focus and restores it to the opener; share URLs
+  longer than 8,000 characters are refused with a “save your picks instead”
+  message.
 - The assemble dialog disables what can't be built instead of only warning
   after the fact (`ItemRules.CanAdd`, same rules as `Validate`): Normal
   disables the whole mod list and the search (the list dims; Save still
@@ -306,11 +309,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   captions too (without tier/tags, which the catalog does not carry). It
   engages only once the active scope has mods picked.
 - `Services/PersistenceService.cs` — localStorage for the workbench and saved
-  recipes, behind an `IShareStore`-style seam. Workbench loads and saved
-  recipes are checked by `SnapshotValidator`; share links are `RecipeCodec`
+  picks, behind an `IShareStore`-style seam. Workbench loads and saved picks
+  are checked by `SnapshotValidator`; share links are `SnapshotCodec`
   fragments; short links and accounts are future work (see the plan doc).
 - `wwwroot/js/clipboard.js` — `navigator.clipboard` with textarea fallback.
-- `wwwroot/js/focus.js` — keeps Tab inside the Recipes dialog.
+- `wwwroot/js/focus.js` — keeps Tab inside the Saved picks dialog.
 - `wwwroot/js/tab-sync.js` — cross-tab workbench freeze and share-link handoff.
 - `wwwroot/js/tooltip.js` — flips/clamps the pinned item tooltip inside the
   viewport after each render.

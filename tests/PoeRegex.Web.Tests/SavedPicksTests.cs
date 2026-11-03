@@ -3,7 +3,7 @@ using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
 
-public class RecipeTests
+public class SavedPicksTests
 {
     private static WorkbenchState Picked()
     {
@@ -25,8 +25,8 @@ public class RecipeTests
         var state = Picked();
         state.AddTestItem(new TestItem { Name = "x", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) });
 
-        var token = RecipeCodec.Encode(WorkbenchSnapshot.Capture(state));
-        var back = RecipeCodec.Decode(token)!;
+        var token = SnapshotCodec.Encode(WorkbenchSnapshot.Capture(state));
+        var back = SnapshotCodec.Decode(token)!;
 
         token.Should().MatchRegex("^[A-Za-z0-9_-]+$");
         back.TestItems.Should().BeEmpty();
@@ -46,8 +46,8 @@ public class RecipeTests
         var state = Picked();
         state.SetExternalIncludes(["Item Class: (am|ri|be|Cross)", "rare"]);
 
-        var token = RecipeCodec.Encode(WorkbenchSnapshot.Capture(state));
-        var back = RecipeCodec.Decode(token)!;
+        var token = SnapshotCodec.Encode(WorkbenchSnapshot.Capture(state));
+        var back = SnapshotCodec.Decode(token)!;
         var restored = new WorkbenchState();
         WorkbenchSnapshot.RestoreCriteria(restored, back);
 
@@ -59,7 +59,7 @@ public class RecipeTests
     public void CaptureCriteria_IsDetachedFromLaterEdits()
     {
         var state = Picked();
-        var saved = RecipeCodec.CaptureCriteria(state);
+        var saved = SnapshotCodec.CaptureCriteria(state);
 
         state.ClearChips("boots");
 
@@ -73,7 +73,7 @@ public class RecipeTests
         target.AddInclude("helmet", new WantedMod("Strength1"));
         target.AddTestItem(new TestItem { Name = "x", ClassId = "Belt", Parsed = ItemTextParser.Parse(FixtureTexts.Belt) });
 
-        WorkbenchSnapshot.RestoreCriteria(target, RecipeCodec.CaptureCriteria(Picked()));
+        WorkbenchSnapshot.RestoreCriteria(target, SnapshotCodec.CaptureCriteria(Picked()));
 
         target.TestItems.Should().ContainSingle();
         target.CriteriaFor("helmet").Included.Should().BeEmpty();
@@ -85,7 +85,7 @@ public class RecipeTests
     [InlineData("not base64 !!")]
     [InlineData("AAAA")]
     public void Decode_RejectsMalformedTokens(string token) =>
-        RecipeCodec.Decode(token).Should().BeNull();
+        SnapshotCodec.Decode(token).Should().BeNull();
 
     [Fact]
     public void Decode_RejectsOversizedPayloads()
@@ -95,18 +95,18 @@ public class RecipeTests
             deflate.Write(new byte[1024 * 1024]);
         var token = Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-        RecipeCodec.Decode(token).Should().BeNull();
+        SnapshotCodec.Decode(token).Should().BeNull();
     }
 
     [Fact]
     public void Decode_RejectsTokensPastTheLengthCap()
     {
-        var token = RecipeCodec.Encode(WorkbenchSnapshot.Capture(Picked()));
+        var token = SnapshotCodec.Encode(WorkbenchSnapshot.Capture(Picked()));
         // Base64 skips whitespace, so only the length cap stops this padded token.
-        var padded = new string(' ', RecipeCodec.MaxTokenLength / 4 * 4) + token;
+        var padded = new string(' ', SnapshotCodec.MaxTokenLength / 4 * 4) + token;
 
-        RecipeCodec.Decode(token).Should().NotBeNull();
-        RecipeCodec.Decode(padded).Should().BeNull();
+        SnapshotCodec.Decode(token).Should().NotBeNull();
+        SnapshotCodec.Decode(padded).Should().BeNull();
     }
 
     [Theory]
@@ -137,7 +137,7 @@ public class RecipeTests
         var snap = Spoiled(spoil);
 
         SnapshotValidator.IsValid(snap).Should().BeFalse();
-        RecipeCodec.Decode(RecipeCodec.Encode(snap)).Should().BeNull();
+        SnapshotCodec.Decode(SnapshotCodec.Encode(snap)).Should().BeNull();
     }
 
     [Fact]
@@ -145,17 +145,17 @@ public class RecipeTests
     {
         var token = RawToken("""{"Version":4,"Mode":"simple","Slots":{},"Global":null,"TestItems":[]}""");
 
-        RecipeCodec.Decode(token).Should().BeNull();
+        SnapshotCodec.Decode(token).Should().BeNull();
     }
 
     [Fact]
     public void Validator_AcceptsCapturedPicks() =>
-        SnapshotValidator.IsValid(RecipeCodec.CaptureCriteria(Picked())).Should().BeTrue();
+        SnapshotValidator.IsValid(SnapshotCodec.CaptureCriteria(Picked())).Should().BeTrue();
 
     [Fact]
     public void Validator_RejectsBrokenTestItems()
     {
-        var snap = RecipeCodec.CaptureCriteria(Picked());
+        var snap = SnapshotCodec.CaptureCriteria(Picked());
         var item = new TestItem
         {
             Name = "item",
@@ -174,24 +174,24 @@ public class RecipeTests
     [InlineData("", false)]
     [InlineData("   ", false)]
     [InlineData(null, false)]
-    public void Validator_ChecksRecipeNames(string? name, bool valid) =>
-        SnapshotValidator.IsValid(new SavedRecipe(name!, DateTimeOffset.UnixEpoch, RecipeCodec.CaptureCriteria(Picked())))
+    public void Validator_ChecksSavedPickNames(string? name, bool valid) =>
+        SnapshotValidator.IsValid(new SavedPick(name!, DateTimeOffset.UnixEpoch, SnapshotCodec.CaptureCriteria(Picked())))
             .Should().Be(valid);
 
     [Fact]
-    public void Validator_RejectsLongRecipeNamesAndMissingSnapshots()
+    public void Validator_RejectsLongSavedPickNamesAndMissingSnapshots()
     {
-        var picks = RecipeCodec.CaptureCriteria(Picked());
+        var picks = SnapshotCodec.CaptureCriteria(Picked());
 
-        SnapshotValidator.IsValid(new SavedRecipe(new string('a', SnapshotValidator.MaxRecipeName + 1), DateTimeOffset.UnixEpoch, picks))
+        SnapshotValidator.IsValid(new SavedPick(new string('a', SnapshotValidator.MaxSavedPickName + 1), DateTimeOffset.UnixEpoch, picks))
             .Should().BeFalse();
-        SnapshotValidator.IsValid(new SavedRecipe("Boots", DateTimeOffset.UnixEpoch, null!)).Should().BeFalse();
-        SnapshotValidator.IsValid((SavedRecipe?)null).Should().BeFalse();
+        SnapshotValidator.IsValid(new SavedPick("Boots", DateTimeOffset.UnixEpoch, null!)).Should().BeFalse();
+        SnapshotValidator.IsValid((SavedPick?)null).Should().BeFalse();
     }
 
     private static WorkbenchSnapshot Spoiled(string spoil)
     {
-        var snap = RecipeCodec.CaptureCriteria(Picked());
+        var snap = SnapshotCodec.CaptureCriteria(Picked());
         var weapon = snap.Slots["weapon"];
         var boots = snap.Slots["boots"];
         switch (spoil)
@@ -239,6 +239,6 @@ public class RecipeTests
     [InlineData("#r=", null)]
     [InlineData("#other", null)]
     [InlineData(null, null)]
-    public void TokenFromFragment_ReadsOnlyRecipeFragments(string? fragment, string? expected) =>
-        RecipeCodec.TokenFromFragment(fragment).Should().Be(expected);
+    public void TokenFromFragment_ReadsOnlySavedPickFragments(string? fragment, string? expected) =>
+        SnapshotCodec.TokenFromFragment(fragment).Should().Be(expected);
 }

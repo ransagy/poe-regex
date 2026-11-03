@@ -151,5 +151,5 @@ public sealed record WorkbenchSnapshot(
 [JsonSerializable(typeof(ParsedItem))]
 [JsonSerializable(typeof(ParsedModBlock))]
 [JsonSerializable(typeof(ParsedValueLine))]
-[JsonSerializable(typeof(List<SavedRecipe>))]
+[JsonSerializable(typeof(List<SavedPick>))]
 public sealed partial class WebJsonContext : JsonSerializerContext;

@@ -1,0 +1,84 @@
+name: preview-url
+
+# Comment the branded preview URL on pull requests from this repository.
+# Cloudflare Pages' own PR comments are disabled, so this workflow is the only
+# place a reviewer sees a preview link. It runs from the base branch and never
+# checks out or executes pull request code.
+#
+# Fork previews are opt-in and are commented by preview-contrib.yml instead.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-url-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  comment:
+    name: comment
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !startsWith(github.event.pull_request.head.ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upsert branded preview link
+        if: github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          alias=$(printf '%s' "$BRANCH" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+            | cut -c1-28)
+          alias=${alias%-}
+          if [ -z "$alias" ]; then
+            echo "Branch '$BRANCH' has no usable preview alias; skipping."
+            exit 0
+          fi
+          short=${SHA:0:12}
+          body=$(cat <<EOF
+          <!-- preview-url -->
+          **Preview:** https://preview-$alias.renlys.tools
+
+          Commit: \`$short\`
+
+          Cloudflare Pages rebuilds this preview on every push; it usually appears within about 90 seconds.
+          EOF
+          )
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- preview-url -->"))) | .id' \
+            | sed -n '1p')
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" >/dev/null
+            echo "Updated preview comment $existing"
+          else
+            gh pr comment "$PR" --body "$body"
+            echo "Created preview comment for PR #$PR"
+          fi
+
+      - name: Remove stale preview link
+        if: github.event.action == 'closed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- preview-url -->"))) | .id' \
+            | sed -n '1p')
+          if [ -n "$existing" ]; then
+            gh api -X DELETE "repos/$REPO/issues/comments/$existing" >/dev/null
+            echo "Deleted preview comment $existing"
+          fi

@@ -326,23 +326,23 @@ public class WebComponentTests
     }
 
     [Fact]
-    public void RecipeMenu_OpensAccessibleDialogAndSaves()
+    public void SavedPicksMenu_OpensAccessibleDialogAndSaves()
     {
         using var ctx = Context();
         var state = new WorkbenchState();
         state.AddInclude(null, new WantedMod("IncreasedLife6"));
-        var cut = ctx.Render<RecipeMenu>(p => p.Add(x => x.State, state));
+        var cut = ctx.Render<SavedPicksMenu>(p => p.Add(x => x.State, state));
 
-        cut.Find("#recipes-open").Click();
-        cut.WaitForAssertion(() => cut.Find(".recipes-pop"));
-        var dialog = cut.Find(".recipes-pop");
+        cut.Find("#saved-picks-open").Click();
+        cut.WaitForAssertion(() => cut.Find(".saved-picks-pop"));
+        var dialog = cut.Find(".saved-picks-pop");
         dialog.GetAttribute("role").Should().Be("dialog");
         dialog.GetAttribute("aria-modal").Should().Be("true");
-        cut.Find("#recipe-name").GetAttribute("maxlength").Should().Be("100");
+        cut.Find("#saved-pick-name").GetAttribute("maxlength").Should().Be("100");
         cut.Find("#share-link").HasAttribute("disabled").Should().BeFalse();
 
-        cut.Find("#recipe-name").Input("Round trip");
+        cut.Find("#saved-pick-name").Input("Round trip");
         cut.Find("form").Submit();
-        cut.WaitForAssertion(() => cut.FindAll(".recipe-name").Any(e => e.TextContent == "Round trip"));
+        cut.WaitForAssertion(() => cut.FindAll(".saved-pick-name").Any(e => e.TextContent == "Round trip"));
     }
 }
