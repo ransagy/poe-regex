@@ -135,39 +135,40 @@ closer; the 4× numbers are diagnostic.
 
 ## In-game acceptance plan
 
-**Goal:** verify the assumptions the app cannot prove from the catalog: slot
-footprints, rare/unique naming, line-local matching, and the final copy/paste
-round trip.
+**Goal:** verify only the assumptions the catalog, table audit, and test suite
+cannot prove inside the game client.
 
 **Before starting**
 
 - English PoE2 client; record the client patch and the app data version
   (`2026-08-09` currently).
 - Use <https://renlys.tools> in a fresh browser profile.
-- Have `docs/samples/real-items.txt` available, plus 2–3 live items per tested
-  class.
-- Capture the item copy text, app screenshot, in-game search, and result.
+- Have the five fixtures in `docs/samples/real-items.txt`, plus one live rare
+  and one live unique item.
 
-**Test matrix**
+### Already covered — no in-game re-check needed
+
+| Area | Evidence |
+|---|---|
+| Backpack dimensions and footprints | Maintainer-confirmed table in `WEB-APP-PLAN` §9.2; `FootprintTests` and placement tests |
+| Unknown footprint fallback | Intentional `1x3` fallback with `Unknown` confidence |
+| `.` / `.*` line behavior | In-game `Charm.+Thorns` on the Wide Belt did not match, so `.` is line-scoped; the shipped table is line-local and the .NET audits cover the rest |
+| Import fidelity | Five real fixtures plus the >1,000-form catalog round-trip audit |
+| Saved picks and share links | Persistence, component, and codec tests |
+| Auto-copy | Preference and UI tests; it is browser behavior, not in-game behavior |
+| Compact viewport and color vision | Browser QA, tracked as a separate a11y follow-up |
+
+### Remaining manual in-game checks
 
 | ID | Check | How | Pass criteria |
 |---|---|---|---|
-| IG-01 | Backpack dimensions | Open the test-items drawer; compare to the in-game inventory | 12×5 cells, same orientation |
-| IG-02 | Footprints | Import belt, buckler, armour shield, 1H mace, wand, staff/spear, armour, accessory | Each item occupies the expected cells |
-| IG-03 | Unknown footprint fallback | Import a class/item without a confirmed footprint | Flagged fallback is visible and not silently wrong |
-| IG-04 | Rare name/card | Import a rare item | Name, class, rarity, mods, and tooltip agree |
-| IG-05 | Unique name/card | Import a unique item | Name/caption and tooltip agree |
-| IG-06 | `.` wildcard | Search a generated query containing `.` | Matches only the intended line, no cross-line hit |
-| IG-07 | `.*` wildcard | Search a generated query containing `.*` | Matches only the intended line, no cross-line hit |
-| IG-08 | Simple copy/paste | Build an all-gear query, copy, paste in game | Expected items highlight; others do not |
-| IG-09 | Advanced anchors | Build a per-slot query with class anchors | Expected class and mods match |
-| IG-10 | Exclusions/all-of | Build a query with exclusions and all-of | Excluded items stay dark; all-of requires every pick |
-| IG-11 | Minimum value | Add a min value and search | Threshold matches the intended roll range |
-| IG-12 | Import fidelity | Import items with implicit, socket, corrupted, and granted-skill lines | Mapping, tooltip, and highlight agree; ambiguous lines are flagged |
-| IG-13 | Saved picks | Save, load, delete, undo | State returns exactly; no stray picks |
-| IG-14 | Share link | Open a share link in a second browser | Picks restore; backpack is preserved |
-| IG-15 | Compact viewport | 1280×720 and 900×1200; color-vision emulation | No horizontal overflow; include/exclude states distinguishable |
-| IG-16 | Auto-copy | Enable “Copy on every change” and edit picks | Clipboard updates only after a user gesture |
+| IG-01 | Rare and unique names | Import one live rare and one live unique item; search a name fragment from each | Card/tooltip name, class, rarity, and mods agree; the intended item matches and unrelated items do not |
+| IG-02a | Simple/global fragment | Build an all-gear query, copy, paste in the Highlight box | Expected items highlight; no false positives |
+| IG-02b | Advanced class anchor | Build a per-slot query with a class anchor and paste it | Expected class and mods match |
+| IG-02c | Exclusion + all-of | Build a query with an exclusion and an all-of pair | Excluded items stay dark; all-of requires both picks |
+| IG-02d | Minimum value | Add a min value and paste the query | Threshold matches the intended roll range |
+| IG-03 | Optional: visual footprint spot-check | Import one item per unusual footprint (buckler, armour shield, staff/spear, wand) | Grid placement matches the game inventory |
+| IG-04 | Optional: new live item | Import a live item outside the five fixtures | Mapping is correct or explicitly flagged |
 
 **Record**
 
@@ -177,10 +178,10 @@ round trip.
 
 **Exit criteria**
 
-- IG-01, IG-02, IG-04, IG-05, IG-06, IG-07, IG-08, IG-09, and IG-12 pass.
+- IG-01, IG-02a, IG-02b, IG-02c, and IG-02d pass.
 - Any mismatch has a filed issue and a documented workaround.
-- If `.`/`.*` semantics differ, update the grammar profile and the active
-  engine plan before calling the release complete.
+- If a new wildcard case contradicts the line-local assumption, stop and
+  update the grammar profile before calling the release complete.
 - Record the final results here and update [`STATUS.md`](STATUS.md) if the
   shipped model changes.
 
