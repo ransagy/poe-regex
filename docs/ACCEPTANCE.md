@@ -51,6 +51,27 @@ produce long-task spikes. The budget is a target, not a hard failure.
   addition to color.
 - Color-vision emulation is still a manual browser pass.
 
+## PWA
+
+- Manifest parses with no errors; Chrome reports no installability errors.
+- Service worker activates and controls the page.
+- The cache is keyed by the build commit and contains the app shell plus
+  `_framework` assets.
+- After one online load, a reload with the network offline boots the app and
+  restores the workbench.
+- A new build changes `sw.js`, installs a new cache, and deletes the previous
+  one.
+- Registration is skipped on `localhost`/`127.0.0.1` so development reloads
+  are never served from an old cache.
+- `build.sh` generates `precache-manifest.json`; `_headers` marks `sw.js`,
+  the manifest, the precache manifest, and `build-info.json` no-cache.
+
+Check with [`tools/pwa-check/run.mjs`](../tools/pwa-check/run.mjs):
+
+```sh
+node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
+```
+
 ## Out of scope
 
 The exact-table proof is complete for the modeled corpus plus the captured

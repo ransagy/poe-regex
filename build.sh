@@ -49,4 +49,24 @@ BRANCH="${CF_PAGES_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo
 printf '{"commit":"%s","branch":"%s"}\n' "$COMMIT" "$BRANCH" \
   > out/web/wwwroot/build-info.json
 
+# The offline shell fetches this list at install time. Exclude the worker,
+# deployment metadata, and Cloudflare control files; everything else is the
+# immutable app shell.
+{
+  find out/web/wwwroot -type f \
+    ! -name 'sw.js' \
+    ! -name 'precache-manifest.json' \
+    ! -name 'build-info.json' \
+    ! -name '_headers' \
+    ! -name '_redirects' \
+    ! -name '_routes.json' \
+    -printf '/%P\n' \
+    | LC_ALL=C sort \
+    | awk 'BEGIN { printf "[" } { printf "%s\"%s\"", sep, $0; sep = "," } END { print "]" }'
+} > out/web/wwwroot/precache-manifest.json
+
+# Change the worker bytes on every build so the browser installs the new
+# version and its cache instead of keeping the previous immutable shell.
+printf '\n// build: %s\n' "$COMMIT" >> out/web/wwwroot/sw.js
+
 echo "build.sh: site ready at out/web/wwwroot"
