@@ -65,6 +65,10 @@ produce long-task spikes. The budget is a target, not a hard failure.
   are never served from an old cache.
 - `build.sh` generates `precache-manifest.json`; `_headers` marks `sw.js`,
   the manifest, the precache manifest, and `build-info.json` no-cache.
+- Icon fallbacks: `favicon.ico`, SVG favicon, 180×180 Apple touch icon, and
+  manifest 192/512/maskable icons. Firefox desktop has no PWA install UI; it
+  uses the normal site icon. Firefox Android uses the manifest icons for
+  “Add to home screen.”
 
 Check with [`tools/pwa-check/run.mjs`](../tools/pwa-check/run.mjs):
 

@@ -1,0 +1,102 @@
+name: deploy-production
+
+# Production is deployed deliberately, not on every push to main. Automatic
+# production deployments are disabled on the Pages project; previews remain
+# automatic. Run this workflow from main after the PR has been reviewed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+      CF_PROJECT: renlys-recipes
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Create Pages deployment
+        id: create
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "CF_API_TOKEN secret or CF_ACCOUNT_ID variable is not configured."
+            exit 1
+          fi
+          sha=$(git rev-parse HEAD)
+          short=$(git rev-parse --short=12 HEAD)
+          message=$(git log -1 --pretty=%s)
+          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/$CF_PROJECT/deployments"
+          response=$(curl -sS -X POST "$base" \
+            -H "Authorization: Bearer $CF_API_TOKEN" \
+            -F "branch=main" \
+            -F "commit_hash=$sha" \
+            -F "commit_dirty=false" \
+            -F "commit_message=$message")
+          if ! echo "$response" | jq -e '.success == true' >/dev/null; then
+            echo "$response"
+            exit 1
+          fi
+          id=$(echo "$response" | jq -r '.result.id')
+          echo "deployment_id=$id" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Deployment $id for $short" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wait for Pages deployment
+        env:
+          DEPLOYMENT_ID: ${{ steps.create.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/$CF_PROJECT/deployments/$DEPLOYMENT_ID"
+          status=""
+          for i in $(seq 1 90); do
+            response=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" "$base")
+            stage=$(echo "$response" | jq -r '.result.latest_stage.name // "unknown"')
+            status=$(echo "$response" | jq -r '.result.latest_stage.status // "unknown"')
+            echo "stage=$stage status=$status"
+            case "$status" in
+              success) break ;;
+              failure|canceled)
+                echo "$response"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          if [ "$status" != "success" ]; then
+            echo "deployment did not finish successfully"
+            exit 1
+          fi
+
+      - name: Verify production commit
+        env:
+          EXPECTED_SHA: ${{ steps.create.outputs.sha }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            live=$(curl -fsS https://renlys.tools/build-info.json | jq -r '.commit' || true)
+            echo "live=$live expected=$EXPECTED_SHA"
+            if [ "$live" = "$EXPECTED_SHA" ]; then
+              curl -fsS https://renlys.tools/ >/dev/null
+              echo "Production serves $EXPECTED_SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "production did not serve $EXPECTED_SHA"
+          exit 1

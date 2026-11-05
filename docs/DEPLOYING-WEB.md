@@ -11,16 +11,30 @@ GitHub App — there are no deploy secrets in this repository.
 
 | Event | Deployment | URL |
 | --- | --- | --- |
-| Push to production branch (`main`) | production | <https://renlys.tools> (`www` redirects to apex) |
+| Run `deploy-production` from `main` | production | <https://renlys.tools> (`www` redirects to apex) |
 | Push to any other branch (except `dependabot/*`) / any PR | preview | `https://preview-<branch>.renlys.tools` (the underlying Pages branch host is internal only) |
 
 Every pull request from an in-repo branch gets a preview deployment, except
-Dependabot branches; merging to `main` is the production deploy.
+Dependabot branches. Merging to `main` runs CI and previews only.
+
+### Production deployments
+
+Automatic production deployments are disabled on the Pages project
+(`production_deployments_enabled: false`). To publish, run
+**Actions → deploy-production → Run workflow** from `main`. The workflow:
+
+1. pins the current `main` commit;
+2. creates a Pages deployment with `branch=main` and that commit;
+3. waits for the Pages build to succeed;
+4. verifies `https://renlys.tools/build-info.json` matches the commit.
+
+This keeps production behind an explicit maintainer action while PR previews
+remain automatic.
 
 ## When builds run
 
-Two filters on the Pages project decide whether a push builds at all
-(Settings → Build):
+Preview builds use two filters on the Pages project (Settings → Build).
+Production is built only by the manual workflow above.
 
 - **Preview branches**: all branches except `dependabot/*` — dependency PRs
   change manifests, not the site, and stay out of the deployment history.

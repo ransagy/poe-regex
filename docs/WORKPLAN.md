@@ -17,7 +17,8 @@ Current planned and parked work. Behavior is documented in
   ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
 - Tests: 110 core, 324 web, 25 data-build; main CI green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
-  daily deployment cleanup.
+  daily deployment cleanup. Production deploys are manual via
+  `deploy-production`; previews remain automatic.
 - PWA: installable offline shell with a build-versioned service worker;
   installability, offline reload, and cache replacement pass locally.
 
