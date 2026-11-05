@@ -18,16 +18,16 @@ Current planned and parked work. Behavior is documented in
 - Tests: 110 core, 324 web, 25 data-build; main CI green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup.
+- PWA: installable offline shell with a build-versioned service worker;
+  installability, offline reload, and cache replacement pass locally.
 
 ## Next
 
-1. **PWA:** service worker and manifest for installable/offline use, with
-   cache-versioning tests.
-2. **Catalog/import fidelity:** close remaining implicit/shorthand gaps and
+1. **Catalog/import fidelity:** close remaining implicit/shorthand gaps and
    make ambiguous import lines more deterministic.
-3. **Web a11y follow-up:** color-vision emulation pass and compact-layout
+2. **Web a11y follow-up:** color-vision emulation pass and compact-layout
    review.
-4. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
+3. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
    as a manual gate.
 
 ## Parked

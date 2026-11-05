@@ -2,6 +2,18 @@
 /index.html
   Cache-Control: no-cache
 
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+/precache-manifest.json
+  Cache-Control: no-cache
+
+/build-info.json
+  Cache-Control: no-cache
+
 # .NET 10 fingerprints every file in _framework/ (content hash in the
 # name), so these are safe to cache forever; new builds get new names.
 /_framework/*

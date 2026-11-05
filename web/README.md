@@ -8,6 +8,9 @@ hand-drawn CSS/SVG). The deployed static build is at
 <https://renlys.tools> (link-only; preview hosts are noindex) and includes
 Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
+The app is installable and works offline after one online load: `build.sh`
+generates a precache manifest, and the service worker caches the shell per
+build commit. Registration is skipped on localhost.
 
 Current work: [`docs/WORKPLAN.md`](../docs/WORKPLAN.md).
 Acceptance and performance: [`docs/ACCEPTANCE.md`](../docs/ACCEPTANCE.md).
