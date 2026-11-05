@@ -12,8 +12,8 @@ public enum FootprintConfidence
 public sealed record ItemFootprint(int Cols, int Rows, FootprintConfidence Confidence);
 
 /// <summary>
-/// Backpack cell footprints per item class (maintainer-confirmed table;
-/// see docs/WEB-APP-PLAN.md §8.2). Anything unlisted falls back to 1x3.
+/// Backpack cell footprints per item class (maintainer-confirmed table).
+/// Anything unlisted falls back to 1x3.
 /// </summary>
 public static class ItemFootprints
 {

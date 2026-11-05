@@ -1,12 +1,9 @@
-# PoE2 candidate report — proof-complete snapshot
+# PoE2 exact table — proof and coverage
 
 Artifact: `docs/CANDIDATE-MATRIX-poe2.html`  
 Status: `docs/CANDIDATE-STATUS-poe2.json`  
 Proof: `docs/CANDIDATE-PROOF-poe2.json`  
 Table: `data/catalogs/poe2.fragments.json`
-
-This snapshot applies the policy-eligible proof candidates and re-proves the
-result to a fixed point.
 
 ## Model and policy
 
@@ -42,31 +39,23 @@ works from advanced descriptions.
 ## Artifact coverage
 
 ```text
-182 families · 600 scopes · 0 unresolved
-bounds: 250 (600)
+182 families · 600 rows · 892 expanded scopes · 0 unresolved
+bound-limited: 0
 ```
 
-| Scope | Strict | Minion | Current-only |
-|---|---:|---:|---:|
-| Global | 0 | 0 | 221 |
-| Class | 0 | 0 | 253 |
-| Per-class | 0 | 0 | 126 |
+| Scope | Current-only rows |
+|---|---:|
+| Global | 221 |
+| Class | 253 |
+| Per-class | 126 |
 
-There are **0 bound-limited scopes**. All 600 rows are the exact current
-table; the seeded matrix keeps an already-proven equal-length form, so every
-row is marked `current-only`. The proof independently checks every expanded
-scope for a shorter candidate.
+Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-136 global patterns · 21 classes · 0 unresolved
+136 global patterns · 21 classes · 525 class fragments · 0 unresolved
 ```
-
-The exact strict pass replaced the heuristic candidate grammar. It shortened
-51 global and 82 class fragments and lengthened 15 global and 13 class
-fragments where the old form collided with a same-stat source or cross-stat
-line. Net inner-character savings: **206**.
 
 Examples:
 
@@ -92,18 +81,7 @@ Nine catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
 global union, and proof. Their catalog entries remain for data fidelity. The
 pruned artifacts drop 12 fishing/trap families, 11 global patterns, and 190
 class fragments; released classes keep their fragments. The global union,
-safety lines, and cross-line sections now contain released classes only.
-
-## Class-mapping correction
-
-RePoE includes unique bases in `mods_by_base`, and the class mapper was
-treating a unique-only base as evidence that a regular prefix/suffix can roll
-on the whole class. Filtering those bases removed 40 false Buckler mappings
-across six families (Strength, Armour/Evasion, Armour/Evasion/Stun Threshold,
-Base Armour/Evasion, Armour Applies to Elemental Damage, and Reduced Critical
-Damage). Reduced Critical Damage Bonus is now Shield/Targe only; max elemental
-resistance remains on both Shields and Bucklers because both have the regular
-`shield` tag.
+safety lines, and cross-line sections contain released classes only.
 
 ## Proof status
 
@@ -114,8 +92,7 @@ shortestProven: true
 ```
 
 The proof is relative to the current grammar and safety corpus. It is not a
-claim about arbitrary regexes outside that grammar, nor about unmodeled
-unique/socketable/base text.
+claim about arbitrary regexes outside that grammar.
 
 ## From-scratch reproducibility
 
@@ -257,50 +234,31 @@ anchor is not optional for these forms.
 
 The raw data includes unique-only, jewel/socketable, base, and skill lines
 that the selectable catalog and vendor corpus deliberately exclude. Observed
-field lines are now in the safety fixtures (`Idol of the Sycophant`,
+field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
-`from Equipped Body Armour` and `from Equipped Quiver` lines). A complete
-global safety corpus remains the next coverage improvement; the current proof
-is complete for the modeled corpus plus captured fixtures.
+`from Equipped Body Armour` and `from Equipped Quiver` lines). The proof is
+complete for the modeled corpus plus captured fixtures. Unmodeled unique,
+rare, flavour, and socketable text can still highlight; this is accepted and
+out of scope.
 
 ### Strict target membership
 
-The table no longer allows soft collisions. A line is a target only when its
+The table does not allow soft collisions. A line is a target only when its
 normalized pattern is the target pattern for the scope. Minion/allies lines,
 jewel `from Equipped Shield` lines, and desecrated `from Equipped` lines are
 foreign unless the target pattern itself includes that subject/source.
 
-This is why the previous accepted forms are gone:
+Examples of strict forms:
 
-- `d Armour,` is replaced by `-.*d a.+,` (the latter excludes the fixed-value
-  jewel line without matching it).
+- `-.*d a.+,` excludes the fixed-value jewel line without matching it.
 - Amulet Evasion is `-.*va`, not `d Ev`.
 - Amulet Armour is `-.*rm`, not `d Ar`.
 
 Cross-stat and same-stat source lines are both in the foreign corpus. No
 policy exception can reintroduce them without changing the basis.
 
-## Optional changed-form checks
+## Grammar scope
 
 The data and exact grammar proof are authoritative. No random in-game item
 sampling is required for the guarantee. A future grammar profile that adds a
 new regex construct needs a one-time conformance test for that construct.
-
-## Import search
-
-The current importer still expects catalog-generated fragments. Existing
-build-guide regexes use unquoted terms, alternations, affix names, thresholds,
-and broad stat words, so importer semantics remain a separate follow-up.
-
-## Resource note
-
-The current pipeline is one command with `--jobs 4`:
-
-```text
-matrix-solve (seeded):        ~66s
-matrix-solve (from scratch):  ~95s
-exact proof:                  ~34s
-```
-
-`matrix-solve` is the one pipeline; `matrix-proof` re-checks the committed
-matrix without writing the table.

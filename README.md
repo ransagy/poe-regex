@@ -16,7 +16,7 @@ workbench that compiles queries in-browser for the in-game Highlight search.
 The deployed build is at <https://renlys.tools> (link-only; preview
 hosts are excluded from search engines).
 
-Current status and parked work: [`docs/STATUS.md`](docs/STATUS.md).
+Current work: [`docs/WORKPLAN.md`](docs/WORKPLAN.md). Acceptance: [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md).
 
 ## Design
 
