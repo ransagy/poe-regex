@@ -20,7 +20,7 @@ namespace PoeRegex.ImportCoverage;
 ///   dotnet run --project tools/PoeRegex.ImportCoverage
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --guides /path/to/guides.txt
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --phase1
-///   dotnet run --project tools/PoeRegex.ImportCoverage -- --out docs/X.md --json docs/X.json
+///   dotnet run --project tools/PoeRegex.ImportCoverage -- --out out/X.md --json out/X.json
 ///
 /// Guide files use <c>Name = filter</c> per line; quoted filters may use several
 /// groups. Guide text is supplied locally and is never written to the report.
@@ -29,10 +29,10 @@ namespace PoeRegex.ImportCoverage;
 /// </summary>
 public static class Program
 {
-    private const string DefaultOut = "docs/IMPORT-COVERAGE-poe2.md";
-    private const string DefaultJson = "docs/IMPORT-COVERAGE-poe2.json";
-    private const string Phase1Out = "docs/IMPORT-RECONSTRUCTION-poe2.md";
-    private const string Phase1Json = "docs/IMPORT-RECONSTRUCTION-poe2.json";
+    private const string DefaultOut = "out/import-coverage.md";
+    private const string DefaultJson = "out/import-coverage.json";
+    private const string Phase1Out = "out/import-reconstruction.md";
+    private const string Phase1Json = "out/import-reconstruction.json";
 
     public static int Main(string[] args)
     {

@@ -38,4 +38,4 @@ and exclusion picks, copy, explain cold/warm, clear, bulk add, import open/parse
 builder open/cancel, and long-task/memory metrics.
 
 For the latest results and interpretation, see
-[`docs/WEB-PERF-poe2.md`](../../docs/WEB-PERF-poe2.md).
+[`docs/ACCEPTANCE.md`](../../docs/ACCEPTANCE.md).

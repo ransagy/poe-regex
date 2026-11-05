@@ -1,4 +1,4 @@
-# Import audit — PoE2 workbench
+# Import behavior and coverage — PoE2 workbench
 
 Two import surfaces are covered:
 
@@ -40,7 +40,7 @@ Expected exceptions remain explicit:
 
 ## Search-string import
 
-`QueryImportService` now handles:
+`QueryImportService` handles:
 
 - exact table fragments
 - class anchors, including alternation anchors
@@ -81,11 +81,11 @@ as search-string reconstruction:
   verify-in-game diagnostic;
 - the preview and apply path reuse the read-only Your-picks view.
 
-Current guide limitations: no base-type list yet, and explicit `:`/`s:`
+Guide limitations: no base-type list yet, and explicit `:`/`s:`
 anchors are not mapped to slots; `s:` class filters are preserved as raw
 `Item Class:` terms.
 
-## Remaining limitations
+## Limitations
 
 - The catalog ships prefix/suffix generations only; implicits are intentionally
   unmapped unless their exact text overlaps a catalog affix.

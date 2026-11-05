@@ -9,11 +9,10 @@ hand-drawn CSS/SVG). The deployed static build is at
 Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 
-Current status and parked work: [`docs/STATUS.md`](../docs/STATUS.md).
-Full product plan and work log: [`docs/WEB-APP-PLAN.md`](../docs/WEB-APP-PLAN.md).
+Current work: [`docs/WORKPLAN.md`](../docs/WORKPLAN.md).
+Acceptance and performance: [`docs/ACCEPTANCE.md`](../docs/ACCEPTANCE.md).
 Deployment: [`docs/DEPLOYING-WEB.md`](../docs/DEPLOYING-WEB.md).
-Performance: [`docs/WEB-PERF-poe2.md`](../docs/WEB-PERF-poe2.md).
-Import audit: [`docs/IMPORT-AUDIT-poe2.md`](../docs/IMPORT-AUDIT-poe2.md).
+Import behavior: [`docs/IMPORT.md`](../docs/IMPORT.md).
 Data/asset provenance: [`docs/PROVENANCE.md`](../docs/PROVENANCE.md).
 
 ## Prerequisites
@@ -230,9 +229,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   `f d.*n r.*e$` (12), and `#% increased Armour, Evasion and Energy Shield` →
   `-.*d a.+,` (9). The catalog/table audits check all scope entries with .NET
   Regex, captured-item modeled lines, simple/slot compiles, family flows, and
-  class-pair pastes; the in-game rare-name/unique check remains manual.
-- `SearchBar` and `PickBreakdown` replace the old picks rail and result bar.
-  The bar shows the string with each quoted block underlined by role (class
+  class-pair pastes.
+- `SearchBar` and `PickBreakdown` render the string and its parts. The bar
+  shows the string with each quoted block underlined by role (class
   anchor grey, included mods blue, exclusions red), Copy with an optional
   `Copy on every change` in the header Options popover (stored in
   `poe-regex.auto-copy`; it only writes the clipboard after a user gesture, so
@@ -312,7 +311,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - `Services/PersistenceService.cs` — localStorage for the workbench and saved
   picks, behind an `IShareStore`-style seam. Workbench loads and saved picks
   are checked by `SnapshotValidator`; share links are `SnapshotCodec`
-  fragments; short links and accounts are future work (see the plan doc).
+  fragments; short links and accounts are future work (see the workplan).
 - `functions/_middleware.js` — Pages host guard: the bare project host
   redirects to `renlys.tools`, and branch/hash hosts require the preview
   router's secret header. `wwwroot/_routes.json` makes the guard run on every
@@ -328,17 +327,15 @@ Engine-facing logic lives in `src/PoeRegex.Web.Core` (`EngineService`,
 `WorkbenchState`, `ItemTextParser`, `ItemMatcher`, `TestItem`,
 `Persistence`) so it is unit-testable without a browser.
 
-## Known limitations (all flagged for maintainer QA)
+## Known limitations
 
-QA ledger and current browser measurements:
-[`docs/QA-poe2.md`](../docs/QA-poe2.md).
+Acceptance criteria and current measurements:
+[`docs/ACCEPTANCE.md`](../docs/ACCEPTANCE.md).
 
-- Slot footprints/arrangement and backpack dims are the author's reading of
-  the provided screenshot — confirm visually.
-- Backpack footprints: confirmed table in `ItemFootprints` (belts 2×1,
-  buckler 2×2, armour shields 2×4, 1H mace 2×3, wands 1×3, staves/spears 1×4,
-  standard armour/accessories); everything else uses a flagged 1×3 Unknown
-  fallback — gap list in the plan doc.
+- Backpack dimensions are 12×5. Footprints are the maintainer-confirmed table
+  in `ItemFootprints` (belts 2×1, buckler 2×2, armour shields 2×4, 1H mace
+  2×3, wands 1×3, staves/spears 1×4, standard armour/accessories); unlisted
+  classes use a flagged 1×3 Unknown fallback.
 - Multi mode ends in ONE combined stash paste (anchor + per-slot exclusion
   groups, whole-text OR-in-group / AND-across-groups); per-slot queries stay
   in Advanced. Same-class slots merge (union); exclusions apply globally.
@@ -353,13 +350,9 @@ QA ledger and current browser measurements:
 - Text before an item's `Item Class:` line is paste noise (the game's copy
   can open with a stray blurb such as a lowercase `sockets`): the parser
   drops it instead of showing it as a base-stat line. Text with no
-  `Item Class:` at all keeps the old single-item behavior (all lines are
-  base lines).
-- Minimums are back as a per-pick `min` input in Your picks. A numeric floor
-  still compiles as near-whole-line text (often 10x the plain fragment), so
-  the input sits next to the pick's cost to make the trade visible; tier
-  picks remain the cheaper way to limit rolls. Snapshots older than v4 drop
-  their stored floors on load: they came from the retired min-roll box and
-  were never visible.
+  `Item Class:` is parsed as one item; all lines are base lines.
+- Each pick in Your picks has a `min` input. A numeric floor compiles as
+  near-whole-line text (often 10× the plain fragment), so the input sits next
+  to the pick's cost; tier picks remain the cheaper way to limit rolls.
 - Publish is the unoptimized interpreter build (25 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).

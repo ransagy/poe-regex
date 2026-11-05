@@ -1,6 +1,6 @@
 # Deploying the web app (Cloudflare Pages)
 
-> Current status and parked work: [`STATUS.md`](STATUS.md).
+> Current status and planned work: [`WORKPLAN.md`](WORKPLAN.md).
 
 The Blazor WebAssembly app in `web/` — "Renly's Tools", this project's web
 reference implementation — is deployed as a static site on Cloudflare Pages.
@@ -272,31 +272,7 @@ settings if you redeploy this site without analytics. Details:
 
 ## Deployment retention
 
-Only the canonical production deployment is kept. The one-time cleanup removed
-the historical production and preview deployments; their internal hash and
-branch hosts stopped resolving. The daily `cleanup-deployments` workflow keeps
-it that way: it deletes old production deployments, stale previews, and orphan
-contributor branches. Every deployment built after the host guard was added
-rejects direct access, so any deployment that predates the guard must be
-deleted once.
-
-## Status
-
-- [x] build script + headers + redirects + PR CI
-- [x] Pages project created and connected to this repository
-- [x] preview deployment verified on a feature branch (headless boot to
-      rendered app; SPA deep links, wasm MIME, cache + noindex headers)
-- [x] production deploy verified on `main` (build-info trace, noindex,
-      `_framework` immutable caching)
-- [x] production custom domain `renlys.tools`; branded previews via
-      `preview-<branch>.renlys.tools` Worker router
-- [x] build filters: no previews for `dependabot/*`, docs-only pushes skip
-      the build (watch paths)
-- [x] manual contributor (fork) preview opt-in with `/preview`, automatic
-      refresh on new commits, one upserted preview comment, cleanup on PR
-      close, and `/preview-cleanup`
-- [x] custom domain + branded previews
-- [x] Pages hosts guarded: root redirects to `renlys.tools`, branch/hash hosts
-      require the router secret header
-- [x] daily cleanup for old production deployments, stale previews, and
-      orphan contributor branches
+Only the canonical production deployment is kept. The daily
+`cleanup-deployments` workflow deletes old production deployments, stale
+previews, and orphan contributor branches. Every deployment carries the host
+guard; direct branch/hash hosts are rejected.
