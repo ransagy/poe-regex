@@ -55,9 +55,9 @@
                                                 }
                                             }
                                         </span>
-                                        @if (fam.IsDesecrated)
+                                        @if (fam.SourceTag is { } sourceTag)
                                         {
-                                            <span class="mod-source">Desecrated</span>
+                                            <span class="mod-source">@sourceTag</span>
                                         }
                                         <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                                     </button>

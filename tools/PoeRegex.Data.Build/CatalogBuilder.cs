@@ -200,6 +200,8 @@ public static class CatalogBuilder
         string classLine)
     {
         var corpus = new List<string>(classLines.TryGetValue(classId, out var set) ? set : new HashSet<string>());
+        // Canonical order keeps equal-length tie-breaks stable across processes.
+        corpus.Sort(StringComparer.Ordinal);
         // Same universal non-mod lines the runtime oracle sees, so embedded
         // fingerprints avoid them too. The class line must stay LAST: callers
         // fingerprint it via corpus.Count - 1.

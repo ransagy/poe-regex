@@ -421,6 +421,7 @@ input:disabled { opacity: 0.5; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mod-source { color: var(--desecrated); font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
+.bd-label .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .picked .fam-text { color: var(--text); }
 
@@ -584,7 +585,9 @@ input:disabled { opacity: 0.5; }
 }
 .bd-row:hover, .bd-row.hot { background: var(--raised); }
 .bd-what { min-width: 0; display: flex; flex-direction: column; }
-.bd-label { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-label { font-size: 0.88rem; display: flex; align-items: baseline; min-width: 0; white-space: nowrap; }
+.bd-label .bd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bd-label .mod-source { flex: none; }
 .bd-detail { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bd-row.exc .bd-label { color: var(--exc-ink); }
 .bd-row.imported .bd-label { font-family: var(--mono); }

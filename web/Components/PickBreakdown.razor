@@ -182,7 +182,21 @@
                     var frag = Model.PickFragment(inc, cls);
                     var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
                     var own = Model.PickBlock(slot, inc);
-                    var label = inc.IsNamePick ? $"\"{inc.Names![0]}\"" : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
+                    var label = inc.IsNamePick
+                        ? $"\"{inc.Names![0]}\""
+                        : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
+                    var incMod = inc.IsNamePick ? null : Engine.FindMod(inc.ModId);
+                    var family = incMod is null
+                        ? null
+                        : families.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(incMod));
+                    if (family is { IsDesecrated: true } && !inc.IsNamePick)
+                    {
+                        if (family.Tiers.Count == 1)
+                            label = string.Join(" / ", family.Tiers[0].DisplayLines);
+                        else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
+                            label = string.Join(" / ", tier.DisplayLines);
+                    }
+                    var sourceTag = SourceTagFor(inc);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
                     var busy = _minBusy?.SamePick(inc) == true;
@@ -190,11 +204,11 @@
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
                         <span class="bd-what">
                             <span class="bd-label">
-                                @if (IsDesecratedPick(inc))
+                                <span class="bd-text">@label@(inc.IsNamePick && inc.Names!.Count > 1 ? " or better" : "")</span>
+                                @if (sourceTag is not null)
                                 {
-                                    <span class="mod-source">Desecrated</span>
+                                    <span class="mod-source">@sourceTag</span>
                                 }
-                                @label@(inc.IsNamePick && inc.Names!.Count > 1 ? " or better" : "")
                             </span>
                             @if (inc.IsNamePick && tier is not null)
                             {
@@ -245,15 +259,16 @@
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
                     var label = SearchModel.ExcludeLabel(exc, mods);
+                    var sourceTag = SourceTagFor(exc);
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what">
                             <span class="bd-label">
-                                @if (IsDesecratedExclude(exc))
+                                <span class="bd-text">@label</span>
+                                @if (sourceTag is not null)
                                 {
-                                    <span class="mod-source">Desecrated</span>
+                                    <span class="mod-source">@sourceTag</span>
                                 }
-                                @label
                             </span>
                         </span>
                         <span></span>
@@ -350,7 +365,7 @@
                         id="chip-import-any-@item.Index"
                         @onmouseenter="() => { _hotAnyOfIndex = item.Index; Model.Hot(blocks); }"
                         @onmouseleave="() => { _hotAnyOfIndex = null; Model.Cool(); }">
-                        <span class="bd-what"><span class="bd-label">@term</span></span>
+                        <span class="bd-what"><span class="bd-label"><span class="bd-text">@term</span></span></span>
                         <span class="bd-n" title="@($"{term.Length} characters as part of the pick group")">@term.Length<span class="bd-unit"> chars</span></span>
                         @if (!ReadOnly)
                         {
@@ -373,7 +388,7 @@
                     <li class="bd-row imported @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")"
                         id="chip-import-inc-@item.Index"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
-                        <span class="bd-what"><span class="bd-label">@item.Term</span></span>
+                        <span class="bd-what"><span class="bd-label"><span class="bd-text">@item.Term</span></span></span>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
                         @if (!ReadOnly)
                         {
@@ -397,7 +412,7 @@
                     <li class="bd-row exc imported @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")"
                         id="chip-import-exc-@item.Index"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
-                        <span class="bd-what"><span class="bd-label">@term</span></span>
+                        <span class="bd-what"><span class="bd-label"><span class="bd-text">@term</span></span></span>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
                         @if (!ReadOnly)
                         {
@@ -421,17 +436,40 @@
         Engine.PrecomputedMinCapability(pick, cls)
         ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
 
-    private bool IsDesecratedPick(WantedMod pick)
+    private string? SourceTagFor(WantedMod pick)
     {
         var ids = pick.VariantModIds is { Count: > 0 } variants
             ? variants
             : (IReadOnlyList<string>)new[] { pick.ModId };
-        return ids.Any(id => Engine.FindMod(id)?.Source == "desecrated");
+        return SourceTagFor(ids);
     }
 
-    private bool IsDesecratedExclude(string term) =>
-        Engine.FindMod(term)?.Source == "desecrated" ||
-        Engine.PlayableMods().Any(m => m.Source == "desecrated" && m.Name == term);
+    private string? SourceTagFor(string term)
+    {
+        var mod = Engine.FindMod(term);
+        if (mod is not null) return SourceTagFor([mod.Id]);
+        var byName = Engine.PlayableMods()
+            .Where(m => m.Source == "desecrated" && m.Name == term)
+            .ToList();
+        return SourceTagFor(byName.Select(m => m.Id));
+    }
+
+    private string? SourceTagFor(IEnumerable<string> ids)
+    {
+        var mods = ids.Select(Engine.FindMod)
+            .Where(m => m?.Source == "desecrated")
+            .Select(m => m!)
+            .ToList();
+        if (mods.Count == 0) return null;
+        var factions = mods.Select(m => ModFamily.FactionName(m.Name))
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+        return factions.Count == 0
+            ? "Desecrated"
+            : "Desecrated · " + string.Join(" / ", factions);
+    }
 
     private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
     {

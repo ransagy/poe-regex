@@ -178,9 +178,9 @@ public class QueryReconstructionTests
     [Fact]
     public void DuplicateExclusions_RoundTripAndApply()
     {
-        // Two distinct mods compile to the same `!"o ar"`; both must survive.
+        // Two distinct mods compile to the same `!"o Ar"`; both must survive.
         const string query =
-            "\"\\) co.*e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"o ar\" !\"o ar\"";
+            "\"\\) co.*e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"o Ar\" !\"o Ar\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -198,7 +198,7 @@ public class QueryReconstructionTests
     public void DuplicateAllOfGroups_RoundTripAndApply()
     {
         // Two distinct picks compile to the same `"gth$"` group in one all-of slot.
-        const string query = "\": Gl\" \"gth$\" \",.+ld$\" \"ur .+h\" \"gth$\" !\"m M\" !\"tn.+o\"";
+        const string query = "\": Gl\" \"gth$\" \",.+ld$\" \"ur .+y\" \"gth$\" !\"m M\" !\"tn.+o\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -222,10 +222,10 @@ public class QueryReconstructionTests
         // Body Armour and Gloves both want "+ to Evasion Rating", but the app
         // compiled them with different per-class fragments.
         const string query =
-            "\": (Bod|Cro|Fo|Gl)\" \": (Cro|Fo|Gl)|o ev\" " +
+            "\": (Bod|Cro|Fo|Gl)\" \": (Cro|Fo|Gl)|o Ev\" " +
             "\": (Bod|Fo|Gl)|nus$|of (Light|Radiance|Shining)\" " +
-            "\": (Bod|Cro|Gl)|of the Virtuoso\" \": (Bod|Cro|Gl)|o ch\" " +
-            "\": (Bod|Cro|Fo)|o e.+g$\"";
+            "\": (Bod|Cro|Gl)|of the Virtuoso\" \": (Bod|Cro|Gl)|o Ch\" " +
+            "\": (Bod|Cro|Fo)|^\\+.*on\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -250,7 +250,7 @@ public class QueryReconstructionTests
         // The six names are exactly the LocalFireDamage suffix from Flaming
         // up; the four fragments are separate picks in the same any-of group.
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -275,7 +275,7 @@ public class QueryReconstructionTests
     {
         // A subset of a family suffix is not "or better"; keep the two names
         // as their own picks so the search is not broadened.
-        const string query = "\"Flaming|Scorching|\\+.*fe$\"";
+        const string query = "\"Flaming|Scorching|\\+.*ife\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -330,7 +330,7 @@ public class QueryReconstructionTests
     {
         // A real app string: six affix names plus four fragments in one group.
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 

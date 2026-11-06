@@ -106,7 +106,7 @@ public class WebComponentTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
-        cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*fe$");
+        cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
         cut.Find("#slot-copy-simple").Should().NotBeNull();
         cut.FindAll("#auto-copy").Should().BeEmpty(); // moved into the header Options popover
     }
@@ -178,7 +178,7 @@ public class WebComponentTests
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var state = new WorkbenchState();
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
 
         var cut = ctx.Render<QueryImportPanel>(p => p
             .Add(x => x.State, state)

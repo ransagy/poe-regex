@@ -115,6 +115,7 @@ public static class Program
         var table = GetValue(opts, "--table", TablePath);
         var proof = GetValue(opts, "--proof", ProofPath);
         var status = GetValue(opts, "--status", StatusPath);
+        var prefer = opts.TryGetValue("--prefer", out var preferPath) ? preferPath : "";
 
         var common = new[] { "--catalog", catalog };
         var matrixArgs = common.Concat(new[] { "--jobs", jobs, "--out", matrix });
@@ -123,7 +124,10 @@ public static class Program
         var code = CandidateMatrix.Run(matrixArgs.ToArray());
         if (code != 0) return code;
 
-        code = MatrixTable(common.Concat(new[] { "--matrix", matrix, "--out", table }).ToArray());
+        var tableArgs = common.Concat(new[] { "--matrix", matrix, "--out", table });
+        if (prefer.Length > 0)
+            tableArgs = tableArgs.Concat(new[] { "--prefer", prefer });
+        code = MatrixTable(tableArgs.ToArray());
         if (code != 0) return code;
 
         code = MatrixProof.Run(common.Concat(new[]
@@ -148,8 +152,16 @@ public static class Program
         var catalogPath = GetValue(opts, "--catalog", CatalogPath);
         var matrixPath = GetValue(opts, "--matrix", MatrixPath);
         var outPath = GetValue(opts, "--out", TablePath);
+        var preferPath = GetValue(opts, "--prefer", "");
 
         var catalog = new FileCatalogSource(catalogPath).Load();
+        FragmentTable? prefer = null;
+        if (preferPath.Length > 0 && File.Exists(preferPath))
+        {
+            prefer = JsonSerializer.Deserialize<FragmentTable>(
+                File.ReadAllText(preferPath),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
         var corpus = new EngineCorpus(catalog);
         var global = new Dictionary<string, string>(StringComparer.Ordinal);
         var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
@@ -176,7 +188,17 @@ public static class Program
             return value;
         }
 
+        string Prefer(Dictionary<string, string>? oldMap, string pattern,
+            string chosen, ScopeCorpus scope)
+        {
+            if (oldMap is null || !oldMap.TryGetValue(pattern, out var old)) return chosen;
+            if (old.Length != chosen.Length) return chosen;
+            var option = ExactOracle.Check(scope, pattern, old);
+            return option is not null && option.ForeignLines == 0 ? old : chosen;
+        }
+
         var applied = 0;
+        var stabilized = 0;
         var rejected = 0;
         foreach (var family in document.RootElement.GetProperty("families").EnumerateArray())
         foreach (var patternNode in family.GetProperty("patterns").EnumerateArray())
@@ -207,7 +229,9 @@ public static class Program
                         rejected++;
                         continue;
                     }
-                    global[pattern] = fragment;
+                    var preferred = Prefer(prefer?.Global, pattern, fragment, globalScope);
+                    if (!string.Equals(preferred, fragment, StringComparison.Ordinal)) stabilized++;
+                    global[pattern] = preferred;
                     applied++;
                 }
                 else
@@ -228,7 +252,11 @@ public static class Program
                             map = new Dictionary<string, string>(StringComparer.Ordinal);
                             byClass[classId] = map;
                         }
-                        map[pattern] = fragment;
+                        var preferred = Prefer(
+                            prefer?.ByClass.GetValueOrDefault(classId), pattern,
+                            fragment, ScopeFor(classId));
+                        if (!string.Equals(preferred, fragment, StringComparison.Ordinal)) stabilized++;
+                        map[pattern] = preferred;
                         applied++;
                     }
                 }
@@ -275,8 +303,8 @@ public static class Program
             WriteIndented = true,
         }));
         Console.WriteLine(
-            $"matrix-table: applied {applied} scope choices, {global.Count} global, " +
-            $"{byClass.Count} classes -> {outPath}");
+            $"matrix-table: applied {applied} scope choices, {stabilized} stabilized, " +
+            $"{global.Count} global, {byClass.Count} classes -> {outPath}");
         return 0;
     }
 

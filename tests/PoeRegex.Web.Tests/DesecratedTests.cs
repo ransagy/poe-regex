@@ -59,6 +59,7 @@ public class DesecratedTests
 
         var oneFamily = ModFamilies.Group(Engine.ModsForClass("One Hand Mace"))
             .Single(f => f.Key == "desecrated:ArmourPenetration");
+        oneFamily.SourceTag.Should().Be("Desecrated · Amanamu");
         oneFamily.Tiers.Should().ContainSingle();
         oneFamily.Tiers[0].DisplayLines.Should().ContainSingle()
             .Which.Should().Contain("2–4");
@@ -68,6 +69,20 @@ public class DesecratedTests
         twoFamily.Tiers.Should().ContainSingle();
         twoFamily.Tiers[0].DisplayLines.Should().ContainSingle()
             .Which.Should().Contain("4–7");
+    }
+
+    [Fact]
+    public void BreakArmourGlobal_HasSeparateRangeTiers()
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods())
+            .Single(f => f.Key == "desecrated:ArmourPenetration");
+
+        family.SourceTag.Should().Be("Desecrated · Amanamu");
+        family.Tiers.Should().HaveCount(2);
+        family.Tiers.Select(t => t.DisplayLabel)
+            .Should().BeEquivalentTo(["2–4%", "4–7%"]);
+        family.Tiers.Should().OnlyContain(t =>
+            t.DisplayLines.Count == 1 && t.DisplayLines[0].Contains("Break Armour"));
     }
 
     [Fact]

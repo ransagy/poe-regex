@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
@@ -24,6 +25,15 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
     public IReadOnlyList<string> DisplayLines => Members.Count == 1
         ? Members[0].StatLines.Select(ModSearch.DisplayLine).ToList()
         : Members.Select(m => ModSearch.DisplayLine(m.StatLines[0])).Distinct().ToList();
+
+    /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
+    /// desecrated mods.</summary>
+    public string Source { get; init; } = "";
+
+    /// <summary>User-facing tier label. Normal tiers use their affix name;
+    /// desecrated tiers use their numeric range because faction names repeat
+    /// across every mod of a faction.</summary>
+    public string DisplayLabel { get; init; } = "";
 }
 
 /// <summary>
@@ -42,6 +52,34 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     public bool IsDesecrated => Source == "desecrated";
 
     public IEnumerable<ModEntry> Members => Tiers.SelectMany(t => t.Members);
+
+    /// <summary>Distinct normalized faction names (Amanamu, Kurgal, Ulaman)
+    /// for the desecrated mods in this family.</summary>
+    public IReadOnlyList<string> Factions => Members
+        .Select(m => FactionName(m.Name))
+        .Where(x => x.Length > 0)
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(x => x, StringComparer.Ordinal)
+        .ToList();
+
+    /// <summary>Green source tag for the row; includes faction when known.</summary>
+    public string? SourceTag => !IsDesecrated
+        ? null
+        : Factions.Count == 0
+            ? "Desecrated"
+            : "Desecrated · " + string.Join(" / ", Factions);
+
+    /// <summary>Normalize `of Amanamu` / `Amanamu's` to `Amanamu`.</summary>
+    public static string FactionName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var value = name.Trim();
+        if (value.StartsWith("of ", StringComparison.OrdinalIgnoreCase))
+            value = value[3..];
+        if (value.EndsWith("'s", StringComparison.OrdinalIgnoreCase))
+            value = value[..^2];
+        return value.Trim();
+    }
 
     /// <summary>Representative member for whole-family picks (base tier).</summary>
     public ModEntry Anchor => Tiers[0].Anchor;
@@ -72,13 +110,16 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
-    public IReadOnlyList<string> NamesFrom(ModTier tier) => Tiers
-        .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
-        .OrderBy(t => t.RequiredLevel)
-        .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-        .Select(t => t.Name)
-        .Distinct(StringComparer.Ordinal)
-        .ToList();
+    public IReadOnlyList<string> NamesFrom(ModTier tier) =>
+        Source == "desecrated"
+            ? []
+            : Tiers
+                .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
+                .OrderBy(t => t.RequiredLevel)
+                .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(t => t.Name)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
 }
 
 /// <summary>
@@ -141,15 +182,20 @@ public static class ModFamilies
         {
             var members = famGroup.ToList();
             var tiers = members
-                .GroupBy(m => m.Name ?? "")
+                .GroupBy(TierKey)
                 .Select(g =>
                 {
                     var tierMembers = g
                         .OrderBy(m => m.RequiredLevel)
                         .ThenBy(m => m.Id, StringComparer.Ordinal)
                         .ToList();
-                    return new ModTier(tierMembers[0].Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
+                    var anchor = tierMembers[0];
+                    return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
                     {
+                        Source = anchor.Source,
+                        DisplayLabel = anchor.Source == "desecrated"
+                            ? RangeLabel(anchor)
+                            : anchor.Name ?? "",
                         SearchText = SearchTextOf(tierMembers),
                     };
                 })
@@ -164,6 +210,28 @@ public static class ModFamilies
             });
         }
         return families;
+    }
+
+    private static string TierKey(ModEntry mod) =>
+        mod.Source == "desecrated"
+            ? string.Join("\u0001", mod.StatLines.Select(sl =>
+                $"{sl.Pattern}\u0002{sl.RangeLine}"))
+            : mod.Name ?? "";
+
+    private static string RangeLabel(ModEntry mod)
+    {
+        var parts = mod.StatLines
+            .Where(sl => sl.MinValue != 0 || sl.MaxValue != 0)
+            .Select(sl =>
+            {
+                var min = sl.MinValue.ToString("0.##", CultureInfo.InvariantCulture);
+                var max = sl.MaxValue.ToString("0.##", CultureInfo.InvariantCulture);
+                var percent = sl.RangeLine.Contains('%') ? "%" : "";
+                return min == max ? $"{min}{percent}" : $"{min}–{max}{percent}";
+            })
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return string.Join(" / ", parts);
     }
 
     private static string SearchTextOf(IReadOnlyList<ModEntry> members)

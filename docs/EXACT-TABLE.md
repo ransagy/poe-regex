@@ -109,7 +109,12 @@ table:   297 global · 21 classes · 869 class fragments
 proof:   1415 / 1415 · 0 failures
 ```
 
-This from-scratch run is the shipped table:
+This from-scratch run is the basis for the shipped table. The shipped table
+also applies a stability pass: an existing fragment is kept when it still
+passes the exact oracle and matches the new shortest length, so equal-length
+tie churn does not retire working strings. The diff report therefore lists
+only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
+reproduce that stability pass.
 
 - Expanded scopes: 1415 / 1415, all proven.
 - Chosen length: proven on every scope.

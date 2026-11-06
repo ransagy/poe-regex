@@ -60,10 +60,13 @@ public class ModPickerHighlightTests
 
         cut.Find("#mod-search").Input("of Ulaman");
 
-        var row = cut.Find($"#fam-toggle-{family.Anchor.Id}").ParentElement!;
-        row.QuerySelector(".mod-source")!.TextContent.Trim().Should().Be("Desecrated");
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().StartWith("Desecrated · ");
         row.QuerySelector(".fam-text .mod-source").Should().BeNull(
             "the source tag belongs in the row's tag cluster, not inside the stat text");
+        row.QuerySelector(".fam-caret").Should().BeNull(
+            "a single-tier same-fragment family collapses without an expand control");
     }
 
     [Fact]
@@ -223,6 +226,28 @@ public class ModPickerHighlightTests
         foreach (var other in family.Tiers.Where(t => t != tier))
             TierRow(cut, other).ClassList.Should().NotContain("picked",
                 "a single tier anchor does not select the rest of the family");
+    }
+
+    [Fact]
+    public void DesecratedTierAnchorPick_LightsOnlyItsRangeTier()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var state = new WorkbenchState();
+        var family = Family(mods, "desecrated:ArmourPenetration");
+        family.Tiers.Should().HaveCount(2);
+        var tier = family.Tiers[0];
+        state.AddInclude(null, new WantedMod(tier.Anchor.Id));
+
+        var cut = Render(ctx, state, mods);
+        cut.Find("#mod-search").Input("Break Armour");
+        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
+
+        TierRow(cut, tier).ClassList.Should().Contain("picked");
+        foreach (var other in family.Tiers.Skip(1))
+            TierRow(cut, other).ClassList.Should().NotContain("picked",
+                "desecrated ranges share a faction name but not a tier");
     }
 
     private static (EngineService Engine, IReadOnlyList<ModEntry> Mods, WorkbenchState State)

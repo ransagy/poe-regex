@@ -105,8 +105,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Unmodeled unique/socketable/base text is outside the safety corpus.
 - Fragment choices can change after a catalog/corpus rebuild. An old raw
   search string that uses a retired fragment may fail reconstruction; re-copy
-  it from the current build. Saved picks and share links store picks and
-  recompile against the current table.
+  it from the current build. The table build keeps existing fragments when
+  they still pass and remain shortest, so only forced changes retire old
+  strings. Saved picks and share links store picks and recompile against the
+  current table.
 
 ## Reproduce
 

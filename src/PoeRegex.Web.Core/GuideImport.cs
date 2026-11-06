@@ -191,6 +191,7 @@ public sealed class GuideImportService(
         }
 
         var exactNames = reconstruction.Families
+            .Where(f => !f.IsDesecrated)
             .SelectMany(f => f.Tiers.Select(t => (Family: f, Tier: t)))
             .Where(x => string.Equals(x.Tier.Name, text, StringComparison.OrdinalIgnoreCase))
             .ToList();
