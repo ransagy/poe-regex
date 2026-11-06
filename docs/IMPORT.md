@@ -103,6 +103,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Guide filters preserve class/rarity/base filters as imported raw terms but
   do not map them to slots yet. Exclusions are applied as raw regex groups.
 - Unmodeled unique/socketable/base text is outside the safety corpus.
+- Fragment choices can change after a catalog/corpus rebuild. An old raw
+  search string that uses a retired fragment may fail reconstruction; re-copy
+  it from the current build. Saved picks and share links store picks and
+  recompile against the current table.
 
 ## Reproduce
 

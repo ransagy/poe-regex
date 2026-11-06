@@ -39,22 +39,22 @@ works from advanced descriptions.
 ## Artifact coverage
 
 ```text
-342 families · 1037 rows · 1423 expanded scopes · 0 unresolved
+342 families · 1030 rows · 1415 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
 | Global | 392 |
-| Class | 403 |
-| Per-class | 242 |
+| Class | 393 |
+| Per-class | 245 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-297 global patterns · 21 classes · 877 class fragments · 0 unresolved
+297 global patterns · 21 classes · 869 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -86,7 +86,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1423 / 1423 expanded scopes checked
+1415 / 1415 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -104,21 +104,30 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  342 families · 1037 rows · 1423 expanded scopes
-table:   297 global · 21 classes · 877 class fragments
-proof:   1423 / 1423 · 0 failures
+matrix:  342 families · 1030 rows · 1415 expanded scopes
+table:   297 global · 21 classes · 869 class fragments
+proof:   1415 / 1415 · 0 failures
 ```
 
 This from-scratch run is the shipped table:
 
-- Expanded scopes: 1423 / 1423, all proven.
+- Expanded scopes: 1415 / 1415, all proven.
 - Chosen length: proven on every scope.
-- Table: 297 global patterns, 21 classes, 877 class fragments, 0 unresolved.
+- Table: 297 global patterns, 21 classes, 869 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
 the table remains a validated cache and `--from-scratch` remains the
 authority when the cache is stale.
+
+## Fragment-change review
+
+Any change that adds catalog lines, changes the vendor/safety corpus, or changes
+the solver must regenerate the table from scratch and review a before/after
+fragment report before merge. The report covers every changed existing scope
+with its old/new fragment and collision reason, plus every new scope. Keep the
+report outside the repository; the shipped table and proof remain the source of
+truth.
 
 ## Solver validation
 

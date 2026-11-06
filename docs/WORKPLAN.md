@@ -13,13 +13,13 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`; the Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 1423/1423 scopes proven, not
+- Engine: exact PoE2 table/proof is current: 1415/1415 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
 - Catalog: explicit prefixes/suffixes plus Abyss desecrated item affixes,
   rendered in the normal Prefixes/Suffixes lists with a green `Desecrated`
   source line; desecrated headers map on import. Augments/bonded and
   crafted-domain mods remain future work.
-- Tests: 110 core, 332 web, 26 data-build; local suites green.
+- Tests: 110 core, 334 web, 26 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.

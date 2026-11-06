@@ -420,8 +420,7 @@ input:disabled { opacity: 0.5; }
 .fam-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mod-source { color: var(--desecrated); font-weight: 600; }
-.fam-text .mod-source { display: block; font-size: 0.72rem; line-height: 1.15; letter-spacing: 0.01em; }
+.mod-source { color: var(--desecrated); font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .picked .fam-text { color: var(--text); }
 

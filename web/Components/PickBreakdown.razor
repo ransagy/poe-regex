@@ -189,21 +189,16 @@
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
                         <span class="bd-what">
-                            @if (IsDesecratedPick(inc))
-                            {
-                                <span class="mod-source">Desecrated</span>
-                            }
-                            @if (inc.IsNamePick)
-                            {
-                                <span class="bd-label">@label@(inc.Names!.Count > 1 ? " or better" : "")</span>
-                                @if (tier is not null)
+                            <span class="bd-label">
+                                @if (IsDesecratedPick(inc))
                                 {
-                                    <span class="bd-detail">@string.Join(" / ", tier.DisplayLines)</span>
+                                    <span class="mod-source">Desecrated</span>
                                 }
-                            }
-                            else
+                                @label@(inc.IsNamePick && inc.Names!.Count > 1 ? " or better" : "")
+                            </span>
+                            @if (inc.IsNamePick && tier is not null)
                             {
-                                <span class="bd-label">@label</span>
+                                <span class="bd-detail">@string.Join(" / ", tier.DisplayLines)</span>
                             }
                         </span>
                         @if (!ReadOnly && AcceptsMin(inc, cls))
@@ -253,11 +248,13 @@
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what">
-                            @if (IsDesecratedExclude(exc))
-                            {
-                                <span class="mod-source">Desecrated</span>
-                            }
-                            <span class="bd-label">@label</span>
+                            <span class="bd-label">
+                                @if (IsDesecratedExclude(exc))
+                                {
+                                    <span class="mod-source">Desecrated</span>
+                                }
+                                @label
+                            </span>
                         </span>
                         <span></span>
                         <code class="bd-frag" title="@frag">@frag</code>

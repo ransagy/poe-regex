@@ -220,17 +220,19 @@ public static class CatalogBuilder
 
     /// <summary>
     /// Maps desecrated item mods to classes from their positive spawn_weights
-    /// tags and the released, non-unique base-item tags. Desecrated mods are
-    /// not in mods_by_base (the Abyss well applies them rather than natural
-    /// rolls), so this is the authoritative class mapping available in the
-    /// export.
+    /// tags and the released, non-unique base items. A base is eligible when
+    /// it matches at least one positive tag and no zero-weight exclusion tag
+    /// (the catch-all `default: 0` is ignored when a positive tag matched).
+    /// Desecrated mods are not in mods_by_base (the Abyss well applies them
+    /// rather than natural rolls), so this is the authoritative mapping
+    /// available in the export.
     /// </summary>
     internal static Dictionary<string, HashSet<string>> MapDesecratedModsToClasses(
         IReadOnlyDictionary<string, RePoESchema.Mod> mods,
         IReadOnlyDictionary<string, RePoESchema.BaseItem> baseItems,
         IReadOnlyDictionary<string, RePoESchema.ItemClass> itemClasses)
     {
-        var classTags = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var bases = new List<(string ClassId, HashSet<string> Tags)>();
         foreach (var (path, baseItem) in baseItems)
         {
             if (baseItem.Domain != "item") continue;
@@ -238,13 +240,7 @@ public static class CatalogBuilder
             if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
             if (path.Contains("Unique", StringComparison.OrdinalIgnoreCase)) continue;
             if (!itemClasses.ContainsKey(baseItem.ItemClass)) continue;
-
-            if (!classTags.TryGetValue(baseItem.ItemClass, out var tags))
-            {
-                tags = new HashSet<string>(StringComparer.Ordinal);
-                classTags[baseItem.ItemClass] = tags;
-            }
-            foreach (var tag in baseItem.Tags ?? []) tags.Add(tag);
+            bases.Add((baseItem.ItemClass, new HashSet<string>(baseItem.Tags ?? [], StringComparer.Ordinal)));
         }
 
         var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -253,16 +249,23 @@ public static class CatalogBuilder
             if (mod.Domain != "desecrated") continue;
             if (mod.GenerationType is not ("prefix" or "suffix")) continue;
 
-            var spawnTags = (mod.SpawnWeights ?? [])
-                .Where(w => w.Weight > 0)
+            var positiveTags = (mod.SpawnWeights ?? [])
+                .Where(w => w.Weight > 0 && !string.Equals(w.Tag, "default", StringComparison.Ordinal))
                 .Select(w => w.Tag)
                 .ToHashSet(StringComparer.Ordinal);
-            if (spawnTags.Count == 0) continue;
-
-            var classes = classTags
-                .Where(kv => kv.Value.Overlaps(spawnTags))
-                .Select(kv => kv.Key)
+            if (positiveTags.Count == 0) continue;
+            var excludedTags = (mod.SpawnWeights ?? [])
+                .Where(w => w.Weight == 0 && !string.Equals(w.Tag, "default", StringComparison.Ordinal))
+                .Select(w => w.Tag)
                 .ToHashSet(StringComparer.Ordinal);
+
+            var classes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (classId, tags) in bases)
+            {
+                if (!tags.Overlaps(positiveTags)) continue;
+                if (tags.Overlaps(excludedTags)) continue;
+                classes.Add(classId);
+            }
             if (classes.Count > 0) result[modId] = classes;
         }
         return result;

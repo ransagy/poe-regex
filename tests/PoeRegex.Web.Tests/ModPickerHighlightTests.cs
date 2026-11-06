@@ -62,6 +62,8 @@ public class ModPickerHighlightTests
 
         var row = cut.Find($"#fam-toggle-{family.Anchor.Id}").ParentElement!;
         row.QuerySelector(".mod-source")!.TextContent.Trim().Should().Be("Desecrated");
+        row.QuerySelector(".fam-text .mod-source").Should().BeNull(
+            "the source tag belongs in the row's tag cluster, not inside the stat text");
     }
 
     [Fact]

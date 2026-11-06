@@ -47,6 +47,51 @@ public class DesecratedTests
     }
 
     [Fact]
+    public void BreakArmourMaces_AreScopedToOneAndTwoHanded()
+    {
+        const string oneId = "AbyssMod1HMaceAmanamuSuffixBreakPercentArmourPhysicalDamage";
+        const string twoId = "AbyssMod2HMaceAmanamuSuffixBreakPercentArmourPhysicalDamage";
+
+        var one = Engine.FindMod(oneId)!;
+        one.Classes.Should().Equal(["One Hand Mace"]);
+        var two = Engine.FindMod(twoId)!;
+        two.Classes.Should().Equal(["Two Hand Mace"]);
+
+        var oneFamily = ModFamilies.Group(Engine.ModsForClass("One Hand Mace"))
+            .Single(f => f.Key == "desecrated:ArmourPenetration");
+        oneFamily.Tiers.Should().ContainSingle();
+        oneFamily.Tiers[0].DisplayLines.Should().ContainSingle()
+            .Which.Should().Contain("2–4");
+
+        var twoFamily = ModFamilies.Group(Engine.ModsForClass("Two Hand Mace"))
+            .Single(f => f.Key == "desecrated:ArmourPenetration");
+        twoFamily.Tiers.Should().ContainSingle();
+        twoFamily.Tiers[0].DisplayLines.Should().ContainSingle()
+            .Which.Should().Contain("4–7");
+    }
+
+    [Fact]
+    public void BreakArmourGlobalFragment_MatchesBothRangeDisplays()
+    {
+        var mod = Engine.FindMod(
+            "AbyssMod1HMaceAmanamuSuffixBreakPercentArmourPhysicalDamage")!;
+        var compiled = Engine.CompilePicks(
+            [new WantedMod(mod.Id)], [], matchAll: false, itemClass: null);
+
+        foreach (var line in new[]
+                 {
+                     "Break Armour equal to 2(2-4)% of Physical Damage dealt",
+                     "Break Armour equal to 4(2-4)% of Physical Damage dealt",
+                     "Break Armour equal to 4(4-7)% of Physical Damage dealt",
+                     "Break Armour equal to 7(4-7)% of Physical Damage dealt",
+                 })
+        {
+            ItemMatcher.Match(compiled.Query, [line]).Match
+                .Should().BeTrue($"{compiled.Query} should match '{line}'");
+        }
+    }
+
+    [Fact]
     public void Compile_DesecratedHelmetPick_ProducesExactFragment()
     {
         var mod = Engine.ModsForClass("Helmet")

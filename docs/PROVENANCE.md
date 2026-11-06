@@ -55,8 +55,10 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 
 RePoE's hosted exports carry no version field. `fetch` writes the export files,
 and `build` records the download date of `mods.min.json` as the catalog's
-`dataVersion` (for example `2026-08-09`). To refresh after a league patch,
-re-run `fetch` and `build` and commit the regenerated catalogs:
+`dataVersion` (for example `2026-08-09`). This identifies the raw export, not
+the derived fragment table or solver revision; the candidate status records
+the table-generation time and matrix hash separately. To refresh after a
+league patch, re-run `fetch` and `build` and commit the regenerated catalogs:
 
 ```sh
 dotnet run --project tools/PoeRegex.Data.Build -- fetch
