@@ -223,7 +223,8 @@
 
     private string _search = "";
     private IReadOnlyList<ModEntry>? _groupedMods;
-    private bool _groupedUnion;
+    private bool _groupedGlobal;
+    private bool _unionActive;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
@@ -250,17 +251,31 @@
     /// <summary>Item class the scope compiles with (null in global mode).</summary>
     private string? ScopeClassId => Scope is null ? null : State.CriteriaFor(Scope).ClassId;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Scope is not null) return;
+        // Warm the All-gear union after first paint. The common shortlist is
+        // identical raw and unionized, so this stays off the boot path.
+        await Task.Delay(200);
+        if (Scope is null && !_unionActive)
+        {
+            _allFamilies = ModFamilies.CachedGroup(Mods, union: true);
+            _unionActive = true;
+        }
+    }
+
     protected override void OnParametersSet()
     {
         // Group once per scope change; typing and pick changes only filter
         // this snapshot. The parent re-renders on every pick, so the
         // reference guard matters.
-        var union = Scope is null;
-        if (!ReferenceEquals(_groupedMods, Mods) || _groupedUnion != union)
+        var global = Scope is null;
+        if (!ReferenceEquals(_groupedMods, Mods) || _groupedGlobal != global)
         {
             _groupedMods = Mods;
-            _groupedUnion = union;
-            _allFamilies = ModFamilies.CachedGroup(Mods, union);
+            _groupedGlobal = global;
+            _unionActive = false;
+            _allFamilies = ModFamilies.CachedGroup(Mods);
         }
         Refresh();
     }
@@ -270,6 +285,13 @@
     private void Refresh()
     {
         var filter = _search.Trim();
+        // The common shortlist is identical raw and unionized; defer the
+        // All-gear union until the user searches or shows all mods.
+        if (Scope is null && !_unionActive && (filter.Length > 0 || _showAll))
+        {
+            _allFamilies = ModFamilies.CachedGroup(Mods, union: true);
+            _unionActive = true;
+        }
         _families = filter.Length == 0
             ? _showAll || CommonCount == 0 ? _allFamilies : _allFamilies.Where(ModFamilies.IsCommon).ToList()
             : _allFamilies
@@ -281,7 +303,7 @@
                         : f.Tiers
                             .Where(t => t.SearchText.Contains(filter, StringComparison.OrdinalIgnoreCase))
                             .ToList();
-                    return tiers.Count == 0 ? null : f with { Tiers = tiers };
+                    return tiers.Count == 0 ? null : f.WithTiers(tiers);
                 })
                 .Where(f => f is not null)
                 .Select(f => f!)
@@ -361,11 +383,11 @@
     private bool FamilyPicked(ModFamily fam, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0) return false;
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         return included.Any(pick => PickTouchesFamily(fam, pick, memberIds));
     }
 
-    private bool PickTouchesFamily(ModFamily fam, WantedMod pick, HashSet<string> memberIds)
+    private bool PickTouchesFamily(ModFamily fam, WantedMod pick, IReadOnlySet<string> memberIds)
     {
         if (memberIds.Contains(pick.ModId)) return true;
         if (pick.VariantModIds is { Count: > 0 } variants)
@@ -383,8 +405,7 @@
             !string.Equals(mod.GenerationType, fam.IsPrefix ? "prefix" : "suffix",
                 StringComparison.OrdinalIgnoreCase))
             return false;
-        if (fam.Members.Any(m => string.Equals(m.Id, mod.Id, StringComparison.Ordinal)))
-            return true;
+        if (fam.MemberIds.Contains(mod.Id)) return true;
         if (string.IsNullOrEmpty(mod.Family)) return false;
         return fam.Members.Any(m =>
             string.Equals(m.Family, mod.Family, StringComparison.Ordinal) &&
@@ -401,8 +422,7 @@
     private static bool TierPicked(ModTier tier, WantedMod pick)
     {
         if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 }) return false;
-        if (tier.Members.Any(m => string.Equals(m.Id, pick.ModId, StringComparison.Ordinal)))
-            return true;
+        if (tier.MemberIds.Contains(pick.ModId)) return true;
         return pick.IsNamePick && tier.Name.Length > 0 &&
                pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
     }
@@ -411,11 +431,11 @@
     private List<WantedMod> FamilyPicks(ModFamily fam, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0) return [];
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         return included.Where(pick => IsFamilyPick(fam, pick, memberIds)).ToList();
     }
 
-    private bool IsFamilyPick(ModFamily fam, WantedMod pick, HashSet<string> memberIds)
+    private bool IsFamilyPick(ModFamily fam, WantedMod pick, IReadOnlySet<string> memberIds)
     {
         if (pick.IsNamePick || pick.VariantModIds is not { Count: > 0 } variants) return false;
         return variants.Any(memberIds.Contains) ||
@@ -428,8 +448,8 @@
         ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0) return [];
-        var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var tierIds = tier.MemberIds;
+        var memberIds = fam.MemberIds;
         return included
             .Where(pick => IsExplicitTierPick(fam, tier, pick, tierIds, memberIds))
             .ToList();
@@ -437,7 +457,7 @@
 
     private bool IsExplicitTierPick(
         ModFamily fam, ModTier tier, WantedMod pick,
-        HashSet<string> tierIds, HashSet<string> memberIds)
+        IReadOnlySet<string> tierIds, IReadOnlySet<string> memberIds)
     {
         if (pick.IsNamePick)
         {
@@ -466,7 +486,7 @@
         ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0) return [];
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         return included
             .Where(pick => IsUpPick(fam, pick, memberIds) &&
                            UpAnchorTier(fam, pick) is { } anchor &&
@@ -474,7 +494,7 @@
             .ToList();
     }
 
-    private bool IsUpPick(ModFamily fam, WantedMod pick, HashSet<string> memberIds) =>
+    private bool IsUpPick(ModFamily fam, WantedMod pick, IReadOnlySet<string> memberIds) =>
         pick.IsNamePick && pick.Names!.Count > 1 &&
         PickTouchesFamily(fam, pick, memberIds);
 
@@ -487,7 +507,7 @@
         ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0 || tier.Name.Length == 0) return null;
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         foreach (var pick in included)
         {
             if (!IsUpPick(fam, pick, memberIds) ||
@@ -500,7 +520,7 @@
     private List<WantedMod> FamilyUpPicks(ModFamily fam, IReadOnlyList<WantedMod> included)
     {
         if (included.Count == 0) return [];
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         return included.Where(pick => IsUpPick(fam, pick, memberIds)).ToList();
     }
 
@@ -557,7 +577,7 @@
     private List<string> FamilyExclusionTerms(ModFamily fam, IReadOnlyList<string> excluded)
     {
         if (excluded.Count == 0) return [];
-        var memberIds = fam.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var memberIds = fam.MemberIds;
         return excluded
             .Where(e => memberIds.Contains(e) || SameFamilyAs(fam, e))
             .Distinct(StringComparer.Ordinal)
@@ -573,7 +593,7 @@
         // range row shows it instead of leaving the clicked row unchanged.
         if (fam.IsDesecrated) return FamilyExclusionTerms(fam, excluded);
         var familyExcluded = FamilyExcluded(fam, excluded);
-        var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var tierIds = tier.MemberIds;
         var matches = new List<string>();
         foreach (var term in excluded)
         {

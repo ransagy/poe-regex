@@ -404,17 +404,15 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         {
             // A family anchor may live on another class (the melee skill-level
             // family has Gloves and weapon tiers); still show the family text.
-            var globalFamily = ModFamilies.CachedGroup(engine!.PlayableMods(), union: true)
-                .FirstOrDefault(f => f.Members.Any(m =>
-                    string.Equals(m.Id, globalMod.Id, StringComparison.Ordinal)));
+            var globalFamilies = ModFamilies.CachedGroup(engine!.PlayableMods(), union: true);
+            var globalFamily = ModFamilies.IndexOf(globalFamilies).GetValueOrDefault(globalMod.Id);
             if (globalFamily is not null) return globalFamily.DisplayText;
             return globalMod.StatLines.Count > 0
                 ? ModSearch.DisplayLine(globalMod.StatLines[0])
                 : globalMod.Name is { Length: > 0 } ? globalMod.Name : modId;
         }
         if (mod is null) return modId;
-        var fam = families.FirstOrDefault(f => f.Members.Any(m =>
-            string.Equals(m.Id, mod.Id, StringComparison.Ordinal)));
+        var fam = ModFamilies.IndexOf(families).GetValueOrDefault(mod.Id);
         return fam?.DisplayText
                ?? (mod.StatLines.Count > 0 ? ModSearch.DisplayLine(mod.StatLines[0]) : mod.Id);
     }

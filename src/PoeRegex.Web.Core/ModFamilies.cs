@@ -20,6 +20,12 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
     /// <summary>Representative member: chip identity and name-set anchor.</summary>
     public ModEntry Anchor => Members[0];
 
+    private HashSet<string>? _memberIds;
+
+    /// <summary>Cached member ids for highlight and exclusion checks.</summary>
+    public IReadOnlySet<string> MemberIds =>
+        _memberIds ??= Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+
     /// <summary>One mod's lines: the anchor. A tier can merge variants from
     /// several classes; showing every member here made the tier look like a
     /// single hybrid mod. Use <see cref="UnionLines"/> for the merged view.</summary>
@@ -93,7 +99,23 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsDesecrated => Source == "desecrated";
 
-    public IEnumerable<ModEntry> Members => Tiers.SelectMany(t => t.Members);
+    private IReadOnlyList<ModEntry>? _members;
+
+    public IReadOnlyList<ModEntry> Members => _members ??= Tiers.SelectMany(t => t.Members).ToList();
+
+    private HashSet<string>? _memberIds;
+
+    public IReadOnlySet<string> MemberIds =>
+        _memberIds ??= Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>Copy with a filtered tier list, without carrying stale caches.</summary>
+    public ModFamily WithTiers(IReadOnlyList<ModTier> tiers) =>
+        new(Key, IsPrefix, tiers)
+        {
+            Source = Source,
+            IsUnion = IsUnion,
+            DisplayLines = DisplayLines,
+        };
 
     /// <summary>Distinct normalized faction names (Amanamu, Kurgal, Ulaman)
     /// for the desecrated mods in this family.</summary>
@@ -206,17 +228,43 @@ public static class ModFamilies
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IReadOnlyList<ModFamily>, IReadOnlyDictionary<string, ModFamily>> FamilyIndexCache = new();
+
+    /// <summary>Mod id to family lookup for chip labels and highlighting.</summary>
+    public static IReadOnlyDictionary<string, ModFamily> IndexOf(
+        IReadOnlyList<ModFamily> families) =>
+        FamilyIndexCache.GetValue(families, fs =>
+        {
+            var index = new Dictionary<string, ModFamily>(StringComparer.Ordinal);
+            foreach (var family in fs)
+            foreach (var member in family.Members)
+                index[member.Id] = family;
+            return index;
+        });
 
     /// <summary>
     /// Shared grouping cache keyed by the stable mod-list instance from
     /// <see cref="EngineService"/>. Mode and slot switches reuse the same
     /// grouping instead of rebuilding every tier's search text.
     /// </summary>
-    public static IReadOnlyList<ModFamily> CachedGroup(object mods, bool union = false) =>
-        (union ? UnionGroupCache : GroupCache)
-        .GetValue(mods, key => Group((IEnumerable<ModEntry>)key, union));
+    public static IReadOnlyList<ModFamily> CachedGroup(object mods, bool union = false)
+    {
+        // Build (and cache) the raw families even when the caller only needs
+        // the All-gear union; query import and per-slot views reuse them.
+        var raw = GroupCache.GetValue(
+            mods, key => BuildFamilies((IEnumerable<ModEntry>)key));
+        return union
+            ? UnionGroupCache.GetValue(mods, _ => UnionFamilies(raw))
+            : raw;
+    }
 
     public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods, bool union = false)
+    {
+        var families = BuildFamilies(mods);
+        return union ? UnionFamilies(families) : families;
+    }
+
+    private static List<ModFamily> BuildFamilies(IEnumerable<ModEntry> mods)
     {
         var families = new List<ModFamily>();
         foreach (var famGroup in mods
@@ -253,7 +301,7 @@ public static class ModFamilies
                 DisplayLines = FamilyLines(members),
             });
         }
-        return union ? UnionFamilies(families) : families;
+        return families;
     }
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
@@ -266,21 +314,27 @@ public static class ModFamilies
                      .ThenBy(g => g.Key, StringComparer.Ordinal))
         {
             var members = group.SelectMany(f => f.Members).ToList();
-            var tiers = members
-                .GroupBy(TierKey)
+            var tiers = group
+                .SelectMany(f => f.Tiers)
+                .GroupBy(t => t.MergeKey, StringComparer.Ordinal)
                 .Select(g =>
                 {
                     var tierMembers = g
+                        .SelectMany(t => t.Members)
                         .OrderBy(m => m.RequiredLevel)
                         .ThenBy(m => m.Id, StringComparer.Ordinal)
                         .ToList();
                     var anchor = tierMembers[0];
-                    return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
+                    return new ModTier(anchor.Name ?? "", tierMembers, tierMembers.Min(m => m.RequiredLevel))
                     {
                         Source = anchor.Source,
                         DisplayLabel = DisplayLabelFor(tierMembers),
                         MergeKey = TierKey(anchor),
-                        SearchText = SearchTextOf(tierMembers),
+                        // Raw tiers already carry their search text; joining
+                        // them avoids rebuilding every line for the union.
+                        SearchText = string.Join("\n", g
+                            .Select(t => t.SearchText)
+                            .Distinct(StringComparer.Ordinal)),
                     };
                 })
                 .OrderBy(t => t.RequiredLevel)
