@@ -39,4 +39,26 @@ public class ImportPanelTests
         tag!.ClassList.Should().Contain("mod-source");
         tag.TextContent.Trim().Should().Be("Ulaman");
     }
+
+    [Fact]
+    public async Task CraftedAnnotation_PutsTheCraftedTagAfterTheName()
+    {
+        using var ctx = Context();
+        var cut = ctx.Render<ImportPanel>(p => p
+            .Add(x => x.State, new WorkbenchState())
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, EventCallback.Empty));
+
+        cut.Find("#import-text").Input(FixtureTexts.CraftedHelmet);
+        await cut.Find("#import-parse").ClickAsync(new MouseEventArgs());
+
+        var annotation = cut.Find(".iprev-annot.map-one");
+        annotation.TextContent.Trim().Should().Be("of Blurring");
+
+        var tag = annotation.NextElementSibling as IElement;
+        tag.Should().NotBeNull("the source tag follows the resolved mod name");
+        tag!.ClassList.Should().Contain("mod-source");
+        tag.ClassList.Should().Contain("source-crafted");
+        tag.TextContent.Trim().Should().Be("Crafted");
+    }
 }

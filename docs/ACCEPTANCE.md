@@ -82,8 +82,8 @@ node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
 ## Out of scope
 
 The exact-table proof is complete for the modeled corpus plus the captured
-safety fixtures. Desecrated item affixes are modeled; unmodeled unique/rare
-names, unique-only text, flavour, augments/bonded text, and some
+safety fixtures. Desecrated and crafted item affixes are modeled; unmodeled
+unique/rare names, unique-only text, flavour, augments/bonded text, and some
 socketable/base text can still make an item highlight. This is accepted and
 out of scope; therefore there are **no manual in-game acceptance checks**.
 
@@ -95,6 +95,8 @@ out of scope; therefore there are **no manual in-game acceptance checks**.
   warning.
 - Implicits are intentionally unmapped; approximate shorthand matches stay
   flagged.
+- Crafted and implicit class scope is class-level, not base-exact: a family can
+  appear for a class even when only some bases in that class carry the line.
 - Ambiguous import lines surface as candidates rather than a guaranteed
   resolution.
 - Minimum values compile as near-whole-line text and remain expensive.

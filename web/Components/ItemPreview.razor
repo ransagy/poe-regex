@@ -228,6 +228,10 @@
         _ => null,
     };
 
-    private static string SourceClass(string? source) =>
-        source == "desecrated" ? "mod-source" : "";
+    private static string SourceClass(string? source) => source switch
+    {
+        "desecrated" => "mod-source source-desecrated",
+        "crafted" or "master crafted" => "mod-source source-crafted",
+        _ => "",
+    };
 }

@@ -224,10 +224,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   table lookup only; there is no live fragment search and no heuristic
   fallback. The oracle is line-scoped over the derived
   vendor/stash corpus, and the table is strict: zero foreign modeled or
-  captured-safety lines. Desecrated item affixes are modeled; unique-only
-  text, flavour, rare names, augments, and bonded modifiers remain unmodeled
-  and are reported separately. The exact table has 1415 expanded scopes
-  (297 global patterns, 21 classes, 869 class fragments, 0 unresolved).
+  captured-safety lines. Desecrated and crafted item affixes are modeled;
+  unique-only text, flavour, rare names, augments, and bonded modifiers remain
+  unmodeled and are reported separately. The oracle corpus includes plain and
+  advanced-range forms, so the table is safe for the game's Highlight target.
+  The exact table has 1565 expanded scopes (303 global patterns, 21 classes,
+  1001 class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
@@ -348,20 +350,23 @@ Acceptance criteria and current measurements:
   Membership is derived: a slot joins the group as soon as it has any
   wanted/unwanted chips; clicking a slot only moves the editing focus.
 - The derived catalog ships explicit prefix/suffix affixes plus Abyss
-  desecrated prefixes/suffixes (no implicits) and renders some internal
-  shorthand forms (`LightRadius`, `ManaLeech`); the importer maps those via
-  flagged approximate fallbacks. Desecrated families stay in the normal
-  Prefixes/Suffixes columns with a green `<faction>` tag (for example
-  `Amanamu`) after the family row label; they are not in the default common
-  shortlist and appear when searching or after **Show all**. All gear merges
-  families that share
-  the same normalized stat pattern and shows the merged tier's roll
-  alternatives; per-slot rows keep the class's concrete roll. Desecrated
-  tiers that share a pattern collapse into one row while range-specific
-  strings are deferred. Jewel affixes, augments, bonded modifiers, and
-  crafted-domain mods remain unmodeled. Imports resolve by bracket ranges and
-  header names, so a line with neither (and no plain-text match) shows as
-  ambiguous (`+N`)
+  desecrated and crafted prefixes/suffixes (no implicits) and renders some
+  internal shorthand forms (`LightRadius`, `ManaLeech`); the importer maps
+  those via flagged approximate fallbacks. Desecrated families stay in the
+  normal Prefixes/Suffixes columns with a green `<faction>` tag (for example
+  `Amanamu`) after the family row label; crafted families use a muted-cyan
+  `<Crafted>` tag. The crafted shade is provisional until the final palette
+  value is chosen. Neither source is in the default common shortlist; they
+  appear when searching or after **Show all**. All gear merges families that
+  share the same normalized stat pattern and shows the merged tier's roll
+  alternatives; per-slot rows keep the class's concrete roll. Desecrated and
+  crafted tiers that share a pattern collapse into one row while
+  range-specific strings are deferred. Crafted class scope is class-level:
+  defence crafts use the released base defence tags, and generic meta-crafts
+  apply to every normal equipment class. Jewel affixes, augments, bonded
+  modifiers, corrupted mods, and base implicits remain unmodeled. Imports
+  resolve by bracket ranges and header names, so a line with neither (and no
+  plain-text match) shows as ambiguous (`+N`)
   rather than asking — the grouped family/tier pickers cover that surface for
   the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy

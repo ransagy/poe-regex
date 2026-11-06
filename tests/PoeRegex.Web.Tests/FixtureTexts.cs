@@ -108,6 +108,18 @@ internal static class FixtureTexts
             +1 to Level of all Projectile Skills
     """;
 
+    internal const string CraftedHelmet = """
+            Item Class: Helmets
+            Rarity: Rare
+            Glyph Hood
+            Feathered Tiara
+            --------
+            Item Level: 80
+            --------
+            { Crafted Suffix Modifier "of Blurring" }
+            20(5-20)% increased Evasion Rating
+    """;
+
     internal const string Mace = """
             Item Class: One Hand Maces
             Rarity: Rare

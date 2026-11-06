@@ -57,7 +57,7 @@
                                         </span>
                                         @if (fam.SourceTag is { } sourceTag)
                                         {
-                                            <span class="mod-source">@sourceTag</span>
+                                            <span class="mod-source @fam.SourceCssClass">@sourceTag</span>
                                         }
                                         <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                                     </button>

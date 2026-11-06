@@ -72,7 +72,7 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
     public string MergeKey { get; init; } = "";
 
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods.</summary>
+    /// desecrated mods, "crafted" for guaranteed crafts.</summary>
     public string Source { get; init; } = "";
 
     /// <summary>User-facing tier label. Normal tiers use their affix name;
@@ -89,15 +89,23 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
 public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier> Tiers)
 {
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods. The family key carries the source prefix, so a
-    /// desecrated family with the same stat text as a normal family remains
-    /// a distinct row.</summary>
+    /// desecrated mods, "crafted" for guaranteed/crafted mods.</summary>
     public string Source { get; init; } = "";
 
     /// <summary>True when this family was merged for the All-gear view.</summary>
     public bool IsUnion { get; init; }
 
     public bool IsDesecrated => Source == "desecrated";
+
+    public bool IsCrafted => Source == "crafted";
+
+    /// <summary>CSS class for the source tag; empty for normal families.</summary>
+    public string SourceCssClass => Source switch
+    {
+        "desecrated" => "source-desecrated",
+        "crafted" => "source-crafted",
+        _ => "",
+    };
 
     private IReadOnlyList<ModEntry>? _members;
 
@@ -126,11 +134,14 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         .OrderBy(x => x, StringComparer.Ordinal)
         .ToList();
 
-    /// <summary>Green faction tag for a desecrated row; null when no faction
-    /// name is available.</summary>
-    public string? SourceTag => !IsDesecrated || Factions.Count == 0
-        ? null
-        : string.Join(" / ", Factions);
+    /// <summary>Source tag for a non-normal row: the faction for desecrated
+    /// mods, "Crafted" for crafted mods; null when normal or no tag exists.</summary>
+    public string? SourceTag => Source switch
+    {
+        "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
+        "crafted" => "Crafted",
+        _ => null,
+    };
 
     /// <summary>Normalize `of Amanamu` / `Amanamu's` to `Amanamu`.</summary>
     public static string FactionName(string? name)
@@ -193,13 +204,13 @@ public static class ModFamilies
 {
     /// <summary>
     /// Family identity for grouping and lookups. The source is part of the
-    /// key so a desecrated family never merges with a normal family carrying
-    /// the same stat text or raw RePoE type.
+    /// key so a desecrated or crafted family never merges with a normal family
+    /// carrying the same stat text or raw RePoE type.
     /// </summary>
     public static string KeyOf(ModEntry mod)
     {
         var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
-        return mod.Source == "desecrated" ? "desecrated:" + key : key;
+        return mod.Source.Length > 0 ? mod.Source + ":" + key : key;
     }
 
     /// <summary>

@@ -46,8 +46,8 @@ public sealed class ModEntry
     public required string GenerationType { get; init; }
 
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods. Kept separate from generation type so rules and
-    /// generation handling stay unchanged.</summary>
+    /// desecrated mods, "crafted" for bench/guaranteed crafts. Kept separate
+    /// from generation type so rules and generation handling stay unchanged.</summary>
     [JsonPropertyName("source")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Source { get; init; } = "";

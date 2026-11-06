@@ -39,22 +39,22 @@ works from advanced descriptions.
 ## Artifact coverage
 
 ```text
-342 families · 1030 rows · 1415 expanded scopes · 0 unresolved
+349 families · 399 patterns · 1081 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 392 |
-| Class | 393 |
-| Per-class | 245 |
+| Global | 399 |
+| Class | 442 |
+| Per-class | 240 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-297 global patterns · 21 classes · 869 class fragments · 0 unresolved
+303 global patterns · 21 classes · 1001 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -67,6 +67,7 @@ Examples:
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
 | `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` |
+| `Prefixes Cannot Be Changed` | global | `^pref` |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` |
 | `+#% to Critical Damage Bonus` | Bow | `nus$` |
 
@@ -86,7 +87,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1415 / 1415 expanded scopes checked
+1565 / 1565 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -104,9 +105,9 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  342 families · 1030 rows · 1415 expanded scopes
-table:   297 global · 21 classes · 869 class fragments
-proof:   1415 / 1415 · 0 failures
+matrix:  349 families · 399 patterns · 1081 expanded scopes
+table:   303 global · 21 classes · 1001 class fragments
+proof:   1565 / 1565 · 0 failures
 ```
 
 This from-scratch run is the basis for the shipped table. The shipped table
@@ -116,9 +117,9 @@ tie churn does not retire working strings. The diff report therefore lists
 only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
 reproduce that stability pass.
 
-- Expanded scopes: 1415 / 1415, all proven.
+- Expanded scopes: 1565 / 1565, all proven.
 - Chosen length: proven on every scope.
-- Table: 297 global patterns, 21 classes, 869 class fragments, 0 unresolved.
+- Table: 303 global patterns, 21 classes, 1001 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -245,17 +246,21 @@ that the selectable catalog and vendor corpus deliberately exclude. Observed
 field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
 `from Equipped Body Armour` and `from Equipped Quiver` lines). Abyss
-desecrated item affixes are now part of the modeled catalog and safety
-corpus, with their classes derived from spawn-weight tags. Normal and
-desecrated jewel affixes are not modeled and are outside the proof. Family
-tiers are split by roll range for display, but the table is pattern-based:
-tiers that share one stat pattern share a fragment, so the search string
-cannot pin one numeric range; the picker collapses them into one row while
-range strings remain pattern-based. Range-specific strings need range-aware
-proof scopes. The proof is complete for the modeled corpus plus captured
-fixtures. Unmodeled
-unique, rare, flavour, socketable, and bonded text can still highlight; this
-is accepted and out of scope.
+desecrated item affixes and crafted item affixes are now part of the modeled
+catalog. Crafted class scope is inferred at class level: defence crafts use
+the released base tags named by the raw `implicit_tags`, and generic
+meta-crafts apply to every normal equipment class. Normal and desecrated jewel
+affixes, corrupted mods, augments/Soul Cores, and base implicits are not
+modeled and are outside the proof. Family tiers are split by
+roll range for display, but the table is pattern-based: tiers that share one
+stat pattern share a fragment, so the search string cannot pin one numeric
+range; the picker collapses them into one row while range strings remain
+pattern-based. Range-specific strings need range-aware proof scopes. The
+oracle corpus includes both the plain display line and its advanced
+`roll(min-max)` form, so a fragment must be safe for the game's Highlight
+target as well as the normal copy text. The proof is complete for the modeled
+corpus plus captured fixtures. Unmodeled unique, rare, flavour, socketable,
+and bonded text can still highlight; this is accepted and out of scope.
 
 ### Strict target membership
 

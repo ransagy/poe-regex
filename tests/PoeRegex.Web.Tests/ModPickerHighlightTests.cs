@@ -70,6 +70,32 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void CraftedFamily_ShowsCraftedSourceText()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Helmet");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        var sourceMod = mods.Single(m => m.Id == "StrIntMasterCraftedEvasionRating");
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsCrafted && f.Members.Any(m => m.Id == sourceMod.Id));
+
+        cut.Find("#mod-search").Input("of Blurring");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        var tag = row.QuerySelector(".mod-source")!;
+        tag.TextContent.Trim().Should().Be("Crafted");
+        tag.ClassList.Should().Contain("source-crafted");
+        tag.ClassList.Should().NotContain("source-desecrated");
+        row.QuerySelector(".fam-text .mod-source").Should().BeNull(
+            "the source tag belongs in the row's tag cluster, not inside the stat text");
+        cut.FindAll(".tier-row .mod-source").Should().BeEmpty(
+            "the source tag belongs on the family row, not the tier rows");
+    }
+
+    [Fact]
     public void PlainFamilyPick_HighlightsFamilyRow_InGlobalMode()
     {
         using var ctx = Context();

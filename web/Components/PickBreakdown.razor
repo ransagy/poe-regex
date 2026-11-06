@@ -199,7 +199,7 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
-                    var sourceTag = SourceTagFor(inc);
+                    var source = SourceFor(inc);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
                     var busy = _minBusy?.SamePick(inc) == true;
@@ -208,9 +208,9 @@
                         <span class="bd-what">
                             <span class="bd-label">
                                 <span class="bd-text">@label@(inc.IsNamePick && inc.Names!.Count > 1 ? " or better" : "")</span>
-                                @if (sourceTag is not null)
+                                @if (source is { } tag)
                                 {
-                                    <span class="mod-source">@sourceTag</span>
+                                    <span class="mod-source @tag.Css">@tag.Text</span>
                                 }
                             </span>
                             @if (inc.IsNamePick && tier is not null)
@@ -262,15 +262,15 @@
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
                     var label = SearchModel.ExcludeLabel(exc, mods, union: slot is null);
-                    var sourceTag = SourceTagFor(exc);
+                    var source = SourceFor(exc);
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what">
                             <span class="bd-label">
                                 <span class="bd-text">@label</span>
-                                @if (sourceTag is not null)
+                                @if (source is { } tag)
                                 {
-                                    <span class="mod-source">@sourceTag</span>
+                                    <span class="mod-source @tag.Css">@tag.Text</span>
                                 }
                             </span>
                         </span>
@@ -442,37 +442,41 @@
     private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
         family is { IsUnion: true } or { IsDesecrated: true } ? tier.UnionLines : tier.DisplayLines;
 
-    private string? SourceTagFor(WantedMod pick)
+    private (string Text, string Css)? SourceFor(WantedMod pick)
     {
         var ids = pick.VariantModIds is { Count: > 0 } variants
             ? variants
             : (IReadOnlyList<string>)new[] { pick.ModId };
-        return SourceTagFor(ids);
+        return SourceFor(ids);
     }
 
-    private string? SourceTagFor(string term)
+    private (string Text, string Css)? SourceFor(string term)
     {
         var mod = Engine.FindMod(term);
-        if (mod is not null) return SourceTagFor([mod.Id]);
+        if (mod is not null) return SourceFor([mod.Id]);
         var byName = Engine.PlayableMods()
-            .Where(m => m.Source == "desecrated" && m.Name == term)
+            .Where(m => (m.Source is "desecrated" or "crafted") && m.Name == term)
             .ToList();
-        return SourceTagFor(byName.Select(m => m.Id));
+        return SourceFor(byName.Select(m => m.Id));
     }
 
-    private string? SourceTagFor(IEnumerable<string> ids)
+    private (string Text, string Css)? SourceFor(IEnumerable<string> ids)
     {
         var mods = ids.Select(Engine.FindMod)
-            .Where(m => m?.Source == "desecrated")
+            .Where(m => m is not null)
             .Select(m => m!)
             .ToList();
-        if (mods.Count == 0) return null;
-        var factions = mods.Select(m => ModFamily.FactionName(m.Name))
+        if (mods.Any(m => m.Source == "crafted")) return ("Crafted", "source-crafted");
+        var factions = mods
+            .Where(m => m.Source == "desecrated")
+            .Select(m => ModFamily.FactionName(m.Name))
             .Where(x => x.Length > 0)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
-        return factions.Count == 0 ? null : string.Join(" / ", factions);
+        return factions.Count == 0
+            ? null
+            : (string.Join(" / ", factions), "source-desecrated");
     }
 
     private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)

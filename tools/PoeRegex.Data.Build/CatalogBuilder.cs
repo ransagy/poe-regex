@@ -27,10 +27,23 @@ public static class CatalogBuilder
         // mod -> item class ids it can spawn on. Normal affixes use
         // mods_by_base; desecrated mods are applied by the Abyss well rather
         // than natural rolls, so their spawn_weights tags are mapped through
-        // the released item-base tags instead.
+        // the released item-base tags instead. Crafted mods are bench/guaranteed
+        // crafts with no positive spawn tags at all: defence crafts are inferred
+        // from their implicit_tags and the released base tags, and generic
+        // meta-crafts apply to every normal equipment class.
         var classByMod = MapModsToClasses(rawDir, itemClasses);
+        var equipmentClasses = classByMod
+            .Where(kv => mods.TryGetValue(kv.Key, out var mod) &&
+                         mod.Domain == "item" &&
+                         ItemGenerationTypes.Contains(mod.GenerationType))
+            .SelectMany(kv => kv.Value)
+            .Where(GameItemClasses.IsInGame)
+            .ToHashSet(StringComparer.Ordinal);
         var desecratedByMod = MapDesecratedModsToClasses(mods, baseItems, itemClasses);
         foreach (var (modId, classes) in desecratedByMod)
+            classByMod[modId] = classes;
+        var craftedByMod = MapCraftedModsToClasses(mods, baseItems, equipmentClasses);
+        foreach (var (modId, classes) in craftedByMod)
             classByMod[modId] = classes;
 
         // 1. Render mod text lines.
@@ -57,7 +70,7 @@ public static class CatalogBuilder
             }
         }
 
-        // A desecrated line that maps to an item class but renders nothing
+        // A source-specific line that maps to an item class but renders nothing
         // would silently disappear from the picker and the proof. Fail loudly
         // instead of shipping a partial category.
         var unrendered = desecratedByMod.Keys
@@ -68,6 +81,25 @@ public static class CatalogBuilder
         {
             throw new InvalidDataException(
                 $"desecrated item mods rendered no lines: {string.Join(", ", unrendered)}");
+        }
+        var craftedUnrendered = craftedByMod.Keys
+            .Where(id => !renderedLines.ContainsKey(id))
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (craftedUnrendered.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"crafted item mods rendered no lines: {string.Join(", ", craftedUnrendered)}");
+        }
+        var craftedUnmapped = craftedByMod
+            .Where(kv => kv.Value.Count == 0)
+            .Select(kv => kv.Key)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (craftedUnmapped.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"crafted item mods mapped to no classes: {string.Join(", ", craftedUnmapped)}");
         }
 
         // 2. Per-class fingerprinting.
@@ -143,7 +175,12 @@ public static class CatalogBuilder
                 Id = modId,
                 Name = mods[modId].Name,
                 GenerationType = mods[modId].GenerationType,
-                Source = mods[modId].Domain == "desecrated" ? "desecrated" : "",
+                Source = mods[modId].Domain switch
+                {
+                    "desecrated" => "desecrated",
+                    "crafted" => "crafted",
+                    _ => "",
+                },
                 Family = mods[modId].Type ?? "",
                 RequiredLevel = mods[modId].RequiredLevel,
                 Classes = classes.ToList(),
@@ -212,13 +249,83 @@ public static class CatalogBuilder
     }
 
     /// <summary>
-    /// Selectable affixes: normal explicit item prefixes/suffixes and the
-    /// Abyss desecrated prefixes/suffixes. Map/tablet desecrated mods are
-    /// filtered later because they have no item-class spawn tags.
+    /// Selectable affixes: normal explicit item prefixes/suffixes, Abyss
+    /// desecrated prefixes/suffixes, and crafted-domain prefixes/suffixes.
+    /// Map/tablet desecrated mods are filtered later because they have no
+    /// item-class spawn tags.
     /// </summary>
     private static bool IsSelectableAffix(RePoESchema.Mod mod) =>
         (mod.Domain == "item" && ItemGenerationTypes.Contains(mod.GenerationType)) ||
-        (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix");
+        (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix") ||
+        (mod.Domain == "crafted" && mod.GenerationType is "prefix" or "suffix");
+
+    /// <summary>
+    /// Maps crafted item mods to normal equipment classes. Crafted records do
+    /// not carry positive spawn weights (they are guaranteed by the bench or a
+    /// crafting method), so the export cannot supply a class list directly.
+    /// Defence crafts expose `implicit_tags` naming the defence family; those
+    /// are intersected with released base tags. Generic meta-crafts have no
+    /// tags and apply to every normal equipment class. This is deliberately
+    /// class-level, matching what the rest of the catalog can express.
+    /// </summary>
+    internal static Dictionary<string, HashSet<string>> MapCraftedModsToClasses(
+        IReadOnlyDictionary<string, RePoESchema.Mod> mods,
+        IReadOnlyDictionary<string, RePoESchema.BaseItem> baseItems,
+        IReadOnlySet<string> equipmentClasses)
+    {
+        // Released, non-unique bases per class. The defence tags are attribute
+        // combinations (`str_armour`, `dex_int_armour`, ...), not just the
+        // generic `armour` marker every armour base carries.
+        var defenceTagsByClass = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (path, baseItem) in baseItems)
+        {
+            if (baseItem.Domain != "item") continue;
+            if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
+            if (path.Contains("Unique", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!equipmentClasses.Contains(baseItem.ItemClass)) continue;
+            if (!defenceTagsByClass.TryGetValue(baseItem.ItemClass, out var tags))
+            {
+                tags = new HashSet<string>(StringComparer.Ordinal);
+                defenceTagsByClass[baseItem.ItemClass] = tags;
+            }
+            foreach (var tag in baseItem.Tags ?? [])
+                tags.Add(tag);
+        }
+
+        var armour = new[] { "str_armour", "str_dex_armour", "str_int_armour", "str_dex_int_armour" };
+        var evasion = new[] { "dex_armour", "str_dex_armour", "dex_int_armour", "str_dex_int_armour" };
+        var energyShield = new[] { "int_armour", "str_int_armour", "dex_int_armour", "str_dex_int_armour" };
+
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (modId, mod) in mods)
+        {
+            if (mod.Domain != "crafted") continue;
+            if (mod.GenerationType is not ("prefix" or "suffix")) continue;
+
+            var implicitTags = (mod.ImplicitTags ?? []).ToHashSet(StringComparer.Ordinal);
+            var defenceTags = implicitTags.Contains("armour") ? armour
+                : implicitTags.Contains("evasion") ? evasion
+                : implicitTags.Contains("energy_shield") ? energyShield
+                : null;
+
+            var classes = new HashSet<string>(StringComparer.Ordinal);
+            if (defenceTags is null)
+            {
+                // Generic meta-craft: applies to every normal equipment class.
+                classes.UnionWith(equipmentClasses);
+            }
+            else
+            {
+                foreach (var (classId, tags) in defenceTagsByClass)
+                {
+                    if (defenceTags.Any(tags.Contains)) classes.Add(classId);
+                }
+            }
+            result[modId] = classes;
+        }
+        return result;
+    }
 
     /// <summary>
     /// Maps desecrated item mods to classes from their positive spawn_weights

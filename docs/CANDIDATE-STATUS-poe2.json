@@ -4,36 +4,36 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-06 13:17:17Z",
-  "matrixGenerated": "2026-11-06 12:00:01Z",
+  "generatedAt": "2026-11-06 20:00:18Z",
+  "matrixGenerated": "2026-11-06 19:55:45Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
-      "bytes": 871741,
-      "sha256": "fcd7a6a0fe603048b995247779cea2c50eb646980e781c4475da5fe3ceb7cdbb"
+      "bytes": 879853,
+      "sha256": "3a3554e98aa86ef637017b091c59dd9228ca2a838c3242e1f73852270c7532fe"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 458725,
-      "sha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0"
+      "bytes": 479860,
+      "sha256": "9873e8614c0c02b665c222f04acb8cc2ab2e43b385172b30a6b8eaf9f8722066"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 484912,
-      "sha256": "24148b12fc4557fbdfeb6c5f05addd8d55736606ac6acbfd536d3ec1fbdbb8a1"
+      "bytes": 495276,
+      "sha256": "6700410997ff4a9f089a550183b53bd23477bfb31f1454e6cab73a43498cd97e"
     }
   },
   "matrix": {
-    "families": 342,
-    "patterns": 392,
-    "scopes": 1030,
+    "families": 349,
+    "patterns": 399,
+    "scopes": 1081,
     "coverage": {
-      "class/strict": 393,
-      "global/strict": 392,
-      "per-class/strict": 245
+      "class/strict": 442,
+      "global/strict": 399,
+      "per-class/strict": 240
     },
     "bounds": {
-      "250": 1030
+      "250": 1081
     },
     "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
@@ -63,9 +63,9 @@
     "Warstaff": "Qua"
   },
   "table": {
-    "global": 297,
+    "global": 303,
     "classes": 21,
-    "classFragments": 869,
+    "classFragments": 1001,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
     "classAnchors": 21,
@@ -81,9 +81,9 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0",
-      "checkedScopes": 1415,
-      "workScopes": 1415,
+      "matrixSha256": "9873e8614c0c02b665c222f04acb8cc2ab2e43b385172b30a6b8eaf9f8722066",
+      "checkedScopes": 1565,
+      "workScopes": 1565,
       "failed": 0,
       "proven": true
     }

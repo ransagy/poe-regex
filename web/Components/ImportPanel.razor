@@ -326,10 +326,17 @@
                 var label = mod?.Name ?? ids[0];
                 if (map!.Approximate) label += " ~approx";
                 if (ids.Count > 1) label += $" +{ids.Count - 1}";
-                var faction = mod?.Source == "desecrated"
-                    ? ModFamily.FactionName(mod.Name)
-                    : "";
-                var sourceTag = faction.Length > 0 ? faction : null;
+                var sourceTag = mod?.Source switch
+                {
+                    "desecrated" => ModFamily.FactionName(mod.Name) is { Length: > 0 } faction
+                        ? faction
+                        : null,
+                    "crafted" or "master crafted" => "Crafted",
+                    _ => null,
+                };
+                var sourceClass = mod?.Source == "crafted" || mod?.Source == "master crafted"
+                    ? "source-crafted"
+                    : "source-desecrated";
                 builder.OpenElement(0, "span");
                 builder.AddAttribute(1, "class", "iprev-annot map-one");
                 builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
@@ -338,7 +345,7 @@
                 if (sourceTag is not null)
                 {
                     builder.OpenElement(4, "span");
-                    builder.AddAttribute(5, "class", "mod-source");
+                    builder.AddAttribute(5, "class", "mod-source " + sourceClass);
                     builder.AddContent(6, sourceTag);
                     builder.CloseElement();
                 }
@@ -352,7 +359,7 @@
         var range = mod?.StatLines.FirstOrDefault() is { } sl
             ? ModSearch.DisplayLine(sl)
             : "no catalog line";
-        var source = mod?.Source == "desecrated" ? "desecrated · " : "";
+        var source = !string.IsNullOrEmpty(mod?.Source) ? $"{mod!.Source} · " : "";
         var title = $"{ids[0]} · {source}{kind} · {range}";
         if (ids.Count > 1) title += $" — {ids.Count} catalog mods match; using this one";
         return title;

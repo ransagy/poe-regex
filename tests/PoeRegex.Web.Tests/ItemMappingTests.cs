@@ -220,6 +220,23 @@ public class ItemMappingTests
     }
 
     [Fact]
+    public void CraftedHeader_MapsToCraftedModAndCountsAsSuffix()
+    {
+        var parsed = ItemTextParser.Parse(FixtureTexts.CraftedHelmet);
+        var mapped = ItemImport.Map(Engine, parsed);
+
+        mapped.ClassId.Should().Be("Helmet");
+        var line = mapped.Lines[(0, 0)];
+        line.ModIds.Should().NotBeEmpty();
+        var mod = Engine.FindMod(line.ModIds[0])!;
+        mod.Source.Should().Be("crafted");
+        mod.Name.Should().Be("of Blurring");
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(0);
+        ItemImport.Validate(Engine, parsed, mapped)
+            .Should().NotContain(v => v.Level == "error");
+    }
+
+    [Fact]
     public void CatalogLines_AllMapBackToTheirSourceMod()
     {
         var failures = new List<string>();
