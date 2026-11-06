@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-05._
+_Last updated: 2026-11-06._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -19,7 +19,7 @@ Current planned and parked work. Behavior is documented in
   rendered in the normal Prefixes/Suffixes lists with a green `Desecrated · <faction>`
   tag; desecrated headers map on import. Augments/bonded and
   crafted-domain mods remain future work.
-- Tests: 110 core, 337 web, 26 data-build; local suites green.
+- Tests: 110 core, 340 web, 26 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.

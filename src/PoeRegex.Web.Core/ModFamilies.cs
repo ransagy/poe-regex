@@ -221,14 +221,23 @@ public static class ModFamilies
     private static string RangeLabel(ModEntry mod)
     {
         var parts = mod.StatLines
-            .Where(sl => sl.MinValue != 0 || sl.MaxValue != 0)
             .Select(sl =>
             {
+                var range = RangeRe.Match(sl.RangeLine);
+                if (range.Success)
+                {
+                    var percent = range.Groups[3].Success || sl.RangeLine.Contains('%')
+                        ? "%"
+                        : "";
+                    return $"{range.Groups[1].Value}–{range.Groups[2].Value}{percent}";
+                }
+                if (sl.MinValue == 0 && sl.MaxValue == 0) return "";
                 var min = sl.MinValue.ToString("0.##", CultureInfo.InvariantCulture);
                 var max = sl.MaxValue.ToString("0.##", CultureInfo.InvariantCulture);
-                var percent = sl.RangeLine.Contains('%') ? "%" : "";
-                return min == max ? $"{min}{percent}" : $"{min}–{max}{percent}";
+                var pct = sl.RangeLine.Contains('%') ? "%" : "";
+                return min == max ? $"{min}{pct}" : $"{min}–{max}{pct}";
             })
+            .Where(part => part.Length > 0)
             .Distinct(StringComparer.Ordinal)
             .ToList();
         return string.Join(" / ", parts);
@@ -263,4 +272,7 @@ public static class ModFamilies
         WhitespaceRe.Replace(line.Pattern.Replace(SuffixIndex.DigitPlaceholder, ' '), " ").Trim();
 
     private static readonly Regex WhitespaceRe = new(@"\s{2,}", RegexOptions.Compiled);
+    private static readonly Regex RangeRe = new(
+        @"(\d+(?:\.\d+)?)\s*[–—-]\s*(\d+(?:\.\d+)?)(\s*%)?",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 }

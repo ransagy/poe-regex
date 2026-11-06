@@ -93,6 +93,12 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - `{ Desecrated Prefix/Suffix Modifier ... }` headers are parsed and mapped to
   the desecrated catalog entries. A desecrated line whose source cannot be
   resolved stays unmapped instead of borrowing a normal affix.
+- Desecrated tier labels show the roll range, but the exact table is
+  pattern-based: ranges that share one stat pattern (for example `2–4%` and
+  `4–7%`) compile to the same fragment, so the search string does not pin the
+  chosen range. Range-specific strings need range-aware proof scopes.
+- Desecrated tier exclusions are family-wide for the same reason: excluding
+  one range excludes every range that shares its fragment.
 - Augments, bonded modifiers, and crafted-domain mods are not modeled yet;
   crafted stat lines can still map to a normal affix with the same text.
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.

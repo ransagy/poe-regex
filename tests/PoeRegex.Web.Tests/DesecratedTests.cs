@@ -86,6 +86,16 @@ public class DesecratedTests
     }
 
     [Fact]
+    public void DescendingRangeTier_KeepsItsDisplayedRange()
+    {
+        var family = ModFamilies.Group(Engine.ModsForClass("Boots"))
+            .Single(f => f.Key == "desecrated:ReducedPoisonDuration");
+
+        family.Tiers.Should().ContainSingle();
+        family.Tiers[0].DisplayLabel.Should().Be("30–20%");
+    }
+
+    [Fact]
     public void BreakArmourGlobalFragment_MatchesBothRangeDisplays()
     {
         var mod = Engine.FindMod(

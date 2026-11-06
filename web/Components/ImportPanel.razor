@@ -326,13 +326,23 @@
                 var label = mod?.Name ?? ids[0];
                 if (map!.Approximate) label += " ~approx";
                 if (ids.Count > 1) label += $" +{ids.Count - 1}";
-                if (mod?.Source == "desecrated")
-                    builder.AddMarkupContent(0, "<span class=\"mod-source\">Desecrated</span> ");
+                var sourceTag = mod?.Source == "desecrated"
+                    ? "Desecrated" + (ModFamily.FactionName(mod.Name) is { Length: > 0 } faction
+                        ? " · " + faction
+                        : "")
+                    : null;
                 builder.OpenElement(0, "span");
                 builder.AddAttribute(1, "class", "iprev-annot map-one");
                 builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
                 builder.AddContent(3, label);
                 builder.CloseElement();
+                if (sourceTag is not null)
+                {
+                    builder.OpenElement(4, "span");
+                    builder.AddAttribute(5, "class", "mod-source");
+                    builder.AddContent(6, sourceTag);
+                    builder.CloseElement();
+                }
             };
         };
 

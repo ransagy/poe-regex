@@ -250,6 +250,30 @@ public class ModPickerHighlightTests
                 "desecrated ranges share a faction name but not a tier");
     }
 
+    [Fact]
+    public void DesecratedTierExclude_MarksEveryRangeAsFamilyWide()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var state = new WorkbenchState();
+        var family = Family(mods, "desecrated:ArmourPenetration");
+        family.Tiers.Should().HaveCount(2);
+        var tier = family.Tiers[0];
+        state.AddExclude(null, tier.Anchor.Id);
+
+        var cut = Render(ctx, state, mods);
+        cut.Find("#mod-search").Input("Break Armour");
+        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
+
+        var row = FamilyRow(cut, family);
+        row.ClassList.Should().Contain("excluded");
+        row.TextContent.Should().Contain("2 excluded");
+        foreach (var t in family.Tiers)
+            TierRow(cut, t).ClassList.Should().Contain("excluded",
+                "the shared fragment makes a desecrated range exclusion family-wide");
+    }
+
     private static (EngineService Engine, IReadOnlyList<ModEntry> Mods, WorkbenchState State)
         AdvancedPickler(BunitContext ctx, out ModFamily family)
     {

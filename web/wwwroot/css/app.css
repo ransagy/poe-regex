@@ -422,6 +422,7 @@ input:disabled { opacity: 0.5; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mod-source { color: var(--desecrated); font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
 .bd-label .mod-source { margin-left: 0.3rem; margin-right: 0; }
+.iprev-annot + .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .picked .fam-text { color: var(--text); }
 

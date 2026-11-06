@@ -246,10 +246,13 @@ field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
 `from Equipped Body Armour` and `from Equipped Quiver` lines). Abyss
 desecrated item affixes are now part of the modeled catalog and safety
-corpus, with their classes derived from spawn-weight tags. The proof is
-complete for the modeled corpus plus captured fixtures. Unmodeled unique,
-rare, flavour, socketable, and bonded text can still highlight; this is
-accepted and out of scope.
+corpus, with their classes derived from spawn-weight tags. Family tiers are
+split by roll range for display, but the table is pattern-based: tiers that
+share one stat pattern share a fragment, so the search string cannot pin one
+numeric range. Range-specific strings need range-aware proof scopes. The
+proof is complete for the modeled corpus plus captured fixtures. Unmodeled
+unique, rare, flavour, socketable, and bonded text can still highlight; this
+is accepted and out of scope.
 
 ### Strict target membership
 

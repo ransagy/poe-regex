@@ -549,15 +549,18 @@
         ModFamily fam, ModTier tier, IReadOnlyList<string> excluded)
     {
         if (excluded.Count == 0) return [];
+        // Desecrated tiers share a faction name and, today, a fragment per
+        // family. A member-id exclusion is therefore family-wide, and every
+        // range row shows it instead of leaving the clicked row unchanged.
+        if (fam.IsDesecrated) return FamilyExclusionTerms(fam, excluded);
         var familyExcluded = FamilyExcluded(fam, excluded);
         var tierIds = tier.Members.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
         var matches = new List<string>();
         foreach (var term in excluded)
         {
             // Name-based tier excludes always apply, including alongside a
-            // family exclusion. Desecrated tiers share a faction name, so
-            // only the mod id identifies one.
-            if (tier.Source != "desecrated" && tier.Name.Length > 0 &&
+            // family exclusion.
+            if (tier.Name.Length > 0 &&
                 string.Equals(term, tier.Name, StringComparison.Ordinal))
             {
                 matches.Add(term);
@@ -574,8 +577,7 @@
             // An imported exclude can carry another scope's member id for the
             // same family; match it by affix name within that family.
             var mod = Engine.FindMod(term);
-            if (tier.Source != "desecrated" && mod is not null && tier.Name.Length > 0 &&
-                SameFamilyAs(fam, term) &&
+            if (mod is not null && tier.Name.Length > 0 && SameFamilyAs(fam, term) &&
                 string.Equals(mod.Name ?? "", tier.Name, StringComparison.Ordinal))
                 matches.Add(term);
         }

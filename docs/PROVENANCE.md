@@ -41,12 +41,13 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    shortest-form table derived from the same catalog plus the safety corpus.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` is derived from
    the same raw exports. It adds the searchable line text that the selectable
-   catalog omits: regular, corrupted, essence, implicit, and desecrated item
-   mods; base item names, properties, requirements, implicits, and granted
-   skills; regular affix captions/tags; and universal usage. Unique-only mods,
-   unique names, captions, flavour, and rare item names are deliberately
-   excluded and are reported as unmodeled in the audit. No game binaries,
-   memory, client logs, or runtime extraction are involved.
+   catalog omits (regular, corrupted, essence, and implicit item mods; base
+   item names, properties, requirements, implicits, and granted skills;
+   regular affix captions/tags; and universal usage). Modeled desecrated
+   lines are also included. Unique-only mods, unique names, captions,
+   flavour, and rare item names are deliberately excluded and are reported as
+   unmodeled in the audit. No game binaries, memory, client logs, or runtime
+   extraction are involved.
 7. **Consumers** — the CLI, the library, and the web workbench read only the
    derived catalog, exact fragment table, vendor corpus, and safety fixtures;
    nothing downloads game data at runtime.
