@@ -43,6 +43,10 @@
                                             @onclick="() => Toggle(fam.Key)">
                                         <span class="fam-caret" aria-hidden="true">@(expanded ? "▾" : "▸")</span>
                                         <span class="fam-text @(fam.DisplayLines.Count > 1 ? "multi" : "")">
+                                            @if (fam.IsDesecrated)
+                                            {
+                                                <span class="mod-source">Desecrated</span>
+                                            }
                                             @if (fam.DisplayLines.Count == 1)
                                             {
                                                 @fam.DisplayLines[0]

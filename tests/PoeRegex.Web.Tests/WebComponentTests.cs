@@ -106,7 +106,7 @@ public class WebComponentTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
-        cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
+        cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*fe$");
         cut.Find("#slot-copy-simple").Should().NotBeNull();
         cut.FindAll("#auto-copy").Should().BeEmpty(); // moved into the header Options popover
     }
@@ -178,7 +178,7 @@ public class WebComponentTests
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var state = new WorkbenchState();
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
 
         var cut = ctx.Render<QueryImportPanel>(p => p
             .Add(x => x.State, state)
@@ -211,22 +211,23 @@ public class WebComponentTests
     public async Task QueryImportPanel_ShowsFamilyTextForCrossClassFamilyAnchor()
     {
         using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
         var state = new WorkbenchState();
-        const string query =
-            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
-            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
-            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
-            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
-            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+        const string familyKey = "GlobalIncreaseMeleeSkillGemLevel";
+        var family = ModFamilies.Group(engine.PlayableMods())
+            .Single(f => f.Key == familyKey);
+        var combined = engine.Combine(
+        [
+            ("gloves", "Gloves", new[] { family.Pick() }),
+            ("weapon", "One Hand Mace", new[] { family.Pick() }),
+        ], []);
 
         var cut = ctx.Render<QueryImportPanel>(p => p
             .Add(x => x.State, state)
             .Add(x => x.Open, true)
             .Add(x => x.OnClose, () => { }));
 
-        cut.Find("#query-import-text").Input(query);
+        cut.Find("#query-import-text").Input(combined.Query);
         await cut.Find("#query-import-parse").ClickAsync(new MouseEventArgs());
         cut.WaitForElement("#query-import-preview");
 

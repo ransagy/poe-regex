@@ -35,18 +35,18 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 5. **Shipped catalog** — `data/catalogs/poe2.catalog.json`, embedded into the
    CLI and web assemblies at build time.
    They contain item class names, mod ids and affix names, generation type,
-   family, required level, class/group membership, rendered stat text, and
+   source (`desecrated` or empty for normal explicit affixes), family,
+   required level, class/group membership, rendered stat text, and
    precomputed catalog fingerprints. `poe2.fragments.json` is the exact
    shortest-form table derived from the same catalog plus the safety corpus.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` is derived from
-   the same raw exports. It
-   add the searchable line text that the selectable catalog omits: regular,
-   corrupted, essence, crafted, and implicit item mods; base item names,
-   properties, requirements, implicits, and granted skills; regular affix
-   captions/tags; and universal usage. Unique-only mods, unique names,
-   captions, flavour, and rare item names are deliberately excluded and are
-   reported as unmodeled in the audit. No game binaries, memory, client logs,
-   or runtime extraction are involved.
+   the same raw exports. It adds the searchable line text that the selectable
+   catalog omits: regular, corrupted, essence, implicit, and desecrated item
+   mods; base item names, properties, requirements, implicits, and granted
+   skills; regular affix captions/tags; and universal usage. Unique-only mods,
+   unique names, captions, flavour, and rare item names are deliberately
+   excluded and are reported as unmodeled in the audit. No game binaries,
+   memory, client logs, or runtime extraction are involved.
 7. **Consumers** — the CLI, the library, and the web workbench read only the
    derived catalog, exact fragment table, vendor corpus, and safety fixtures;
    nothing downloads game data at runtime.

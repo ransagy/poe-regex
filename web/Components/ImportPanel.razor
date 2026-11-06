@@ -326,6 +326,8 @@
                 var label = mod?.Name ?? ids[0];
                 if (map!.Approximate) label += " ~approx";
                 if (ids.Count > 1) label += $" +{ids.Count - 1}";
+                if (mod?.Source == "desecrated")
+                    builder.AddMarkupContent(0, "<span class=\"mod-source\">Desecrated</span> ");
                 builder.OpenElement(0, "span");
                 builder.AddAttribute(1, "class", "iprev-annot map-one");
                 builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
@@ -341,7 +343,8 @@
         var range = mod?.StatLines.FirstOrDefault() is { } sl
             ? ModSearch.DisplayLine(sl)
             : "no catalog line";
-        var title = $"{ids[0]} · {kind} · {range}";
+        var source = mod?.Source == "desecrated" ? "desecrated · " : "";
+        var title = $"{ids[0]} · {source}{kind} · {range}";
         if (ids.Count > 1) title += $" — {ids.Count} catalog mods match; using this one";
         return title;
     }

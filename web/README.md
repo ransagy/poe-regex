@@ -222,13 +222,14 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   table lookup only; there is no live fragment search and no heuristic
   fallback. The oracle is line-scoped over the derived
   vendor/stash corpus, and the table is strict: zero foreign modeled or
-  captured-safety lines. Unique-only text, flavour, and rare names remain
-  unmodeled and are reported separately. The exact table has 892 expanded
-  scopes (136 global patterns, 21 classes, 525 class fragments, 0 unresolved).
+  captured-safety lines. Desecrated item affixes are modeled; unique-only
+  text, flavour, rare names, augments, and bonded modifiers remain unmodeled
+  and are reported separately. The exact table has 1423 expanded scopes
+  (297 global patterns, 21 classes, 877 class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
-  `#% increased maximum Life` → `^\d.+um.+e$` (9), `#% increased Critical
+  `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
-  Damage` → `^g.*-.*ir.+e$` (16), `#% of Damage taken Recouped as Life` →
+  Damage` → `^g.*-.*ir.+e$` (13), `#% of Damage taken Recouped as Life` →
   `f d.*n r.*e$` (12), and `#% increased Armour, Evasion and Energy Shield` →
   `-.*d a.+,` (9). The catalog/table audits check all scope entries with .NET
   Regex, captured-item modeled lines, simple/slot compiles, family flows, and
@@ -344,12 +345,16 @@ Acceptance criteria and current measurements:
   in Advanced. Same-class slots merge (union); exclusions apply globally.
   Membership is derived: a slot joins the group as soon as it has any
   wanted/unwanted chips; clicking a slot only moves the editing focus.
-- The derived catalog ships prefix/suffix generations only (no implicits)
-  and renders some internal shorthand forms (`LightRadius`, `ManaLeech`);
-  the importer maps those via flagged approximate fallbacks. Imports resolve
-  by bracket ranges + header names, so a line with neither (and no plain-text
-  match) shows as ambiguous (`+N`) rather than asking — the grouped
-  family/tier pickers cover that surface for the builder and picker.
+- The derived catalog ships explicit prefix/suffix affixes plus Abyss
+  desecrated prefixes/suffixes (no implicits) and renders some internal
+  shorthand forms (`LightRadius`, `ManaLeech`); the importer maps those via
+  flagged approximate fallbacks. Desecrated families stay in the normal
+  Prefixes/Suffixes columns with a plain green `Desecrated` source line;
+  they are not in the default common shortlist and appear when searching or
+  after **Show all**. Imports resolve by bracket ranges + header names, so a
+  line with neither (and no plain-text match) shows as ambiguous (`+N`)
+  rather than asking — the grouped family/tier pickers cover that surface for
+  the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy
   can open with a stray blurb such as a lowercase `sockets`): the parser
   drops it instead of showing it as a base-stat line. Text with no

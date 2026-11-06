@@ -37,6 +37,39 @@ public static class ItemImport
         EngineService engine, ParsedModBlock block, ParsedValueLine line, string? classId)
     {
         var mapping = engine.MapLineToMods(classId, line.CanonicalText, line.Rolls, line.Ranges);
+
+        // A pasted header tells us which mod source the line belongs to.
+        // Normal and desecrated lines can share stat text (a rune's +Strength
+        // is the same text as an explicit Strength affix), so keep normal
+        // headers on normal mods and desecrated headers on desecrated mods.
+        if (mapping.ModIds.Count > 0)
+        {
+            var source = block.Source;
+            if (source == "desecrated")
+            {
+                mapping = mapping with
+                {
+                    ModIds = mapping.ModIds
+                        .Where(id => engine.FindMod(id)?.Source == "desecrated")
+                        .ToList(),
+                };
+            }
+            else if (source is "crafted" or "master crafted")
+            {
+                var crafted = mapping.ModIds
+                    .Where(id => engine.FindMod(id)?.Source is "crafted" or "master crafted")
+                    .ToList();
+                if (crafted.Count > 0) mapping = mapping with { ModIds = crafted };
+            }
+            else
+            {
+                var normal = mapping.ModIds
+                    .Where(id => string.IsNullOrEmpty(engine.FindMod(id)?.Source))
+                    .ToList();
+                if (normal.Count > 0) mapping = mapping with { ModIds = normal };
+            }
+        }
+
         if (mapping.ModIds.Count > 1 && block.Name is { Length: > 0 } name)
         {
             var byName = mapping.ModIds

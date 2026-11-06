@@ -51,6 +51,9 @@ public static class VendorCorpusBuilder
         var translations = CatalogBuilder.LoadAllTranslations(rawDir);
         var renderer = new StatTextRenderer(handlers, translations);
         var classByMod = CatalogBuilder.MapModsToClasses(rawDir, itemClasses);
+        foreach (var (modId, classes) in
+                 CatalogBuilder.MapDesecratedModsToClasses(mods, baseItems, itemClasses))
+            classByMod[modId] = classes;
 
         var classById = itemClasses.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
         var classByName = itemClasses.Values
@@ -128,12 +131,14 @@ public static class VendorCorpusBuilder
             foreach (var line in rendered) AddRenderedVariants(classes, line, kind);
         }
 
-        void AddModCaption(RePoESchema.Mod mod, string kind, IEnumerable<string>? forcedClasses = null)
+        void AddModCaption(
+            RePoESchema.Mod mod, string kind, IEnumerable<string>? forcedClasses = null,
+            string? headerLabel = null)
         {
             var classes = forcedClasses?.ToList() ?? [];
             var tags = DisplayTags(mod.ImplicitTags);
             var tagText = tags.Count == 0 ? "" : " — " + string.Join(", ", tags);
-            var label = kind switch
+            var label = headerLabel ?? kind switch
             {
                 "prefix" => "Prefix",
                 "suffix" => "Suffix",
@@ -156,13 +161,22 @@ public static class VendorCorpusBuilder
             }
         }
 
-        // All item-domain non-unique stat lines, including corrupted/essence/
-        // crafted and the extra regular tiers the selectable catalog omits.
+        // All item-domain non-unique stat lines, including corrupted/essence
+        // and the extra regular tiers the selectable catalog omits. Desecrated
+        // item affixes are also item text and must be foreign lines for every
+        // class they can appear on.
         foreach (var (modId, mod) in mods)
         {
-            if (mod.Domain != "item") continue;
-            if (!IncludedGenerations.Contains(mod.GenerationType)) continue;
-            AddModLines(modId, mod, KindForGeneration(mod.GenerationType));
+            var isNormal = mod.Domain == "item" && IncludedGenerations.Contains(mod.GenerationType);
+            var isDesecrated = mod.Domain == "desecrated" &&
+                               mod.GenerationType is "prefix" or "suffix";
+            if (!isNormal && !isDesecrated) continue;
+            // Only item-eligible desecrated mods are item text; map/tablet
+            // desecrated mods have no class and must not constrain item
+            // fragments.
+            if (isDesecrated && !classByMod.ContainsKey(modId)) continue;
+            AddModLines(modId, mod,
+                isDesecrated ? "desecrated" : KindForGeneration(mod.GenerationType));
         }
 
         var prefixNamesByClass = new Dictionary<string, List<string>>(StringComparer.Ordinal);
@@ -232,6 +246,17 @@ public static class VendorCorpusBuilder
         // 1..12 range; this is intentionally conservative.
         foreach (var (modId, mod) in mods)
         {
+            if (mod.Domain == "desecrated")
+            {
+                if (mod.GenerationType is not ("prefix" or "suffix")) continue;
+                var desecratedClasses =
+                    classByMod.TryGetValue(modId, out var desecratedSet) ? desecratedSet.ToList() : [];
+                if (desecratedClasses.Count == 0) continue;
+                var label = mod.GenerationType == "prefix" ? "Desecrated Prefix" : "Desecrated Suffix";
+                AddModCaption(mod, mod.GenerationType, desecratedClasses, label);
+                continue;
+            }
+
             if (mod.Domain != "item") continue;
             if (!IncludedGenerations.Contains(mod.GenerationType)) continue;
             var modClasses = classByMod.TryGetValue(modId, out var set) ? set.ToList() : [];

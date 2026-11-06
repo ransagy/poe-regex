@@ -145,10 +145,11 @@ public class GuideImportTests
         rare.Workbench!.ExternalIncludes.Should().Contain("rare");
         rare.CompiledQuery.Should().Be("\"rare\"");
 
-        var cross = Guide.Import("cross");
+        var cross = Guide.Import("Item Class: Crossbows");
         cross.Ok.Should().BeTrue(string.Join("; ", cross.Warnings));
         cross.Branches[0].Kind.Should().Be(GuideBranchKind.External);
-        cross.Workbench!.ExternalIncludes.Should().Contain("cross");
+        cross.Workbench!.ExternalIncludes.Should().Contain("Item Class: Crossbows");
+        cross.CompiledQuery.Should().Be("\"Item Class: Crossbows\"");
     }
 
     [Fact]

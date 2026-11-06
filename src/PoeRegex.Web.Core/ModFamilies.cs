@@ -33,6 +33,14 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
 /// </summary>
 public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier> Tiers)
 {
+    /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
+    /// desecrated mods. The family key carries the source prefix, so a
+    /// desecrated family with the same stat text as a normal family remains
+    /// a distinct row.</summary>
+    public string Source { get; init; } = "";
+
+    public bool IsDesecrated => Source == "desecrated";
+
     public IEnumerable<ModEntry> Members => Tiers.SelectMany(t => t.Members);
 
     /// <summary>Representative member for whole-family picks (base tier).</summary>
@@ -79,9 +87,16 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 /// </summary>
 public static class ModFamilies
 {
-    /// <summary>Awaiting name for the group key of a mod outside any family.</summary>
-    public static string KeyOf(ModEntry mod) =>
-        mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
+    /// <summary>
+    /// Family identity for grouping and lookups. The source is part of the
+    /// key so a desecrated family never merges with a normal family carrying
+    /// the same stat text or raw RePoE type.
+    /// </summary>
+    public static string KeyOf(ModEntry mod)
+    {
+        var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
+        return mod.Source == "desecrated" ? "desecrated:" + key : key;
+    }
 
     /// <summary>
     /// Families offered before the user types: the usual goals across gear
@@ -144,6 +159,7 @@ public static class ModFamilies
                 .ToList();
             families.Add(new ModFamily(famGroup.Key.Key, famGroup.Key.Gen == "prefix", tiers)
             {
+                Source = members[0].Source,
                 DisplayLines = FamilyLines(members),
             });
         }

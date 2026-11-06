@@ -87,8 +87,14 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 
 ## Limitations
 
-- The catalog ships prefix/suffix generations only; implicits are intentionally
-  unmapped unless their exact text overlaps a catalog affix.
+- The catalog ships explicit prefix/suffix affixes plus Abyss desecrated
+  prefixes/suffixes; implicits are intentionally unmapped unless their exact
+  text overlaps a catalog affix.
+- `{ Desecrated Prefix/Suffix Modifier ... }` headers are parsed and mapped to
+  the desecrated catalog entries. A desecrated line whose source cannot be
+  resolved stays unmapped instead of borrowing a normal affix.
+- Augments, bonded modifiers, and crafted-domain mods are not modeled yet;
+  crafted stat lines can still map to a normal affix with the same text.
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.

@@ -45,6 +45,26 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void DesecratedFamily_ShowsPlainGreenSourceText()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Helmet");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        var sourceMod = mods.Single(m =>
+            m.Id == "AbyssModHelmUlamanSuffixMarkedEnemyTakeIncreasedDamage");
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsDesecrated && f.Members.Any(m => m.Id == sourceMod.Id));
+
+        cut.Find("#mod-search").Input("of Ulaman");
+
+        var row = cut.Find($"#fam-toggle-{family.Anchor.Id}").ParentElement!;
+        row.QuerySelector(".mod-source")!.TextContent.Trim().Should().Be("Desecrated");
+    }
+
+    [Fact]
     public void PlainFamilyPick_HighlightsFamilyRow_InGlobalMode()
     {
         using var ctx = Context();

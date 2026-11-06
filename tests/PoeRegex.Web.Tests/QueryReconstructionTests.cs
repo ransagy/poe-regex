@@ -178,9 +178,9 @@ public class QueryReconstructionTests
     [Fact]
     public void DuplicateExclusions_RoundTripAndApply()
     {
-        // Two distinct mods compile to the same `!"o Ar"`; both must survive.
+        // Two distinct mods compile to the same `!"o ar"`; both must survive.
         const string query =
-            "\"\\) co.*e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"o Ar\" !\"o Ar\"";
+            "\"\\) co.*e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"o ar\" !\"o ar\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -197,8 +197,8 @@ public class QueryReconstructionTests
     [Fact]
     public void DuplicateAllOfGroups_RoundTripAndApply()
     {
-        // Two distinct picks compile to the same `"gt"` group in one all-of slot.
-        const string query = "\": Gl\" \"gt\" \",.+ld$\" \"ur .+y\" \"gt\" !\"m M\" !\"tn.+o\"";
+        // Two distinct picks compile to the same `"gth$"` group in one all-of slot.
+        const string query = "\": Gl\" \"gth$\" \",.+ld$\" \"ur .+h\" \"gth$\" !\"m M\" !\"tn.+o\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -222,10 +222,10 @@ public class QueryReconstructionTests
         // Body Armour and Gloves both want "+ to Evasion Rating", but the app
         // compiled them with different per-class fragments.
         const string query =
-            "\": (Bod|Cro|Fo|Gl)\" \": (Cro|Fo|Gl)|o Ev\" " +
-            "\": (Bod|Fo|Gl)|nus|of (Light|Radiance|Shining)\" " +
-            "\": (Bod|Cro|Gl)|of the Virtuoso\" \": (Bod|Cro|Gl)|o Ch\" " +
-            "\": (Bod|Cro|Fo)|^\\+.*on\"";
+            "\": (Bod|Cro|Fo|Gl)\" \": (Cro|Fo|Gl)|o ev\" " +
+            "\": (Bod|Fo|Gl)|nus$|of (Light|Radiance|Shining)\" " +
+            "\": (Bod|Cro|Gl)|of the Virtuoso\" \": (Bod|Cro|Gl)|o ch\" " +
+            "\": (Bod|Cro|Fo)|o e.+g$\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -250,7 +250,7 @@ public class QueryReconstructionTests
         // The six names are exactly the LocalFireDamage suffix from Flaming
         // up; the four fragments are separate picks in the same any-of group.
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -275,7 +275,7 @@ public class QueryReconstructionTests
     {
         // A subset of a family suffix is not "or better"; keep the two names
         // as their own picks so the search is not broadened.
-        const string query = "\"Flaming|Scorching|\\+.*ife\"";
+        const string query = "\"Flaming|Scorching|\\+.*fe$\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -293,27 +293,36 @@ public class QueryReconstructionTests
         // The melee-skill-level family spans Gloves and weapon classes; the
         // weapon slot's anchor must be a weapon mod so the chip can show the
         // family text, not the internal Gloves id.
-        const string query =
-            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
-            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
-            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
-            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
-            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+        const string familyKey = "GlobalIncreaseMeleeSkillGemLevel";
+        var combined = Engine.Combine(
+        [
+            ("gloves", "Gloves",
+                new[] { FamilyMemberPick(familyKey, "Gloves") }),
+            ("weapon", "One Hand Mace",
+                new[] { FamilyMemberPick(familyKey, "One Hand Mace") }),
+        ], []);
+        var query = combined.Query;
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
         recovered.Recompile(Engine).Should().Be(query);
-        var weapon = recovered.Slots.Single(s => s.SlotId == "weapon");
-        weapon.ClassId.Should().Be("One Hand Mace");
+        var weapon = recovered.Slots.Single(s => s.ClassId == "One Hand Mace");
         weapon.Includes.Should().ContainSingle();
         var mod = Engine.FindMod(weapon.Includes[0].ModId);
         mod.Should().NotBeNull();
         mod!.Classes.Should().Contain(weapon.ClassId,
             "the family anchor must exist on the slot's class for the chip label");
-        mod.Family.Should().Be("GlobalIncreaseMeleeSkillGemLevel");
+        mod.Family.Should().Be(familyKey);
+    }
+
+    private static WantedMod FamilyMemberPick(string familyKey, string classId)
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods())
+            .Single(f => f.Key == familyKey);
+        var member = family.Members.First(m =>
+            m.Classes.Contains(classId, StringComparer.Ordinal));
+        return new WantedMod(member.Id);
     }
 
     [Fact]
@@ -321,7 +330,7 @@ public class QueryReconstructionTests
     {
         // A real app string: six affix names plus four fragments in one group.
         const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*fe$|^\\+.*cc|o cri.*h|o int\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 

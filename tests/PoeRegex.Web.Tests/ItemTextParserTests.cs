@@ -104,6 +104,36 @@ public class ItemTextParserTests
     }
 
     [Fact]
+    public void DesecratedRing_HeaderCarriesSourceAndTier()
+    {
+        var item = ItemTextParser.Parse(FixtureTexts.DesecratedRing);
+        item.ItemClass.Should().Be("Rings");
+        item.Mods.Should().ContainSingle();
+        var mod = item.Mods[0];
+        mod.Kind.Should().Be("suffix");
+        mod.Source.Should().Be("desecrated");
+        mod.Name.Should().Be("of Ulaman");
+        mod.Tier.Should().Be(2);
+        mod.Lines[0].Rolls.Should().Equal([15]);
+        mod.Lines[0].Ranges.Should().Equal((13, 17));
+        item.AllLines().Should().Contain(line =>
+            line.Contains("Desecrated Suffix Modifier", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MasterCraftedHeader_IsRecognizedAndPreserved()
+    {
+        var item = ItemTextParser.Parse(
+            "Item Class: Rings\nRarity: Rare\nX\n--------\n" +
+            "{ Master Crafted Suffix Modifier \"of the Bear\" }\n+5 to Strength");
+        var mod = item.Mods.Should().ContainSingle().Subject;
+        mod.Kind.Should().Be("suffix");
+        mod.Source.Should().Be("master crafted");
+        item.AllLines().Should().Contain(
+            "{ Master Crafted Suffix Modifier \"of the Bear\" }");
+    }
+
+    [Fact]
     public void Mace_Corrupted_TwoLineSuffix()
     {
         var item = ItemTextParser.Parse(FixtureTexts.Mace);

@@ -38,6 +38,7 @@ public class ItemRulesTests
     [InlineData("Crossbow")]
     [InlineData("Staff")]
     [InlineData("Mace")]
+    [InlineData("DesecratedRing")]
     public void RealFixtures_PassWithZeroErrors(string fixture)
     {
         var text = typeof(FixtureTexts).GetField(

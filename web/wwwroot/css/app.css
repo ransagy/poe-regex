@@ -26,6 +26,8 @@
     --no: #e87964;
     --no-soft: rgba(232, 121, 100, 0.13);
     --ok: #9bc487;
+    /* Desecrated mod text: plain green, no badge. Shade is provisional. */
+    --desecrated: #8fd694;
     /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
@@ -94,6 +96,7 @@
     --no: #93331f;
     --no-soft: rgba(147, 51, 31, 0.12);
     --ok: #3d612c;
+    --desecrated: #3f7f45;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -417,6 +420,8 @@ input:disabled { opacity: 0.5; }
 .fam-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-source { color: var(--desecrated); font-weight: 600; }
+.fam-text .mod-source { display: block; font-size: 0.72rem; line-height: 1.15; letter-spacing: 0.01em; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .picked .fam-text { color: var(--text); }
 

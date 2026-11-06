@@ -189,6 +189,10 @@
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
                         <span class="bd-what">
+                            @if (IsDesecratedPick(inc))
+                            {
+                                <span class="mod-source">Desecrated</span>
+                            }
                             @if (inc.IsNamePick)
                             {
                                 <span class="bd-label">@label@(inc.Names!.Count > 1 ? " or better" : "")</span>
@@ -248,7 +252,13 @@
                     var label = SearchModel.ExcludeLabel(exc, mods);
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
-                        <span class="bd-what"><span class="bd-label">@label</span></span>
+                        <span class="bd-what">
+                            @if (IsDesecratedExclude(exc))
+                            {
+                                <span class="mod-source">Desecrated</span>
+                            }
+                            <span class="bd-label">@label</span>
+                        </span>
                         <span></span>
                         <code class="bd-frag" title="@frag">@frag</code>
                         <span class="bd-n" title="@(block is null ? "" : $"{block.Cost} characters as its own block")">@if (block is not null) { @block.Cost<span class="bd-unit"> chars</span> }</span>
@@ -413,6 +423,18 @@
     private bool AcceptsMin(WantedMod pick, string? cls) =>
         Engine.PrecomputedMinCapability(pick, cls)
         ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
+
+    private bool IsDesecratedPick(WantedMod pick)
+    {
+        var ids = pick.VariantModIds is { Count: > 0 } variants
+            ? variants
+            : (IReadOnlyList<string>)new[] { pick.ModId };
+        return ids.Any(id => Engine.FindMod(id)?.Source == "desecrated");
+    }
+
+    private bool IsDesecratedExclude(string term) =>
+        Engine.FindMod(term)?.Source == "desecrated" ||
+        Engine.PlayableMods().Any(m => m.Source == "desecrated" && m.Name == term);
 
     private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
     {
