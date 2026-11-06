@@ -41,18 +41,18 @@ public static class ItemImport
         // A pasted header tells us which mod source the line belongs to.
         // Normal and desecrated lines can share stat text (a rune's +Strength
         // is the same text as an explicit Strength affix), so keep normal
-        // headers on normal mods and desecrated headers on desecrated mods.
+        // headers on normal mods and prefer desecrated matches for desecrated
+        // headers. A desecrated reveal can still roll a normal-pool affix, so
+        // fall back to the normal candidates when no desecrated match exists.
         if (mapping.ModIds.Count > 0)
         {
             var source = block.Source;
             if (source == "desecrated")
             {
-                mapping = mapping with
-                {
-                    ModIds = mapping.ModIds
-                        .Where(id => engine.FindMod(id)?.Source == "desecrated")
-                        .ToList(),
-                };
+                var desecrated = mapping.ModIds
+                    .Where(id => engine.FindMod(id)?.Source == "desecrated")
+                    .ToList();
+                if (desecrated.Count > 0) mapping = mapping with { ModIds = desecrated };
             }
             else if (source is "crafted" or "master crafted")
             {

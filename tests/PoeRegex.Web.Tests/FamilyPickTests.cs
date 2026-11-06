@@ -44,6 +44,53 @@ public class FamilyPickTests
     }
 
     [Fact]
+    public void GlobalUnion_MergesSamePatternFamiliesAndRollAlternatives()
+    {
+        var raw = ModFamilies.Group(Engine.PlayableMods())
+            .Where(f => f.DisplayText == "+ to Level of all Projectile Skills")
+            .ToList();
+        raw.Should().HaveCount(2, "amulet and weapon families are distinct raw families");
+
+        var families = ModFamilies.Group(Engine.PlayableMods(), union: true);
+        var family = families
+            .Single(f => f.DisplayText == "+ to Level of all Projectile Skills");
+
+        family.IsUnion.Should().BeTrue();
+        family.Tiers.Select(t => t.Name).Should().BeEquivalentTo(
+            ["of the Archer", "of the Fletcher", "of the Sharpshooter", "of the Marksman", "of the Sniper"]);
+        family.Tiers.Should().ContainSingle(t => t.Name == "of the Archer");
+
+        var fletcher = family.Tiers.Single(t => t.Name == "of the Fletcher");
+        fletcher.Members.Should().HaveCount(3);
+        fletcher.DisplayLines.Should().ContainSingle("a merged tier shows one anchor line");
+        fletcher.ShapeLines.Should().Equal(["+ to Level of all Projectile Skills"]);
+        fletcher.UnionLines.Should().Equal(["+1 / +2 to Level of all Projectile Skills"]);
+        fletcher.VariantLines.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void PerSlotProjectileFamily_KeepsConcreteRolls()
+    {
+        var family = ModFamilies.Group(Engine.ModsForClass("Amulet"))
+            .Single(f => f.DisplayText == "+ to Level of all Projectile Skills");
+
+        family.IsUnion.Should().BeFalse();
+        var fletcher = family.Tiers.Single(t => t.Name == "of the Fletcher");
+        fletcher.DisplayLines.Should().Equal(["+2 to Level of all Projectile Skills"]);
+        fletcher.UnionLines.Should().Equal(fletcher.DisplayLines);
+    }
+
+    [Fact]
+    public void GlobalUnion_KeepsCommonFamiliesInTheShortlist()
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods(), union: true)
+            .First(f => f.DisplayText == "+ to maximum Life");
+
+        family.IsUnion.Should().BeTrue();
+        ModFamilies.IsCommon(family).Should().BeTrue();
+    }
+
+    [Fact]
     public void Group_ColdWeaponPrefix_MergesOneHandAndTwoHandTiers()
     {
         var fam = ModFamilies.Group(Engine.PlayableMods())

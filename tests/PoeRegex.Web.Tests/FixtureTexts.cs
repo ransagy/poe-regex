@@ -96,6 +96,18 @@ internal static class FixtureTexts
             +15(13-17)% to Lightning and Chaos Resistances
     """;
 
+    internal const string DesecratedAmuletNormalAffix = """
+            Item Class: Amulets
+            Rarity: Rare
+            Doom Loop
+            Gold Amulet
+            --------
+            Item Level: 80
+            --------
+            { Desecrated Suffix Modifier "of the Archer" (Tier: 3) }
+            +1 to Level of all Projectile Skills
+    """;
+
     internal const string Mace = """
             Item Class: One Hand Maces
             Rarity: Rare

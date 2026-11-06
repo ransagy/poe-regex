@@ -61,7 +61,7 @@
                                     TierExcluded(fam, t, crit.Excluded));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
                                 var collapsed = CanCollapse(fam);
-                                var displayLines = collapsed ? fam.Tiers[0].DisplayLines : fam.DisplayLines;
+                                var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
                                 var displayTag = fam.SourceTag;
                                 <li class="fam-block">
                                     <div class="suggest-row fam-row @(pickedFamily ? "picked" : "") @(excludedFamily ? "excluded" : "")">
@@ -150,9 +150,10 @@
                                                     : null;
                                                 var upDisabled = coveredByUp && !upSelected;
                                                 var excludedTier = TierExcluded(fam, tier, crit.Excluded);
+                                                var tierLines = TierLines(fam, tier);
                                                 <li class="suggest-row tier-row @(includedTier ? "picked" : "") @(coveredByUp ? "covered" : "") @(excludedTier ? "excluded" : "")">
-                                                    <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
-                                                        @foreach (var l in tier.DisplayLines)
+                                                    <span class="suggest-line @(tierLines.Count > 1 ? "multi" : "")" title="@TierTooltip(tier)">
+                                                        @foreach (var l in tierLines)
                                                         {
                                                             <span class="mod-line">@l</span>
                                                         }
@@ -222,6 +223,7 @@
 
     private string _search = "";
     private IReadOnlyList<ModEntry>? _groupedMods;
+    private bool _groupedUnion;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
@@ -253,10 +255,12 @@
         // Group once per scope change; typing and pick changes only filter
         // this snapshot. The parent re-renders on every pick, so the
         // reference guard matters.
-        if (!ReferenceEquals(_groupedMods, Mods))
+        var union = Scope is null;
+        if (!ReferenceEquals(_groupedMods, Mods) || _groupedUnion != union)
         {
             _groupedMods = Mods;
-            _allFamilies = ModFamilies.CachedGroup(Mods);
+            _groupedUnion = union;
+            _allFamilies = ModFamilies.CachedGroup(Mods, union);
         }
         Refresh();
     }
@@ -375,10 +379,16 @@
     private bool SameFamilyAs(ModFamily fam, string modId)
     {
         var mod = Engine.FindMod(modId);
-        return mod is not null &&
-               string.Equals(ModFamilies.KeyOf(mod), fam.Key, StringComparison.Ordinal) &&
-               string.Equals(mod.GenerationType, fam.IsPrefix ? "prefix" : "suffix",
-                   StringComparison.OrdinalIgnoreCase);
+        if (mod is null ||
+            !string.Equals(mod.GenerationType, fam.IsPrefix ? "prefix" : "suffix",
+                StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (fam.Members.Any(m => string.Equals(m.Id, mod.Id, StringComparison.Ordinal)))
+            return true;
+        if (string.IsNullOrEmpty(mod.Family)) return false;
+        return fam.Members.Any(m =>
+            string.Equals(m.Family, mod.Family, StringComparison.Ordinal) &&
+            string.Equals(m.Source, mod.Source, StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -496,6 +506,15 @@
 
     private static string CoveredTierHint(ModTier coveringTier) =>
         $"Covered by \"{TierLabel(coveringTier)}\" or better; remove that choice to edit this tier.";
+
+    private static IReadOnlyList<string> TierLines(ModFamily fam, ModTier tier) =>
+        fam.IsUnion ? tier.UnionLines : tier.DisplayLines;
+
+    private static string TierTooltip(ModTier tier) =>
+        string.Join("\n", tier.Members
+            .Select(m => string.Join(" / ", m.StatLines.Select(ModSearch.DisplayLine)) +
+                         (m.Classes.Count > 0 ? $" — {string.Join(", ", m.Classes)}" : ""))
+            .Distinct(StringComparer.Ordinal));
 
     private static string TierLabel(ModTier tier) =>
         tier.DisplayLabel.Length > 0

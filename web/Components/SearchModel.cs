@@ -99,7 +99,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
                 role = "exc";
                 var exc = excIndex < _excludeOrder.Count ? _excludeOrder[excIndex] : tokens[i].Phrase;
                 excIndex++;
-                label = $"None of: {ExcludeLabel(exc, engine.PlayableMods())}";
+                label = $"None of: {ExcludeLabel(exc, engine.PlayableMods(), union: true)}";
             }
             else if (!advanced && i >= externalStart)
             {
@@ -302,7 +302,7 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         if (pick.IsRawText) return RawText.Decode(pick.ModId);
         if (pick.IsNamePick) return $"\"{pick.Names![0]}\"";
         var mods = engine.PlayableMods();
-        return FamilyText(ModFamilies.CachedGroup(mods), mods, pick.ModId);
+        return FamilyText(ModFamilies.CachedGroup(mods, union: true), mods, pick.ModId);
     }
 
     public List<int> ScopeBlocks(string? slot) =>
@@ -404,25 +404,28 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         {
             // A family anchor may live on another class (the melee skill-level
             // family has Gloves and weapon tiers); still show the family text.
-            var globalFamily = ModFamilies.CachedGroup(engine!.PlayableMods())
-                .FirstOrDefault(f => f.Key == ModFamilies.KeyOf(globalMod));
+            var globalFamily = ModFamilies.CachedGroup(engine!.PlayableMods(), union: true)
+                .FirstOrDefault(f => f.Members.Any(m =>
+                    string.Equals(m.Id, globalMod.Id, StringComparison.Ordinal)));
             if (globalFamily is not null) return globalFamily.DisplayText;
             return globalMod.StatLines.Count > 0
                 ? ModSearch.DisplayLine(globalMod.StatLines[0])
                 : globalMod.Name is { Length: > 0 } ? globalMod.Name : modId;
         }
         if (mod is null) return modId;
-        var fam = families.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(mod));
+        var fam = families.FirstOrDefault(f => f.Members.Any(m =>
+            string.Equals(m.Id, mod.Id, StringComparison.Ordinal)));
         return fam?.DisplayText
                ?? (mod.StatLines.Count > 0 ? ModSearch.DisplayLine(mod.StatLines[0]) : mod.Id);
     }
 
     /// <summary>A family exclude names its stat text; a tier exclude is the quoted affix name.</summary>
-    public static string ExcludeLabel(string exc, IReadOnlyList<ModEntry> mods)
+    public static string ExcludeLabel(
+        string exc, IReadOnlyList<ModEntry> mods, bool union = false)
     {
         if (RawExclusion.IsRaw(exc)) return RawExclusion.Decode(exc);
         if (!mods.Any(m => m.Id == exc)) return $"\"{exc}\"";
-        return FamilyText(ModFamilies.CachedGroup(mods), mods, exc);
+        return FamilyText(ModFamilies.CachedGroup(mods, union), mods, exc);
     }
 
     /// <summary>

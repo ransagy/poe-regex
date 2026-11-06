@@ -144,7 +144,7 @@
 
     private RenderFragment PickList(string? slot, SlotCriteria crit, IReadOnlyList<ModEntry> mods) => __builder =>
     {
-        var families = ModFamilies.CachedGroup(mods);
+        var families = ModFamilies.CachedGroup(mods, union: slot is null);
         var cls = slot is null ? null : State.SlotClassOrDefault(slot);
         var scopeKey = slot ?? "global";
         var scopeBlocks = Model.ScopeBlocks(slot);
@@ -180,21 +180,24 @@
                 @foreach (var inc in regularIncluded)
                 {
                     var frag = Model.PickFragment(inc, cls);
-                    var tier = families.SelectMany(f => f.Tiers).FirstOrDefault(t => t.Anchor.Id == inc.ModId);
+                    var tier = families.SelectMany(f => f.Tiers)
+                        .FirstOrDefault(t => t.Members.Any(m =>
+                            string.Equals(m.Id, inc.ModId, StringComparison.Ordinal)));
                     var own = Model.PickBlock(slot, inc);
                     var label = inc.IsNamePick
                         ? $"\"{inc.Names![0]}\""
                         : SearchModel.FamilyText(families, mods, inc.ModId, Engine);
-                    var incMod = inc.IsNamePick ? null : Engine.FindMod(inc.ModId);
+                    var incMod = Engine.FindMod(inc.ModId);
                     var family = incMod is null
                         ? null
-                        : families.FirstOrDefault(f => f.Key == ModFamilies.KeyOf(incMod));
+                        : families.FirstOrDefault(f =>
+                            f.Members.Any(m => string.Equals(m.Id, incMod.Id, StringComparison.Ordinal)));
                     if (family is { IsDesecrated: true } && !inc.IsNamePick)
                     {
                         if (family.Tiers.Count == 1)
-                            label = string.Join(" / ", family.Tiers[0].DisplayLines);
+                            label = string.Join(" / ", PickTierLines(family, family.Tiers[0]));
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
-                            label = string.Join(" / ", tier.DisplayLines);
+                            label = string.Join(" / ", PickTierLines(family, tier));
                     }
                     var sourceTag = SourceTagFor(inc);
                     var minIgnored = inc.MinValue is not null && frag is not null
@@ -212,7 +215,7 @@
                             </span>
                             @if (inc.IsNamePick && tier is not null)
                             {
-                                <span class="bd-detail">@string.Join(" / ", tier.DisplayLines)</span>
+                                <span class="bd-detail">@string.Join(" / ", PickTierLines(family, tier))</span>
                             }
                         </span>
                         @if (!ReadOnly && AcceptsMin(inc, cls))
@@ -258,7 +261,7 @@
                 {
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
-                    var label = SearchModel.ExcludeLabel(exc, mods);
+                    var label = SearchModel.ExcludeLabel(exc, mods, union: slot is null);
                     var sourceTag = SourceTagFor(exc);
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
@@ -435,6 +438,9 @@
     private bool AcceptsMin(WantedMod pick, string? cls) =>
         Engine.PrecomputedMinCapability(pick, cls)
         ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
+
+    private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
+        family is { IsUnion: true } ? tier.UnionLines : tier.DisplayLines;
 
     private string? SourceTagFor(WantedMod pick)
     {

@@ -27,7 +27,7 @@
     --no-soft: rgba(232, 121, 100, 0.13);
     --ok: #9bc487;
     /* Desecrated mod text: plain green, no badge. Shade is provisional. */
-    --desecrated: #8fd694;
+    --desecrated: #749521;
     /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
@@ -96,7 +96,7 @@
     --no: #93331f;
     --no-soft: rgba(147, 51, 31, 0.12);
     --ok: #3d612c;
-    --desecrated: #3f7f45;
+    --desecrated: #749521;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -431,7 +431,8 @@ input:disabled { opacity: 0.5; }
 .suggest-row.tier-row:hover { background: var(--surface); }
 .suggest-row.tier-row.picked { background: var(--mod-soft); }
 .tier-row .tier-name {
-    flex: none; width: 5.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+    flex: 0 0 auto; width: auto; min-width: 3.5rem; max-width: 38%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
     font-size: 0.84rem; color: var(--muted);
 }
 .tier-row .suggest-line { font-size: 0.86rem; color: var(--text); }

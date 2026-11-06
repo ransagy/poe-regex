@@ -274,6 +274,30 @@ public class ModPickerHighlightTests
                 "the shared fragment makes a desecrated range exclusion family-wide");
     }
 
+    [Fact]
+    public void GlobalProjectileSearch_UnionsFamiliesAndShowsRollAlternatives()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "+ to Level of all Projectile Skills");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.Find("#mod-search").Input("Projectile Skills");
+
+        cut.FindAll(".fam-row").Should().ContainSingle();
+        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
+        cut.FindAll(".tier-row").Should().HaveCount(5);
+
+        var fletcher = cut.FindAll(".tier-row")
+            .Single(r => r.TextContent.Contains("of the Fletcher", StringComparison.Ordinal));
+        fletcher.TextContent.Should().Contain("+1 / +2 to Level of all Projectile Skills");
+        fletcher.QuerySelectorAll(".mod-line").Should().ContainSingle(
+            "merged class variants render as roll alternatives, not a hybrid mod");
+    }
+
     private static (EngineService Engine, IReadOnlyList<ModEntry> Mods, WorkbenchState State)
         AdvancedPickler(BunitContext ctx, out ModFamily family)
     {

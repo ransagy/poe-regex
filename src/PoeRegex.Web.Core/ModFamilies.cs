@@ -20,11 +20,50 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
     /// <summary>Representative member: chip identity and name-set anchor.</summary>
     public ModEntry Anchor => Members[0];
 
-    /// <summary>Range lines to show: every line of a single member, else the
-    /// first line of each member (merged variants differ by value, not text).</summary>
-    public IReadOnlyList<string> DisplayLines => Members.Count == 1
-        ? Members[0].StatLines.Select(ModSearch.DisplayLine).ToList()
-        : Members.Select(m => ModSearch.DisplayLine(m.StatLines[0])).Distinct().ToList();
+    /// <summary>One mod's lines: the anchor. A tier can merge variants from
+    /// several classes; showing every member here made the tier look like a
+    /// single hybrid mod. Use <see cref="UnionLines"/> for the merged view.</summary>
+    public IReadOnlyList<string> DisplayLines =>
+        Members[0].StatLines.Select(ModSearch.DisplayLine).ToList();
+
+    /// <summary>One line per stat shape for the merged family view.</summary>
+    public IReadOnlyList<string> ShapeLines => Members
+        .SelectMany(m => m.StatLines)
+        .Select(ModFamilies.ShapeOf)
+        .Distinct(StringComparer.Ordinal)
+        .ToList();
+
+    /// <summary>
+    /// Roll alternatives for an All-gear tier: one concrete line when all
+    /// members agree, otherwise a compact `+1 / +2 ...` line. True multi-line
+    /// mods keep their real lines instead of being joined.
+    /// </summary>
+    public IReadOnlyList<string> UnionLines
+    {
+        get
+        {
+            if (Members.Count == 1 || Members.Any(m => m.StatLines.Count != 1))
+                return DisplayLines;
+            var lines = Members
+                .Select(m => ModSearch.DisplayLine(m.StatLines[0]))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(ModFamilies.FirstNumber)
+                .ThenBy(x => x, StringComparer.Ordinal)
+                .ToList();
+            if (lines.Count <= 1) return lines;
+            var compact = ModFamilies.CompactAlternatives(lines);
+            return [compact ?? string.Join(" / ", lines)];
+        }
+    }
+
+    /// <summary>Concrete member variants for the tier tooltip.</summary>
+    public IReadOnlyList<string> VariantLines => Members
+        .Select(m => string.Join(" / ", m.StatLines.Select(ModSearch.DisplayLine)))
+        .Distinct(StringComparer.Ordinal)
+        .ToList();
+
+    /// <summary>Stable tier merge key inside a family.</summary>
+    public string MergeKey { get; init; } = "";
 
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
     /// desecrated mods.</summary>
@@ -48,6 +87,9 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// desecrated family with the same stat text as a normal family remains
     /// a distinct row.</summary>
     public string Source { get; init; } = "";
+
+    /// <summary>True when this family was merged for the All-gear view.</summary>
+    public bool IsUnion { get; init; }
 
     public bool IsDesecrated => Source == "desecrated";
 
@@ -159,19 +201,23 @@ public static class ModFamilies
     };
 
     /// <summary>True when the family is in the pre-typing shortlist.</summary>
-    public static bool IsCommon(ModFamily family) => CommonKeys.Contains(family.Key);
+    public static bool IsCommon(ModFamily family) =>
+        CommonKeys.Contains(family.Key) ||
+        family.Members.Any(m => CommonKeys.Contains(KeyOf(m)));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();
 
     /// <summary>
     /// Shared grouping cache keyed by the stable mod-list instance from
     /// <see cref="EngineService"/>. Mode and slot switches reuse the same
     /// grouping instead of rebuilding every tier's search text.
     /// </summary>
-    public static IReadOnlyList<ModFamily> CachedGroup(object mods) =>
-        GroupCache.GetValue(mods, key => Group((IEnumerable<ModEntry>)key));
+    public static IReadOnlyList<ModFamily> CachedGroup(object mods, bool union = false) =>
+        (union ? UnionGroupCache : GroupCache)
+        .GetValue(mods, key => Group((IEnumerable<ModEntry>)key, union));
 
-    public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods)
+    public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods, bool union = false)
     {
         var families = new List<ModFamily>();
         foreach (var famGroup in mods
@@ -196,6 +242,7 @@ public static class ModFamilies
                         DisplayLabel = anchor.Source == "desecrated"
                             ? RangeLabel(anchor)
                             : anchor.Name ?? "",
+                        MergeKey = TierKey(anchor),
                         SearchText = SearchTextOf(tierMembers),
                     };
                 })
@@ -209,7 +256,104 @@ public static class ModFamilies
                 DisplayLines = FamilyLines(members),
             });
         }
-        return families;
+        return union ? UnionFamilies(families) : families;
+    }
+
+    private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
+    {
+        var result = new List<ModFamily>();
+        foreach (var group in families
+                     .GroupBy(UnionKeyOf)
+                     .OrderBy(g => g.First().IsPrefix ? 0 : 1)
+                     .ThenBy(g => g.First().DisplayText, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(g => g.Key, StringComparer.Ordinal))
+        {
+            var members = group.SelectMany(f => f.Members).ToList();
+            var tiers = members
+                .GroupBy(TierKey)
+                .Select(g =>
+                {
+                    var tierMembers = g
+                        .OrderBy(m => m.RequiredLevel)
+                        .ThenBy(m => m.Id, StringComparer.Ordinal)
+                        .ToList();
+                    var anchor = tierMembers[0];
+                    return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
+                    {
+                        Source = anchor.Source,
+                        DisplayLabel = anchor.Source == "desecrated"
+                            ? RangeLabel(anchor)
+                            : anchor.Name ?? "",
+                        MergeKey = TierKey(anchor),
+                        SearchText = SearchTextOf(tierMembers),
+                    };
+                })
+                .OrderBy(t => t.RequiredLevel)
+                .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
+                .ToList();
+            result.Add(new ModFamily(group.Key, group.First().IsPrefix, tiers)
+            {
+                Source = group.First().Source,
+                DisplayLines = FamilyLines(members),
+                IsUnion = true,
+            });
+        }
+        return result;
+    }
+
+    private static string UnionKeyOf(ModFamily family)
+    {
+        var patterns = family.Members
+            .SelectMany(m => m.StatLines)
+            .Select(sl => sl.Pattern)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal);
+        return "union:" + family.Source + ":" + (family.IsPrefix ? "prefix" : "suffix") +
+               ":" + string.Join("\u0001", patterns);
+    }
+
+    internal static string? CompactAlternatives(IReadOnlyList<string> lines)
+    {
+        if (lines.Count < 2) return null;
+        var prefix = lines[0];
+        foreach (var line in lines.Skip(1))
+            prefix = CommonPrefix(prefix, line);
+        if (prefix.Length == 0) return null;
+        var suffix = lines[0];
+        foreach (var line in lines.Skip(1))
+            suffix = CommonSuffix(suffix, line);
+        if (suffix.Length == 0) return null;
+        if (lines.Any(line => prefix.Length + suffix.Length >= line.Length)) return null;
+        var middles = lines
+            .Select(line => line[prefix.Length..(line.Length - suffix.Length)])
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (middles.Count < 2 || middles.Any(m => m.Length == 0)) return null;
+        return string.Join(" / ", middles.Select(m => prefix + m)) + suffix;
+    }
+
+    private static string CommonPrefix(string a, string b)
+    {
+        var i = 0;
+        while (i < a.Length && i < b.Length && a[i] == b[i]) i++;
+        return a[..i];
+    }
+
+    private static string CommonSuffix(string a, string b)
+    {
+        var i = 0;
+        while (i < a.Length && i < b.Length && a[^(i + 1)] == b[^(i + 1)]) i++;
+        return a[^i..];
+    }
+
+    internal static double FirstNumber(string text)
+    {
+        var match = NumberRe.Match(text);
+        return match.Success &&
+               double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : 0;
     }
 
     private static string TierKey(ModEntry mod) =>
@@ -274,5 +418,8 @@ public static class ModFamilies
     private static readonly Regex WhitespaceRe = new(@"\s{2,}", RegexOptions.Compiled);
     private static readonly Regex RangeRe = new(
         @"(\d+(?:\.\d+)?)\s*[–—-]\s*(\d+(?:\.\d+)?)(\s*%)?",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex NumberRe = new(
+        @"[+-]?\d+(?:\.\d+)?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 }
