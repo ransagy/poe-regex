@@ -45,6 +45,33 @@ public class QueryReconstructionTests
         return family.Pick();
     }
 
+    private static WantedMod FamilyPick(string itemClass, string key) =>
+        ModFamilies.Group(Engine.ModsForClasses([itemClass]))
+            .Single(f => f.Key == key)
+            .Pick();
+
+    [Fact]
+    public void SharedModAcrossClasses_ReconstructsPerClass()
+    {
+        // The same mod id can legitimately appear in two classes with
+        // different neighbouring picks. Conflict tracking must be per class,
+        // or the second slot is rejected as a duplicate.
+        const string shared =
+            "AbyssModArmourJewelleryUlamanSuffixLightningChaosResistance";
+        var combined = Engine.Combine(
+        [
+            ("ring", "Ring",
+                new[] { new WantedMod(shared), FamilyPick("Ring", "FireResistance") }),
+            ("shield", "Shield",
+                new[] { new WantedMod(shared), FamilyPick("Shield", "ColdResistance") }),
+        ], []);
+
+        var recovered = Reconstruction.ReconstructWorkbench(combined.Query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(combined.Query);
+    }
+
     private static WantedMod FactoredRingNamePick()
     {
         var family = ModFamilies.Group(Engine.ModsForClasses(["Ring"]))

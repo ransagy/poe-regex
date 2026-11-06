@@ -277,20 +277,23 @@ public sealed class QueryReconstructionService
         var excludes = new List<string>();
         var externalIncludes = new List<string>();
         var warnings = new List<string>();
-        var used = new List<WantedMod>();
+        var usedByClass = classes.ToDictionary(
+            c => c, _ => new List<WantedMod>(), StringComparer.Ordinal);
+        var usedExcludes = new List<WantedMod>();
 
         foreach (var (phrase, excluded) in Explainer.Tokenize(query))
         {
             if (excluded)
             {
-                if (!TryResolveSinglePick(phrase, null, used, out var excludedPick, out _,
+                if (!TryResolveSinglePick(phrase, null, usedExcludes, out var excludedPick, out _,
                         new HashSet<string>(excludes, StringComparer.Ordinal)))
                 {
                     excludes.Add(RawExclusion.Encode(phrase));
                     continue;
                 }
                 excludes.Add(excludedPick!.ModId);
-                used.Add(excludedPick);
+                AddUnique(usedExcludes, excludedPick);
+                foreach (var used in usedByClass.Values) AddUnique(used, excludedPick);
                 continue;
             }
 
@@ -308,14 +311,17 @@ public sealed class QueryReconstructionService
                 if (targets.Count == 0)
                     return ReconstructedWorkbench.Failed($"group '{classPart}' targets no selected class");
 
-                if (!TryResolveGroup(fragPart, targets[0], used, out var picks, out var why))
+                if (!TryResolveGroup(fragPart, targets[0], usedByClass[targets[0]], out var picks, out var why))
                     return ReconstructedWorkbench.Failed(why);
-                foreach (var target in targets) builds[target].Add(picks);
-                used.AddRange(picks);
+                foreach (var target in targets)
+                {
+                    builds[target].Add(picks);
+                    foreach (var pick in picks) AddUnique(usedByClass[target], pick);
+                }
                 continue;
             }
 
-            if (!TryResolveGroup(phrase, classes[0], used, out var shared, out var sharedWhy))
+            if (!TryResolveGroup(phrase, classes[0], usedByClass[classes[0]], out var shared, out var sharedWhy))
             {
                 if (IsExternalLiteral(phrase) || MatchesKnownItemText(phrase))
                 {
@@ -324,8 +330,11 @@ public sealed class QueryReconstructionService
                 }
                 return ReconstructedWorkbench.Failed(sharedWhy);
             }
-            foreach (var target in classes) builds[target].Add(shared);
-            used.AddRange(shared);
+            foreach (var target in classes)
+            {
+                builds[target].Add(shared);
+                foreach (var pick in shared) AddUnique(usedByClass[target], pick);
+            }
         }
 
         var multiPickGroup = builds.Values.FirstOrDefault(b => b.Tokens > 1 && b.HasMultiPick);
@@ -724,7 +733,20 @@ public sealed class QueryReconstructionService
         var anchor = family.Tiers
             .SelectMany(t => t.Members)
             .FirstOrDefault(m => m.Classes.Contains(itemClass, StringComparer.Ordinal));
-        return anchor is null ? pick : pick with { ModId = anchor.Id };
+        if (anchor is null) return pick;
+        // Keep the variant OR scoped to this class. A global family can span
+        // Gloves and a weapon class; carrying the other class's variants makes
+        // the paste composer look for fragments that do not exist here and can
+        // drop the whole group.
+        var legal = family.Members
+            .Where(m => m.Classes.Contains(itemClass, StringComparer.Ordinal))
+            .Select(m => m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        return legal.Count == 0
+            ? pick with { ModId = anchor.Id }
+            : pick with { ModId = anchor.Id, VariantModIds = legal };
     }
 
     /// <summary>One multi-name pick in the picker's canonical tier-or-better order.</summary>
