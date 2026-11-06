@@ -46,7 +46,19 @@ self.addEventListener("install", (event) => {
       // The fallback shell still gives a usable offline page.
     }
 
-    await Promise.all(urls.map((url) => cache.add(url).catch(() => {})));
+    await Promise.all(urls.map(async (url) => {
+      try {
+        // Bypass the browser's HTTP cache for non-fingerprinted shell files
+        // so a new worker never precaches the previous deployment's CSS/JS.
+        // _framework names carry content hashes, so normal caching is safe.
+        const response = url.startsWith("/_framework/")
+          ? await fetch(url)
+          : await fetch(url, { cache: "reload" });
+        if (response.ok) await cache.put(url, response);
+      } catch {
+        // Keep installing even if one optional shell file is unavailable.
+      }
+    }));
     await self.skipWaiting();
   })());
 });

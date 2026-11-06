@@ -23,8 +23,9 @@ Current planned and parked work. Behavior is documented in
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
-- PWA: installable offline shell with a build-versioned service worker;
-  installability, offline reload, and cache replacement pass locally.
+- PWA: installable offline shell with a build-versioned service-worker
+  registration; a normal reload adopts a new build without a hard refresh,
+  and installability, offline reload, and cache replacement pass locally.
 
 ## Next
 

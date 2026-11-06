@@ -14,6 +14,16 @@
 /build-info.json
   Cache-Control: no-cache
 
+# Non-fingerprinted shell assets revalidate instead of staying stale.
+/css/*
+  Cache-Control: no-cache
+
+/js/*
+  Cache-Control: no-cache
+
+/web.styles.css
+  Cache-Control: no-cache
+
 # .NET 10 fingerprints every file in _framework/ (content hash in the
 # name), so these are safe to cache forever; new builds get new names.
 /_framework/*

@@ -10,7 +10,9 @@ Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 The app is installable and works offline after one online load: `build.sh`
 generates a precache manifest, and the service worker caches the shell per
-build commit. Registration is skipped on localhost.
+build commit. Registration uses a commit-versioned URL, so a normal reload
+adopts a new build without a hard refresh; registration is skipped on
+localhost.
 
 Current work: [`docs/WORKPLAN.md`](../docs/WORKPLAN.md).
 Acceptance and performance: [`docs/ACCEPTANCE.md`](../docs/ACCEPTANCE.md).

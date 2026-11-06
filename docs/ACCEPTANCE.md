@@ -59,12 +59,15 @@ produce long-task spikes. The budget is a target, not a hard failure.
   `_framework` assets.
 - After one online load, a reload with the network offline boots the app and
   restores the workbench.
-- A new build changes `sw.js`, installs a new cache, and deletes the previous
-  one.
-- Registration is skipped on `localhost`/`127.0.0.1` so development reloads
-  are never served from an old cache.
-- `build.sh` generates `precache-manifest.json`; `_headers` marks `sw.js`,
-  the manifest, the precache manifest, and `build-info.json` no-cache.
+- A new build changes the versioned `/sw.js?v=<commit>` registration URL,
+  installs a new cache, and deletes the previous one on activation.
+- A controlled page reloads once after the new worker claims it, so a normal
+  reload picks up new CSS/JS without a hard refresh. The same build does not
+  reload again, and registration is skipped on `localhost`/`127.0.0.1`.
+- `build.sh` generates `precache-manifest.json` and substitutes the commit
+  into the registration; `_headers` marks the manifest, precache manifest,
+  build info, CSS, JS, and `web.styles.css` no-cache, and `_framework/*`
+  immutable.
 - Icon fallbacks: `favicon.ico`, SVG favicon, 180×180 Apple touch icon, and
   manifest 192/512/maskable icons. Firefox desktop has no PWA install UI; it
   uses the normal site icon. Firefox Android uses the manifest icons for

@@ -24,6 +24,9 @@ chmod +x out/dotnet-install.sh
 # property is renamed in a future SDK.
 # The app is PoE2-only; the embedded catalog/table/vendor corpus stays
 # below Cloudflare Pages' per-file limit.
+# Clear the previous publish so deleted/stale assets never enter the shell
+# or the precache manifest when build.sh is run repeatedly locally.
+rm -rf out/web
 ./out/dotnet/dotnet publish web/web.csproj -c Release -o out/web \
   -p:BlazorEnableCompression=false
 
@@ -48,6 +51,10 @@ COMMIT="${CF_PAGES_COMMIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)
 BRANCH="${CF_PAGES_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo local)}"
 printf '{"commit":"%s","branch":"%s"}\n' "$COMMIT" "$BRANCH" \
   > out/web/wwwroot/build-info.json
+
+# Version the service worker registration with the deployed commit. The
+# query bypasses Cloudflare's cached /sw.js response on the next navigation.
+sed -i "s/__BUILD_COMMIT__/$COMMIT/g" out/web/wwwroot/index.html
 
 # The offline shell fetches this list at install time. Exclude the worker,
 # deployment metadata, and Cloudflare control files; everything else is the
