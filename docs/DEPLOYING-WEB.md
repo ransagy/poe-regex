@@ -244,8 +244,9 @@ The Pages build image does not include .NET, so `build.sh`:
    (`index.html` links it unconditionally; without this the request falls
    through the SPA fallback to `index.html` and the browser blocks it on
    the MIME type),
-5. stamps `build-info.json`, generates `precache-manifest.json`, and appends
-   the build commit to `sw.js`,
+5. stamps `build-info.json`, substitutes the commit into the versioned
+   service-worker registration in `index.html`, generates
+   `precache-manifest.json`, and appends the build commit to `sw.js`,
 6. leaves the static site in `out/web/wwwroot`.
 
 Reproduce the Cloudflare build locally with:
@@ -261,12 +262,15 @@ Reproduce the Cloudflare build locally with:
 - `web/wwwroot/_routes.json` — `/*` invokes the host guard on every path, so
   direct Pages-host requests cannot bypass it by asking for a static file.
 - `web/wwwroot/_headers` — `no-cache` on `index.html` so deployments
-  roll out immediately; `no-cache` on `sw.js`, `manifest.webmanifest`,
-  `precache-manifest.json`, and `build-info.json`; `immutable` caching for
-  `_framework/*` (every file is content-fingerprinted in .NET 10, and
-  fingerprints change per build); `X-Robots-Tag: noindex` on the generated
-  Pages hosts so internal preview URLs stay out of search engines (the app is
-  link-only). A custom domain is not matched and stays indexable.
+  roll out immediately; `no-cache` on `manifest.webmanifest`,
+  `precache-manifest.json`, `build-info.json`, `css/*`, `js/*`, and
+  `web.styles.css`; `immutable` caching for `_framework/*` (every file is
+  content-fingerprinted in .NET 10, and fingerprints change per build);
+  `X-Robots-Tag: noindex` on the generated Pages hosts so internal preview
+  URLs stay out of search engines (the app is link-only). A custom domain is
+  not matched and stays indexable. Cloudflare can ignore the `/sw.js`
+  `no-cache` rule, so `index.html` registers
+  `/sw.js?v=<build-commit>` instead of relying on that header.
 - `build-info.json` is generated into the output on every build (commit and
   branch from Cloudflare's `CF_PAGES_*` build variables, with a local `git`
   fallback). The Advanced panel shows the short commit + branch, so the
