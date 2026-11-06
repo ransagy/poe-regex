@@ -358,10 +358,11 @@ Acceptance criteria and current measurements:
   the same normalized stat pattern and shows the merged tier's roll
   alternatives; per-slot rows keep the class's concrete roll. Desecrated
   tiers that share a pattern collapse into one row while range-specific
-  strings are deferred. Jewel affixes, augments, bonded modifiers, and
-  crafted-domain mods remain unmodeled. Imports resolve by bracket ranges and
-  header names, so a line with neither (and no plain-text match) shows as
-  ambiguous (`+N`)
+  strings are deferred. Jewel affixes, augments, and bonded modifiers remain
+  unmodeled. The export's `crafted` prefix/suffix records are PoE1 leftovers
+  and are excluded; actual PoE2 crafted mods are jewel-only in domain `misc`.
+  Imports resolve by bracket ranges and header names, so a line with neither
+  (and no plain-text match) shows as ambiguous (`+N`)
   rather than asking — the grouped family/tier pickers cover that surface for
   the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy

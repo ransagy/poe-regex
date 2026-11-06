@@ -214,7 +214,11 @@ public static class CatalogBuilder
     /// <summary>
     /// Selectable affixes: normal explicit item prefixes/suffixes and the
     /// Abyss desecrated prefixes/suffixes. Map/tablet desecrated mods are
-    /// filtered later because they have no item-class spawn tags.
+    /// filtered later because they have no item-class spawn tags. Crafted
+    /// prefix/suffix records are deliberately excluded: the PoE2 export also
+    /// carries PoE1 Navali/Helena master crafts, which have no positive PoE2
+    /// base mapping. PoE2's actual crafted mods are the jewel-only
+    /// `CraftedJewel*` records in domain `misc`, handled with jewel support.
     /// </summary>
     private static bool IsSelectableAffix(RePoESchema.Mod mod) =>
         (mod.Domain == "item" && ItemGenerationTypes.Contains(mod.GenerationType)) ||

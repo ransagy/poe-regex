@@ -246,8 +246,12 @@ field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
 `from Equipped Body Armour` and `from Equipped Quiver` lines). Abyss
 desecrated item affixes are now part of the modeled catalog and safety
-corpus, with their classes derived from spawn-weight tags. Normal and
-desecrated jewel affixes are not modeled and are outside the proof. Family
+corpus, with their classes derived from spawn-weight tags. The PoE2 export's
+`crafted` prefix/suffix records are PoE1 master-craft leftovers; they have no
+positive PoE2 base mapping and are excluded. PoE2's actual crafted mods are
+the jewel-only `CraftedJewel*` records in domain `misc`, which are not
+modeled. Normal and desecrated jewel affixes are not modeled and are outside
+the proof. Family
 tiers are split by roll range for display, but the table is pattern-based:
 tiers that share one stat pattern share a fragment, so the search string
 cannot pin one numeric range; the picker collapses them into one row while
