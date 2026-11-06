@@ -119,10 +119,14 @@ public static class CandidateMatrix
                 var currentOption = string.IsNullOrEmpty(current)
                     ? null
                     : ExactOracle.Check(scopeCorpus, pattern, current);
+                // A still-valid old fragment may be reused to avoid tie churn,
+                // but one that now matches a foreign line (for example after a
+                // new source added a same-worded line) is not a candidate.
+                var reusableCurrent = currentOption is { ForeignLines: 0 } ? currentOption : null;
                 var minimum = scope is null ? 3 : 2;
-                var maximum = currentOption is not null ? current.Length - 1 : 250;
+                var maximum = reusableCurrent is not null ? current.Length - 1 : 250;
                 var solved = ExactOracle.Solve(scopeCorpus, pattern, minimum, maximum);
-                var chosen = solved ?? currentOption;
+                var chosen = solved ?? reusableCurrent;
                 var coverage = chosen is null
                     ? "none"
                     : solved is null ? "current-only" : "strict";

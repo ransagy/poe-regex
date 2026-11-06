@@ -58,6 +58,24 @@ public class CatalogPropertyTests
         }
     }
 
+    [Fact]
+    public void OracleCorpus_IncludesPlainAndAdvancedRangeForms()
+    {
+        var corpus = RealCatalog.Corpus();
+        var mod = corpus.InGameMods.First(m =>
+            m.Classes.Any(corpus.IsInGameClass) &&
+            m.StatLines.Any(sl => !string.Equals(
+                AdvancedStatLine.For(sl), sl.Line, StringComparison.Ordinal)));
+        var cls = mod.Classes.First(corpus.IsInGameClass);
+        var line = mod.StatLines.First(sl => !string.Equals(
+            AdvancedStatLine.For(sl), sl.Line, StringComparison.Ordinal));
+        var reals = corpus.RealLinesForClass(cls).Select(x => x.Real).ToList();
+
+        reals.Should().Contain(line.Line, $"{mod.Id} keeps the plain copy text");
+        reals.Should().Contain(AdvancedStatLine.For(line),
+            $"{mod.Id} must also be safe on the advanced ranged form");
+    }
+
     /// <summary>
     /// Regression guard for the digit-placeholder leak and unresolved picks:
     /// every mod compiles on every class, the emitted fragment contains no

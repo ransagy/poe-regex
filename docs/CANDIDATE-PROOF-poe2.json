@@ -3,9 +3,9 @@
   "dataVersion": "2026-08-09",
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
-  "generatedAt": "2026-11-06 12:04:51Z",
+  "generatedAt": "2026-11-06 21:19:45Z",
   "matrix": "CANDIDATE-MATRIX-poe2.html",
-  "matrixSha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0",
+  "matrixSha256": "0a5bf557579f2aeb6c2a1812cf7294f12b59b93b0ba969f77916f6840dfebfc1",
   "checkedScopes": 1415,
   "workScopes": 1415,
   "coveredKeys": [
