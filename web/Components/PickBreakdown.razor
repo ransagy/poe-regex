@@ -440,7 +440,7 @@
         ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
 
     private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
-        family is { IsUnion: true } ? tier.UnionLines : tier.DisplayLines;
+        family is { IsUnion: true } or { IsDesecrated: true } ? tier.UnionLines : tier.DisplayLines;
 
     private string? SourceTagFor(WantedMod pick)
     {

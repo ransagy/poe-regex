@@ -72,17 +72,42 @@ public class DesecratedTests
     }
 
     [Fact]
-    public void BreakArmourGlobal_HasSeparateRangeTiers()
+    public void BreakArmourGlobal_CollapsesRangesSharingOneFragment()
     {
         var family = ModFamilies.Group(Engine.PlayableMods())
             .Single(f => f.Key == "desecrated:ArmourPenetration");
 
         family.SourceTag.Should().Be("Desecrated · Amanamu");
-        family.Tiers.Should().HaveCount(2);
-        family.Tiers.Select(t => t.DisplayLabel)
-            .Should().BeEquivalentTo(["2–4%", "4–7%"]);
-        family.Tiers.Should().OnlyContain(t =>
-            t.DisplayLines.Count == 1 && t.DisplayLines[0].Contains("Break Armour"));
+        family.Tiers.Should().ContainSingle();
+        var tier = family.Tiers[0];
+        tier.Members.Should().HaveCount(2);
+        tier.DisplayLabel.Should().Be("2–4% / 4–7%");
+        tier.DisplayLines.Should().ContainSingle().Which.Should().Contain("2–4");
+        tier.UnionLines.Should().Equal(
+            ["Break Armour equal to 2–4 / 4–7% of Physical Damage dealt"]);
+    }
+
+    [Fact]
+    public void DesecratedFamilies_HaveNoTwoTiersWithTheSameFragment()
+    {
+        var scopes = new List<(string? Class, IReadOnlyList<ModEntry> Mods)>
+        {
+            (null, Engine.PlayableMods()),
+        };
+        scopes.AddRange(Engine.PlayableClasses()
+            .Select(c => ((string?)c.Id, Engine.ModsForClass(c.Id))));
+
+        foreach (var (cls, mods) in scopes)
+        {
+            foreach (var family in ModFamilies.Group(mods).Where(f => f.IsDesecrated))
+            {
+                var fragments = family.Tiers
+                    .Select(t => Engine.PickFragment(new WantedMod(t.Anchor.Id), cls))
+                    .ToList();
+                fragments.Should().OnlyHaveUniqueItems(
+                    $"{cls ?? "global"}/{family.Key} must not show two tiers for one fragment");
+            }
+        }
     }
 
     [Fact]

@@ -508,7 +508,7 @@
         $"Covered by \"{TierLabel(coveringTier)}\" or better; remove that choice to edit this tier.";
 
     private static IReadOnlyList<string> TierLines(ModFamily fam, ModTier tier) =>
-        fam.IsUnion ? tier.UnionLines : tier.DisplayLines;
+        fam.IsUnion || fam.IsDesecrated ? tier.UnionLines : tier.DisplayLines;
 
     private static string TierTooltip(ModTier tier) =>
         string.Join("\n", tier.Members

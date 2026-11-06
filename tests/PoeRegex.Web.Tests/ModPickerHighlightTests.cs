@@ -229,49 +229,47 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void DesecratedTierAnchorPick_LightsOnlyItsRangeTier()
+    public void BreakArmourGlobal_CollapsesToOneFamilyLine()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var mods = engine.PlayableMods();
         var state = new WorkbenchState();
-        var family = Family(mods, "desecrated:ArmourPenetration");
-        family.Tiers.Should().HaveCount(2);
-        var tier = family.Tiers[0];
-        state.AddInclude(null, new WantedMod(tier.Anchor.Id));
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "Break Armour equal to % of Physical Damage dealt");
+        family.Tiers.Should().ContainSingle();
 
         var cut = Render(ctx, state, mods);
         cut.Find("#mod-search").Input("Break Armour");
-        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
 
-        TierRow(cut, tier).ClassList.Should().Contain("picked");
-        foreach (var other in family.Tiers.Skip(1))
-            TierRow(cut, other).ClassList.Should().NotContain("picked",
-                "desecrated ranges share a faction name but not a tier");
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("fam-row");
+        row.QuerySelector(".fam-caret").Should().BeNull(
+            "one tier with the family's fragment collapses to a single line");
+        row.TextContent.Should().Contain("Break Armour equal to 2–4 / 4–7%");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Desecrated · Amanamu");
+        cut.FindAll(".tier-row").Should().BeEmpty();
     }
 
     [Fact]
-    public void DesecratedTierExclude_MarksEveryRangeAsFamilyWide()
+    public void DesecratedFamilyExclude_ShowsStateOnlyOnTheFamilyRow()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var mods = engine.PlayableMods();
         var state = new WorkbenchState();
-        var family = Family(mods, "desecrated:ArmourPenetration");
-        family.Tiers.Should().HaveCount(2);
-        var tier = family.Tiers[0];
-        state.AddExclude(null, tier.Anchor.Id);
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "Break Armour equal to % of Physical Damage dealt");
+        state.AddExclude(null, family.Anchor.Id);
 
         var cut = Render(ctx, state, mods);
         cut.Find("#mod-search").Input("Break Armour");
-        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
 
-        var row = FamilyRow(cut, family);
+        var row = cut.Find($"#pick-exc-{family.Anchor.Id}").ParentElement!;
         row.ClassList.Should().Contain("excluded");
-        row.TextContent.Should().Contain("2 excluded");
-        foreach (var t in family.Tiers)
-            TierRow(cut, t).ClassList.Should().Contain("excluded",
-                "the shared fragment makes a desecrated range exclusion family-wide");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Desecrated · Amanamu");
+        cut.FindAll(".tier-row").Should().BeEmpty();
+        cut.FindAll(".tier-row .mod-source").Should().BeEmpty();
     }
 
     [Fact]

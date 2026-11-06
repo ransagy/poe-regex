@@ -96,7 +96,9 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Desecrated tier labels show the roll range, but the exact table is
   pattern-based: ranges that share one stat pattern (for example `2–4%` and
   `4–7%`) compile to the same fragment, so the search string does not pin the
-  chosen range. Range-specific strings need range-aware proof scopes.
+  chosen range. The picker collapses those tiers into one row while range
+  strings remain pattern-based. Range-specific strings need range-aware proof
+  scopes.
 - Desecrated tier exclusions are family-wide for the same reason: excluding
   one range excludes every range that shares its fragment.
 - Augments, bonded modifiers, crafted-domain mods, and jewel affixes are not

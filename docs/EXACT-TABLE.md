@@ -250,9 +250,10 @@ corpus, with their classes derived from spawn-weight tags. Normal and
 desecrated jewel affixes are not modeled and are outside the proof. Family
 tiers are split by roll range for display, but the table is pattern-based:
 tiers that share one stat pattern share a fragment, so the search string
-cannot pin one numeric range. Range-specific strings need range-aware proof
-scopes. The
-proof is complete for the modeled corpus plus captured fixtures. Unmodeled
+cannot pin one numeric range; the picker collapses them into one row while
+range strings remain pattern-based. Range-specific strings need range-aware
+proof scopes. The proof is complete for the modeled corpus plus captured
+fixtures. Unmodeled
 unique, rare, flavour, socketable, and bonded text can still highlight; this
 is accepted and out of scope.
 

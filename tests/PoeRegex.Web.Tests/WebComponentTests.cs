@@ -194,7 +194,7 @@ public class WebComponentTests
         var preview = cut.Find("#query-import-preview");
         preview.TextContent.Should().Contain("\"Flaming\" or better");
         preview.TextContent.Should().Contain("Adds 20–24 to 32–37");
-        preview.TextContent.Should().Contain("Adds 30–37 to 45–56 Fire Damage");
+        preview.TextContent.Should().Contain("30–37 to 45–56 Fire Damage");
         preview.TextContent.Should().NotContain("name:");
         cut.FindAll("#query-import-preview .bd-row.inc").Count.Should().Be(5);
         cut.FindAll("#query-import-preview .bd-x").Should().BeEmpty();

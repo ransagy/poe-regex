@@ -19,7 +19,7 @@ Current planned and parked work. Behavior is documented in
   rendered in the normal Prefixes/Suffixes lists with a green `Desecrated · <faction>`
   tag; desecrated headers map on import. Augments, bonded modifiers,
   crafted-domain mods, and jewel affixes remain unmodeled.
-- Tests: 110 core, 346 web, 26 data-build; local suites green.
+- Tests: 110 core, 348 web, 26 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.

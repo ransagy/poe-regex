@@ -67,10 +67,11 @@
                                     <ul class="tier-list">
                                         @foreach (var tier in fam.Tiers)
                                         {
+                                            var tierLines = tier.Source == "desecrated" ? tier.UnionLines : tier.DisplayLines;
                                             <li class="suggest-row tier-row">
-                                                <span class="tier-name" title="@tier.Name">@(tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id)</span>
-                                                <span class="suggest-line multi" title="@string.Join("\n", tier.DisplayLines)">
-                                                    @foreach (var l in tier.DisplayLines)
+                                                <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
+                                                <span class="suggest-line @(tierLines.Count > 1 ? "multi" : "")" title="@string.Join("\n", tierLines)">
+                                                    @foreach (var l in tierLines)
                                                     {
                                                         <span class="mod-line">@l</span>
                                                     }
@@ -212,8 +213,13 @@
 
     // Built in C#: Blazor writes attributes via DOM APIs, so `&quot;` in
     // markup would show up verbatim in the tooltip.
+    private static string TierLabel(ModTier tier) =>
+        tier.DisplayLabel.Length > 0
+            ? tier.DisplayLabel
+            : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
+
     private static string TierAddTitle(ModTier tier) =>
-        $"add \"{tier.Name}\" ({tier.Anchor.GenerationType})";
+        $"add \"{TierLabel(tier)}\" ({tier.Anchor.GenerationType})";
 
     /// <summary>
     /// The item as it would be added: parsed text carries the name / class /

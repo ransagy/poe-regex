@@ -350,13 +350,15 @@ Acceptance criteria and current measurements:
   shorthand forms (`LightRadius`, `ManaLeech`); the importer maps those via
   flagged approximate fallbacks. Desecrated families stay in the normal
   Prefixes/Suffixes columns with a green `Desecrated · <faction>` tag after
-  the row label; they are not in the default common shortlist and appear when
-  searching or after **Show all**. All gear merges families that share the
-  same normalized stat pattern and shows the merged tier's roll alternatives;
-  per-slot rows keep the class's concrete roll. Jewel affixes, augments,
-  bonded modifiers, and crafted-domain mods remain unmodeled. Imports resolve
-  by bracket ranges and header names, so a line with neither (and no
-  plain-text match) shows as ambiguous (`+N`)
+  the family row label; they are not in the default common shortlist and appear
+  when searching or after **Show all**. All gear merges families that share
+  the same normalized stat pattern and shows the merged tier's roll
+  alternatives; per-slot rows keep the class's concrete roll. Desecrated
+  tiers that share a pattern collapse into one row while range-specific
+  strings are deferred. Jewel affixes, augments, bonded modifiers, and
+  crafted-domain mods remain unmodeled. Imports resolve by bracket ranges and
+  header names, so a line with neither (and no plain-text match) shows as
+  ambiguous (`+N`)
   rather than asking — the grouped family/tier pickers cover that surface for
   the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy

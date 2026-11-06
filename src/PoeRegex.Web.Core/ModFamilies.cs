@@ -239,9 +239,7 @@ public static class ModFamilies
                     return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
                     {
                         Source = anchor.Source,
-                        DisplayLabel = anchor.Source == "desecrated"
-                            ? RangeLabel(anchor)
-                            : anchor.Name ?? "",
+                        DisplayLabel = DisplayLabelFor(tierMembers),
                         MergeKey = TierKey(anchor),
                         SearchText = SearchTextOf(tierMembers),
                     };
@@ -281,9 +279,7 @@ public static class ModFamilies
                     return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
                     {
                         Source = anchor.Source,
-                        DisplayLabel = anchor.Source == "desecrated"
-                            ? RangeLabel(anchor)
-                            : anchor.Name ?? "",
+                        DisplayLabel = DisplayLabelFor(tierMembers),
                         MergeKey = TierKey(anchor),
                         SearchText = SearchTextOf(tierMembers),
                     };
@@ -330,7 +326,12 @@ public static class ModFamilies
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (middles.Count < 2 || middles.Any(m => m.Length == 0)) return null;
-        return string.Join(" / ", middles.Select(m => prefix + m)) + suffix;
+        // Keep the prefix on every short alternative (`+1 / +2`), but only
+        // once for a long textual prefix (`Break Armour equal to 2–4 / 4–7`).
+        var body = prefix.Length <= 2
+            ? string.Join(" / ", middles.Select(m => prefix + m))
+            : prefix + string.Join(" / ", middles);
+        return body + suffix;
     }
 
     private static string CommonPrefix(string a, string b)
@@ -358,9 +359,27 @@ public static class ModFamilies
 
     private static string TierKey(ModEntry mod) =>
         mod.Source == "desecrated"
-            ? string.Join("\u0001", mod.StatLines.Select(sl =>
-                $"{sl.Pattern}\u0002{sl.RangeLine}"))
+            ? string.Join("\u0001", mod.StatLines
+                .Select(sl => sl.Pattern)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(x => x, StringComparer.Ordinal))
             : mod.Name ?? "";
+
+    /// <summary>
+    /// Tier label: the affix name for normal tiers, or every distinct range
+    /// label for a desecrated tier merged across ranges.
+    /// </summary>
+    private static string DisplayLabelFor(IReadOnlyList<ModEntry> members)
+    {
+        var anchor = members[0];
+        if (anchor.Source != "desecrated") return anchor.Name ?? "";
+        return string.Join(" / ", members
+            .Select(RangeLabel)
+            .Where(label => label.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(FirstNumber)
+            .ThenBy(label => label, StringComparer.Ordinal));
+    }
 
     private static string RangeLabel(ModEntry mod)
     {
