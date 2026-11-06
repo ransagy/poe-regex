@@ -42,7 +42,8 @@ public sealed record ParsedModBlock(
     string? Name,
     int? Tier,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<ParsedValueLine> Lines);
+    IReadOnlyList<ParsedValueLine> Lines,
+    string Source = "explicit"); // explicit | desecrated | crafted | master crafted
 
 /// <summary>Structured form of a pasted advanced item description (English).</summary>
 public sealed record ParsedItem(
@@ -70,7 +71,7 @@ public sealed record ParsedItem(
         if (Name is not null) lines.Add(Name);
         foreach (var m in Mods)
         {
-            lines.Add(ItemTextParser.ModHeaderText(m.Kind, m.Name, m.Tier, m.Tags));
+            lines.Add(ItemTextParser.ModHeaderText(m.Kind, m.Name, m.Tier, m.Tags, m.Source));
             lines.AddRange(m.Lines.Select(l => l.Text));
         }
         return lines;
@@ -90,9 +91,19 @@ public static partial class ItemTextParser
     /// (e.g. `{ Prefix Modifier "Snowy" (Tier: 8) — Damage, Lightning }`).
     /// Built items pass null tier/tags: the derived catalog carries neither.
     /// </summary>
-    public static string ModHeaderText(string kind, string? name, int? tier, IReadOnlyList<string> tags)
+    public static string ModHeaderText(
+        string kind, string? name, int? tier, IReadOnlyList<string> tags,
+        string source = "explicit")
     {
-        var text = "{ " + char.ToUpperInvariant(kind.Length > 0 ? kind[0] : '?') + kind[1..] + " Modifier";
+        var sourceText = source switch
+        {
+            "desecrated" => "Desecrated ",
+            "crafted" => "Crafted ",
+            "master crafted" => "Master Crafted ",
+            _ => "",
+        };
+        var text = "{ " + sourceText +
+                   char.ToUpperInvariant(kind.Length > 0 ? kind[0] : '?') + kind[1..] + " Modifier";
         if (!string.IsNullOrEmpty(name)) text += " \"" + name + "\"";
         if (tier is not null) text += $" (Tier: {tier})";
         if (tags.Count > 0) text += " — " + string.Join(", ", tags);
@@ -102,7 +113,7 @@ public static partial class ItemTextParser
     /// <summary>Header caption for a catalog mod on a built item (no tier or
     /// tags available from the derived catalog).</summary>
     public static string CatalogModHeader(PoeRegex.Core.Data.ModEntry mod) =>
-        ModHeaderText(mod.GenerationType, mod.Name, null, []);
+        ModHeaderText(mod.GenerationType, mod.Name, null, [], mod.Source);
 
     [GeneratedRegex(@"^Item Class:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex ItemClassRe();
@@ -116,7 +127,9 @@ public static partial class ItemTextParser
     private static partial Regex SocketsRe();
     [GeneratedRegex(@"^Grants Skill:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex GrantsSkillRe();
-    [GeneratedRegex(@"^\{\s*(?<kind>Implicit|Prefix|Suffix)\b(?<rest>.*)\}$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(
+        @"^\{\s*(?:(?<source>Desecrated|Master Crafted|Crafted)\s+)?(?<kind>Implicit|Prefix|Suffix)\b(?<rest>.*)\}$",
+        RegexOptions.IgnoreCase)]
     private static partial Regex ModHeaderRe();
     [GeneratedRegex(@"""(?<name>[^""]+)""")]
     private static partial Regex QuotedNameRe();
@@ -236,6 +249,13 @@ public static partial class ItemTextParser
             {
                 FlushBlock();
                 var kind = m.Groups["kind"].Value.ToLowerInvariant();
+                var source = m.Groups["source"].Value.ToLowerInvariant() switch
+                {
+                    "desecrated" => "desecrated",
+                    "crafted" => "crafted",
+                    "master crafted" => "master crafted",
+                    _ => "explicit",
+                };
                 var rest = m.Groups["rest"].Value;
                 var qn = QuotedNameRe().Match(rest);
                 var tr = TierRe().Match(rest);
@@ -248,7 +268,8 @@ public static partial class ItemTextParser
                         ? tg.Groups["tags"].Value.Split(',').Select(t => t.Trim())
                             .Where(t => t.Length > 0).ToList()
                         : [],
-                    []);
+                    [],
+                    source);
                 currentLines = [];
                 continue;
             }

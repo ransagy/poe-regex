@@ -45,6 +45,31 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void DesecratedFamily_ShowsPlainGreenSourceText()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Helmet");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        var sourceMod = mods.Single(m =>
+            m.Id == "AbyssModHelmUlamanSuffixMarkedEnemyTakeIncreasedDamage");
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsDesecrated && f.Members.Any(m => m.Id == sourceMod.Id));
+
+        cut.Find("#mod-search").Input("of Ulaman");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Ulaman");
+        row.QuerySelector(".fam-text .mod-source").Should().BeNull(
+            "the source tag belongs in the row's tag cluster, not inside the stat text");
+        row.QuerySelector(".fam-caret").Should().BeNull(
+            "a single-tier same-fragment family collapses without an expand control");
+    }
+
+    [Fact]
     public void PlainFamilyPick_HighlightsFamilyRow_InGlobalMode()
     {
         using var ctx = Context();
@@ -201,6 +226,74 @@ public class ModPickerHighlightTests
         foreach (var other in family.Tiers.Where(t => t != tier))
             TierRow(cut, other).ClassList.Should().NotContain("picked",
                 "a single tier anchor does not select the rest of the family");
+    }
+
+    [Fact]
+    public void BreakArmourGlobal_CollapsesToOneFamilyLine()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var state = new WorkbenchState();
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "Break Armour equal to % of Physical Damage dealt");
+        family.Tiers.Should().ContainSingle();
+
+        var cut = Render(ctx, state, mods);
+        cut.Find("#mod-search").Input("Break Armour");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("fam-row");
+        row.QuerySelector(".fam-caret").Should().BeNull(
+            "one tier with the family's fragment collapses to a single line");
+        row.TextContent.Should().Contain("Break Armour equal to 2–4 / 4–7%");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Amanamu");
+        cut.FindAll(".tier-row").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DesecratedFamilyExclude_ShowsStateOnlyOnTheFamilyRow()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var state = new WorkbenchState();
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "Break Armour equal to % of Physical Damage dealt");
+        state.AddExclude(null, family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods);
+        cut.Find("#mod-search").Input("Break Armour");
+
+        var row = cut.Find($"#pick-exc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("excluded");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Amanamu");
+        cut.FindAll(".tier-row").Should().BeEmpty();
+        cut.FindAll(".tier-row .mod-source").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GlobalProjectileSearch_UnionsFamiliesAndShowsRollAlternatives()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var family = ModFamilies.Group(mods, union: true)
+            .Single(f => f.DisplayText == "+ to Level of all Projectile Skills");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.Find("#mod-search").Input("Projectile Skills");
+
+        cut.FindAll(".fam-row").Should().ContainSingle();
+        cut.Find($"#fam-toggle-{family.Anchor.Id}").Click();
+        cut.FindAll(".tier-row").Should().HaveCount(5);
+
+        var fletcher = cut.FindAll(".tier-row")
+            .Single(r => r.TextContent.Contains("of the Fletcher", StringComparison.Ordinal));
+        fletcher.TextContent.Should().Contain("+1 / +2 to Level of all Projectile Skills");
+        fletcher.QuerySelectorAll(".mod-line").Should().ContainSingle(
+            "merged class variants render as roll alternatives, not a hybrid mod");
     }
 
     private static (EngineService Engine, IReadOnlyList<ModEntry> Mods, WorkbenchState State)

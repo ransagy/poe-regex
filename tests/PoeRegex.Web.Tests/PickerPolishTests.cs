@@ -124,6 +124,46 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_DesecratedTagFollowsTheModLabel()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mod = engine.FindMod("AbyssModHelmUlamanSuffixMarkedEnemyTakeIncreasedDamage")!;
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod(mod.Id));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var label = cut.Find(".bd-row.inc .bd-label");
+        label.TextContent.Should().EndWith("Ulaman");
+        label.LastElementChild!.TextContent.Should().Be("Ulaman");
+    }
+
+    [Fact]
+    public void PickBreakdown_GlobalNamePickShowsMergedRollAlternatives()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null,
+            new WantedMod("GlobalProjectileSkillGemLevelWeapon2", ["of the Fletcher"]));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.Find(".bd-row.inc .bd-label").TextContent.Should().Contain("of the Fletcher");
+        cut.Find(".bd-row.inc .bd-detail").TextContent.Trim()
+            .Should().Contain("+1 / +2 to Level of all Projectile Skills");
+    }
+
+    [Fact]
     public void PickBreakdown_ShowsAnyOfCustomTextInsideThePickGroup()
     {
         using var ctx = Context();

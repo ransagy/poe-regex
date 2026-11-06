@@ -24,16 +24,22 @@ public static class CatalogBuilder
         var translations = LoadAllTranslations(rawDir);
         var renderer = new StatTextRenderer(handlers, translations);
 
-        // mod -> item class ids it can spawn on
+        // mod -> item class ids it can spawn on. Normal affixes use
+        // mods_by_base; desecrated mods are applied by the Abyss well rather
+        // than natural rolls, so their spawn_weights tags are mapped through
+        // the released item-base tags instead.
         var classByMod = MapModsToClasses(rawDir, itemClasses);
+        var desecratedByMod = MapDesecratedModsToClasses(mods, baseItems, itemClasses);
+        foreach (var (modId, classes) in desecratedByMod)
+            classByMod[modId] = classes;
 
         // 1. Render mod text lines.
         var renderedLines = new Dictionary<string, List<StatTextRenderer.RenderedLine>>();
         var classLines = new Dictionary<string, HashSet<string>>();
         foreach (var (modId, mod) in mods)
         {
-            if (!ItemGenerationTypes.Contains(mod.GenerationType)) continue;
-            if (mod.Domain != "item") continue;
+            if (!IsSelectableAffix(mod)) continue;
+            if (mod.Domain == "desecrated" && !desecratedByMod.ContainsKey(modId)) continue;
 
             var lines = renderer.RenderMod(mod.Stats);
             if (lines.Count == 0) continue;
@@ -49,6 +55,19 @@ public static class CatalogBuilder
                 }
                 foreach (var line in lines) set.Add(line.Pattern);
             }
+        }
+
+        // A desecrated line that maps to an item class but renders nothing
+        // would silently disappear from the picker and the proof. Fail loudly
+        // instead of shipping a partial category.
+        var unrendered = desecratedByMod.Keys
+            .Where(id => !renderedLines.ContainsKey(id))
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (unrendered.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"desecrated item mods rendered no lines: {string.Join(", ", unrendered)}");
         }
 
         // 2. Per-class fingerprinting.
@@ -124,6 +143,7 @@ public static class CatalogBuilder
                 Id = modId,
                 Name = mods[modId].Name,
                 GenerationType = mods[modId].GenerationType,
+                Source = mods[modId].Domain == "desecrated" ? "desecrated" : "",
                 Family = mods[modId].Type ?? "",
                 RequiredLevel = mods[modId].RequiredLevel,
                 Classes = classes.ToList(),
@@ -180,6 +200,8 @@ public static class CatalogBuilder
         string classLine)
     {
         var corpus = new List<string>(classLines.TryGetValue(classId, out var set) ? set : new HashSet<string>());
+        // Canonical order keeps equal-length tie-breaks stable across processes.
+        corpus.Sort(StringComparer.Ordinal);
         // Same universal non-mod lines the runtime oracle sees, so embedded
         // fingerprints avoid them too. The class line must stay LAST: callers
         // fingerprint it via corpus.Count - 1.
@@ -187,6 +209,68 @@ public static class CatalogBuilder
             corpus.Add(StatTextRenderer.NormalizeDigits(u));
         corpus.Add(classLine);
         return corpus;
+    }
+
+    /// <summary>
+    /// Selectable affixes: normal explicit item prefixes/suffixes and the
+    /// Abyss desecrated prefixes/suffixes. Map/tablet desecrated mods are
+    /// filtered later because they have no item-class spawn tags.
+    /// </summary>
+    private static bool IsSelectableAffix(RePoESchema.Mod mod) =>
+        (mod.Domain == "item" && ItemGenerationTypes.Contains(mod.GenerationType)) ||
+        (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix");
+
+    /// <summary>
+    /// Maps desecrated item mods to classes from their positive spawn_weights
+    /// tags and the released, non-unique base items. A base is eligible when
+    /// it matches at least one positive tag and no zero-weight exclusion tag
+    /// (the catch-all `default: 0` is ignored when a positive tag matched).
+    /// Desecrated mods are not in mods_by_base (the Abyss well applies them
+    /// rather than natural rolls), so this is the authoritative mapping
+    /// available in the export.
+    /// </summary>
+    internal static Dictionary<string, HashSet<string>> MapDesecratedModsToClasses(
+        IReadOnlyDictionary<string, RePoESchema.Mod> mods,
+        IReadOnlyDictionary<string, RePoESchema.BaseItem> baseItems,
+        IReadOnlyDictionary<string, RePoESchema.ItemClass> itemClasses)
+    {
+        var bases = new List<(string ClassId, HashSet<string> Tags)>();
+        foreach (var (path, baseItem) in baseItems)
+        {
+            if (baseItem.Domain != "item") continue;
+            if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
+            if (path.Contains("Unique", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!itemClasses.ContainsKey(baseItem.ItemClass)) continue;
+            bases.Add((baseItem.ItemClass, new HashSet<string>(baseItem.Tags ?? [], StringComparer.Ordinal)));
+        }
+
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (modId, mod) in mods)
+        {
+            if (mod.Domain != "desecrated") continue;
+            if (mod.GenerationType is not ("prefix" or "suffix")) continue;
+
+            var positiveTags = (mod.SpawnWeights ?? [])
+                .Where(w => w.Weight > 0 && !string.Equals(w.Tag, "default", StringComparison.Ordinal))
+                .Select(w => w.Tag)
+                .ToHashSet(StringComparer.Ordinal);
+            if (positiveTags.Count == 0) continue;
+            var excludedTags = (mod.SpawnWeights ?? [])
+                .Where(w => w.Weight == 0 && !string.Equals(w.Tag, "default", StringComparison.Ordinal))
+                .Select(w => w.Tag)
+                .ToHashSet(StringComparer.Ordinal);
+
+            var classes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (classId, tags) in bases)
+            {
+                if (!tags.Overlaps(positiveTags)) continue;
+                if (tags.Overlaps(excludedTags)) continue;
+                classes.Add(classId);
+            }
+            if (classes.Count > 0) result[modId] = classes;
+        }
+        return result;
     }
 
     /// <summary>

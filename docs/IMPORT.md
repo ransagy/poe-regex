@@ -87,8 +87,23 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 
 ## Limitations
 
-- The catalog ships prefix/suffix generations only; implicits are intentionally
-  unmapped unless their exact text overlaps a catalog affix.
+- The catalog ships explicit prefix/suffix affixes plus Abyss desecrated
+  prefixes/suffixes; implicits are intentionally unmapped unless their exact
+  text overlaps a catalog affix.
+- `{ Desecrated Prefix/Suffix Modifier ... }` headers are parsed and mapped.
+  A desecrated match is preferred, but a desecrated reveal can carry a normal
+  explicit affix; when no desecrated match exists, the normal match is used.
+- Desecrated tier labels show the roll range, but the exact table is
+  pattern-based: ranges that share one stat pattern (for example `2–4%` and
+  `4–7%`) compile to the same fragment, so the search string does not pin the
+  chosen range. The picker collapses those tiers into one row while range
+  strings remain pattern-based. Range-specific strings need range-aware proof
+  scopes.
+- Desecrated tier exclusions are family-wide for the same reason: excluding
+  one range excludes every range that shares its fragment.
+- Augments, bonded modifiers, crafted-domain mods, and jewel affixes are not
+  modeled yet; crafted stat lines can still map to a normal affix with the
+  same text. Jewel lines remain unmapped.
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.
@@ -97,6 +112,12 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Guide filters preserve class/rarity/base filters as imported raw terms but
   do not map them to slots yet. Exclusions are applied as raw regex groups.
 - Unmodeled unique/socketable/base text is outside the safety corpus.
+- Fragment choices can change after a catalog/corpus rebuild. An old raw
+  search string that uses a retired fragment may fail reconstruction; re-copy
+  it from the current build. The table build keeps existing fragments when
+  they still pass and remain shortest, so only forced changes retire old
+  strings. Saved picks and share links store picks and recompile against the
+  current table.
 
 ## Reproduce
 

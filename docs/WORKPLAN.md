@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-05._
+_Last updated: 2026-11-06._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -13,9 +13,13 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`; the Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 892/892 scopes proven, not stale
-  ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
-- Tests: 110 core, 324 web, 25 data-build; main CI green.
+- Engine: exact PoE2 table/proof is current: 1415/1415 scopes proven, not
+  stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
+- Catalog: explicit prefixes/suffixes plus Abyss desecrated item affixes,
+  rendered in the normal Prefixes/Suffixes lists with a green `<faction>` tag;
+  desecrated headers map on import. Augments, bonded modifiers,
+  crafted-domain mods, and jewel affixes remain unmodeled.
+- Tests: 110 core, 348 web, 26 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -41,6 +45,12 @@ Current planned and parked work. Behavior is documented in
   or server-backed share layer is deferred.
 - Accounts / OIDC. Design-only; would add a backend and the largest operational
   surface.
+
+### Catalog coverage
+
+- Jewel affixes. Normal jewel mods use domain `misc`; desecrated jewel mods
+  target `misc` jewel bases. Neither is in the catalog, and there is no Jewel
+  workbench slot. Deferred.
 
 ### Ops decisions
 

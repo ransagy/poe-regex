@@ -45,6 +45,13 @@ public sealed class ModEntry
     [JsonPropertyName("generationType")]
     public required string GenerationType { get; init; }
 
+    /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
+    /// desecrated mods. Kept separate from generation type so rules and
+    /// generation handling stay unchanged.</summary>
+    [JsonPropertyName("source")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string Source { get; init; } = "";
+
     /// <summary>RePoE family key (`type`): all tiers of one stat share it
     /// (merges scopes, e.g. one-hand/two-hand). Empty on catalogs built
     /// before families were captured.</summary>

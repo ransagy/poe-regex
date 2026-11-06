@@ -55,7 +55,15 @@
             <div class="iprev-mod">
                 @if (section.Caption is not null)
                 {
-                    <div class="iprev-cap">@section.Caption</div>
+                    <div class="iprev-cap">
+                        <span>{ </span>
+                        @if (section.SourceLabel is not null)
+                        {
+                            <span class="@section.SourceClass">@section.SourceLabel</span>
+                            <span> </span>
+                        }
+                        <span>@(section.Caption) }</span>
+                    </div>
                 }
                 @foreach (var line in section.Lines)
                 {
@@ -83,7 +91,9 @@
         int Block, int Line, string Text,
         IReadOnlyList<string> Candidates, string? SelectedModId);
 
-    private sealed record Section(string? Caption, IReadOnlyList<PreviewLine> Lines);
+    private sealed record Section(
+        string? Caption, string? SourceLabel, string SourceClass,
+        IReadOnlyList<PreviewLine> Lines);
     private sealed record PreviewLine(string Text, PreviewLineRef Ref);
 
     /// <summary>The item to draw. Callers build throwaway TestItems for previews.</summary>
@@ -152,7 +162,7 @@
                         new PreviewLineRef(bi, li, line.Text,
                             ml?.Candidates ?? [], ml?.SelectedModId)));
                 }
-                sections.Add(new Section(Caption(block), lines));
+                sections.Add(new Section(Caption(block), SourceLabel(block.Source), SourceClass(block.Source), lines));
             }
         }
         else if (Item.Built)
@@ -174,7 +184,7 @@
                     lines.Add(new PreviewLine(DisplayText(ml, ml.Text),
                         new PreviewLineRef(-1, refIndex++, ml.Text, ml.Candidates, ml.SelectedModId)));
                 }
-                sections.Add(new Section(caption, lines));
+                sections.Add(new Section(caption, SourceLabel(mod?.Source), SourceClass(mod?.Source), lines));
             }
         }
         return sections;
@@ -207,6 +217,17 @@
         var name = block.Name is null ? "" : $" \"{block.Name}\"";
         var tier = block.Tier is null ? "" : $" (Tier: {block.Tier})";
         var tags = block.Tags.Count > 0 ? $" — {string.Join(", ", block.Tags)}" : "";
-        return $"{{ {kind} Modifier{name}{tier}{tags} }}";
+        return $"{kind} Modifier{name}{tier}{tags}";
     }
+
+    private static string? SourceLabel(string? source) => source switch
+    {
+        "desecrated" => "Desecrated",
+        "crafted" => "Crafted",
+        "master crafted" => "Master Crafted",
+        _ => null,
+    };
+
+    private static string SourceClass(string? source) =>
+        source == "desecrated" ? "mod-source" : "";
 }

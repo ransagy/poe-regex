@@ -4,38 +4,38 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-01 20:48:18Z",
-  "matrixGenerated": "2026-10-29 22:53:43Z",
+  "generatedAt": "2026-11-06 13:17:17Z",
+  "matrixGenerated": "2026-11-06 12:00:01Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
-      "bytes": 746518,
-      "sha256": "266eb1a3d83aa34f7e4e8407c31efcccf6ca2def1c2bf439979258c4da91dc86"
+      "bytes": 871741,
+      "sha256": "fcd7a6a0fe603048b995247779cea2c50eb646980e781c4475da5fe3ceb7cdbb"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 397004,
-      "sha256": "91a33d06d92e3bef2d1fbd52227a7ad0f17db8298845dea2922ea55ac0208b65"
+      "bytes": 458725,
+      "sha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 421699,
-      "sha256": "394984a0730d906e7d60c266bcd3c00d907a946b688a9c8313ff39a210ea7576"
+      "bytes": 484912,
+      "sha256": "24148b12fc4557fbdfeb6c5f05addd8d55736606ac6acbfd536d3ec1fbdbb8a1"
     }
   },
   "matrix": {
-    "families": 182,
-    "patterns": 221,
-    "scopes": 600,
+    "families": 342,
+    "patterns": 392,
+    "scopes": 1030,
     "coverage": {
-      "class/current-only": 253,
-      "global/current-only": 221,
-      "per-class/current-only": 126
+      "class/strict": 393,
+      "global/strict": 392,
+      "per-class/strict": 245
     },
     "bounds": {
-      "250": 600
+      "250": 1030
     },
-    "boundCompleteCurrentOnly": 600,
+    "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
     "longCurrentOnly": []
   },
@@ -63,9 +63,9 @@
     "Warstaff": "Qua"
   },
   "table": {
-    "global": 136,
+    "global": 297,
     "classes": 21,
-    "classFragments": 525,
+    "classFragments": 869,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
     "classAnchors": 21,
@@ -81,9 +81,9 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "91a33d06d92e3bef2d1fbd52227a7ad0f17db8298845dea2922ea55ac0208b65",
-      "checkedScopes": 892,
-      "workScopes": 892,
+      "matrixSha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0",
+      "checkedScopes": 1415,
+      "workScopes": 1415,
       "failed": 0,
       "proven": true
     }

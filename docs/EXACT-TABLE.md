@@ -39,35 +39,35 @@ works from advanced descriptions.
 ## Artifact coverage
 
 ```text
-182 families · 600 rows · 892 expanded scopes · 0 unresolved
+342 families · 1030 rows · 1415 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
-| Scope | Current-only rows |
+| Scope | Rows |
 |---|---:|
-| Global | 221 |
-| Class | 253 |
-| Per-class | 126 |
+| Global | 392 |
+| Class | 393 |
+| Per-class | 245 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-136 global patterns · 21 classes · 525 class fragments · 0 unresolved
+297 global patterns · 21 classes · 869 class fragments · 0 unresolved
 ```
 
 Examples:
 
 | Pattern | Scope | Exact form |
 |---|---|---|
-| `#% increased maximum Life` | global | `^\d.+um.+e$` |
+| `#% increased maximum Life` | global | `^\d.+d m.*fe$` |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` |
 | `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
 | `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` |
-| `#% increased Evasion Rating` | Amulet | `-.*va` |
+| `#% increased Evasion Rating` | Amulet | ` e.+g$` |
 | `+#% to Critical Damage Bonus` | Bow | `nus$` |
 
 The strict pass is exact for the declared grammar and target display model
@@ -79,14 +79,14 @@ Nine catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
 `One Hand Sword`, `One Hand Axe`, `Two Hand Sword`, `Two Hand Axe`,
 `FishingRod`, `TrapTool`) are excluded from the in-game matrix, shipped table,
 global union, and proof. Their catalog entries remain for data fidelity. The
-pruned artifacts drop 12 fishing/trap families, 11 global patterns, and 190
-class fragments; released classes keep their fragments. The global union,
+pruned artifacts exclude those classes from the in-game matrix, table, and
+proof; released classes keep their fragments. The global union,
 safety lines, and cross-line sections contain released classes only.
 
 ## Proof status
 
 ```text
-892 / 892 expanded scopes checked
+1415 / 1415 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -103,28 +103,36 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 ```
 
 ```text
-runtime: 95s
-matrix:  182 families · 607 rows · 892 expanded scopes
-table:   136 global · 21 classes · 525 class fragments
-proof:   892 / 892 · 0 failures
+runtime: local from-scratch run
+matrix:  342 families · 1030 rows · 1415 expanded scopes
+table:   297 global · 21 classes · 869 class fragments
+proof:   1415 / 1415 · 0 failures
 ```
 
-Compared with the shipped artifacts:
+This from-scratch run is the basis for the shipped table. The shipped table
+also applies a stability pass: an existing fragment is kept when it still
+passes the exact oracle and matches the new shortest length, so equal-length
+tie churn does not retire working strings. The diff report therefore lists
+only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
+reproduce that stability pass.
 
-- Expanded scopes: 892 vs 892, identical keys.
-- Chosen length: identical on all 892 scopes.
-- Table: 136/21/525 in both.
-- 376 table entries differ only at equal length: 201 case-only and 175
-  same-length shape ties.
-- The seeded matrix has 600 rows; the from-scratch matrix has 607. The
-  difference is row grouping; both expand to the same 892 scopes.
+- Expanded scopes: 1415 / 1415, all proven.
+- Chosen length: proven on every scope.
+- Table: 297 global patterns, 21 classes, 869 class fragments, 0 unresolved.
+- Equal-length ties are resolved deterministically by the current run.
 
-The differences are tie-breaks, not coverage or length regressions. The
-seeded run keeps an already-proven equal-length form; from-scratch returns
-the solver's preferred equal-length form. The shortest-length guarantee is
-seed-independent. The exact string is not canonical across equal-length
-solutions by design; the table remains a validated cache and
-`--from-scratch` remains the authority when the cache is stale.
+The exact string is not canonical across equal-length solutions by design;
+the table remains a validated cache and `--from-scratch` remains the
+authority when the cache is stale.
+
+## Fragment-change review
+
+Any change that adds catalog lines, changes the vendor/safety corpus, or changes
+the solver must regenerate the table from scratch and review a before/after
+fragment report before merge. The report covers every changed existing scope
+with its old/new fragment and collision reason, plus every new scope. Keep the
+report outside the repository; the shipped table and proof remain the source of
+truth.
 
 ## Solver validation
 
@@ -139,20 +147,20 @@ Quoted length includes the two block quotes; inner length excludes them.
 
 | Pattern | Scope | Form | Inner |
 |---|---|---|---:|
-| `#% increased maximum Life` | global | `^\d.+um.+e$` | 9 |
-| `#% increased maximum Life` | Amulet/Ring | `cr.*fe` | 6 |
-| `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 10 |
+| `#% increased maximum Life` | global | `^\d.+d m.*fe$` | 13 |
+| `#% increased maximum Life` | Amulet | `d.*m l` | 6 |
+| `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 12 |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` | 14 |
-| `#% increased Critical Damage Bonus` | Gloves | `nus$` | 4 |
-| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 16 |
-| `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 16 |
+| `#% increased Critical Damage Bonus` | Gloves | `bon` | 3 |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 13 |
+| `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 15 |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` | 12 |
 | `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` | 9 |
-| `#% increased Armour` | global | `^\d.*d Armour$` | 14 |
-| `#% increased Energy Shield` | global | `ed en.+d$` | 9 |
-| `+# to maximum Energy Shield` | global | `^\+.*gy` | 6 |
-| `#% increased Evasion Rating` | Amulet | `-.*va` | 5 |
-| `#% increased Armour` | Amulet | `-.*rm` | 6 |
+| `#% increased Armour` | global | `^\d.*d armour$` | 14 |
+| `#% increased Energy Shield` | global | `ed en.*d$` | 9 |
+| `+# to maximum Energy Shield` | global | `^\+.*gy` | 7 |
+| `#% increased Evasion Rating` | Amulet | ` e.+g$` | 6 |
+| `#% increased Armour` | Amulet | `d..rmour$` | 9 |
 | `+#% to Critical Damage Bonus` | Bow | `nus$` | 4 |
 
 All forms are strict: zero foreign lines in their scope. Some forms use the
@@ -236,10 +244,18 @@ The raw data includes unique-only, jewel/socketable, base, and skill lines
 that the selectable catalog and vendor corpus deliberately exclude. Observed
 field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
-`from Equipped Body Armour` and `from Equipped Quiver` lines). The proof is
-complete for the modeled corpus plus captured fixtures. Unmodeled unique,
-rare, flavour, and socketable text can still highlight; this is accepted and
-out of scope.
+`from Equipped Body Armour` and `from Equipped Quiver` lines). Abyss
+desecrated item affixes are now part of the modeled catalog and safety
+corpus, with their classes derived from spawn-weight tags. Normal and
+desecrated jewel affixes are not modeled and are outside the proof. Family
+tiers are split by roll range for display, but the table is pattern-based:
+tiers that share one stat pattern share a fragment, so the search string
+cannot pin one numeric range; the picker collapses them into one row while
+range strings remain pattern-based. Range-specific strings need range-aware
+proof scopes. The proof is complete for the modeled corpus plus captured
+fixtures. Unmodeled
+unique, rare, flavour, socketable, and bonded text can still highlight; this
+is accepted and out of scope.
 
 ### Strict target membership
 
@@ -251,8 +267,8 @@ foreign unless the target pattern itself includes that subject/source.
 Examples of strict forms:
 
 - `-.*d a.+,` excludes the fixed-value jewel line without matching it.
-- Amulet Evasion is `-.*va`, not `d Ev`.
-- Amulet Armour is `-.*rm`, not `d Ar`.
+- Amulet Evasion is ` e.+g$`, not `d Ev`.
+- Amulet Armour is `d..rmour$`, not `d Ar`.
 
 Cross-stat and same-stat source lines are both in the foreign corpus. No
 policy exception can reintroduce them without changing the basis.

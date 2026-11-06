@@ -326,11 +326,22 @@
                 var label = mod?.Name ?? ids[0];
                 if (map!.Approximate) label += " ~approx";
                 if (ids.Count > 1) label += $" +{ids.Count - 1}";
+                var faction = mod?.Source == "desecrated"
+                    ? ModFamily.FactionName(mod.Name)
+                    : "";
+                var sourceTag = faction.Length > 0 ? faction : null;
                 builder.OpenElement(0, "span");
                 builder.AddAttribute(1, "class", "iprev-annot map-one");
                 builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
                 builder.AddContent(3, label);
                 builder.CloseElement();
+                if (sourceTag is not null)
+                {
+                    builder.OpenElement(4, "span");
+                    builder.AddAttribute(5, "class", "mod-source");
+                    builder.AddContent(6, sourceTag);
+                    builder.CloseElement();
+                }
             };
         };
 
@@ -341,7 +352,8 @@
         var range = mod?.StatLines.FirstOrDefault() is { } sl
             ? ModSearch.DisplayLine(sl)
             : "no catalog line";
-        var title = $"{ids[0]} · {kind} · {range}";
+        var source = mod?.Source == "desecrated" ? "desecrated · " : "";
+        var title = $"{ids[0]} · {source}{kind} · {range}";
         if (ids.Count > 1) title += $" — {ids.Count} catalog mods match; using this one";
         return title;
     }

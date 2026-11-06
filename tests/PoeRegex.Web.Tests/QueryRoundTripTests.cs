@@ -138,7 +138,15 @@ public class QueryRoundTripTests
         for (var i = 0; i < count; i++)
         {
             var pick = RandomPick(rng, classId);
-            if (!picks.Any(p => p.SamePick(pick))) picks.Add(pick);
+            if (picks.Any(p => p.SamePick(pick))) continue;
+            // Two different families can share one affix-name set (desecrated
+            // mods introduced several "of Ulaman" families). Their literals
+            // are identical, so a state with both cannot round-trip as two
+            // distinct terms; skip that inherently ambiguous duplicate here.
+            if (pick.IsNamePick &&
+                picks.Any(p => p.IsNamePick && p.Names!.SequenceEqual(pick.Names!)))
+                continue;
+            picks.Add(pick);
         }
         return picks;
     }

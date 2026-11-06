@@ -26,6 +26,8 @@
     --no: #e87964;
     --no-soft: rgba(232, 121, 100, 0.13);
     --ok: #9bc487;
+    /* Desecrated mod text: plain green, no badge. Shade is provisional. */
+    --desecrated: #749521;
     /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
@@ -94,6 +96,7 @@
     --no: #93331f;
     --no-soft: rgba(147, 51, 31, 0.12);
     --ok: #3d612c;
+    --desecrated: #749521;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -417,6 +420,9 @@ input:disabled { opacity: 0.5; }
 .fam-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-source { color: var(--desecrated); font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
+.bd-label .mod-source { margin-left: 0.3rem; margin-right: 0; }
+.iprev-annot + .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .picked .fam-text { color: var(--text); }
 
@@ -425,7 +431,8 @@ input:disabled { opacity: 0.5; }
 .suggest-row.tier-row:hover { background: var(--surface); }
 .suggest-row.tier-row.picked { background: var(--mod-soft); }
 .tier-row .tier-name {
-    flex: none; width: 5.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+    flex: 0 0 auto; width: auto; min-width: 3.5rem; max-width: 38%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
     font-size: 0.84rem; color: var(--muted);
 }
 .tier-row .suggest-line { font-size: 0.86rem; color: var(--text); }
@@ -580,7 +587,9 @@ input:disabled { opacity: 0.5; }
 }
 .bd-row:hover, .bd-row.hot { background: var(--raised); }
 .bd-what { min-width: 0; display: flex; flex-direction: column; }
-.bd-label { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-label { font-size: 0.88rem; display: flex; align-items: baseline; min-width: 0; white-space: nowrap; }
+.bd-label .bd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bd-label .mod-source { flex: none; }
 .bd-detail { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bd-row.exc .bd-label { color: var(--exc-ink); }
 .bd-row.imported .bd-label { font-family: var(--mono); }

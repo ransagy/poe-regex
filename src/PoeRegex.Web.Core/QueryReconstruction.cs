@@ -185,6 +185,12 @@ public sealed class QueryReconstructionService
     /// </summary>
     public bool MatchesKnownItemText(string pattern)
     {
+        _knownLines ??= BuildKnownLines();
+        return MatchesAnyLine(pattern, _knownLines);
+    }
+
+    private static bool MatchesAnyLine(string pattern, IReadOnlyList<string> lines)
+    {
         if (pattern.Length == 0) return false;
         Regex regex;
         try
@@ -199,8 +205,7 @@ public sealed class QueryReconstructionService
             return false;
         }
 
-        _knownLines ??= BuildKnownLines();
-        foreach (var line in _knownLines)
+        foreach (var line in lines)
         {
             try
             {

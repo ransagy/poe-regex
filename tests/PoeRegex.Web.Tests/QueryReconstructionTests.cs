@@ -197,8 +197,8 @@ public class QueryReconstructionTests
     [Fact]
     public void DuplicateAllOfGroups_RoundTripAndApply()
     {
-        // Two distinct picks compile to the same `"gt"` group in one all-of slot.
-        const string query = "\": Gl\" \"gt\" \",.+ld$\" \"ur .+y\" \"gt\" !\"m M\" !\"tn.+o\"";
+        // Two distinct picks compile to the same `"gth$"` group in one all-of slot.
+        const string query = "\": Gl\" \"gth$\" \",.+ld$\" \"ur .+y\" \"gth$\" !\"m M\" !\"tn.+o\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
@@ -223,7 +223,7 @@ public class QueryReconstructionTests
         // compiled them with different per-class fragments.
         const string query =
             "\": (Bod|Cro|Fo|Gl)\" \": (Cro|Fo|Gl)|o Ev\" " +
-            "\": (Bod|Fo|Gl)|nus|of (Light|Radiance|Shining)\" " +
+            "\": (Bod|Fo|Gl)|nus$|of (Light|Radiance|Shining)\" " +
             "\": (Bod|Cro|Gl)|of the Virtuoso\" \": (Bod|Cro|Gl)|o Ch\" " +
             "\": (Bod|Cro|Fo)|^\\+.*on\"";
 
@@ -293,27 +293,36 @@ public class QueryReconstructionTests
         // The melee-skill-level family spans Gloves and weapon classes; the
         // weapon slot's anchor must be a weapon mod so the chip can show the
         // family text, not the internal Gloves id.
-        const string query =
-            "\": (Bel|Bod|Boo|Gl|Hel|.*Mac|Ri)\" " +
-            "\": (Bod|Boo|Gl|.*Mac|Ri)|fe$\" " +
-            "\": (Bel|Boo|Gl|Hel|.*Mac|Ri)|\\+.*fe\" " +
-            "\": (Bel|Bod|Gl|Hel|.*Mac|Ri)|Mov\" " +
-            "\": (Bel|Bod|Boo|Hel|.*Mac)|d da|dd.*p|e da|tn.+o\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|Ri|Tw.+M)|all\" " +
-            "\": (Bel|Bod|Boo|Gl|Hel|On.+M|Ri)|d Ph\"";
+        const string familyKey = "GlobalIncreaseMeleeSkillGemLevel";
+        var combined = Engine.Combine(
+        [
+            ("gloves", "Gloves",
+                new[] { FamilyMemberPick(familyKey, "Gloves") }),
+            ("weapon", "One Hand Mace",
+                new[] { FamilyMemberPick(familyKey, "One Hand Mace") }),
+        ], []);
+        var query = combined.Query;
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
         recovered.Recompile(Engine).Should().Be(query);
-        var weapon = recovered.Slots.Single(s => s.SlotId == "weapon");
-        weapon.ClassId.Should().Be("One Hand Mace");
+        var weapon = recovered.Slots.Single(s => s.ClassId == "One Hand Mace");
         weapon.Includes.Should().ContainSingle();
         var mod = Engine.FindMod(weapon.Includes[0].ModId);
         mod.Should().NotBeNull();
         mod!.Classes.Should().Contain(weapon.ClassId,
             "the family anchor must exist on the slot's class for the chip label");
-        mod.Family.Should().Be("GlobalIncreaseMeleeSkillGemLevel");
+        mod.Family.Should().Be(familyKey);
+    }
+
+    private static WantedMod FamilyMemberPick(string familyKey, string classId)
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods())
+            .Single(f => f.Key == familyKey);
+        var member = family.Members.First(m =>
+            m.Classes.Contains(classId, StringComparer.Ordinal));
+        return new WantedMod(member.Id);
     }
 
     [Fact]

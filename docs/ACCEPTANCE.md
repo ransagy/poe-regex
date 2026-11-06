@@ -79,9 +79,10 @@ node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
 ## Out of scope
 
 The exact-table proof is complete for the modeled corpus plus the captured
-safety fixtures. Unmodeled unique/rare names, unique-only text, flavour, and
-some socketable/base text can still make an item highlight. This is accepted
-and out of scope; therefore there are **no manual in-game acceptance checks**.
+safety fixtures. Desecrated item affixes are modeled; unmodeled unique/rare
+names, unique-only text, flavour, augments/bonded text, and some
+socketable/base text can still make an item highlight. This is accepted and
+out of scope; therefore there are **no manual in-game acceptance checks**.
 
 ## Accepted limitations
 

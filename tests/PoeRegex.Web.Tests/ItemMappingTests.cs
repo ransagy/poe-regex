@@ -186,6 +186,40 @@ public class ItemMappingTests
     }
 
     [Fact]
+    public void DesecratedHeader_MapsToDesecratedModAndCountsAsSuffix()
+    {
+        var parsed = ItemTextParser.Parse(FixtureTexts.DesecratedRing);
+        var mapped = ItemImport.Map(Engine, parsed);
+
+        mapped.ClassId.Should().Be("Ring");
+        var line = mapped.Lines[(0, 0)];
+        line.ModIds.Should().NotBeEmpty();
+        var mod = Engine.FindMod(line.ModIds[0])!;
+        mod.Source.Should().Be("desecrated");
+        mod.Name.Should().Be("of Ulaman");
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(0);
+        ItemImport.Validate(Engine, parsed, mapped)
+            .Should().NotContain(v => v.Level == "error");
+    }
+
+    [Fact]
+    public void DesecratedHeader_CanMapToANormalPoolAffix()
+    {
+        var parsed = ItemTextParser.Parse(FixtureTexts.DesecratedAmuletNormalAffix);
+        var mapped = ItemImport.Map(Engine, parsed);
+
+        mapped.ClassId.Should().Be("Amulet");
+        var line = mapped.Lines[(0, 0)];
+        line.ModIds.Should().Contain("GlobalProjectileSkillGemLevel1");
+        var mod = Engine.FindMod(line.ModIds[0])!;
+        mod.Source.Should().BeEmpty();
+        mod.Name.Should().Be("of the Archer");
+        ItemImport.UnmappedAffixCount(parsed, mapped).Should().Be(0);
+        ItemImport.Validate(Engine, parsed, mapped)
+            .Should().NotContain(v => v.Level == "error");
+    }
+
+    [Fact]
     public void CatalogLines_AllMapBackToTheirSourceMod()
     {
         var failures = new List<string>();

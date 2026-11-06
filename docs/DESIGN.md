@@ -62,8 +62,8 @@ poe-regex/
    and numeric formatting, and emit one copy-text line per stat. Multi-stat
    mods render multiple lines.
 3. **Corpus construction:** map mods to item classes, build the catalog, and
-   build the vendor/stash line corpus (regular, corrupted, essence, crafted,
-   implicit, base properties, captions, requirements, sockets, usage).
+   build the vendor/stash line corpus (regular, corrupted, essence, implicit,
+   desecrated, base properties, captions, requirements, sockets, usage).
 4. **Exact solve:** for every pattern/scope, search the G1 grammar over the
    target and foreign lines and return the shortest legal quoted term.
 5. **Emit artifacts:** catalog, vendor corpus, exact fragment table, review
