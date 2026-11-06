@@ -59,7 +59,7 @@ public class DesecratedTests
 
         var oneFamily = ModFamilies.Group(Engine.ModsForClass("One Hand Mace"))
             .Single(f => f.Key == "desecrated:ArmourPenetration");
-        oneFamily.SourceTag.Should().Be("Desecrated · Amanamu");
+        oneFamily.SourceTag.Should().Be("Amanamu");
         oneFamily.Tiers.Should().ContainSingle();
         oneFamily.Tiers[0].DisplayLines.Should().ContainSingle()
             .Which.Should().Contain("2–4");
@@ -77,7 +77,7 @@ public class DesecratedTests
         var family = ModFamilies.Group(Engine.PlayableMods())
             .Single(f => f.Key == "desecrated:ArmourPenetration");
 
-        family.SourceTag.Should().Be("Desecrated · Amanamu");
+        family.SourceTag.Should().Be("Amanamu");
         family.Tiers.Should().ContainSingle();
         var tier = family.Tiers[0];
         tier.Members.Should().HaveCount(2);

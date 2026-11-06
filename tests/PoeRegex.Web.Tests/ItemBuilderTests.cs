@@ -35,6 +35,6 @@ public class ItemBuilderTests
         tier.QuerySelectorAll(".mod-source").Should().BeEmpty(
             "the source tag belongs on the family row, not the tier rows");
 
-        cut.Find(".fam-row .mod-source").TextContent.Trim().Should().Be("Desecrated · Amanamu");
+        cut.Find(".fam-row .mod-source").TextContent.Trim().Should().Be("Amanamu");
     }
 }

@@ -16,8 +16,8 @@ Current planned and parked work. Behavior is documented in
 - Engine: exact PoE2 table/proof is current: 1415/1415 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
 - Catalog: explicit prefixes/suffixes plus Abyss desecrated item affixes,
-  rendered in the normal Prefixes/Suffixes lists with a green `Desecrated · <faction>`
-  tag; desecrated headers map on import. Augments, bonded modifiers,
+  rendered in the normal Prefixes/Suffixes lists with a green `<faction>` tag;
+  desecrated headers map on import. Augments, bonded modifiers,
   crafted-domain mods, and jewel affixes remain unmodeled.
 - Tests: 110 core, 348 web, 26 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and

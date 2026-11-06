@@ -349,9 +349,10 @@ Acceptance criteria and current measurements:
   desecrated prefixes/suffixes (no implicits) and renders some internal
   shorthand forms (`LightRadius`, `ManaLeech`); the importer maps those via
   flagged approximate fallbacks. Desecrated families stay in the normal
-  Prefixes/Suffixes columns with a green `Desecrated · <faction>` tag after
-  the family row label; they are not in the default common shortlist and appear
-  when searching or after **Show all**. All gear merges families that share
+  Prefixes/Suffixes columns with a green `<faction>` tag (for example
+  `Amanamu`) after the family row label; they are not in the default common
+  shortlist and appear when searching or after **Show all**. All gear merges
+  families that share
   the same normalized stat pattern and shows the merged tier's roll
   alternatives; per-slot rows keep the class's concrete roll. Desecrated
   tiers that share a pattern collapse into one row while range-specific

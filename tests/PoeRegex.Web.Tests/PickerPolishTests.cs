@@ -139,8 +139,8 @@ public class PickerPolishTests
             .Add(x => x.State, state));
 
         var label = cut.Find(".bd-row.inc .bd-label");
-        label.TextContent.Should().EndWith("Desecrated · Ulaman");
-        label.LastElementChild!.TextContent.Should().Be("Desecrated · Ulaman");
+        label.TextContent.Should().EndWith("Ulaman");
+        label.LastElementChild!.TextContent.Should().Be("Ulaman");
     }
 
     [Fact]

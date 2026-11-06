@@ -104,12 +104,11 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         .OrderBy(x => x, StringComparer.Ordinal)
         .ToList();
 
-    /// <summary>Green source tag for the row; includes faction when known.</summary>
-    public string? SourceTag => !IsDesecrated
+    /// <summary>Green faction tag for a desecrated row; null when no faction
+    /// name is available.</summary>
+    public string? SourceTag => !IsDesecrated || Factions.Count == 0
         ? null
-        : Factions.Count == 0
-            ? "Desecrated"
-            : "Desecrated · " + string.Join(" / ", Factions);
+        : string.Join(" / ", Factions);
 
     /// <summary>Normalize `of Amanamu` / `Amanamu's` to `Amanamu`.</summary>
     public static string FactionName(string? name)

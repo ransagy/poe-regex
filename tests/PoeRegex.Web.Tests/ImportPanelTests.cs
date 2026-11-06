@@ -37,6 +37,6 @@ public class ImportPanelTests
         var tag = annotation.NextElementSibling as IElement;
         tag.Should().NotBeNull("the source tag follows the resolved mod name");
         tag!.ClassList.Should().Contain("mod-source");
-        tag.TextContent.Trim().Should().Be("Desecrated · Ulaman");
+        tag.TextContent.Trim().Should().Be("Ulaman");
     }
 }

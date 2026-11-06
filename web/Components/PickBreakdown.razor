@@ -472,9 +472,7 @@
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
-        return factions.Count == 0
-            ? "Desecrated"
-            : "Desecrated · " + string.Join(" / ", factions);
+        return factions.Count == 0 ? null : string.Join(" / ", factions);
     }
 
     private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)

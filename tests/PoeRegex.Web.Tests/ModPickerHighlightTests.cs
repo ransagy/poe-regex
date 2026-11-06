@@ -62,7 +62,7 @@ public class ModPickerHighlightTests
 
         var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
         row.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().StartWith("Desecrated · ");
+            .Should().Be("Ulaman");
         row.QuerySelector(".fam-text .mod-source").Should().BeNull(
             "the source tag belongs in the row's tag cluster, not inside the stat text");
         row.QuerySelector(".fam-caret").Should().BeNull(
@@ -247,7 +247,7 @@ public class ModPickerHighlightTests
         row.QuerySelector(".fam-caret").Should().BeNull(
             "one tier with the family's fragment collapses to a single line");
         row.TextContent.Should().Contain("Break Armour equal to 2–4 / 4–7%");
-        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Desecrated · Amanamu");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Amanamu");
         cut.FindAll(".tier-row").Should().BeEmpty();
     }
 
@@ -267,7 +267,7 @@ public class ModPickerHighlightTests
 
         var row = cut.Find($"#pick-exc-{family.Anchor.Id}").ParentElement!;
         row.ClassList.Should().Contain("excluded");
-        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Desecrated · Amanamu");
+        row.QuerySelector(".mod-source")!.TextContent.Should().Be("Amanamu");
         cut.FindAll(".tier-row").Should().BeEmpty();
         cut.FindAll(".tier-row .mod-source").Should().BeEmpty();
     }

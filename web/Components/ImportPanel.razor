@@ -326,11 +326,10 @@
                 var label = mod?.Name ?? ids[0];
                 if (map!.Approximate) label += " ~approx";
                 if (ids.Count > 1) label += $" +{ids.Count - 1}";
-                var sourceTag = mod?.Source == "desecrated"
-                    ? "Desecrated" + (ModFamily.FactionName(mod.Name) is { Length: > 0 } faction
-                        ? " · " + faction
-                        : "")
-                    : null;
+                var faction = mod?.Source == "desecrated"
+                    ? ModFamily.FactionName(mod.Name)
+                    : "";
+                var sourceTag = faction.Length > 0 ? faction : null;
                 builder.OpenElement(0, "span");
                 builder.AddAttribute(1, "class", "iprev-annot map-one");
                 builder.AddAttribute(2, "title", AnnotationTitle(ids, mod));
