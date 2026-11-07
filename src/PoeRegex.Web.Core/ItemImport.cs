@@ -38,6 +38,18 @@ public static class ItemImport
     {
         var mapping = engine.MapLineToMods(classId, line.CanonicalText, line.Rolls, line.Ranges);
 
+        // The catalog now has implicit-only families, but implicit lines stay
+        // quiet on import. Keep a normal/desecrated candidate when the same
+        // text is also an explicit affix (the crossbow bolt implicit), and drop
+        // implicit-source-only candidates (the belt flask/charm implicits).
+        if (block.Kind == "implicit" && mapping.ModIds.Count > 0)
+        {
+            var explicitCandidates = mapping.ModIds
+                .Where(id => engine.FindMod(id)?.Source != "implicit")
+                .ToList();
+            mapping = mapping with { ModIds = explicitCandidates };
+        }
+
         // A pasted header tells us which mod source the line belongs to.
         // Normal and desecrated lines can share stat text (a rune's +Strength
         // is the same text as an explicit Strength affix), so keep normal

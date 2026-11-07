@@ -65,6 +65,21 @@ public class ItemRulesTests
     }
 
     [Fact]
+    public void Implicit_DoesNotConsumeAffixCapsOrConflictWithExplicit()
+    {
+        var implicitMod = Engine.FindMod("MaceImplicitAlwaysHit1")!;
+        var prefix = Engine.ModsForClass("One Hand Mace")
+            .First(m => m.GenerationType == "prefix");
+        var suffix = Engine.ModsForClass("One Hand Mace")
+            .First(m => m.GenerationType == "suffix");
+
+        ItemRules.CanAdd(Engine, implicitMod, [], "Magic").Should().BeTrue();
+        ItemRules.CanAdd(Engine, prefix, [implicitMod.Id], "Magic").Should().BeTrue();
+        ItemRules.CanAdd(Engine, suffix, [implicitMod.Id], "Magic").Should().BeTrue();
+        ItemRules.CanAdd(Engine, implicitMod, [prefix.Id, suffix.Id], "Magic").Should().BeTrue();
+    }
+
+    [Fact]
     public void Rare_FourPrefixes_Error()
     {
         var mods = Engine.ModsForClass("Ring")

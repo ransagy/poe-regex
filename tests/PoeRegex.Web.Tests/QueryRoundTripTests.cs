@@ -138,7 +138,7 @@ public class QueryRoundTripTests
         for (var i = 0; i < count; i++)
         {
             var pick = RandomPick(rng, classId);
-            if (picks.Any(p => p.SamePick(pick))) continue;
+            if (picks.Any(p => p.SamePick(pick) || p.Requirements().SequenceEqual(pick.Requirements()))) continue;
             // Two different families can share one affix-name set (desecrated
             // mods introduced several "of Ulaman" families). Their literals
             // are identical, so a state with both cannot round-trip as two

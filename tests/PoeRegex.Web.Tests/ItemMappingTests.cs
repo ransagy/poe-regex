@@ -142,7 +142,7 @@ public class ItemMappingTests
     }
 
     [Theory]
-    [InlineData("Belt", 0, 2, 0)]
+    [InlineData("Belt", 0, 0, 2)]
     [InlineData("Talisman", 2, 0, 0)]
     [InlineData("Crossbow", 4, 0, 1)]
     [InlineData("Staff", 1, 0, 0)]
@@ -166,10 +166,8 @@ public class ItemMappingTests
                 var mapping = Engine.MapLineToMods(classId, line.CanonicalText, line.Rolls);
                 if (block.Kind == "implicit")
                 {
-                    // Catalog ships prefix/suffix only, so implicits map
-                    // nowhere — unless a real prefix/suffix shares the
-                    // implicit's exact text (the crossbow bolt implicit vs
-                    // the "of Shelling" suffix).
+                    // The engine now knows implicit-only families; the import
+                    // pipeline filters implicit-source candidates separately.
                     if (mapping.ModIds.Count == 0) implicitEmpty++;
                     else implicitHit++;
                     continue;

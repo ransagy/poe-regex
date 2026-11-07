@@ -272,6 +272,19 @@ public sealed class QueryReconstructionService
 
     private ReconstructedWorkbench ReconstructPaste(string query, IReadOnlyList<string> scope)
     {
+        // The string does not carry the chosen family when a hybrid and a
+        // single-line family share one class fragment. Try the primary
+        // resolution first, then a single-line-preferred pass that resolves
+        // those ambiguous groups to the narrower family.
+        var primary = ReconstructPaste(query, scope, preferSingleLine: false);
+        if (primary.Ok) return primary;
+        var fallback = ReconstructPaste(query, scope, preferSingleLine: true);
+        return fallback.Ok ? fallback : primary;
+    }
+
+    private ReconstructedWorkbench ReconstructPaste(
+        string query, IReadOnlyList<string> scope, bool preferSingleLine)
+    {
         var classes = scope.Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
         var builds = classes.ToDictionary(c => c, c => new SlotBuild(c), StringComparer.Ordinal);
         var excludes = new List<string>();
@@ -286,7 +299,7 @@ public sealed class QueryReconstructionService
             if (excluded)
             {
                 if (!TryResolveSinglePick(phrase, null, usedExcludes, out var excludedPick, out _,
-                        new HashSet<string>(excludes, StringComparer.Ordinal)))
+                        new HashSet<string>(excludes, StringComparer.Ordinal), preferSingleLine))
                 {
                     excludes.Add(RawExclusion.Encode(phrase));
                     continue;
@@ -311,7 +324,7 @@ public sealed class QueryReconstructionService
                 if (targets.Count == 0)
                     return ReconstructedWorkbench.Failed($"group '{classPart}' targets no selected class");
 
-                if (!TryResolvePasteGroup(fragPart, targets, usedByClass[targets[0]], out var picks, out var why))
+                if (!TryResolvePasteGroup(fragPart, targets, usedByClass[targets[0]], out var picks, out var why, preferSingleLine))
                     return ReconstructedWorkbench.Failed(why);
                 foreach (var target in targets)
                 {
@@ -322,7 +335,7 @@ public sealed class QueryReconstructionService
                 continue;
             }
 
-            if (!TryResolvePasteGroup(phrase, classes, usedByClass[classes[0]], out var shared, out var sharedWhy))
+            if (!TryResolvePasteGroup(phrase, classes, usedByClass[classes[0]], out var shared, out var sharedWhy, preferSingleLine))
             {
                 if (IsExternalLiteral(phrase) || MatchesKnownItemText(phrase))
                 {
@@ -396,15 +409,15 @@ public sealed class QueryReconstructionService
 
     private bool TryResolveGroup(
         string term, string? itemClass, IReadOnlyList<WantedMod> used,
-        out List<WantedMod> picks, out string failure)
+        out List<WantedMod> picks, out string failure, bool preferSingleLine = false)
     {
-        if (TryResolveSinglePick(term, itemClass, used, out var single, out _))
+        if (TryResolveSinglePick(term, itemClass, used, out var single, out _, preferSingleLine: preferSingleLine))
         {
             picks = [single!];
             failure = "";
             return true;
         }
-        return TryResolveTerm(term, itemClass, used, out picks, out failure);
+        return TryResolveTerm(term, itemClass, used, out picks, out failure, preferSingleLine);
     }
 
     /// <summary>
@@ -414,21 +427,21 @@ public sealed class QueryReconstructionService
     /// </summary>
     private bool TryResolvePasteGroup(
         string term, IReadOnlyList<string> targets, IReadOnlyList<WantedMod> used,
-        out List<WantedMod> picks, out string failure)
+        out List<WantedMod> picks, out string failure, bool preferSingleLine = false)
     {
         failure = "";
         if (targets.Count == 1)
-            return TryResolveGroup(term, targets[0], used, out picks, out failure);
+            return TryResolveGroup(term, targets[0], used, out picks, out failure, preferSingleLine);
 
         foreach (var target in targets)
         {
-            if (TryResolveGroup(term, target, used, out picks, out var scopedFailure))
+            if (TryResolveGroup(term, target, used, out picks, out var scopedFailure, preferSingleLine))
                 return true;
             failure = scopedFailure;
         }
 
         // The multi-class bucket is emitted with the global fragment.
-        if (TryResolveGroup(term, null, used, out picks, out _))
+        if (TryResolveGroup(term, null, used, out picks, out _, preferSingleLine))
         {
             failure = "";
             return true;
@@ -644,7 +657,7 @@ public sealed class QueryReconstructionService
     /// <summary>Resolves an any-of term: every top-level branch may be a name or a fragment.</summary>
     private bool TryResolveTerm(
         string term, string? itemClass, IReadOnlyList<WantedMod> used,
-        out List<WantedMod> picks, out string failure)
+        out List<WantedMod> picks, out string failure, bool preferSingleLine = false)
     {
         picks = [];
         failure = "";
@@ -697,7 +710,7 @@ public sealed class QueryReconstructionService
 
         foreach (var fragment in fragments)
         {
-            if (!TryFragmentPicks(fragment, itemClass, used, out var resolved, out var fragmentFailure))
+            if (!TryFragmentPicks(fragment, itemClass, used, out var resolved, out var fragmentFailure, preferSingleLine))
             {
                 // A mixed app-built group can contain custom text alongside
                 // mod fragments (for example an imported slot filter).
@@ -839,7 +852,8 @@ public sealed class QueryReconstructionService
     /// </summary>
     private bool TryResolveSinglePick(
         string term, string? itemClass, IReadOnlyList<WantedMod> used,
-        out WantedMod? pick, out string failure, ISet<string>? forbiddenIds = null)
+        out WantedMod? pick, out string failure, ISet<string>? forbiddenIds = null,
+        bool preferSingleLine = false)
     {
         pick = null;
         failure = "";
@@ -854,7 +868,7 @@ public sealed class QueryReconstructionService
             return false;
         }
 
-        if (TryFragmentPick(term, itemClass, used, out var direct, forbiddenIds))
+        if (TryFragmentPick(term, itemClass, used, out var direct, forbiddenIds, preferSingleLine))
         {
             pick = direct;
             return true;
@@ -865,7 +879,7 @@ public sealed class QueryReconstructionService
         {
             foreach (var candidate in ExpandFactored(branch))
             {
-                if (!TryFragmentPick(candidate, itemClass, used, out var branchPick, forbiddenIds))
+                if (!TryFragmentPick(candidate, itemClass, used, out var branchPick, forbiddenIds, preferSingleLine))
                 {
                     failure = $"fragment '{candidate}' is not an unfactored table fragment for this scope";
                     return false;
@@ -996,11 +1010,11 @@ public sealed class QueryReconstructionService
 
     private bool TryFragmentPicks(
         string term, string? itemClass, IReadOnlyList<WantedMod> used,
-        out List<WantedMod> picks, out string failure)
+        out List<WantedMod> picks, out string failure, bool preferSingleLine = false)
     {
         picks = [];
         failure = "";
-        if (TryFragmentPick(term, itemClass, used, out var direct))
+        if (TryFragmentPick(term, itemClass, used, out var direct, preferSingleLine: preferSingleLine))
         {
             picks.Add(direct!);
             return true;
@@ -1018,7 +1032,7 @@ public sealed class QueryReconstructionService
             var expanded = ExpandFactored(branch);
             foreach (var candidate in expanded)
             {
-                if (!TryFragmentPick(candidate, itemClass, used, out var pick))
+                if (!TryFragmentPick(candidate, itemClass, used, out var pick, preferSingleLine: preferSingleLine))
                 {
                     failure = $"fragment '{candidate}' is not an unfactored table fragment for this scope";
                     return false;
@@ -1094,7 +1108,7 @@ public sealed class QueryReconstructionService
 
     private bool TryFragmentPick(
         string branch, string? itemClass, IReadOnlyList<WantedMod> used, out WantedMod? pick,
-        ISet<string>? forbiddenIds = null)
+        ISet<string>? forbiddenIds = null, bool preferSingleLine = false)
     {
         pick = null;
         var matches = _anchors.FragmentsFor(branch);
@@ -1117,14 +1131,30 @@ public sealed class QueryReconstructionService
         if (mods.Count == 0) return false;
 
         // Prefer the tierless family form: the query has no tier information.
-        foreach (var familyKey in mods
-                     .Select(m => m.Family)
-                     .Where(f => f.Length > 0)
-                     .Distinct(StringComparer.Ordinal)
-                     .OrderBy(f => f, StringComparer.Ordinal))
+        var familyKeys = mods
+            .Select(ModFamilies.KeyOf)
+            .Distinct(StringComparer.Ordinal)
+            .Select(key => (
+                Key: key,
+                Family: _familyByKey.TryGetValue(key, out var family) ? family : null))
+            .Where(x => x.Family is not null)
+            .ToList();
+        familyKeys.Sort((a, b) =>
         {
-            if (!_familyByKey.TryGetValue(familyKey, out var family)) continue;
-            var candidate = FamilyPickFor(family, itemClass);
+            // A single-line family is less ambiguous than a hybrid whose
+            // shortest fragment comes from one of several lines. Only the
+            // fallback pass uses this; the primary pass keeps the stable order.
+            if (preferSingleLine)
+            {
+                var cmp = a.Family!.Members.Min(m => m.StatLines.Count)
+                    .CompareTo(b.Family!.Members.Min(m => m.StatLines.Count));
+                if (cmp != 0) return cmp;
+            }
+            return string.CompareOrdinal(a.Key, b.Key);
+        });
+        foreach (var (_, family) in familyKeys)
+        {
+            var candidate = FamilyPickFor(family!, itemClass);
             if (forbiddenIds?.Contains(candidate.ModId) == true) continue;
             if (Conflicts(candidate, used)) continue;
             if (CompilesToTerm(candidate, branch, itemClass))

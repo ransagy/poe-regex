@@ -63,8 +63,9 @@ carousel (`‹ 2 / 5 ›`, one card at a time, so any paste size costs one card 
 space). Each card carries the same mapping annotations as the single-item
 flow, with per-item candidate pickers; edits are remembered per item and
 **add all** imports every unblocked item using its picks (class gate, rule
-check and backpack-full are reported per card). Unmapped implicit lines stay
-quiet: the catalog holds affixes only and implicits never count in the rules.
+check and backpack-full are reported per card). Implicit lines stay quiet on
+import: the catalog's implicit families are picker targets, and implicits
+never count in the rules.
 
 ## Import a search string or guide filter
 
@@ -225,11 +226,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   fallback. The oracle is line-scoped over the derived
   vendor/stash corpus, and the table is strict: zero foreign modeled or
   captured-safety lines. The oracle corpus includes both plain copy text and
-  advanced `roll(min-max)` forms. Desecrated item affixes are modeled;
-  unique-only text, flavour, rare names, augments, and bonded modifiers
-  remain unmodeled and are reported separately. The exact table has 1415
-  expanded scopes (297 global patterns, 21 classes, 869 class fragments, 0
-  unresolved).
+  advanced `roll(min-max)` forms. Desecrated item affixes and implicit-only
+  base families are modeled; unique-only text, flavour, rare names, augments,
+  and bonded modifiers remain unmodeled and are reported separately. The
+  exact table has 1559 expanded scopes (361 global patterns, 21 classes, 944
+  class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
@@ -349,22 +350,25 @@ Acceptance criteria and current measurements:
   in Advanced. Same-class slots merge (union); exclusions apply globally.
   Membership is derived: a slot joins the group as soon as it has any
   wanted/unwanted chips; clicking a slot only moves the editing focus.
-- The derived catalog ships explicit prefix/suffix affixes plus Abyss
-  desecrated prefixes/suffixes (no implicits) and renders some internal
-  shorthand forms (`LightRadius`, `ManaLeech`); the importer maps those via
-  flagged approximate fallbacks. Desecrated families stay in the normal
-  Prefixes/Suffixes columns with a green `<faction>` tag (for example
-  `Amanamu`) after the family row label; they are not in the default common
-  shortlist and appear when searching or after **Show all**. All gear merges
-  families that share
-  the same normalized stat pattern and shows the merged tier's roll
-  alternatives; per-slot rows keep the class's concrete roll. Desecrated
-  tiers that share a pattern collapse into one row while range-specific
-  strings are deferred. Jewel affixes, augments, and bonded modifiers remain
-  unmodeled. The export's `crafted` prefix/suffix records are PoE1 leftovers
-  and are excluded; actual PoE2 crafted mods are jewel-only in domain `misc`.
-  Imports resolve by bracket ranges and header names, so a line with neither
-  (and no plain-text match) shows as ambiguous (`+N`)
+- The derived catalog ships explicit prefix/suffix affixes, Abyss desecrated
+  prefixes/suffixes, and implicit-only base families, and renders some
+  internal shorthand forms (`LightRadius`, `ManaLeech`); the importer maps
+  those via flagged approximate fallbacks. Desecrated families stay in the
+  normal Prefixes/Suffixes columns with a green `<faction>` tag (for example
+  `Amanamu`) after the family row label; implicit families sit in a dedicated
+  **Implicits** section above the columns with a muted-blue `<Implicit>` tag.
+  Neither source is in the default common shortlist; they appear when
+  searching or after **Show all**. Implicit families are implicit-only: lines
+  already covered by a normal prefix/suffix are not duplicated. All gear
+  merges families that share the same normalized stat pattern and shows the
+  merged tier's roll alternatives; per-slot rows keep the class's concrete
+  roll. Desecrated tiers that share a pattern collapse into one row while
+  range-specific strings are deferred. Jewel affixes, augments, corrupted
+  mods, and bonded modifiers remain unmodeled. The export's `crafted`
+  prefix/suffix records are PoE1 leftovers and are excluded; actual PoE2
+  crafted mods are jewel-only in domain `misc`. Imports resolve by bracket
+  ranges and header names, so a line with neither (and no plain-text match)
+  shows as ambiguous (`+N`)
   rather than asking — the grouped family/tier pickers cover that surface for
   the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy

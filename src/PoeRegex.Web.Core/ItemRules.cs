@@ -39,8 +39,9 @@ public static class ItemRules
     {
         var (maxPrefix, maxSuffix) = CapsFor(rarity);
         var kind = candidate.GenerationType.ToLowerInvariant();
-        if (kind != "prefix" && kind != "suffix") return false;
-        if ((kind == "prefix" ? maxPrefix : maxSuffix) <= 0) return false;
+        var isImplicit = kind == "implicit";
+        if (!isImplicit && kind != "prefix" && kind != "suffix") return false;
+        if (!isImplicit && (kind == "prefix" ? maxPrefix : maxSuffix) <= 0) return false;
 
         var prefixes = 0;
         var suffixes = 0;
@@ -51,6 +52,8 @@ public static class ItemRules
             if (string.Equals(id, candidate.Id, StringComparison.Ordinal)) return false;
             var mod = engine.FindMod(id);
             if (mod is null) continue;
+            if (mod.GenerationType.Equals("implicit", StringComparison.OrdinalIgnoreCase))
+                continue; // implicits do not consume prefix/suffix slots or groups
             switch (mod.GenerationType.ToLowerInvariant())
             {
                 case "prefix": prefixes++; break;
@@ -60,6 +63,7 @@ public static class ItemRules
             if (mod.Family.Length > 0) usedFamilies.Add(mod.Family);
         }
 
+        if (isImplicit) return true;
         if (kind == "prefix" ? prefixes >= maxPrefix : suffixes >= maxSuffix) return false;
         if (candidate.Family.Length > 0 && usedFamilies.Contains(candidate.Family)) return false;
         if (candidate.Groups.Any(usedGroups.Contains)) return false;

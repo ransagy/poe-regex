@@ -27,10 +27,21 @@ public static class CatalogBuilder
         // mod -> item class ids it can spawn on. Normal affixes use
         // mods_by_base; desecrated mods are applied by the Abyss well rather
         // than natural rolls, so their spawn_weights tags are mapped through
-        // the released item-base tags instead.
+        // the released item-base tags instead. Base implicits come from the
+        // base items' implicit lists.
         var classByMod = MapModsToClasses(rawDir, itemClasses);
+        var equipmentClasses = classByMod
+            .Where(kv => mods.TryGetValue(kv.Key, out var mod) &&
+                         mod.Domain == "item" &&
+                         ItemGenerationTypes.Contains(mod.GenerationType))
+            .SelectMany(kv => kv.Value)
+            .Where(GameItemClasses.IsInGame)
+            .ToHashSet(StringComparer.Ordinal);
         var desecratedByMod = MapDesecratedModsToClasses(mods, baseItems, itemClasses);
         foreach (var (modId, classes) in desecratedByMod)
+            classByMod[modId] = classes;
+        var implicitByMod = MapImplicitModsToClasses(mods, baseItems, equipmentClasses);
+        foreach (var (modId, classes) in implicitByMod)
             classByMod[modId] = classes;
 
         // 1. Render mod text lines.
@@ -46,6 +57,32 @@ public static class CatalogBuilder
             renderedLines[modId] = lines;
 
             if (!classByMod.TryGetValue(modId, out var classes)) continue;
+            foreach (var cls in classes)
+            {
+                if (!classLines.TryGetValue(cls, out var set))
+                {
+                    set = new HashSet<string>();
+                    classLines[cls] = set;
+                }
+                foreach (var line in lines) set.Add(line.Pattern);
+            }
+        }
+
+        // Base implicits are a separate source. Add only implicit-only
+        // patterns: a line that already exists as a normal/desecrated family
+        // stays in that family (no duplicate implicit + prefix/suffix rows).
+        var normalPatterns = renderedLines
+            .Where(kv => classByMod.TryGetValue(kv.Key, out var classes) && classes.Count > 0)
+            .SelectMany(kv => kv.Value.Select(line => line.Pattern))
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var (modId, mod) in mods)
+        {
+            if (!implicitByMod.TryGetValue(modId, out var classes)) continue;
+            var lines = renderer.RenderMod(mod.Stats);
+            if (lines.Count == 0) continue;
+            if (lines.Any(line => normalPatterns.Contains(line.Pattern))) continue;
+
+            renderedLines[modId] = lines;
             foreach (var cls in classes)
             {
                 if (!classLines.TryGetValue(cls, out var set))
@@ -142,8 +179,15 @@ public static class CatalogBuilder
             {
                 Id = modId,
                 Name = mods[modId].Name,
-                GenerationType = mods[modId].GenerationType,
-                Source = mods[modId].Domain == "desecrated" ? "desecrated" : "",
+                GenerationType = implicitByMod.ContainsKey(modId)
+                    ? "implicit"
+                    : mods[modId].GenerationType,
+                Source = mods[modId].Domain switch
+                {
+                    "desecrated" => "desecrated",
+                    _ when implicitByMod.ContainsKey(modId) => "implicit",
+                    _ => "",
+                },
                 Family = mods[modId].Type ?? "",
                 RequiredLevel = mods[modId].RequiredLevel,
                 Classes = classes.ToList(),
@@ -214,15 +258,52 @@ public static class CatalogBuilder
     /// <summary>
     /// Selectable affixes: normal explicit item prefixes/suffixes and the
     /// Abyss desecrated prefixes/suffixes. Map/tablet desecrated mods are
-    /// filtered later because they have no item-class spawn tags. Crafted
-    /// prefix/suffix records are deliberately excluded: the PoE2 export also
-    /// carries PoE1 Navali/Helena master crafts, which have no positive PoE2
-    /// base mapping. PoE2's actual crafted mods are the jewel-only
-    /// `CraftedJewel*` records in domain `misc`, handled with jewel support.
+    /// filtered later because they have no item-class spawn tags. Base
+    /// implicits are selected separately from the base items' implicit lists.
+    /// Crafted prefix/suffix records are deliberately excluded: the PoE2
+    /// export also carries PoE1 Navali/Helena master crafts, which have no
+    /// positive PoE2 base mapping. PoE2's actual crafted mods are the
+    /// jewel-only `CraftedJewel*` records in domain `misc`, handled with jewel
+    /// support.
     /// </summary>
     private static bool IsSelectableAffix(RePoESchema.Mod mod) =>
         (mod.Domain == "item" && ItemGenerationTypes.Contains(mod.GenerationType)) ||
         (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix");
+
+    /// <summary>
+    /// Maps base implicits to the normal equipment classes that carry them.
+    /// Only released, non-unique bases are eligible. Implicit records have no
+    /// positive spawn weights, so the base item's `implicits` list is the
+    /// authoritative PoE2 reference. This is deliberately class-level: the
+    /// catalog cannot express "only this base type" yet.
+    /// </summary>
+    internal static Dictionary<string, HashSet<string>> MapImplicitModsToClasses(
+        IReadOnlyDictionary<string, RePoESchema.Mod> mods,
+        IReadOnlyDictionary<string, RePoESchema.BaseItem> baseItems,
+        IReadOnlySet<string> equipmentClasses)
+    {
+        var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (path, baseItem) in baseItems)
+        {
+            if (baseItem.Domain != "item") continue;
+            if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
+            if (path.Contains("Unique", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!equipmentClasses.Contains(baseItem.ItemClass)) continue;
+
+            foreach (var implicitId in baseItem.Implicits ?? [])
+            {
+                if (!mods.ContainsKey(implicitId)) continue;
+                if (!result.TryGetValue(implicitId, out var classes))
+                {
+                    classes = new HashSet<string>(StringComparer.Ordinal);
+                    result[implicitId] = classes;
+                }
+                classes.Add(baseItem.ItemClass);
+            }
+        }
+        return result;
+    }
 
     /// <summary>
     /// Maps desecrated item mods to classes from their positive spawn_weights

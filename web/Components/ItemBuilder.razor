@@ -36,7 +36,7 @@
                             var expanded = _search.Trim().Length > 0 || _expanded.Contains(fam.Key);
                             <li class="fam-block">
                                 <div class="suggest-row fam-row">
-                                    <span class="gen-tag">@(fam.IsPrefix ? "Prefix" : "Suffix")</span>
+                                    <span class="gen-tag">@KindLabel(fam)</span>
                                     <button class="suggest-line fam-toggle" id="builder-fam-@fam.Anchor.Id"
                                             aria-expanded="@(expanded ? "true" : "false")"
                                             title="@(expanded ? "collapse" : $"expand {fam.Tiers.Count} tier(s)")"
@@ -57,7 +57,7 @@
                                         </span>
                                         @if (fam.SourceTag is { } sourceTag)
                                         {
-                                            <span class="mod-source">@sourceTag</span>
+                                            <span class="mod-source @fam.SourceCssClass">@sourceTag</span>
                                         }
                                         <span class="tier-count" title="@fam.Tiers.Count tier(s)">@fam.Tiers.Count</span>
                                     </button>
@@ -67,7 +67,9 @@
                                     <ul class="tier-list">
                                         @foreach (var tier in fam.Tiers)
                                         {
-                                            var tierLines = tier.Source == "desecrated" ? tier.UnionLines : tier.DisplayLines;
+                                            var tierLines = tier.Source is "desecrated" or "implicit"
+                                                ? tier.UnionLines
+                                                : tier.DisplayLines;
                                             <li class="suggest-row tier-row">
                                                 <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                 <span class="suggest-line @(tierLines.Count > 1 ? "multi" : "")" title="@string.Join("\n", tierLines)">
@@ -213,6 +215,13 @@
 
     // Built in C#: Blazor writes attributes via DOM APIs, so `&quot;` in
     // markup would show up verbatim in the tooltip.
+    private static string KindLabel(ModFamily fam) => fam.Kind switch
+    {
+        "prefix" => "Prefix",
+        "implicit" => "Implicit",
+        _ => "Suffix",
+    };
+
     private static string TierLabel(ModTier tier) =>
         tier.DisplayLabel.Length > 0
             ? tier.DisplayLabel
