@@ -1120,4 +1120,32 @@ public static class CatalogLineNormalizer
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Digit-run normalization: every run of ASCII digits becomes one
+    /// placeholder, so `0.17` becomes `\x01.\x01`. This matches the catalog
+    /// renderer's pattern shape exactly, including decimal stats.
+    /// </summary>
+    public static string NormalizeDigitRuns(string line)
+    {
+        var sb = new System.Text.StringBuilder(line.Length);
+        var inDigit = false;
+        foreach (var c in line)
+        {
+            if (char.IsAsciiDigit(c))
+            {
+                if (!inDigit)
+                {
+                    sb.Append(DigitPlaceholder);
+                    inDigit = true;
+                }
+            }
+            else
+            {
+                inDigit = false;
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
+    }
 }

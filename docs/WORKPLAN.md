@@ -29,21 +29,23 @@ Current planned and parked work. Behavior is documented in
   actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
   remain parked with jewel support. Augments, bonded modifiers, and jewel
   affixes remain unmodeled.
-- Tests: 111 core, 368 web, 31 data-build; local suites green.
+- Tests: 111 core, 375 web, 31 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
 - PWA: installable offline shell with a build-versioned service-worker
   registration; a normal reload adopts a new build without a hard refresh,
   and installability, offline reload, and cache replacement pass locally.
+- Import: advanced item lines are range-first; rounded display rolls,
+  reversed ranges, and decimal patterns map exactly. Fuzzy fallback remains
+  only for unmatched wording, and genuine ambiguity keeps a deterministic
+  candidate rank. Multi-line stat descriptions still map line by line.
 
 ## Next
 
-1. **Catalog/import shorthand:** close remaining shorthand gaps and make
-   ambiguous import lines more deterministic.
-2. **Web a11y follow-up:** color-vision emulation pass and compact-layout
+1. **Web a11y follow-up:** color-vision emulation pass and compact-layout
    review.
-3. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
+2. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
    as a manual gate.
 
 ## Parked

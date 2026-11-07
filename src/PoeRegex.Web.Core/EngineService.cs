@@ -156,6 +156,16 @@ public sealed class EngineService
         var pattern = CatalogLineNormalizer.Normalize(canonicalLine);
         var exact = FilterMappingCandidates(classId, pattern, rolls, rs);
         if (exact.Count > 0) return new ModMapping(exact, Approximate: false);
+        // Decimal stats use two placeholders in catalog patterns (0.17 ->
+        // \x01.\x01), while the legacy normalizer collapses them to one.
+        // Try the renderer's digit-run shape before falling back to fuzzy
+        // matching so decimal lines stay exact.
+        var digitPattern = CatalogLineNormalizer.NormalizeDigitRuns(canonicalLine);
+        if (!string.Equals(digitPattern, pattern, StringComparison.Ordinal))
+        {
+            var exactDigits = FilterMappingCandidates(classId, digitPattern, rolls, rs);
+            if (exactDigits.Count > 0) return new ModMapping(exactDigits, Approximate: false);
+        }
         var compact = Compact(pattern);
         var spaceless = FilterCandidates(_corpus.Mods
             .Where(m => m.StatLines.Any(s => Compact(s.Pattern) == compact))
@@ -217,12 +227,14 @@ public sealed class EngineService
     }
 
     /// <summary>
-    /// Keep candidates whose value span covers every displayed roll, then —
-    /// when the paste carries bracketed ranges — whose matched catalog line
-    /// holds the same `lo-hi` pairs in order. Ranges only narrow: a candidate
-    /// whose line has no comparable pairs counts as unrefuted, and when no
-    /// candidate survives the pairs the roll-filtered list is returned
-    /// unchanged (text matched across renderer quirks beats a hard rejection).
+    /// Keep candidates whose range pairs match the advanced display first,
+    /// then use the displayed rolls only to narrow further. Ranges are the
+    /// authoritative advanced-text evidence: they survive reversed rolls
+    /// (`10(15-10)`) and renderer min/max quirks. The displayed roll is
+    /// rounded, so when ranges are present allow half a display unit of
+    /// tolerance (`8` against a `7.9` catalog max). When no candidate
+    /// survives a pass, keep the previous list: text matched across renderer
+    /// quirks beats a hard rejection.
     /// </summary>
     private IReadOnlyList<string> FilterCandidates(
         IEnumerable<string> ids, IReadOnlyList<double> rolls,
@@ -230,26 +242,36 @@ public sealed class EngineService
         Func<string, StatLineEntry?> matchingLine)
     {
         var list = ids.ToList();
+        if (list.Count == 0) return list;
+
+        if (ranges.Count > 0)
+        {
+            var kept = new List<string>();
+            foreach (var id in list)
+            {
+                var stat = matchingLine(id);
+                if (stat is null) { kept.Add(id); continue; }
+                var pairs = ParseRangePairs(stat.RangeLine);
+                if (pairs.Count != ranges.Count) { kept.Add(id); continue; }
+                if (PairsEqual(pairs, ranges)) kept.Add(id);
+            }
+            if (kept.Count > 0) list = kept;
+        }
+
         if (rolls.Count > 0)
-            list = list.Where(id =>
+        {
+            var tolerance = ranges.Count > 0 ? 0.5 : 0;
+            var rolled = list.Where(id =>
             {
                 var mod = _corpus.FindMod(id);
                 if (mod is null) return false;
                 var lo = mod.StatLines.Min(s => s.MinValue);
                 var hi = mod.StatLines.Max(s => s.MaxValue);
-                return rolls.All(r => r >= lo && r <= hi);
+                return rolls.All(r => r >= lo - tolerance && r <= hi + tolerance);
             }).ToList();
-        if (ranges.Count == 0 || list.Count == 0) return list;
-        var kept = new List<string>();
-        foreach (var id in list)
-        {
-            var stat = matchingLine(id);
-            if (stat is null) { kept.Add(id); continue; }
-            var pairs = ParseRangePairs(stat.RangeLine);
-            if (pairs.Count != ranges.Count) { kept.Add(id); continue; }
-            if (PairsEqual(pairs, ranges)) kept.Add(id);
+            if (rolled.Count > 0) list = rolled;
         }
-        return kept.Count > 0 ? kept : list;
+        return list;
     }
 
     /// <summary>`lo–hi` pairs of a catalog range line, in order.</summary>

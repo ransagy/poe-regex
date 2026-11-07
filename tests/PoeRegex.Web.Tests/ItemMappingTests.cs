@@ -248,4 +248,125 @@ public class ItemMappingTests
         failures.Take(50).Should().BeEmpty($"{failures.Count} catalog lines did not map back to their source mod");
         checkedCount.Should().BeGreaterThan(1_000);
     }
+
+    private static EngineService.ModMapping MapItemLine(string itemClass, string header, string line)
+    {
+        var parsed = ItemTextParser.Parse(
+            $"Item Class: {itemClass}\nRarity: Rare\nX\n--------\n{header}\n{line}\n");
+        var mapped = ItemImport.Map(Engine, parsed);
+        return mapped.Lines[(0, 0)];
+    }
+
+    [Fact]
+    public void MapLine_RoundedLeechRoll_MatchesExactly()
+    {
+        var mapping = MapItemLine(
+            "Rings", "{ Suffix Modifier \"of the Remora\" }",
+            "Leech 8(7-8)% of Physical Attack Damage as Life");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().Contain("LifeLeech3");
+    }
+
+    [Fact]
+    public void MapLine_RoundedCriticalChance_MatchesExactly()
+    {
+        var mapping = MapItemLine(
+            "One Hand Maces", "{ Suffix Modifier \"of Disaster\" }",
+            "+3(2-3)% to Critical Hit Chance");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().Contain("LocalCriticalStrikeChance3");
+    }
+
+    [Fact]
+    public void MapLine_ReversedFlaskRange_MatchesExactly()
+    {
+        var mapping = MapItemLine(
+            "Belts", "{ Suffix Modifier \"of Sipping\" }",
+            "8(10-8)% reduced Flask Charges used");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().Contain("BeltReducedFlaskChargesUsed1");
+    }
+
+    [Fact]
+    public void MapLine_ReversedDesecratedRange_MatchesExactly()
+    {
+        var mapping = MapItemLine(
+            "Amulets", "{ Desecrated Suffix Modifier \"Amanamu\" }",
+            "Equipment and Skill Gems have 10(15-10)% reduced Attribute Requirements");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().Contain(
+            "AbyssModAmuletAmanamuSuffixReducedRequirementEquipmentAndSkill");
+    }
+
+    [Fact]
+    public void MapLine_DecimalCharge_MatchesExactly()
+    {
+        var mapping = MapItemLine(
+            "Amulets", "{ Corrupted Modifier }",
+            "Charms gain 0.17(0.08-0.17) charges per Second");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().Contain("CorruptionCharmChargeGeneration1");
+    }
+
+    [Fact]
+    public void AmbiguousCostEfficiency_DefaultIsStable()
+    {
+        var mapping = MapItemLine(
+            "One Hand Maces", "{ Desecrated Suffix Modifier \"Kurgal\" }",
+            "15(8-15)% increased Cost Efficiency of Attacks");
+
+        mapping.Approximate.Should().BeFalse();
+        mapping.ModIds.Should().HaveCount(2);
+        mapping.ModIds[0].Should().Be(
+            "AbyssModAllMacesKurgalSuffixCostEfficiencyOfAttackSkills");
+    }
+
+    [Fact]
+    public void CatalogAdvancedForms_MapExactlyOrExpected()
+    {
+        var inGame = Engine.InGameClasses()
+            .ToDictionary(c => c.Id, c => c.Name, StringComparer.Ordinal);
+        var failures = new List<string>();
+        var checkedCount = 0;
+
+        foreach (var mod in Engine.PlayableMods().DistinctBy(m => m.Id))
+        foreach (var classId in mod.Classes.Where(inGame.ContainsKey))
+        foreach (var sl in mod.StatLines)
+        {
+            // Multi-line stat descriptions are displayed as wrapped copy
+            // text; the importer maps them line by line and is a separate
+            // limitation.
+            if (sl.Line.Contains('\n') || sl.RangeLine.Contains('\n')) continue;
+
+            var header = ItemTextParser.ModHeaderText(
+                mod.GenerationType, mod.Name, null, [], mod.Source);
+            var itemText =
+                $"Item Class: {inGame[classId]}\nRarity: Rare\nX\n--------\n{header}\n" +
+                $"{AdvancedStatLine.For(sl)}\n";
+            var parsed = ItemTextParser.Parse(itemText);
+            if (parsed.Mods.Count == 0 ||
+                string.Equals(parsed.Mods[0].Kind, "implicit", StringComparison.Ordinal))
+                continue;
+
+            checkedCount++;
+            var mapping = ItemImport.Map(Engine, parsed).Lines[(0, 0)];
+            if (mapping.ModIds.Count == 0 ||
+                !mapping.ModIds.Contains(mod.Id) ||
+                mapping.Approximate)
+            {
+                failures.Add(
+                    $"{classId}/{mod.Id}: {AdvancedStatLine.For(sl)} -> " +
+                    $"[{string.Join(",", mapping.ModIds)}] approx={mapping.Approximate}");
+            }
+        }
+
+        failures.Take(50).Should().BeEmpty(
+            $"{failures.Count} advanced catalog forms did not map exactly");
+        checkedCount.Should().BeGreaterThan(4_000);
+    }
 }
