@@ -72,12 +72,12 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
     public string MergeKey { get; init; } = "";
 
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods.</summary>
+    /// desecrated mods, "implicit" for base implicits.</summary>
     public string Source { get; init; } = "";
 
     /// <summary>User-facing tier label. Normal tiers use their affix name;
-    /// desecrated tiers use their numeric range because faction names repeat
-    /// across every mod of a faction.</summary>
+    /// desecrated and implicit tiers use their numeric range because their
+    /// names repeat or are absent.</summary>
     public string DisplayLabel { get; init; } = "";
 }
 
@@ -89,15 +89,28 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
 public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier> Tiers)
 {
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods. The family key carries the source prefix, so a
-    /// desecrated family with the same stat text as a normal family remains
-    /// a distinct row.</summary>
+    /// desecrated mods, "implicit" for base implicits. The family key carries
+    /// the source prefix, so a sourced family with the same stat text as a
+    /// normal family remains a distinct row.</summary>
     public string Source { get; init; } = "";
+
+    /// <summary>Generation kind: `prefix`, `suffix`, or `implicit`.</summary>
+    public string Kind { get; init; } = "";
 
     /// <summary>True when this family was merged for the All-gear view.</summary>
     public bool IsUnion { get; init; }
 
     public bool IsDesecrated => Source == "desecrated";
+
+    public bool IsImplicit => Source == "implicit";
+
+    /// <summary>CSS class for the source tag; empty for normal families.</summary>
+    public string SourceCssClass => Source switch
+    {
+        "desecrated" => "source-desecrated",
+        "implicit" => "source-implicit",
+        _ => "",
+    };
 
     private IReadOnlyList<ModEntry>? _members;
 
@@ -113,6 +126,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         new(Key, IsPrefix, tiers)
         {
             Source = Source,
+            Kind = Kind,
             IsUnion = IsUnion,
             DisplayLines = DisplayLines,
         };
@@ -126,11 +140,14 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         .OrderBy(x => x, StringComparer.Ordinal)
         .ToList();
 
-    /// <summary>Green faction tag for a desecrated row; null when no faction
-    /// name is available.</summary>
-    public string? SourceTag => !IsDesecrated || Factions.Count == 0
-        ? null
-        : string.Join(" / ", Factions);
+    /// <summary>Source tag for a non-normal row: the faction for desecrated
+    /// mods, "Implicit" for base implicits; null when normal or no tag exists.</summary>
+    public string? SourceTag => Source switch
+    {
+        "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
+        "implicit" => "Implicit",
+        _ => null,
+    };
 
     /// <summary>Normalize `of Amanamu` / `Amanamu's` to `Amanamu`.</summary>
     public static string FactionName(string? name)
@@ -174,7 +191,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) =>
-        Source == "desecrated"
+        Source is "desecrated" or "implicit"
             ? []
             : Tiers
                 .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
@@ -193,11 +210,21 @@ public static class ModFamilies
 {
     /// <summary>
     /// Family identity for grouping and lookups. The source is part of the
-    /// key so a desecrated family never merges with a normal family carrying
-    /// the same stat text or raw RePoE type.
+    /// key so a desecrated or implicit family never merges with a normal
+    /// family carrying the same stat text or raw RePoE type. Implicit keys
+    /// use the rendered patterns so duplicate implicit records across bases
+    /// still form one family.
     /// </summary>
     public static string KeyOf(ModEntry mod)
     {
+        if (mod.Source == "implicit")
+        {
+            var patterns = mod.StatLines
+                .Select(line => line.Pattern)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(pattern => pattern, StringComparer.Ordinal);
+            return "implicit:" + string.Join("\u0001", patterns);
+        }
         var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
         return mod.Source == "desecrated" ? "desecrated:" + key : key;
     }
@@ -269,7 +296,7 @@ public static class ModFamilies
         var families = new List<ModFamily>();
         foreach (var famGroup in mods
                      .GroupBy(m => (Key: KeyOf(m), Gen: m.GenerationType.ToLowerInvariant()))
-                     .OrderBy(g => g.Key.Gen == "prefix" ? 0 : 1)
+                     .OrderBy(g => KindOrder(g.Key.Gen))
                      .ThenBy(g => string.Join(" · ", FamilyLines(g.ToList())), StringComparer.OrdinalIgnoreCase)
                      .ThenBy(g => g.Key.Key, StringComparer.Ordinal))
         {
@@ -298,18 +325,27 @@ public static class ModFamilies
             families.Add(new ModFamily(famGroup.Key.Key, famGroup.Key.Gen == "prefix", tiers)
             {
                 Source = members[0].Source,
+                Kind = famGroup.Key.Gen,
                 DisplayLines = FamilyLines(members),
             });
         }
         return families;
     }
 
+    private static int KindOrder(string kind) => kind switch
+    {
+        "prefix" => 0,
+        "suffix" => 1,
+        "implicit" => 2,
+        _ => 3,
+    };
+
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
     {
         var result = new List<ModFamily>();
         foreach (var group in families
                      .GroupBy(UnionKeyOf)
-                     .OrderBy(g => g.First().IsPrefix ? 0 : 1)
+                     .OrderBy(g => KindOrder(g.First().Kind))
                      .ThenBy(g => g.First().DisplayText, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(g => g.Key, StringComparer.Ordinal))
         {
@@ -344,6 +380,7 @@ public static class ModFamilies
             result.Add(new ModFamily(group.Key, group.First().IsPrefix, tiers)
             {
                 Source = group.First().Source,
+                Kind = group.First().Kind,
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
             });
@@ -358,7 +395,7 @@ public static class ModFamilies
             .Select(sl => sl.Pattern)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal);
-        return "union:" + family.Source + ":" + (family.IsPrefix ? "prefix" : "suffix") +
+        return "union:" + family.Source + ":" + family.Kind +
                ":" + string.Join("\u0001", patterns);
     }
 
@@ -411,7 +448,7 @@ public static class ModFamilies
     }
 
     private static string TierKey(ModEntry mod) =>
-        mod.Source == "desecrated"
+        mod.Source is "desecrated" or "implicit"
             ? string.Join("\u0001", mod.StatLines
                 .Select(sl => sl.Pattern)
                 .Distinct(StringComparer.Ordinal)
@@ -420,12 +457,12 @@ public static class ModFamilies
 
     /// <summary>
     /// Tier label: the affix name for normal tiers, or every distinct range
-    /// label for a desecrated tier merged across ranges.
+    /// label for a desecrated or implicit tier merged across ranges.
     /// </summary>
     private static string DisplayLabelFor(IReadOnlyList<ModEntry> members)
     {
         var anchor = members[0];
-        if (anchor.Source != "desecrated") return anchor.Name ?? "";
+        if (anchor.Source is not ("desecrated" or "implicit")) return anchor.Name ?? "";
         return string.Join(" / ", members
             .Select(RangeLabel)
             .Where(label => label.Length > 0)

@@ -39,15 +39,17 @@
                 </div>
             }
             @{
-                (IReadOnlyList<ModFamily> List, string Header)[] sections =
-                    [(_prefixes, "Prefixes"), (_suffixes, "Suffixes")];
+                (IReadOnlyList<ModFamily> List, string Header, string Css)[] sections =
+                    [(_implicits, "Implicits", "implicit-sec"),
+                     (_prefixes, "Prefixes", ""),
+                     (_suffixes, "Suffixes", "")];
                 var twoCols = _prefixes.Count > 0 && _suffixes.Count > 0;
             }
             <div class="mod-cols @(twoCols ? "" : "single")">
-                @foreach (var (list, header) in sections)
+                @foreach (var (list, header, css) in sections)
                 {
                     if (list.Count == 0) continue;
-                    <section class="mod-sec">
+                    <section class="mod-sec @css">
                         <div class="gen-head">@header</div>
                         <ol class="suggest" aria-label="@header">
                             @foreach (var fam in list)
@@ -103,7 +105,7 @@
                                                 </span>
                                                 @if (displayTag is not null)
                                                 {
-                                                    <span class="mod-source">@displayTag</span>
+                                                    <span class="mod-source @fam.SourceCssClass">@displayTag</span>
                                                 }
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
                                                 @if (pickedTiers > 0)
@@ -122,7 +124,7 @@
                                         }
                                         @if (collapsed && displayTag is not null)
                                         {
-                                            <span class="mod-source">@displayTag</span>
+                                            <span class="mod-source @fam.SourceCssClass">@displayTag</span>
                                         }
                                         <button id="pick-inc-@fam.Anchor.Id" class="inc @(familyIncluded ? "active" : "")"
                                                 title="@FamilyIncludeTitle(fam, familyIncluded)"
@@ -227,6 +229,7 @@
     private bool _unionActive;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
+    private IReadOnlyList<ModFamily> _implicits = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
     private IReadOnlyList<ModFamily> _suffixes = [];
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
@@ -309,8 +312,9 @@
                 .Select(f => f!)
                 .ToList();
         var shown = filter.Length == 0 && (_showAll || CommonCount == 0) ? _families : _families.Take(MaxShown).ToList();
-        _prefixes = shown.Where(f => f.IsPrefix).ToList();
-        _suffixes = shown.Where(f => !f.IsPrefix).ToList();
+        _implicits = shown.Where(f => f.IsImplicit).ToList();
+        _prefixes = shown.Where(f => f.Kind == "prefix").ToList();
+        _suffixes = shown.Where(f => f.Kind == "suffix").ToList();
         // A single letter is too broad to expand every match (hundreds of
         // tier rows in the interpreter); keep it collapsed and auto-expand a
         // capped set once the filter is narrower.
@@ -402,8 +406,7 @@
     {
         var mod = Engine.FindMod(modId);
         if (mod is null ||
-            !string.Equals(mod.GenerationType, fam.IsPrefix ? "prefix" : "suffix",
-                StringComparison.OrdinalIgnoreCase))
+            !string.Equals(mod.GenerationType, fam.Kind, StringComparison.OrdinalIgnoreCase))
             return false;
         if (fam.MemberIds.Contains(mod.Id)) return true;
         if (string.IsNullOrEmpty(mod.Family)) return false;
@@ -472,7 +475,7 @@
         // Imported plain picks can be anchored to another scope's member.
         // Desecrated tiers share a faction name, so only the id identifies one.
         var mod = Engine.FindMod(pick.ModId);
-        return tier.Source != "desecrated" && mod is not null && tier.Name.Length > 0 &&
+        return tier.Source is not ("desecrated" or "implicit") && mod is not null && tier.Name.Length > 0 &&
                SameFamilyAs(fam, pick.ModId) &&
                string.Equals(mod.Name ?? "", tier.Name, StringComparison.Ordinal);
     }
@@ -528,7 +531,7 @@
         $"Covered by \"{TierLabel(coveringTier)}\" or better; remove that choice to edit this tier.";
 
     private static IReadOnlyList<string> TierLines(ModFamily fam, ModTier tier) =>
-        fam.IsUnion || fam.IsDesecrated ? tier.UnionLines : tier.DisplayLines;
+        fam.IsUnion || fam.IsDesecrated || fam.IsImplicit ? tier.UnionLines : tier.DisplayLines;
 
     private static string TierTooltip(ModTier tier) =>
         string.Join("\n", tier.Members
@@ -542,7 +545,7 @@
             : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
 
     private static WantedMod TierPick(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || tier.Name.Length == 0
+        fam.IsDesecrated || fam.IsImplicit || tier.Name.Length == 0
             ? new WantedMod(tier.Anchor.Id)
             : new WantedMod(tier.Anchor.Id, [tier.Name]);
 
@@ -588,10 +591,10 @@
         ModFamily fam, ModTier tier, IReadOnlyList<string> excluded)
     {
         if (excluded.Count == 0) return [];
-        // Desecrated tiers share a faction name and, today, a fragment per
-        // family. A member-id exclusion is therefore family-wide, and every
-        // range row shows it instead of leaving the clicked row unchanged.
-        if (fam.IsDesecrated) return FamilyExclusionTerms(fam, excluded);
+        // Desecrated/implicit tiers can share a fragment per family. A
+        // member-id exclusion is therefore family-wide, and every row shows it
+        // instead of leaving the clicked row unchanged.
+        if (fam.IsDesecrated || fam.IsImplicit) return FamilyExclusionTerms(fam, excluded);
         var familyExcluded = FamilyExcluded(fam, excluded);
         var tierIds = tier.MemberIds;
         var matches = new List<string>();
@@ -770,7 +773,7 @@
             foreach (var pick in TierUpPicks(fam, tier, crit.Included))
                 State.RemoveInclude(Scope, pick);
             State.AddExclude(Scope,
-                fam.IsDesecrated || tier.Name.Length == 0 ? tier.Anchor.Id : tier.Name);
+                fam.IsDesecrated || fam.IsImplicit || tier.Name.Length == 0 ? tier.Anchor.Id : tier.Name);
         }
         Refresh();
     }

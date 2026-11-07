@@ -1069,8 +1069,7 @@ public sealed class QueryReconstructionService
 
         // Prefer the tierless family form: the query has no tier information.
         foreach (var familyKey in mods
-                     .Select(m => m.Family)
-                     .Where(f => f.Length > 0)
+                     .Select(ModFamilies.KeyOf)
                      .Distinct(StringComparer.Ordinal)
                      .OrderBy(f => f, StringComparer.Ordinal))
         {

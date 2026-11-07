@@ -70,6 +70,30 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void ImplicitFamily_ShowsImplicitSectionAndTag()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("One Hand Mace");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.Find("#mod-search").Input("Always Hits");
+
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsImplicit && f.Members.Any(m => m.Id == "MaceImplicitAlwaysHit1"));
+        cut.FindAll(".mod-sec.implicit-sec").Should().ContainSingle();
+        cut.FindAll(".gen-head").Select(x => x.TextContent.Trim())
+            .Should().ContainSingle().Which.Should().Be("Implicits");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        var tag = row.QuerySelector(".mod-source")!;
+        tag.TextContent.Trim().Should().Be("Implicit");
+        tag.ClassList.Should().Contain("source-implicit");
+        row.QuerySelector(".fam-text .mod-source").Should().BeNull();
+    }
+
+    [Fact]
     public void PlainFamilyPick_HighlightsFamilyRow_InGlobalMode()
     {
         using var ctx = Context();

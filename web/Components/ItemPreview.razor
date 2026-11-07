@@ -176,7 +176,10 @@
                 var mod = id.Length > 0 ? Engine.FindMod(id) : null;
                 var caption = mod is null
                     ? null
-                    : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";
+                    : mod.GenerationType.Equals("implicit", StringComparison.OrdinalIgnoreCase)
+                        ? "Implicit Modifier"
+                        : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";
+                var sourceLabel = mod?.Source == "implicit" ? null : SourceLabel(mod?.Source);
                 var lines = new List<PreviewLine>();
                 foreach (var ml in group)
                 {
@@ -184,7 +187,7 @@
                     lines.Add(new PreviewLine(DisplayText(ml, ml.Text),
                         new PreviewLineRef(-1, refIndex++, ml.Text, ml.Candidates, ml.SelectedModId)));
                 }
-                sections.Add(new Section(caption, SourceLabel(mod?.Source), SourceClass(mod?.Source), lines));
+                sections.Add(new Section(caption, sourceLabel, SourceClass(mod?.Source), lines));
             }
         }
         return sections;
@@ -225,9 +228,14 @@
         "desecrated" => "Desecrated",
         "crafted" => "Crafted",
         "master crafted" => "Master Crafted",
+        "implicit" => "Implicit",
         _ => null,
     };
 
-    private static string SourceClass(string? source) =>
-        source == "desecrated" ? "mod-source" : "";
+    private static string SourceClass(string? source) => source switch
+    {
+        "desecrated" => "mod-source source-desecrated",
+        "implicit" => "mod-source source-implicit",
+        _ => "",
+    };
 }
