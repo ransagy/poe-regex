@@ -158,9 +158,10 @@ async function navigate() {
 }
 
 async function dismissIntro() {
-  if (await evalValue(`!!document.querySelector('#intro-dismiss')`)) {
-    await evalValue(`document.querySelector('#intro-dismiss').click()`);
-    await waitFor(`!document.querySelector('#intro-card')`);
+  const selector = '#intro-dismiss-top, #intro-dismiss-side';
+  if (await evalValue(`!!document.querySelector('${selector}')`)) {
+    await evalValue(`document.querySelector('${selector}').click()`);
+    await waitFor(`!document.querySelector('#intro-card-top') && !document.querySelector('#intro-card-side')`);
   }
 }
 

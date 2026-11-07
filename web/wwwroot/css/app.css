@@ -13,7 +13,7 @@
     --line-strong: #30363c;
     --text: #e8e3d9;
     --muted: #9c978d;
-    --faint: #7f7b73;
+    --faint: #8a867e;
     --ember: #f0a541;
     --ember-hi: #ffc06a;
     --ember-ink: #1a1207;
@@ -100,9 +100,9 @@
     --no: #93331f;
     --no-soft: rgba(147, 51, 31, 0.12);
     --ok: #3d612c;
-    --desecrated: #749521;
-    --implicit: #7f9ec4;
-    --corrupted: #a54836;
+    --desecrated: #4d6b1a;
+    --implicit: #35658f;
+    --corrupted: #8a3528;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -732,6 +732,9 @@ input:disabled { opacity: 0.5; }
     color: var(--card-ink);
 }
 .iprev-name { font-weight: 600; font-size: 1rem; }
+/* The unique rarity keeps its exact game hex; the dark edge improves
+   legibility on the game-dark card without changing the recognized hue. */
+.iprev-name.rarity-unique { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
 .item-tooltip .iprev-name { padding: 0 1.4rem; }
 .iprev-sub { color: var(--card-sub); font-size: 0.8rem; margin-top: 0.1rem; }
 .iprev-sep { height: 1px; margin: 0.45rem 1.5rem; background: linear-gradient(90deg, transparent, var(--card-line), transparent); }
@@ -1034,6 +1037,6 @@ body.compact .out-dock {
   .forge-loader .hammer{animation:none;transform:rotate(28deg)}
   .forge-loader :is(.body,.bar,.hot,.flash,.s,.s>*,.label i){animation:none}
   .forge-loader .label i{opacity:.7}
-  .forge-loader .glow{animation:fg-breathe 2.4s ease-in-out infinite}
+  .forge-loader .glow{animation:none;opacity:.7}
 }
 @keyframes fg-breathe{0%,100%{opacity:.35}50%{opacity:1}}

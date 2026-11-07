@@ -40,12 +40,14 @@ Current planned and parked work. Behavior is documented in
   reversed ranges, and decimal patterns map exactly. Fuzzy fallback remains
   only for unmatched wording, and genuine ambiguity keeps a deterministic
   candidate rank. Multi-line stat descriptions still map line by line.
+- Accessibility: light-theme source tags and dark secondary text meet 4.5:1;
+  game rarity colors are unchanged and the unique name keeps its exact hex
+  with a dark edge. Compact layout reviewed at 390×844 and 768×1024;
+  color-vision simulation passed with text/icon labels preserved.
 
 ## Next
 
-1. **Web a11y follow-up:** color-vision emulation pass and compact-layout
-   review.
-2. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
+1. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
    as a manual gate.
 
 ## Parked
