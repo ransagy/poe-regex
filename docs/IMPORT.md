@@ -93,6 +93,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - `{ Desecrated Prefix/Suffix Modifier ... }` headers are parsed and mapped.
   A desecrated match is preferred, but a desecrated reveal can carry a normal
   explicit affix; when no desecrated match exists, the normal match is used.
+- `{ Crafted Prefix/Suffix Modifier ... }` and `{ Master Crafted ... }`
+  headers are parsed, but no crafted normal-equipment catalog source is
+  shipped; those lines fall back to normal explicit matches when the text
+  matches one.
 - Desecrated tier labels show the roll range, but the exact table is
   pattern-based: ranges that share one stat pattern (for example `2–4%` and
   `4–7%`) compile to the same fragment, so the search string does not pin the
@@ -101,9 +105,14 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   scopes.
 - Desecrated tier exclusions are family-wide for the same reason: excluding
   one range excludes every range that shares its fragment.
-- Augments, bonded modifiers, crafted-domain mods, and jewel affixes are not
-  modeled yet; crafted stat lines can still map to a normal affix with the
-  same text. Jewel lines remain unmapped.
+- Augments, bonded modifiers, corrupted mods, and jewel affixes are not
+  modeled yet. The PoE2 export's `crafted` prefix/suffix records are PoE1
+  master-craft leftovers (no positive PoE2 base mapping) and are excluded;
+  crafted stat lines can still map to a normal affix with the same text.
+  Actual PoE2 crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
+  remain unmodeled with jewels.
+- Base implicits remain class-level when added: the catalog can say a line
+  exists on some base in a class, but not which base type.
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.
@@ -123,5 +132,6 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 
 ```sh
 dotnet test tests/PoeRegex.Web.Tests --filter "FullyQualifiedName~ItemMappingTests"
+dotnet test tests/PoeRegex.Web.Tests --filter "FullyQualifiedName~CraftedLegacyTests"
 dotnet test tests/PoeRegex.Web.Tests --filter "FullyQualifiedName~QueryImport"
 ```

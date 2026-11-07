@@ -34,20 +34,22 @@ The table records this basis as `targetModel: advanced-ranges-v1`. The engine
 rejects a table whose target model does not match, so a table generated under
 a different display basis cannot be used silently. Fragments may therefore
 use the range hyphen or parentheses as guards, and the web importer already
-works from advanced descriptions.
+works from advanced descriptions. The oracle corpus includes both the plain
+copy-text line and its advanced `roll(min-max)` form, so a fragment must be
+safe for both.
 
 ## Artifact coverage
 
 ```text
-342 families · 1030 rows · 1415 expanded scopes · 0 unresolved
+342 families · 392 patterns · 1037 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
 | Global | 392 |
-| Class | 393 |
-| Per-class | 245 |
+| Class | 402 |
+| Per-class | 243 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
@@ -104,7 +106,7 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  342 families · 1030 rows · 1415 expanded scopes
+matrix:  342 families · 392 patterns · 1037 expanded scopes
 table:   297 global · 21 classes · 869 class fragments
 proof:   1415 / 1415 · 0 failures
 ```
@@ -246,14 +248,20 @@ field lines are in the safety fixtures (`Idol of the Sycophant`,
 `Shrine Sceptre`, `Grants Skill: Spear Throw`, plus the cross-stat
 `from Equipped Body Armour` and `from Equipped Quiver` lines). Abyss
 desecrated item affixes are now part of the modeled catalog and safety
-corpus, with their classes derived from spawn-weight tags. Normal and
-desecrated jewel affixes are not modeled and are outside the proof. Family
+corpus, with their classes derived from spawn-weight tags. The PoE2 export's
+`crafted` prefix/suffix records are PoE1 master-craft leftovers; they have no
+positive PoE2 base mapping and are excluded. PoE2's actual crafted mods are
+the jewel-only `CraftedJewel*` records in domain `misc`, which are not
+modeled. Normal and desecrated jewel affixes are not modeled and are outside
+the proof. Family
 tiers are split by roll range for display, but the table is pattern-based:
 tiers that share one stat pattern share a fragment, so the search string
 cannot pin one numeric range; the picker collapses them into one row while
 range strings remain pattern-based. Range-specific strings need range-aware
-proof scopes. The proof is complete for the modeled corpus plus captured
-fixtures. Unmodeled
+proof scopes. The oracle corpus includes both plain and advanced
+`roll(min-max)` forms, so shipped fragments are safe for the game's Highlight
+target as well as normal copy text. The proof is complete for the modeled
+corpus plus captured fixtures. Unmodeled
 unique, rare, flavour, socketable, and bonded text can still highlight; this
 is accepted and out of scope.
 

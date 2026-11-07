@@ -4,8 +4,8 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-06 13:17:17Z",
-  "matrixGenerated": "2026-11-06 12:00:01Z",
+  "generatedAt": "2026-11-06 21:19:45Z",
+  "matrixGenerated": "2026-11-06 21:15:00Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
@@ -14,26 +14,26 @@
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 458725,
-      "sha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0"
+      "bytes": 460978,
+      "sha256": "0a5bf557579f2aeb6c2a1812cf7294f12b59b93b0ba969f77916f6840dfebfc1"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 484912,
-      "sha256": "24148b12fc4557fbdfeb6c5f05addd8d55736606ac6acbfd536d3ec1fbdbb8a1"
+      "bytes": 484962,
+      "sha256": "1bdd1a135f4834a638aaf392470d1321fd00497f768358c923318149710e2f51"
     }
   },
   "matrix": {
     "families": 342,
     "patterns": 392,
-    "scopes": 1030,
+    "scopes": 1037,
     "coverage": {
-      "class/strict": 393,
+      "class/strict": 402,
       "global/strict": 392,
-      "per-class/strict": 245
+      "per-class/strict": 243
     },
     "bounds": {
-      "250": 1030
+      "250": 1037
     },
     "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
@@ -81,7 +81,7 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "9de61dd189450c5c670be7d9363a08e5efbaf2ea380a18d2c00393996df8e2d0",
+      "matrixSha256": "0a5bf557579f2aeb6c2a1812cf7294f12b59b93b0ba969f77916f6840dfebfc1",
       "checkedScopes": 1415,
       "workScopes": 1415,
       "failed": 0,

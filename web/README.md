@@ -224,10 +224,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   table lookup only; there is no live fragment search and no heuristic
   fallback. The oracle is line-scoped over the derived
   vendor/stash corpus, and the table is strict: zero foreign modeled or
-  captured-safety lines. Desecrated item affixes are modeled; unique-only
-  text, flavour, rare names, augments, and bonded modifiers remain unmodeled
-  and are reported separately. The exact table has 1415 expanded scopes
-  (297 global patterns, 21 classes, 869 class fragments, 0 unresolved).
+  captured-safety lines. The oracle corpus includes both plain copy text and
+  advanced `roll(min-max)` forms. Desecrated item affixes are modeled;
+  unique-only text, flavour, rare names, augments, and bonded modifiers
+  remain unmodeled and are reported separately. The exact table has 1415
+  expanded scopes (297 global patterns, 21 classes, 869 class fragments, 0
+  unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
@@ -358,10 +360,11 @@ Acceptance criteria and current measurements:
   the same normalized stat pattern and shows the merged tier's roll
   alternatives; per-slot rows keep the class's concrete roll. Desecrated
   tiers that share a pattern collapse into one row while range-specific
-  strings are deferred. Jewel affixes, augments, bonded modifiers, and
-  crafted-domain mods remain unmodeled. Imports resolve by bracket ranges and
-  header names, so a line with neither (and no plain-text match) shows as
-  ambiguous (`+N`)
+  strings are deferred. Jewel affixes, augments, and bonded modifiers remain
+  unmodeled. The export's `crafted` prefix/suffix records are PoE1 leftovers
+  and are excluded; actual PoE2 crafted mods are jewel-only in domain `misc`.
+  Imports resolve by bracket ranges and header names, so a line with neither
+  (and no plain-text match) shows as ambiguous (`+N`)
   rather than asking — the grouped family/tier pickers cover that surface for
   the builder and picker.
 - Text before an item's `Item Class:` line is paste noise (the game's copy

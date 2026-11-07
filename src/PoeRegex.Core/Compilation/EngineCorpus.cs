@@ -619,7 +619,10 @@ public sealed class EngineCorpus
 
         foreach (var mod in _inGameMods)
             foreach (var sl in mod.StatLines)
-                if (!vendorPatterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
+            {
+                if (vendorPatterns.Contains(sl.Pattern)) continue;
+                foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
+            }
         foreach (var line in UniversalLines)
             Add(CatalogLineNormalizer.Normalize(line), line);
         foreach (var cls in _inGameCatalogClasses)
@@ -693,7 +696,10 @@ public sealed class EngineCorpus
 
         foreach (var mod in _inGameMods)
             foreach (var sl in mod.StatLines)
-                if (!vendorPatterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
+            {
+                if (vendorPatterns.Contains(sl.Pattern)) continue;
+                foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
+            }
         foreach (var line in UniversalLines)
             Add(CatalogLineNormalizer.Normalize(line), line);
         foreach (var cls in _inGameCatalogClasses)
@@ -869,6 +875,17 @@ public sealed class EngineCorpus
         return matchedAny;
     }
 
+    /// <summary>Plain and advanced copy-text forms of one catalog stat line.
+    /// The advanced form is what the game's Highlight search targets, so the
+    /// oracle must see both; fixed lines yield one form.</summary>
+    private static IEnumerable<string> RealForms(StatLineEntry sl)
+    {
+        yield return sl.Line;
+        var advanced = AdvancedStatLine.For(sl);
+        if (!string.Equals(advanced, sl.Line, StringComparison.Ordinal))
+            yield return advanced;
+    }
+
     /// <summary>Groups real lines by their normalized pattern once.</summary>
     private static Dictionary<string, List<(string Pattern, string Real)>> GroupByPattern(
         IReadOnlyList<(string Pattern, string Real)> lines)
@@ -950,7 +967,7 @@ public sealed class EngineCorpus
         var realLines = mods
             .SelectMany(m => m.StatLines)
             .Where(sl => !vendorPatterns.Contains(sl.Pattern))
-            .Select(sl => (sl.Pattern, sl.Line))
+            .SelectMany(sl => RealForms(sl).Select(real => (sl.Pattern, real)))
             .Concat(UniversalLines.Select(l => (CatalogLineNormalizer.Normalize(l), l)))
             .Concat(classes.Select(c => (CatalogLineNormalizer.Normalize($"Item Class: {c.Name}"), $"Item Class: {c.Name}")))
             .Concat(vendor.Select(l => (l.Pattern ?? SafetyPattern(l.Line), l.Line)))
@@ -1045,7 +1062,7 @@ public sealed class EngineCorpus
             foreach (var sl in mod.StatLines)
             {
                 catalogPatterns.Add(sl.Pattern);
-                if (!patterns.Contains(sl.Pattern)) Add(sl.Pattern, sl.Line);
+                foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
             }
         }
 

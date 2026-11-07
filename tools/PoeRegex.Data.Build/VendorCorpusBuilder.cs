@@ -11,11 +11,11 @@ namespace PoeRegex.Data.Build;
 /// <summary>
 /// Builds the vendor/stash searchable-text corpus from raw RePoE data.
 ///
-/// The selectable catalog is only explicit prefixes/suffixes. This corpus
-/// additionally covers base items, implicits, corrupted/essence/crafted mods,
-/// affix captions, base properties, requirements, sockets, and regular/base
-/// names. Unique-only mods, unique names, flavour, and random rare names are
-/// deliberately excluded and remain unmodeled.
+/// The selectable catalog is only explicit prefixes/suffixes plus Abyss
+/// desecrated affixes. This corpus additionally covers base items, implicits,
+/// corrupted/essence mods, affix captions, base properties, requirements,
+/// sockets, and regular/base names. Unique-only mods, unique names, flavour,
+/// and random rare names are deliberately excluded and remain unmodeled.
 ///
 /// Every stat line is emitted in the forms the game actually displays:
 ///  - the representative max roll without a range,
@@ -30,7 +30,7 @@ public static class VendorCorpusBuilder
 {
     private static readonly HashSet<string> IncludedGenerations = new(StringComparer.Ordinal)
     {
-        "prefix", "suffix", "corrupted", "essence", "crafted", "implicit",
+        "prefix", "suffix", "corrupted", "essence", "implicit",
         "talisman", "blight", "synthesis_a", "synthesis_globals", "synthesis_bonus",
     };
 
