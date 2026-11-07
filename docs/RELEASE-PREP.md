@@ -79,7 +79,9 @@ source of truth.
   old/new length, delta, and every added/removed pattern.
 - [ ] Explain each changed or removed scope in the PR. No unexplained forced
   changes.
-- [ ] Post the report summary as a PR comment so it survives a restart.
+- [ ] Keep the full report outside the repository. Link its path and give a
+  one-line result in the PR description only when useful; do not paste the
+  whole report as a PR comment.
 
 ## 4. Tests and proof
 
