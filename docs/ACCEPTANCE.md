@@ -83,9 +83,9 @@ node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
 ## Out of scope
 
 The exact-table proof is complete for the modeled corpus plus the captured
-safety fixtures. Desecrated item affixes and implicit-only base families are
-modeled; PoE1 `crafted` leftovers are excluded, and PoE2's actual crafted
-jewel mods are not modeled. Unmodeled unique/rare names, unique-only text,
+safety fixtures. Desecrated item affixes, implicit-only base families, and
+corrupted enchantments are modeled; PoE1 `crafted` leftovers are excluded, and
+PoE2's actual crafted jewel mods are not modeled. Unmodeled unique/rare names, unique-only text,
 flavour, augments/bonded text, and some socketable/base text can still make an
 item highlight. This is accepted and out of scope; therefore there are **no
 manual in-game acceptance checks**.
@@ -98,6 +98,9 @@ manual in-game acceptance checks**.
   warning.
 - Implicit-only base families are class-level and their import lines stay
   quiet; approximate shorthand matches stay flagged.
+- Corrupted enchantments are picker/builder-only on import: game copy uses
+  implicit headers, so those lines stay quiet. The builder allows at most two;
+  five raw records without a positive reference are excluded.
 - Normal-gear crafted mods are not modeled: the export's `crafted` prefix/
   suffix records are PoE1 legacy, and actual PoE2 crafted mods are jewel-only.
 - Ambiguous import lines surface as candidates rather than a guaranteed

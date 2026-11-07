@@ -16,8 +16,9 @@ public class ItemDisplayTests
         ItemDisplay.Rank("implicit").Should().Be(0);
         ItemDisplay.Rank("Prefix").Should().Be(1);
         ItemDisplay.Rank("suffix").Should().Be(2);
-        ItemDisplay.Rank("explicit").Should().Be(3);
-        ItemDisplay.Rank(null).Should().Be(3);
+        ItemDisplay.Rank("corrupted").Should().Be(3);
+        ItemDisplay.Rank("explicit").Should().Be(4);
+        ItemDisplay.Rank(null).Should().Be(4);
     }
 
     [Fact]

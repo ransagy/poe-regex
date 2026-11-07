@@ -229,7 +229,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   advanced `roll(min-max)` forms. Desecrated item affixes and implicit-only
   base families are modeled; unique-only text, flavour, rare names, augments,
   and bonded modifiers remain unmodeled and are reported separately. The
-  exact table has 1591 expanded scopes (361 global patterns, 21 classes, 967
+  exact table has 1672 expanded scopes (379 global patterns, 21 classes, 1030
   class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
@@ -351,20 +351,23 @@ Acceptance criteria and current measurements:
   Membership is derived: a slot joins the group as soon as it has any
   wanted/unwanted chips; clicking a slot only moves the editing focus.
 - The derived catalog ships explicit prefix/suffix affixes, Abyss desecrated
-  prefixes/suffixes, and implicit-only base families, and renders some
-  internal shorthand forms (`LightRadius`, `ManaLeech`); the importer maps
-  those via flagged approximate fallbacks. Desecrated families stay in the
-  normal Prefixes/Suffixes columns with a green `<faction>` tag (for example
-  `Amanamu`) after the family row label; implicit families sit in a dedicated
-  **Implicits** section above the columns with a muted-blue `<Implicit>` tag.
-  Neither source is in the default common shortlist; they appear when
-  searching or after **Show all**. Implicit families are implicit-only: lines
-  already covered by a normal prefix/suffix are not duplicated. All gear
-  merges families that share the same normalized stat pattern and shows the
-  merged tier's roll alternatives; per-slot rows keep the class's concrete
-  roll. Desecrated tiers that share a pattern collapse into one row while
-  range-specific strings are deferred. Jewel affixes, augments, corrupted
-  mods, and bonded modifiers remain unmodeled. The export's `crafted`
+  prefixes/suffixes, implicit-only base families, and corrupted enchantments,
+  and renders some internal shorthand forms (`LightRadius`, `ManaLeech`); the
+  importer maps those via flagged approximate fallbacks. Desecrated families
+  stay in the normal Prefixes/Suffixes columns with a green `<faction>` tag
+  (for example `Amanamu`) after the family row label; implicit families sit in
+  a dedicated **Implicits** section above the columns with a muted-blue
+  `<Implicit>` tag; corrupted families sit below them in a **Corrupted**
+  section with a muted-red `<Corrupted>` tag. None of these sources is in the
+  default common shortlist; they appear when searching or after **Show all**.
+  Implicit and corrupted families are scope-only: lines already covered by a
+  normal/desecrated/implicit family on the same class are not duplicated.
+  The builder allows at most two corrupted enchantments; game implicit lines
+  stay quiet on import. All gear merges families that share the same
+  normalized stat pattern and shows the merged tier's roll alternatives;
+  per-slot rows keep the class's concrete roll. Desecrated tiers that share a
+  pattern collapse into one row while range-specific strings are deferred.
+  Jewel affixes, augments, and bonded modifiers remain unmodeled. The export's `crafted`
   prefix/suffix records are PoE1 leftovers and are excluded; actual PoE2
   crafted mods are jewel-only in domain `misc`. Imports resolve by bracket
   ranges and header names, so a line with neither (and no plain-text match)

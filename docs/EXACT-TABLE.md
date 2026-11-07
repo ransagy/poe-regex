@@ -41,14 +41,14 @@ safe for both.
 ## Artifact coverage
 
 ```text
-404 families · 467 patterns · 1197 expanded scopes · 0 unresolved
+422 families · 485 patterns · 1258 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 467 |
-| Class | 421 |
+| Global | 485 |
+| Class | 464 |
 | Per-class | 309 |
 
 Each expanded scope is independently checked for a shorter candidate.
@@ -56,7 +56,7 @@ Each expanded scope is independently checked for a shorter candidate.
 ## Applied table
 
 ```text
-361 global patterns · 21 classes · 967 class fragments · 0 unresolved
+379 global patterns · 21 classes · 1030 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -73,6 +73,7 @@ Examples:
 | `Always Hits` | One Hand Mace | `ay` |
 | `Crushes Enemies on Hit` | global | `shes` |
 | `+#% to Critical Damage Bonus` | Bow | `nus$` |
+| `Bow Attacks fire an additional Arrow` | Bow | `^bo` |
 
 The strict pass is exact for the declared grammar and target display model
 (advanced item text, including ranged `roll(min-max)` forms).
@@ -90,7 +91,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1591 / 1591 expanded scopes checked
+1672 / 1672 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -108,9 +109,9 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  404 families · 467 patterns · 1197 expanded scopes
-table:   361 global · 21 classes · 967 class fragments
-proof:   1591 / 1591 · 0 failures
+matrix:  422 families · 485 patterns · 1258 expanded scopes
+table:   379 global · 21 classes · 1030 class fragments
+proof:   1672 / 1672 · 0 failures
 ```
 
 This from-scratch run is the basis for the shipped table. The shipped table
@@ -120,9 +121,9 @@ tie churn does not retire working strings. The diff report therefore lists
 only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
 reproduce that stability pass.
 
-- Expanded scopes: 1591 / 1591, all proven.
+- Expanded scopes: 1672 / 1672, all proven.
 - Chosen length: proven on every scope.
-- Table: 361 global patterns, 21 classes, 967 class fragments, 0 unresolved.
+- Table: 379 global patterns, 21 classes, 1030 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -257,7 +258,9 @@ field lines are in the safety fixtures (`Idol of the Sycophant`,
 desecrated item affixes are now part of the modeled catalog and safety
 corpus, with their classes derived from spawn-weight tags. Base implicits are
 modeled as implicit-only families at class level, with classes taken from the
-released base items' implicit lists. The PoE2 export's
+released base items' implicit lists. Corrupted enchantments are modeled as a
+separate non-affix source, with classes taken from `mods_by_base`; the five
+records without a positive base/spawn reference are excluded. The PoE2 export's
 `crafted` prefix/suffix records are PoE1 master-craft leftovers; they have no
 positive PoE2 base mapping and are excluded. PoE2's actual crafted mods are
 the jewel-only `CraftedJewel*` records in domain `misc`, which are not

@@ -128,7 +128,7 @@ public static partial class ItemTextParser
     [GeneratedRegex(@"^Grants Skill:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex GrantsSkillRe();
     [GeneratedRegex(
-        @"^\{\s*(?:(?<source>Desecrated|Master Crafted|Crafted)\s+)?(?<kind>Implicit|Prefix|Suffix)\b(?<rest>.*)\}$",
+        @"^\{\s*(?:(?<source>Desecrated|Master Crafted|Crafted|Corrupted)\s+)?(?<kind>Implicit|Prefix|Suffix|Corrupted)\b(?<rest>.*)\}$",
         RegexOptions.IgnoreCase)]
     private static partial Regex ModHeaderRe();
     [GeneratedRegex(@"""(?<name>[^""]+)""")]
@@ -254,7 +254,8 @@ public static partial class ItemTextParser
                     "desecrated" => "desecrated",
                     "crafted" => "crafted",
                     "master crafted" => "master crafted",
-                    _ => "explicit",
+                    "corrupted" => "corrupted",
+                    _ => kind == "corrupted" ? "corrupted" : "explicit",
                 };
                 var rest = m.Groups["rest"].Value;
                 var qn = QuotedNameRe().Match(rest);

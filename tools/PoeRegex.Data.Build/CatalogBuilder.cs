@@ -83,7 +83,7 @@ public static class CatalogBuilder
             implicitLines[modId] = lines;
             implicitPatterns[modId] = lines.Select(line => line.Pattern).ToList();
         }
-        var selectedImplicit = SelectImplicitClasses(implicitPatterns, implicitByMod, classLines);
+        var selectedImplicit = SelectMissingScopes(implicitPatterns, implicitByMod, classLines);
         foreach (var (modId, classes) in selectedImplicit)
         {
             var lines = implicitLines[modId];
@@ -98,6 +98,56 @@ public static class CatalogBuilder
                 }
                 foreach (var line in lines) set.Add(line.Pattern);
             }
+        }
+
+        // Corrupted mods (Vaal/corruption enchantments) are a separate
+        // non-affix source. Map them through mods_by_base, keep only the
+        // equipment classes the app supports, and add only class scopes not
+        // already covered by normal, desecrated, or implicit families.
+        var corruptedByMod = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (modId, classes) in classByMod)
+        {
+            if (!mods.TryGetValue(modId, out var mod)) continue;
+            if (mod.Domain != "item" || mod.GenerationType != "corrupted") continue;
+            var supported = classes
+                .Where(equipmentClasses.Contains)
+                .ToHashSet(StringComparer.Ordinal);
+            if (supported.Count > 0) corruptedByMod[modId] = supported;
+        }
+        var corruptedPatterns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var corruptedLines = new Dictionary<string, List<StatTextRenderer.RenderedLine>>(StringComparer.Ordinal);
+        foreach (var (modId, _) in corruptedByMod)
+        {
+            var lines = renderer.RenderMod(mods[modId].Stats);
+            if (lines.Count == 0) continue;
+            corruptedLines[modId] = lines;
+            corruptedPatterns[modId] = lines.Select(line => line.Pattern).ToList();
+        }
+        var selectedCorrupted = SelectMissingScopes(corruptedPatterns, corruptedByMod, classLines);
+        foreach (var (modId, classes) in selectedCorrupted)
+        {
+            var lines = corruptedLines[modId];
+            renderedLines[modId] = lines;
+            classByMod[modId] = classes;
+            foreach (var cls in classes)
+            {
+                if (!classLines.TryGetValue(cls, out var set))
+                {
+                    set = new HashSet<string>();
+                    classLines[cls] = set;
+                }
+                foreach (var line in lines) set.Add(line.Pattern);
+            }
+        }
+
+        var unrenderedCorrupted = corruptedByMod.Keys
+            .Where(id => !corruptedLines.ContainsKey(id))
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (unrenderedCorrupted.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"corrupted item mods rendered no lines: {string.Join(", ", unrenderedCorrupted)}");
         }
 
         // A desecrated line that maps to an item class but renders nothing
@@ -192,6 +242,7 @@ public static class CatalogBuilder
                 {
                     "desecrated" => "desecrated",
                     _ when implicitByMod.ContainsKey(modId) => "implicit",
+                    _ when mods[modId].GenerationType == "corrupted" => "corrupted",
                     _ => "",
                 },
                 Family = mods[modId].Type ?? "",
@@ -265,7 +316,8 @@ public static class CatalogBuilder
     /// Selectable affixes: normal explicit item prefixes/suffixes and the
     /// Abyss desecrated prefixes/suffixes. Map/tablet desecrated mods are
     /// filtered later because they have no item-class spawn tags. Base
-    /// implicits are selected separately from the base items' implicit lists.
+    /// implicits and corrupted enchantments are selected separately from
+    /// their own positive PoE2 references.
     /// Crafted prefix/suffix records are deliberately excluded: the PoE2
     /// export also carries PoE1 Navali/Helena master crafts, which have no
     /// positive PoE2 base mapping. PoE2's actual crafted mods are the
@@ -277,16 +329,16 @@ public static class CatalogBuilder
         (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix");
 
     /// <summary>
-    /// Selects the class scopes where an implicit mod adds at least one line
-    /// not already covered by a normal or desecrated family on the same
-    /// class. The baseline is intentionally normal/desecrated only: implicit
-    /// tiers that share a pattern must stay in the catalog so their ranges
-    /// remain available, and the family grouping merges them safely. A mod
-    /// that is only partially new on a class is kept for that class:
-    /// multi-line implicit rows are a single family in the picker, and
-    /// skipping the whole mod would lose the new line.
+    /// Selects the class scopes where a mod adds at least one line not
+    /// already covered by a normal or desecrated family on the same class.
+    /// The baseline is intentionally normal/desecrated only: implicit or
+    /// corrupted tiers that share a pattern must stay in the catalog so their
+    /// ranges remain available, and the family grouping merges them safely.
+    /// A mod that is only partially new on a class is kept for that class:
+    /// multi-line rows are a single family in the picker, and skipping the
+    /// whole mod would lose the new line.
     /// </summary>
-    internal static Dictionary<string, HashSet<string>> SelectImplicitClasses(
+    internal static Dictionary<string, HashSet<string>> SelectMissingScopes(
         IReadOnlyDictionary<string, IReadOnlyList<string>> patternsByMod,
         IReadOnlyDictionary<string, HashSet<string>> classesByMod,
         IReadOnlyDictionary<string, HashSet<string>> coveredByClass)

@@ -178,8 +178,12 @@
                     ? null
                     : mod.GenerationType.Equals("implicit", StringComparison.OrdinalIgnoreCase)
                         ? "Implicit Modifier"
-                        : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";
-                var sourceLabel = mod?.Source == "implicit" ? null : SourceLabel(mod?.Source);
+                        : mod.GenerationType.Equals("corrupted", StringComparison.OrdinalIgnoreCase)
+                            ? "Corrupted Modifier"
+                            : $"{mod.GenerationType.ToLowerInvariant()} \"{mod.Name ?? mod.Id}\"";
+                var sourceLabel = mod?.Source is "implicit" or "corrupted"
+                    ? null
+                    : SourceLabel(mod?.Source);
                 var lines = new List<PreviewLine>();
                 foreach (var ml in group)
                 {
@@ -215,6 +219,7 @@
         {
             "implicit" => "Implicit",
             "prefix" => "Prefix",
+            "corrupted" => "Corrupted",
             _ => "Suffix",
         };
         var name = block.Name is null ? "" : $" \"{block.Name}\"";
@@ -229,6 +234,7 @@
         "crafted" => "Crafted",
         "master crafted" => "Master Crafted",
         "implicit" => "Implicit",
+        "corrupted" => "Corrupted",
         _ => null,
     };
 
@@ -236,6 +242,7 @@
     {
         "desecrated" => "mod-source source-desecrated",
         "implicit" => "mod-source source-implicit",
+        "corrupted" => "mod-source source-corrupted",
         _ => "",
     };
 }

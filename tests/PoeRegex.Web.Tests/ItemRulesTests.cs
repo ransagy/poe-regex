@@ -1,4 +1,5 @@
 using PoeRegex.Core;
+using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
@@ -77,6 +78,43 @@ public class ItemRulesTests
         ItemRules.CanAdd(Engine, prefix, [implicitMod.Id], "Magic").Should().BeTrue();
         ItemRules.CanAdd(Engine, suffix, [implicitMod.Id], "Magic").Should().BeTrue();
         ItemRules.CanAdd(Engine, implicitMod, [prefix.Id, suffix.Id], "Magic").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Corrupted_DoesNotConsumeAffixCaps_AndCapsAtTwo()
+    {
+        var corrupted = new List<ModEntry>();
+        foreach (var mod in Engine.PlayableMods().Where(m => m.Source == "corrupted"))
+        {
+            if (corrupted.Any(p =>
+                    p.Family == mod.Family ||
+                    p.Groups.Intersect(mod.Groups, StringComparer.Ordinal).Any()))
+                continue;
+            corrupted.Add(mod);
+            if (corrupted.Count == 3) break;
+        }
+        corrupted.Should().HaveCount(3);
+        var prefix = Engine.ModsForClass("Ring").First(m => m.GenerationType == "prefix");
+
+        ItemRules.CanAdd(Engine, corrupted[0], [], "Normal").Should().BeTrue();
+        ItemRules.CanAdd(Engine, corrupted[1], [corrupted[0].Id], "Magic").Should().BeTrue();
+        ItemRules.CanAdd(Engine, corrupted[2],
+            [corrupted[0].Id, corrupted[1].Id], "Rare").Should().BeFalse(
+            "normal equipment can carry at most two corruption enchantments");
+        ItemRules.CanAdd(Engine, prefix, [corrupted[0].Id], "Magic").Should().BeTrue(
+            "corrupted mods do not consume prefix slots");
+        ItemRules.CanAdd(Engine, corrupted[0], [prefix.Id], "Magic").Should().BeTrue(
+            "corrupted mods do not clash with normal families");
+
+        var two = new[]
+        {
+            new RuleLine("corrupted", corrupted[0].Id),
+            new RuleLine("corrupted", corrupted[1].Id),
+        };
+        ItemRules.Validate(Engine, two, "Rare")
+            .Should().NotContain(v => v.Level == "error");
+        ItemRules.Validate(Engine, [.. two, new RuleLine("corrupted", corrupted[2].Id)], "Rare")
+            .Should().Contain(v => v.Level == "error");
     }
 
     [Fact]

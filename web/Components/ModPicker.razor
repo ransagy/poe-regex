@@ -41,6 +41,7 @@
             @{
                 (IReadOnlyList<ModFamily> List, string Header, string Css)[] sections =
                     [(_implicits, "Implicits", "implicit-sec"),
+                     (_corrupted, "Corrupted", "corrupted-sec"),
                      (_prefixes, "Prefixes", ""),
                      (_suffixes, "Suffixes", "")];
                 var twoCols = _prefixes.Count > 0 && _suffixes.Count > 0;
@@ -230,6 +231,7 @@
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
     private IReadOnlyList<ModFamily> _implicits = [];
+    private IReadOnlyList<ModFamily> _corrupted = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
     private IReadOnlyList<ModFamily> _suffixes = [];
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
@@ -313,6 +315,7 @@
                 .ToList();
         var shown = filter.Length == 0 && (_showAll || CommonCount == 0) ? _families : _families.Take(MaxShown).ToList();
         _implicits = shown.Where(f => f.IsImplicit).ToList();
+        _corrupted = shown.Where(f => f.IsCorrupted).ToList();
         _prefixes = shown.Where(f => f.Kind == "prefix").ToList();
         _suffixes = shown.Where(f => f.Kind == "suffix").ToList();
         // A single letter is too broad to expand every match (hundreds of
@@ -531,7 +534,9 @@
         $"Covered by \"{TierLabel(coveringTier)}\" or better; remove that choice to edit this tier.";
 
     private static IReadOnlyList<string> TierLines(ModFamily fam, ModTier tier) =>
-        fam.IsUnion || fam.IsDesecrated || fam.IsImplicit ? tier.UnionLines : tier.DisplayLines;
+        fam.IsUnion || fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted
+            ? tier.UnionLines
+            : tier.DisplayLines;
 
     private static string TierTooltip(ModTier tier) =>
         string.Join("\n", tier.Members
@@ -545,7 +550,7 @@
             : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
 
     private static WantedMod TierPick(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || fam.IsImplicit || tier.Name.Length == 0
+        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || tier.Name.Length == 0
             ? new WantedMod(tier.Anchor.Id)
             : new WantedMod(tier.Anchor.Id, [tier.Name]);
 
@@ -594,7 +599,8 @@
         // Desecrated/implicit tiers can share a fragment per family. A
         // member-id exclusion is therefore family-wide, and every row shows it
         // instead of leaving the clicked row unchanged.
-        if (fam.IsDesecrated || fam.IsImplicit) return FamilyExclusionTerms(fam, excluded);
+        if (fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted)
+            return FamilyExclusionTerms(fam, excluded);
         var familyExcluded = FamilyExcluded(fam, excluded);
         var tierIds = tier.MemberIds;
         var matches = new List<string>();
@@ -773,7 +779,9 @@
             foreach (var pick in TierUpPicks(fam, tier, crit.Included))
                 State.RemoveInclude(Scope, pick);
             State.AddExclude(Scope,
-                fam.IsDesecrated || fam.IsImplicit || tier.Name.Length == 0 ? tier.Anchor.Id : tier.Name);
+                fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || tier.Name.Length == 0
+                    ? tier.Anchor.Id
+                    : tier.Name);
         }
         Refresh();
     }

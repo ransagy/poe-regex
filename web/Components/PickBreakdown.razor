@@ -441,6 +441,7 @@
 
     private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
         family is { IsUnion: true } or { IsDesecrated: true } or { IsImplicit: true }
+            or { IsCorrupted: true }
             ? tier.UnionLines
             : tier.DisplayLines;
 
@@ -457,7 +458,7 @@
         var mod = Engine.FindMod(term);
         if (mod is not null) return SourceFor([mod.Id]);
         var byName = Engine.PlayableMods()
-            .Where(m => (m.Source is "desecrated" or "implicit") && m.Name == term)
+            .Where(m => (m.Source is "desecrated" or "implicit" or "corrupted") && m.Name == term)
             .ToList();
         return SourceFor(byName.Select(m => m.Id));
     }
@@ -469,6 +470,7 @@
             .Select(m => m!)
             .ToList();
         if (mods.Any(m => m.Source == "implicit")) return ("Implicit", "source-implicit");
+        if (mods.Any(m => m.Source == "corrupted")) return ("Corrupted", "source-corrupted");
         var factions = mods
             .Where(m => m.Source == "desecrated")
             .Select(m => ModFamily.FactionName(m.Name))

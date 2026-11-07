@@ -67,7 +67,7 @@
                                     <ul class="tier-list">
                                         @foreach (var tier in fam.Tiers)
                                         {
-                                            var tierLines = tier.Source is "desecrated" or "implicit"
+                                            var tierLines = tier.Source is "desecrated" or "implicit" or "corrupted"
                                                 ? tier.UnionLines
                                                 : tier.DisplayLines;
                                             <li class="suggest-row tier-row">
@@ -219,6 +219,7 @@
     {
         "prefix" => "Prefix",
         "implicit" => "Implicit",
+        "corrupted" => "Corrupted",
         _ => "Suffix",
     };
 
@@ -238,9 +239,12 @@
     private TestItem PreviewItem()
     {
         var cls = Engine.PlayableClasses().FirstOrDefault(c => c.Id == _classId);
+        var corrupted = _added.Any(id =>
+            string.Equals(Engine.FindMod(id)?.GenerationType, "corrupted",
+                StringComparison.OrdinalIgnoreCase));
         var parsed = new ParsedItem(cls?.Name, _rarity,
             _name.Trim().Length > 0 ? _name.Trim() : $"Built {cls?.Name ?? _classId}",
-            [], null, null, null, null, false, []);
+            [], null, null, null, null, corrupted, []);
         var item = new TestItem { Name = parsed.Name!, ClassId = _classId, Parsed = parsed, Built = true };
         foreach (var id in _added)
         {

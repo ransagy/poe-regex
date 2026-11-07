@@ -13,20 +13,23 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`; the Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 1591/1591 scopes proven, not
+- Engine: exact PoE2 table/proof is current: 1672/1672 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
-- Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, and base
-  implicits. Implicits render in a dedicated **Implicits** section above the
-  normal Prefixes/Suffixes columns with a muted-blue `<Implicit>` tag; only
-  implicit-only patterns are included, so a line already covered by a normal
-  prefix/suffix is not duplicated. Implicit scope is class-level. The PoE2
-  export also carries legacy PoE1 `crafted` prefix/suffix records
-  (Navali/Helena master crafts); they are excluded because they have no
-  positive PoE2 base mapping. PoE2's actual crafted mods are jewel-only
-  (`CraftedJewel*`, domain `misc`) and remain parked with jewel support.
-  Corrupted mods, augments, bonded modifiers, and jewel affixes remain
-  unmodeled.
-- Tests: 111 core, 359 web, 30 data-build; local suites green.
+- Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
+  implicits, and corrupted enchantments. Implicits render in a dedicated
+  **Implicits** section above the normal Prefixes/Suffixes columns with a
+  muted-blue `<Implicit>` tag; only implicit-only patterns are included, so a
+  line already covered by a normal prefix/suffix is not duplicated. Implicit
+  scope is class-level. Corrupted enchantments render in a dedicated
+  **Corrupted** section below Implicits with a muted-red `<Corrupted>` tag;
+  only class scopes not already covered by a normal/desecrated/implicit family
+  are included. The builder allows at most two. The PoE2 export also carries
+  legacy PoE1 `crafted` prefix/suffix records (Navali/Helena master crafts);
+  they are excluded because they have no positive PoE2 base mapping. PoE2's
+  actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
+  remain parked with jewel support. Augments, bonded modifiers, and jewel
+  affixes remain unmodeled.
+- Tests: 111 core, 367 web, 31 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -36,18 +39,11 @@ Current planned and parked work. Behavior is documented in
 
 ## Next
 
-1. **Implicits UX review:** check the dedicated Implicits section above the
-   Prefixes/Suffixes columns, the muted-blue tag, and whether the section or a
-   filter/tab reads better in the compact layout.
-2. **Corrupted mods:** 108 raw records, 103 already mapped through
-   `mods_by_base`; settle the header/rule semantics and add the ~29 new
-   patterns. Corrupted mods are not normal prefixes/suffixes, so they need a
-   separate kind rather than a source-only tag.
-3. **Catalog/import shorthand:** close remaining shorthand gaps and make
+1. **Catalog/import shorthand:** close remaining shorthand gaps and make
    ambiguous import lines more deterministic.
-4. **Web a11y follow-up:** color-vision emulation pass and compact-layout
+2. **Web a11y follow-up:** color-vision emulation pass and compact-layout
    review.
-5. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
+3. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
    as a manual gate.
 
 ## Parked
@@ -72,7 +68,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 |---|---:|---:|---|---|---|
 | PoE1 crafted leftovers | 9 | 0 for PoE2 | — | — | Excluded |
 | Base implicits | 168 ids / 348 base entries | 85 (94 mods) | Medium | High | Done |
-| Corrupted mods | 108 records / 103 mapped | ~29 | Medium | Medium | Next |
+| Corrupted mods | 108 records / 103 mapped | 43 (44 mods) | Medium | Medium | Done |
 | Jewels | 320 normal + 44 desecrated + 13 crafted | ~196 + 34 | High | High for jewel users | Parked |
 | Augments / Soul Cores | 295 released bases | Unknown | High / blocked | High for socketed items | Parked |
 
@@ -91,10 +87,13 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   missing. Import keeps implicit lines quiet. The limitation remains that a
   class family does not prove a specific base type; full base-type fidelity
   needs a base selector and is parked with that work.
-- **Corrupted mods** already have class mapping through `mods_by_base`; all
-  108 ids are PoE2-specific by exact-id check. They need a separate corrupted
-  kind, item-rule treatment, and their ~29 new patterns; do them next so the
-  source/header plumbing is proven.
+- **Corrupted mods** are modeled as a separate non-affix kind: 44 catalog mods
+  across 43 patterns and 17 classes. All 108 raw ids are PoE2-specific by
+  exact-id check; 103 map through `mods_by_base` and 5 have no positive
+  base/spawn reference and are excluded. The builder allows at most two.
+  Game copy presents corruption enchantments as implicit modifiers, so import
+  keeps those lines quiet; an explicit `{ Corrupted Modifier }` header maps.
+  Full base-type import mapping is parked with the base selector.
 - **Jewels** need a separate item class/slot and `misc` domain mapping. Normal
   jewel mods, desecrated jewel mods, and the actual PoE2 crafted jewel mods
   are all outside the current normal-equipment scope. Parked until the
