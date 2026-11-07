@@ -132,9 +132,14 @@ authority when the cache is stale.
 Any change that adds catalog lines, changes the vendor/safety corpus, or changes
 the solver must regenerate the table from scratch and review a before/after
 fragment report before merge. The report covers every changed existing scope
-with its old/new fragment and collision reason, plus every new scope. Keep the
-report outside the repository; the shipped table and proof remain the source of
-truth.
+with its old/new fragment, both lengths, the length delta, and the collision
+reason, plus every added/removed scope. Keep the report outside the repository;
+the shipped table and proof remain the source of truth.
+
+Generate it with [`../tools/fragment-diff/run.py`](../tools/fragment-diff/run.py)
+after saving the target branch's table. The Markdown and JSON outputs list the
+same signed deltas. See [`RELEASE-PREP.md`](RELEASE-PREP.md) for the full gate
+sequence.
 
 ## Solver validation
 

@@ -3,7 +3,8 @@
 _Last measured: 2026-11-04._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
-covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md).
+covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
+sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
 
 ## Performance
 
