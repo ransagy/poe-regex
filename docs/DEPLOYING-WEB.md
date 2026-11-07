@@ -1,6 +1,7 @@
 # Deploying the web app (Cloudflare Pages)
 
 > Current status and planned work: [`WORKPLAN.md`](WORKPLAN.md).
+> Release gates: [`RELEASE-PREP.md`](RELEASE-PREP.md).
 
 The Blazor WebAssembly app in `web/` — "Renly's Tools", this project's web
 reference implementation — is deployed as a static site on Cloudflare Pages.

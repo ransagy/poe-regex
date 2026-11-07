@@ -116,6 +116,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 
 ## Acceptance gates
 
+- Release prep checklist: [`RELEASE-PREP.md`](RELEASE-PREP.md).
 - Web acceptance: [`ACCEPTANCE.md`](ACCEPTANCE.md).
 - Engine exact table/proof: [`EXACT-TABLE.md`](EXACT-TABLE.md) and
   [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json).
