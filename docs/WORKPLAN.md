@@ -26,7 +26,7 @@ Current planned and parked work. Behavior is documented in
   (`CraftedJewel*`, domain `misc`) and remain parked with jewel support.
   Corrupted mods, augments, bonded modifiers, and jewel affixes remain
   unmodeled.
-- Tests: 111 core, 357 web, 27 data-build; local suites green.
+- Tests: 111 core, 359 web, 29 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.

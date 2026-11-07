@@ -272,6 +272,31 @@ public class QueryReconstructionTests
     }
 
     [Fact]
+    public void HybridAndSingleLineFragments_RoundTripAndApply()
+    {
+        // Body's pure Evasion and Gloves' pure Energy Shield share the class
+        // fragments `o Ev` and `to.*d$` with the hybrid Evasion+Energy Shield
+        // family. The primary pass resolves both to the hybrid and recompiles
+        // to one shared global group; the single-line fallback must recover
+        // the pure picks so the paste round-trips.
+        var combined = Engine.Combine(
+            new (string, string, IEnumerable<WantedMod>)[]
+            {
+                ("body", "Body Armour", [new WantedMod("LocalIncreasedEvasionRating1")]),
+                ("gloves", "Gloves", [new WantedMod("LocalIncreasedEnergyShield1")]),
+            }, []);
+
+        var recovered = Reconstruction.ReconstructWorkbench(combined.Query);
+
+        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
+        recovered.Recompile(Engine).Should().Be(combined.Query);
+        recovered.Slots.Single(s => s.ClassId == "Body Armour").Includes
+            .Should().ContainSingle().Which.ModId.Should().Be("LocalIncreasedEvasionRating1");
+        recovered.Slots.Single(s => s.ClassId == "Gloves").Includes
+            .Should().ContainSingle().Which.ModId.Should().Be("LocalIncreasedEnergyShield1");
+    }
+
+    [Fact]
     public void MixedGroup_NameSuffix_CollapsesToTierOrBetterPick()
     {
         // The six names are exactly the LocalFireDamage suffix from Flaming
