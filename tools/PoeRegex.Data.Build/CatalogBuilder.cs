@@ -68,21 +68,27 @@ public static class CatalogBuilder
             }
         }
 
-        // Base implicits are a separate source. Add only implicit-only
-        // patterns: a line that already exists as a normal/desecrated family
-        // stays in that family (no duplicate implicit + prefix/suffix rows).
-        var normalPatterns = renderedLines
-            .Where(kv => classByMod.TryGetValue(kv.Key, out var classes) && classes.Count > 0)
-            .SelectMany(kv => kv.Value.Select(line => line.Pattern))
-            .ToHashSet(StringComparer.Ordinal);
+        // Base implicits are a separate source. Add only class scopes where
+        // at least one implicit line is not already covered by a normal or
+        // desecrated family on that same class. The old global pattern check
+        // could drop a line that existed on another class but was missing
+        // here.
+        var implicitPatterns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var implicitLines = new Dictionary<string, List<StatTextRenderer.RenderedLine>>(StringComparer.Ordinal);
         foreach (var (modId, mod) in mods)
         {
-            if (!implicitByMod.TryGetValue(modId, out var classes)) continue;
+            if (!implicitByMod.ContainsKey(modId)) continue;
             var lines = renderer.RenderMod(mod.Stats);
             if (lines.Count == 0) continue;
-            if (lines.Any(line => normalPatterns.Contains(line.Pattern))) continue;
-
+            implicitLines[modId] = lines;
+            implicitPatterns[modId] = lines.Select(line => line.Pattern).ToList();
+        }
+        var selectedImplicit = SelectImplicitClasses(implicitPatterns, implicitByMod, classLines);
+        foreach (var (modId, classes) in selectedImplicit)
+        {
+            var lines = implicitLines[modId];
             renderedLines[modId] = lines;
+            classByMod[modId] = classes;
             foreach (var cls in classes)
             {
                 if (!classLines.TryGetValue(cls, out var set))
@@ -269,6 +275,42 @@ public static class CatalogBuilder
     private static bool IsSelectableAffix(RePoESchema.Mod mod) =>
         (mod.Domain == "item" && ItemGenerationTypes.Contains(mod.GenerationType)) ||
         (mod.Domain == "desecrated" && mod.GenerationType is "prefix" or "suffix");
+
+    /// <summary>
+    /// Selects the class scopes where an implicit mod adds at least one line
+    /// not already covered by a normal or desecrated family on the same
+    /// class. The baseline is intentionally normal/desecrated only: implicit
+    /// tiers that share a pattern must stay in the catalog so their ranges
+    /// remain available, and the family grouping merges them safely. A mod
+    /// that is only partially new on a class is kept for that class:
+    /// multi-line implicit rows are a single family in the picker, and
+    /// skipping the whole mod would lose the new line.
+    /// </summary>
+    internal static Dictionary<string, HashSet<string>> SelectImplicitClasses(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> patternsByMod,
+        IReadOnlyDictionary<string, HashSet<string>> classesByMod,
+        IReadOnlyDictionary<string, HashSet<string>> coveredByClass)
+    {
+        var selected = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var modId in patternsByMod.Keys.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            if (!classesByMod.TryGetValue(modId, out var classes)) continue;
+            var patterns = patternsByMod[modId];
+            if (patterns.Count == 0) continue;
+
+            var chosen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var cls in classes)
+            {
+                var covered = coveredByClass.TryGetValue(cls, out var set)
+                    ? set
+                    : [];
+                if (patterns.Any(pattern => !covered.Contains(pattern)))
+                    chosen.Add(cls);
+            }
+            if (chosen.Count > 0) selected[modId] = chosen;
+        }
+        return selected;
+    }
 
     /// <summary>
     /// Maps base implicits to the normal equipment classes that carry them.
