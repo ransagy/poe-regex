@@ -41,7 +41,7 @@ produce long-task spikes. The budget is a target, not a hard failure.
 
 ## Accessibility
 
-- Lighthouse accessibility on the initial page: **100**.
+- Lighthouse accessibility on the initial page after the color pass: **100**.
 - axe-core WCAG 2.1 A/AA: **0 violations** on the initial page and on the
   import string, saved picks, options, test items, import item, builder, and
   "what it matches" states.
@@ -50,7 +50,13 @@ produce long-task spikes. The budget is a target, not a hard failure.
   for those dialogs plus saved picks, options, and help.
 - Include/exclude states use icon/text (`✓` / `⊘`, `picked` / `excluded`) in
   addition to color.
-- Color-vision emulation is still a manual browser pass.
+- Light-theme source tags meet 4.5:1 on raised/surface; dark secondary text
+  meets 4.5:1. The unique rarity hex is unchanged and carries a dark edge
+  shadow; the subline also spells out the rarity.
+- Color-vision simulation (protanopia/deuteranopia/tritanopia) completed;
+  source tags and state cues remain text/icon labeled.
+- Compact layout reviewed at 390×844 and 768×1024: search/clear/Add all,
+  dialogs, paper doll, and picks remain reachable without horizontal overflow.
 
 ## PWA
 
