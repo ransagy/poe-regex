@@ -311,17 +311,18 @@ public sealed class QueryReconstructionService
                 if (targets.Count == 0)
                     return ReconstructedWorkbench.Failed($"group '{classPart}' targets no selected class");
 
-                if (!TryResolveGroup(fragPart, targets[0], usedByClass[targets[0]], out var picks, out var why))
+                if (!TryResolvePasteGroup(fragPart, targets, usedByClass[targets[0]], out var picks, out var why))
                     return ReconstructedWorkbench.Failed(why);
                 foreach (var target in targets)
                 {
-                    builds[target].Add(picks);
-                    foreach (var pick in picks) AddUnique(usedByClass[target], pick);
+                    var scoped = picks.Select(p => ScopePickForClass(p, target)).ToList();
+                    builds[target].Add(scoped);
+                    foreach (var pick in scoped) AddUnique(usedByClass[target], pick);
                 }
                 continue;
             }
 
-            if (!TryResolveGroup(phrase, classes[0], usedByClass[classes[0]], out var shared, out var sharedWhy))
+            if (!TryResolvePasteGroup(phrase, classes, usedByClass[classes[0]], out var shared, out var sharedWhy))
             {
                 if (IsExternalLiteral(phrase) || MatchesKnownItemText(phrase))
                 {
@@ -332,8 +333,9 @@ public sealed class QueryReconstructionService
             }
             foreach (var target in classes)
             {
-                builds[target].Add(shared);
-                foreach (var pick in shared) AddUnique(usedByClass[target], pick);
+                var scoped = shared.Select(p => ScopePickForClass(p, target)).ToList();
+                builds[target].Add(scoped);
+                foreach (var pick in scoped) AddUnique(usedByClass[target], pick);
             }
         }
 
@@ -393,7 +395,7 @@ public sealed class QueryReconstructionService
     }
 
     private bool TryResolveGroup(
-        string term, string itemClass, IReadOnlyList<WantedMod> used,
+        string term, string? itemClass, IReadOnlyList<WantedMod> used,
         out List<WantedMod> picks, out string failure)
     {
         if (TryResolveSinglePick(term, itemClass, used, out var single, out _))
@@ -403,6 +405,53 @@ public sealed class QueryReconstructionService
             return true;
         }
         return TryResolveTerm(term, itemClass, used, out picks, out failure);
+    }
+
+    /// <summary>
+    /// Resolves a paste group that may target several classes. New composer
+    /// output uses a global fragment for a bucket spanning classes, while
+    /// older output used the first target's class fragment; try both scopes.
+    /// </summary>
+    private bool TryResolvePasteGroup(
+        string term, IReadOnlyList<string> targets, IReadOnlyList<WantedMod> used,
+        out List<WantedMod> picks, out string failure)
+    {
+        failure = "";
+        if (targets.Count == 1)
+            return TryResolveGroup(term, targets[0], used, out picks, out failure);
+
+        foreach (var target in targets)
+        {
+            if (TryResolveGroup(term, target, used, out picks, out var scopedFailure))
+                return true;
+            failure = scopedFailure;
+        }
+
+        // The multi-class bucket is emitted with the global fragment.
+        if (TryResolveGroup(term, null, used, out picks, out _))
+        {
+            failure = "";
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Re-anchors a globally resolved family pick to one target class so the
+    /// slot's chip names a mod that exists on that class.
+    /// </summary>
+    private WantedMod ScopePickForClass(WantedMod pick, string itemClass)
+    {
+        var mod = _engine.FindMod(pick.ModId);
+        if (mod is null ||
+            mod.Classes.Count == 0 ||
+            mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+            return pick;
+        if (mod.Family.Length == 0 || !_familyByKey.TryGetValue(mod.Family, out var family))
+            return pick;
+
+        var scoped = FamilyPickFor(family, itemClass);
+        return pick.IsNamePick ? scoped with { Names = pick.Names } : scoped;
     }
 
     private sealed class SlotBuild(string classId)
