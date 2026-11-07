@@ -48,6 +48,47 @@ public class CombineServiceTests
         paste.Diagnostics.Should().Contain(d => d.Code == "paste-merge-any");
     }
 
+    private static WantedMod FamilyPick(string classId, string familyKey) =>
+        ModFamilies.Group(Engine.ModsForClass(classId))
+            .Single(f => f.Key == familyKey)
+            .Pick();
+
+    [Fact]
+    public void Combine_HelmetBodyBelt_LifeFamily_OneSemanticGroup()
+    {
+        // The same family has 10 variants on Helmet/Belt and 13 on Body
+        // Armour, so the raw variant-id lists differ per class even though
+        // every slot asks for the same stat line.
+        var paste = Engine.Combine(
+        [
+            ("helmet (Helmet)", "Helmet", new[] { FamilyPick("Helmet", "IncreasedLife") }),
+            ("body (Body Armour)", "Body Armour", new[] { FamilyPick("Body Armour", "IncreasedLife") }),
+            ("belt (Belt)", "Belt", new[] { FamilyPick("Belt", "IncreasedLife") }),
+        ], []);
+
+        paste.Diagnostics.Should().BeEmpty();
+        paste.Query.Should().Be("\": (Bel|Bod|Hel)\" \"\\+.*ife\"",
+            "one shared group keeps the combined query compact");
+        paste.Groups.Should().ContainSingle(
+            "the three slots ask for the same stat line and must share one group");
+        paste.Groups[0].TargetClasses.Should().Equal(["Belt", "Body Armour", "Helmet"]);
+        paste.Groups[0].Label.Should().Contain("helmet").And.Contain("body").And.Contain("belt");
+
+        var line = AdvancedStatLine.For(Engine.FindMod("IncreasedLife6")!.StatLines[0]);
+        foreach (var cls in new[] { "Helmets", "Body Armours", "Belts" })
+        {
+            ItemMatcher.Match(paste.Query, [$"Item Class: {cls}", line]).Match
+                .Should().BeTrue($"{cls} with the wanted life line satisfy the shared group");
+            ItemMatcher.Match(paste.Query, [$"Item Class: {cls}"]).Match
+                .Should().BeFalse($"{cls} without the wanted line is filtered out");
+        }
+
+        // The shared global fragment must also round-trip through import.
+        var recovered = new QueryReconstructionService(Engine).ReconstructWorkbench(paste.Query);
+        recovered.Ok.Should().BeTrue(string.Join("; ", recovered.Diagnostics));
+        recovered.Recompile(Engine).Should().Be(paste.Query);
+    }
+
     [Fact]
     public void Combine_Deterministic()
     {
