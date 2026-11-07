@@ -87,25 +87,28 @@ def scope_summary(name: str, old: dict[str, str], new: dict[str, str],
     }
 
 
+def fragment_cell(value: str | None, length: int | None) -> str:
+    if value is None:
+        return "—"
+    return f"`{display(value)}` ({length})"
+
+
 def markdown_table(rows: list[dict], include_scope: bool = False) -> list[str]:
     if include_scope:
         lines = [
-            "| Class | Kind | Pattern | Old | Old len | New | New len | Δ |",
-            "|---|---|---|---|---:|---|---:|---:|",
+            "| Class | Pattern | Old | New | Δ |",
+            "|---|---|---|---|---:|",
         ]
     else:
         lines = [
-            "| Kind | Pattern | Old | Old len | New | New len | Δ |",
-            "|---|---|---|---:|---|---:|---:|",
+            "| Pattern | Old | New | Δ |",
+            "|---|---|---|---:|",
         ]
     for change in rows:
         values = [
-            change["kind"],
             f"`{display(change['pattern'])}`",
-            f"`{display(change['old'])}`",
-            "" if change["oldLength"] is None else str(change["oldLength"]),
-            f"`{display(change['new'])}`",
-            "" if change["newLength"] is None else str(change["newLength"]),
+            fragment_cell(change["old"], change["oldLength"]),
+            fragment_cell(change["new"], change["newLength"]),
             signed_delta(change["delta"]),
         ]
         if include_scope:
