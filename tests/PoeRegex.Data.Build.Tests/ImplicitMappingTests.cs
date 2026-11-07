@@ -57,4 +57,41 @@ public class ImplicitMappingTests
         result["SharedImplicit"].Should().BeEquivalentTo(["Helmet", "Body Armour", "Ring"]);
         result["HelmetOnly"].Should().BeEquivalentTo(["Helmet"]);
     }
+
+    [Fact]
+    public void IncludesReleasedRuneforgedAndAscendancyBases()
+    {
+        var mods = new Dictionary<string, RePoESchema.Mod>(StringComparer.Ordinal)
+        {
+            ["RuneforgedImplicit"] = Mod(),
+            ["AscendancyImplicit"] = Mod(),
+        };
+        var bases = new Dictionary<string, RePoESchema.BaseItem>(StringComparer.Ordinal)
+        {
+            ["Metadata/Items/Weapons/TestRuneforged"] = new()
+            {
+                Domain = "item",
+                ReleaseState = "released",
+                ItemClass = "One Hand Mace",
+                Name = "Runeforged Test Mace",
+                Tags = ["runeforged"],
+                Implicits = ["RuneforgedImplicit"],
+            },
+            ["Metadata/Items/Armours/TestAscendancy"] = new()
+            {
+                Domain = "item",
+                ReleaseState = "released",
+                ItemClass = "Gloves",
+                Name = "Fists of Stone",
+                Implicits = ["AscendancyImplicit"],
+            },
+        };
+        var equipment = new HashSet<string>(
+            ["One Hand Mace", "Gloves"], StringComparer.Ordinal);
+
+        var result = CatalogBuilder.MapImplicitModsToClasses(mods, bases, equipment);
+
+        result["RuneforgedImplicit"].Should().BeEquivalentTo(["One Hand Mace"]);
+        result["AscendancyImplicit"].Should().BeEquivalentTo(["Gloves"]);
+    }
 }
