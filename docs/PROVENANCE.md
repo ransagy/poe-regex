@@ -35,10 +35,12 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 5. **Shipped catalog** — `data/catalogs/poe2.catalog.json`, embedded into the
    CLI and web assemblies at build time.
    They contain item class names, mod ids and affix names, generation type,
-   source (`desecrated`, `implicit`, or empty for normal explicit affixes),
+   source (`desecrated`, `implicit`, `corrupted`, or empty for normal explicit affixes),
    family, required level, class/group membership, rendered stat text, and
    precomputed catalog fingerprints. PoE1 `crafted` prefix/suffix leftovers
    are excluded; PoE2's actual crafted mods are jewel-only in domain `misc`.
+   Corrupted enchantments are modeled as a separate source; five raw records
+   without a positive base/spawn reference are excluded.
    `poe2.fragments.json` is the exact shortest-form table derived from the
    same catalog plus the safety corpus.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` is derived from
@@ -46,7 +48,8 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    catalog omits (regular, corrupted, essence, and implicit item mods; base
    item names, properties, requirements, implicits, and granted skills;
    regular affix captions/tags; and universal usage). Modeled desecrated
-   lines and implicit-only base lines are also included. PoE1 `crafted`
+   lines, implicit-only base lines, and corrupted enchantment lines are also
+   included. PoE1 `crafted`
    leftovers are excluded; PoE2 crafted jewel lines are not modeled yet.
    Unique-only mods, unique names, captions, flavour, and rare item names are
    deliberately excluded and are reported as unmodeled in the audit. No game

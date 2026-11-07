@@ -30,6 +30,8 @@
     --desecrated: #749521;
     /* Base implicit mod text: provisional muted blue. */
     --implicit: #7f9ec4;
+    /* Corruption enchantment text: provisional muted red. */
+    --corrupted: #c56b5c;
     /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
@@ -100,6 +102,7 @@
     --ok: #3d612c;
     --desecrated: #749521;
     --implicit: #7f9ec4;
+    --corrupted: #a54836;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -380,7 +383,8 @@ input:disabled { opacity: 0.5; }
 .mod-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 1.5rem; align-items: start; }
 .mod-cols.single { grid-template-columns: minmax(0, 1fr); }
 .mod-sec { min-width: 0; }
-.mod-sec.implicit-sec { grid-column: 1 / -1; }
+.mod-sec.implicit-sec,
+.mod-sec.corrupted-sec { grid-column: 1 / -1; }
 @container (max-width: 34rem) {
     .mod-cols { grid-template-columns: minmax(0, 1fr); }
 }
@@ -427,6 +431,7 @@ input:disabled { opacity: 0.5; }
 .mod-source { font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
 .mod-source.source-desecrated { color: var(--desecrated); }
 .mod-source.source-implicit { color: var(--implicit); }
+.mod-source.source-corrupted { color: var(--corrupted); }
 .bd-label .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .iprev-annot + .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }

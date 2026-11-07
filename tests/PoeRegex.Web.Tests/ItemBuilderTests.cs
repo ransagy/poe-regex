@@ -58,4 +58,29 @@ public class ItemBuilderTests
         add.Click();
         cut.Find("#builder-preview").TextContent.Should().Contain("Implicit Modifier");
     }
+
+    [Fact]
+    public void CorruptedTier_ShowsKindAndMarksItemCorrupted()
+    {
+        using var ctx = Context();
+        var cut = ctx.Render<ItemBuilder>(p => p
+            .Add(x => x.State, new WorkbenchState())
+            .Add(x => x.Open, true)
+            .Add(x => x.OnClose, EventCallback.Empty));
+
+        cut.Find("#builder-class").Change("Bow");
+        cut.Find("#builder-search").Input("Bow Attacks fire an additional Arrow");
+
+        var row = cut.FindAll(".fam-row")
+            .Single(r => r.TextContent.Contains("Bow Attacks fire an additional Arrow",
+                StringComparison.Ordinal));
+        row.QuerySelector(".gen-tag")!.TextContent.Trim().Should().Be("Corrupted");
+        row.QuerySelector(".mod-source")!.TextContent.Trim().Should().Be("Corrupted");
+
+        var add = cut.Find("#builder-add-CorruptionAdditionalArrows1");
+        add.HasAttribute("disabled").Should().BeFalse();
+        add.Click();
+        cut.Find("#builder-preview").TextContent.Should().Contain("Corrupted Modifier");
+        cut.Find("#builder-preview .iprev-corrupt").TextContent.Trim().Should().Be("Corrupted");
+    }
 }

@@ -106,16 +106,22 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   scopes.
 - Desecrated tier exclusions are family-wide for the same reason: excluding
   one range excludes every range that shares its fragment.
-- Augments, bonded modifiers, corrupted mods, and jewel affixes are not
-  modeled yet. The PoE2 export's `crafted` prefix/suffix records are PoE1
-  master-craft leftovers (no positive PoE2 base mapping) and are excluded;
-  crafted stat lines can still map to a normal affix with the same text.
-  Actual PoE2 crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
-  remain unmodeled with jewels.
+- Augments, bonded modifiers, and jewel affixes are not modeled yet. The PoE2
+  export's `crafted` prefix/suffix records are PoE1 master-craft leftovers
+  (no positive PoE2 base mapping) and are excluded; crafted stat lines can
+  still map to a normal affix with the same text. Actual PoE2 crafted mods are
+  jewel-only (`CraftedJewel*`, domain `misc`) and remain unmodeled with
+  jewels.
+- Corrupted enchantments are modeled as a separate non-affix kind. Game copy
+  presents them as implicit modifiers, so import keeps those lines quiet; an
+  explicit `{ Corrupted Modifier }` header (the app's built-item text) maps.
+  The builder allows at most two. Five raw corrupted records without a
+  positive base/spawn reference are excluded.
 - Base implicits are modeled at class level: the catalog can say a line exists
   on some base in a class, but not which base type.
-- Implicit-only catalog entries are class-level picker families; import never
-  annotates them, because implicit lines are exempt from affix rules.
+- Implicit-only and corrupted catalog entries are class-level picker/builder
+  families; import never annotates plain game implicit lines, because the same
+  header is used for base implicits and corruption enchantments.
 - Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.

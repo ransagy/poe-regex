@@ -14,7 +14,8 @@ public static class ItemDisplay
         "implicit" => 0,
         "prefix" => 1,
         "suffix" => 2,
-        _ => 3,
+        "corrupted" => 3,
+        _ => 4,
     };
 
     /// <summary>Catalog mod ids in canonical order (unknown kinds last).</summary>

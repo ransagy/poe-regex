@@ -96,7 +96,7 @@ public class ImplicitMappingTests
     }
 
     [Fact]
-    public void SelectsImplicitClassesPerClassInsteadOfGlobalPattern()
+    public void SelectsMissingScopesPerClassInsteadOfGlobalPattern()
     {
         var patterns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
@@ -121,7 +121,7 @@ public class ImplicitMappingTests
             ["Ring"] = ["P1", "P2", "P4"],
         };
 
-        var selected = CatalogBuilder.SelectImplicitClasses(patterns, classes, covered);
+        var selected = CatalogBuilder.SelectMissingScopes(patterns, classes, covered);
 
         // Each mod is kept only for the class where its line is still missing.
         selected["A"].Should().BeEquivalentTo(["Belt"]);

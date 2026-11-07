@@ -38,14 +38,17 @@ public static class ItemImport
     {
         var mapping = engine.MapLineToMods(classId, line.CanonicalText, line.Rolls, line.Ranges);
 
-        // The catalog now has implicit-only families, but implicit lines stay
-        // quiet on import. Keep a normal/desecrated candidate when the same
-        // text is also an explicit affix (the crossbow bolt implicit), and drop
-        // implicit-source-only candidates (the belt flask/charm implicits).
-        if (block.Kind == "implicit" && mapping.ModIds.Count > 0)
+        // The catalog now has implicit-only and corrupted families, but plain
+        // game implicit lines stay quiet on import: the same header is used
+        // for base implicits and corruption enchantments, and we cannot tell
+        // them apart without base-type data. Keep a normal/desecrated
+        // candidate when the same text is also an explicit affix (the
+        // crossbow bolt implicit). An explicit `Corrupted ...` source or kind
+        // is different: it names the source, so let it through.
+        if (block.Kind == "implicit" && block.Source != "corrupted" && mapping.ModIds.Count > 0)
         {
             var explicitCandidates = mapping.ModIds
-                .Where(id => engine.FindMod(id)?.Source != "implicit")
+                .Where(id => engine.FindMod(id)?.Source is not ("implicit" or "corrupted"))
                 .ToList();
             mapping = mapping with { ModIds = explicitCandidates };
         }
@@ -72,6 +75,13 @@ public static class ItemImport
                     .Where(id => engine.FindMod(id)?.Source is "crafted" or "master crafted")
                     .ToList();
                 if (crafted.Count > 0) mapping = mapping with { ModIds = crafted };
+            }
+            else if (source == "corrupted")
+            {
+                var corrupted = mapping.ModIds
+                    .Where(id => engine.FindMod(id)?.Source == "corrupted")
+                    .ToList();
+                if (corrupted.Count > 0) mapping = mapping with { ModIds = corrupted };
             }
             else
             {

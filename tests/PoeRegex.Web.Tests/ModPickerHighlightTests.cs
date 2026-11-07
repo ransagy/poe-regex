@@ -94,6 +94,31 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void CorruptedFamily_ShowsCorruptedSectionAndTag()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Bow");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.Find("#mod-search").Input("Bow Attacks fire an additional Arrow");
+
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsCorrupted &&
+                         f.Members.Any(m => m.Id == "CorruptionAdditionalArrows1"));
+        cut.FindAll(".mod-sec.corrupted-sec").Should().ContainSingle();
+        cut.FindAll(".gen-head").Select(x => x.TextContent.Trim())
+            .Should().Contain("Corrupted");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        var tag = row.QuerySelector(".mod-source")!;
+        tag.TextContent.Trim().Should().Be("Corrupted");
+        tag.ClassList.Should().Contain("source-corrupted");
+        row.QuerySelector(".fam-text .mod-source").Should().BeNull();
+    }
+
+    [Fact]
     public void PlainFamilyPick_HighlightsFamilyRow_InGlobalMode()
     {
         using var ctx = Context();

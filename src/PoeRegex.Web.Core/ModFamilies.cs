@@ -89,9 +89,10 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
 public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier> Tiers)
 {
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
-    /// desecrated mods, "implicit" for base implicits. The family key carries
-    /// the source prefix, so a sourced family with the same stat text as a
-    /// normal family remains a distinct row.</summary>
+    /// desecrated mods, "implicit" for base implicits, "corrupted" for
+    /// corruption enchantments. The family key carries the source prefix, so
+    /// a sourced family with the same stat text as a normal family remains a
+    /// distinct row.</summary>
     public string Source { get; init; } = "";
 
     /// <summary>Generation kind: `prefix`, `suffix`, or `implicit`.</summary>
@@ -104,11 +105,14 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsImplicit => Source == "implicit";
 
+    public bool IsCorrupted => Source == "corrupted";
+
     /// <summary>CSS class for the source tag; empty for normal families.</summary>
     public string SourceCssClass => Source switch
     {
         "desecrated" => "source-desecrated",
         "implicit" => "source-implicit",
+        "corrupted" => "source-corrupted",
         _ => "",
     };
 
@@ -146,6 +150,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     {
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
+        "corrupted" => "Corrupted",
         _ => null,
     };
 
@@ -191,7 +196,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) =>
-        Source is "desecrated" or "implicit"
+        Source is "desecrated" or "implicit" or "corrupted"
             ? []
             : Tiers
                 .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
@@ -217,13 +222,13 @@ public static class ModFamilies
     /// </summary>
     public static string KeyOf(ModEntry mod)
     {
-        if (mod.Source == "implicit")
+        if (mod.Source is "implicit" or "corrupted")
         {
             var patterns = mod.StatLines
                 .Select(line => line.Pattern)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(pattern => pattern, StringComparer.Ordinal);
-            return "implicit:" + string.Join("\u0001", patterns);
+            return mod.Source + ":" + string.Join("\u0001", patterns);
         }
         var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
         return mod.Source == "desecrated" ? "desecrated:" + key : key;
@@ -337,7 +342,8 @@ public static class ModFamilies
         "prefix" => 0,
         "suffix" => 1,
         "implicit" => 2,
-        _ => 3,
+        "corrupted" => 3,
+        _ => 4,
     };
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
@@ -448,7 +454,7 @@ public static class ModFamilies
     }
 
     private static string TierKey(ModEntry mod) =>
-        mod.Source is "desecrated" or "implicit"
+        mod.Source is "desecrated" or "implicit" or "corrupted"
             ? string.Join("\u0001", mod.StatLines
                 .Select(sl => sl.Pattern)
                 .Distinct(StringComparer.Ordinal)
@@ -462,7 +468,7 @@ public static class ModFamilies
     private static string DisplayLabelFor(IReadOnlyList<ModEntry> members)
     {
         var anchor = members[0];
-        if (anchor.Source is not ("desecrated" or "implicit")) return anchor.Name ?? "";
+        if (anchor.Source is not ("desecrated" or "implicit" or "corrupted")) return anchor.Name ?? "";
         return string.Join(" / ", members
             .Select(RangeLabel)
             .Where(label => label.Length > 0)
