@@ -138,9 +138,13 @@ public sealed class PasteComposer
                 var frags = new List<string>();
                 var rawFrags = new List<string>();
                 var sources = new List<string>();
+                // A bucket that spans classes must use a fragment proven for
+                // every target, not just targets[0]. The global scope is the
+                // union corpus, so its fragment is safe for all of them.
+                var fragmentScope = targets.Count == 1 ? targets[0] : null;
                 foreach (var req in reqs.Distinct().ToList())
                 {
-                    var frag = FragmentFor(req, targets[0], diagnostics);
+                    var frag = FragmentFor(req, fragmentScope, diagnostics);
                     if (frag is null)
                     {
                         diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
@@ -206,13 +210,48 @@ public sealed class PasteComposer
         };
     }
 
-    private static string CriterionKey(PasteSlotCriterion s) => s.MatchAll
-        ? "all\u0002" + string.Join("\u0002", s.RequiredGroups!.Select(g => string.Join("\n", g.Select(RequirementKey))))
-        : string.Join("\n", s.Includes.Select(RequirementKey));
+    private string CriterionKey(PasteSlotCriterion s)
+    {
+        static string Join(IEnumerable<string> keys) => string.Join("\n",
+            keys.Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal));
 
-    private static string RequirementKey(ModifierRequirement r) => r.Value + "\u0001" + r.MinValue;
+        if (s.MatchAll)
+        {
+            var groups = s.RequiredGroups!
+                .Select(g => Join(g.Select(RequirementKey)))
+                .OrderBy(g => g, StringComparer.Ordinal);
+            return "all\u0002" + string.Join("\u0002", groups);
+        }
+        return Join(s.Includes.Select(RequirementKey));
+    }
 
-    private string? FragmentFor(ModifierRequirement req, string itemClass, List<CompilerDiagnostic> diagnostics)
+    /// <summary>
+    /// Semantic requirement identity: catalog mods are the same criterion
+    /// when they share their distinct stat-line patterns and minimum. Family
+    /// picks list different variant ids per class (Helmet has 10 tiers, Body
+    /// Armour 13) even though every variant compiles to the same stat text.
+    /// Raw regex and free-text terms keep their literal identity.
+    /// </summary>
+    private string RequirementKey(ModifierRequirement r)
+    {
+        var min = r.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        if (r.IsRegex) return "regex\u0001" + min + "\u0001" + TextKey(r.Value);
+        var mod = _corpus.FindMod(r.Value);
+        if (mod is null) return "text\u0001" + min + "\u0001" + TextKey(r.Value);
+        var patterns = mod.StatLines
+            .Select(line => line.Pattern)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(pattern => pattern, StringComparer.Ordinal)
+            .Select(TextKey);
+        return "mod\u0001" + min + "\u0001" + string.Join("\u0001", patterns);
+    }
+
+    /// <summary>Length-prefixed text so a delimiter inside a value cannot
+    /// collide with the key separators.</summary>
+    private static string TextKey(string value) =>
+        value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + value;
+
+    private string? FragmentFor(ModifierRequirement req, string? itemClass, List<CompilerDiagnostic> diagnostics)
     {
         if (req.IsRegex) return req.Value;
         var mod = _corpus.FindMod(req.Value);
