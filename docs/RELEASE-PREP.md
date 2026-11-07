@@ -4,6 +4,11 @@ Use this for every catalog, corpus, solver, or web release. The goal is one
 reviewable path from a branch to production, with the proof and performance
 evidence regenerated from the branch being merged.
 
+This is an internal maintainer/CI gate, not a PR artifact. PRs contain only
+the code/docs change and its tests; local reports, proof/status outputs, perf
+logs, and PWA output are never committed, attached, linked, or pasted into a
+PR.
+
 Do not merge until every applicable gate is green. Do not run
 `deploy-production` without explicit approval for that deployment; merging to
 `main` runs CI and previews only.
@@ -77,9 +82,10 @@ source of truth.
 
 - [ ] Review every changed scope. The report lists the old/new fragment,
   old/new length, delta, and every added/removed pattern.
-- [ ] Explain each changed or removed scope in the PR. No unexplained forced
+- [ ] Explain every changed or removed scope locally. No unexplained forced
   changes.
-- [ ] Post the report summary as a PR comment so it survives a restart.
+- [ ] Keep the full report outside the repository and outside the PR. Do not
+  commit, attach, link, or paste it; it is a local/CI release gate only.
 
 ## 4. Tests and proof
 

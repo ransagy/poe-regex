@@ -104,6 +104,17 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 - **Unique-item mods** are out of normal-rarity scope. **Essence/veiled**
   records are placeholders with no usable rendered text in the current export.
 
+### Query compiler
+
+- **Combined-slot fragment middle ground.** A shared criterion across
+  multiple classes now uses the global fragment, which is proven safe across
+  the class union, rather than one class's shortest fragment. That is
+  intentionally conservative and can be slightly longer than a class-specific
+  minimal form. Parked: revisit only if query-budget pressure returns, and
+  look for a shorter shared-safe form (for example, intersecting the
+  class-safe forms or factoring per-class alternatives). Single-class queries
+  already use the minimal class fragment.
+
 ### Ops decisions
 
 - Keep the current Pages middleware or move the Pages-host block to Cloudflare
