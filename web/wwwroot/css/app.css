@@ -369,7 +369,17 @@ input:disabled { opacity: 0.5; }
 .mod-scope { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin: 0.45rem 0.35rem 0.25rem; color: var(--muted); font-size: 0.8rem; }
 .mod-scope .link { font-size: 0.8rem; }
 .search-unit { display: flex; gap: 0.5rem; flex: 1; min-width: 0; }
-.search-unit #mod-search { flex: 1 1 auto; min-width: 0; }
+.search-field { position: relative; display: flex; flex: 1 1 auto; min-width: 0; }
+.search-field #mod-search { flex: 1 1 auto; min-width: 0; width: 100%; }
+.search-field.has-clear #mod-search { padding-right: 2.1rem; }
+.search-clear {
+    position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 1.6rem; height: 1.6rem; padding: 0;
+    border: 0; border-radius: 999px; background: none; color: var(--no);
+    font-size: 1.15rem; line-height: 1; cursor: pointer; opacity: 0.8;
+}
+.search-clear:hover { opacity: 1; background: var(--no-soft); }
+.search-clear:focus-visible { opacity: 1; outline: 2px solid var(--no); outline-offset: 1px; }
 #suggest-all { flex: none; height: 2.25rem; }
 #suggest-all {
     padding: 0 0.85rem; font-size: 0.86rem; cursor: pointer;

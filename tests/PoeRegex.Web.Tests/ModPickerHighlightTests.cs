@@ -774,4 +774,25 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
         cut.Find($"#pick-tier-{higher.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
     }
+
+    [Fact]
+    public void SearchClear_AppearsOnlyWithText_AndResetsFilter()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Ring");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.FindAll("#mod-search-clear").Should().BeEmpty();
+
+        cut.Find("#mod-search").Input("life");
+        var clear = cut.Find("#mod-search-clear");
+        clear.GetAttribute("aria-label").Should().Be("Clear filter");
+
+        clear.Click();
+
+        cut.Find("#mod-search").GetAttribute("value").Should().Be("");
+        cut.FindAll("#mod-search-clear").Should().BeEmpty();
+    }
 }
