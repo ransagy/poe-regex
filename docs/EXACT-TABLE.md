@@ -41,22 +41,22 @@ safe for both.
 ## Artifact coverage
 
 ```text
-396 families · 459 patterns · 1171 expanded scopes · 0 unresolved
+404 families · 467 patterns · 1197 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 459 |
-| Class | 404 |
-| Per-class | 308 |
+| Global | 467 |
+| Class | 421 |
+| Per-class | 309 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-361 global patterns · 21 classes · 944 class fragments · 0 unresolved
+361 global patterns · 21 classes · 967 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -90,7 +90,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1559 / 1559 expanded scopes checked
+1591 / 1591 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -108,9 +108,9 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  396 families · 459 patterns · 1171 expanded scopes
-table:   361 global · 21 classes · 944 class fragments
-proof:   1559 / 1559 · 0 failures
+matrix:  404 families · 467 patterns · 1197 expanded scopes
+table:   361 global · 21 classes · 967 class fragments
+proof:   1591 / 1591 · 0 failures
 ```
 
 This from-scratch run is the basis for the shipped table. The shipped table
@@ -120,9 +120,9 @@ tie churn does not retire working strings. The diff report therefore lists
 only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
 reproduce that stability pass.
 
-- Expanded scopes: 1559 / 1559, all proven.
+- Expanded scopes: 1591 / 1591, all proven.
 - Chosen length: proven on every scope.
-- Table: 361 global patterns, 21 classes, 944 class fragments, 0 unresolved.
+- Table: 361 global patterns, 21 classes, 967 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;

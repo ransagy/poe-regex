@@ -229,7 +229,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   advanced `roll(min-max)` forms. Desecrated item affixes and implicit-only
   base families are modeled; unique-only text, flavour, rare names, augments,
   and bonded modifiers remain unmodeled and are reported separately. The
-  exact table has 1559 expanded scopes (361 global patterns, 21 classes, 944
+  exact table has 1591 expanded scopes (361 global patterns, 21 classes, 967
   class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical

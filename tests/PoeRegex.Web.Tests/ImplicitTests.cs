@@ -19,19 +19,25 @@ public class ImplicitTests
         var implicitMods = Engine.PlayableMods()
             .Where(m => m.Source == "implicit")
             .ToList();
-        implicitMods.Should().HaveCount(70);
+        implicitMods.Should().HaveCount(94);
         implicitMods.Should().OnlyContain(m =>
             m.GenerationType == "implicit" && m.Classes.Count > 0);
-
-        var ordinaryPatterns = Engine.PlayableMods()
-            .Where(m => m.Source != "implicit")
+        implicitMods
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)
-            .ToHashSet(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .Should().HaveCount(85);
+
+        var ordinary = Engine.PlayableMods()
+            .Where(m => m.Source != "implicit")
+            .ToList();
         foreach (var mod in implicitMods)
         foreach (var line in mod.StatLines)
-            ordinaryPatterns.Should().NotContain(line.Pattern,
-                $"{mod.Id} must not duplicate a normal family");
+        foreach (var cls in mod.Classes)
+            ordinary.Should().NotContain(m =>
+                    m.Classes.Contains(cls) &&
+                    m.StatLines.Any(sl => sl.Pattern == line.Pattern),
+                $"{mod.Id} must not duplicate a normal family on {cls}");
 
         var always = Engine.FindMod("MaceImplicitAlwaysHit1")!;
         always.Classes.Should().Equal(["One Hand Mace"]);

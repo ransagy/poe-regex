@@ -94,4 +94,44 @@ public class ImplicitMappingTests
         result["RuneforgedImplicit"].Should().BeEquivalentTo(["One Hand Mace"]);
         result["AscendancyImplicit"].Should().BeEquivalentTo(["Gloves"]);
     }
+
+    [Fact]
+    public void SelectsImplicitClassesPerClassInsteadOfGlobalPattern()
+    {
+        var patterns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+        {
+            ["A"] = ["P1"],
+            ["B"] = ["P2"],
+            ["C"] = ["P1", "P3"],
+            ["D"] = ["P4"],
+            ["E"] = ["P5"],
+            ["F"] = ["P5"],
+        };
+        var classes = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["A"] = ["Ring", "Belt"],
+            ["B"] = ["Ring", "Belt"],
+            ["C"] = ["Ring"],
+            ["D"] = ["Ring", "Belt"],
+            ["E"] = ["Ring", "Belt"],
+            ["F"] = ["Ring", "Belt"],
+        };
+        var covered = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["Ring"] = ["P1", "P2", "P4"],
+        };
+
+        var selected = CatalogBuilder.SelectImplicitClasses(patterns, classes, covered);
+
+        // Each mod is kept only for the class where its line is still missing.
+        selected["A"].Should().BeEquivalentTo(["Belt"]);
+        selected["B"].Should().BeEquivalentTo(["Belt"]);
+        selected["C"].Should().BeEquivalentTo(["Ring"],
+            "a multi-line mod is kept when any line is new on the class");
+        selected["D"].Should().BeEquivalentTo(["Belt"]);
+        // Implicit tiers sharing a pattern stay in the catalog; the family
+        // grouping merges them and preserves their ranges.
+        selected["E"].Should().BeEquivalentTo(["Ring", "Belt"]);
+        selected["F"].Should().BeEquivalentTo(["Ring", "Belt"]);
+    }
 }
