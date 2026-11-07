@@ -19,13 +19,13 @@ namespace PoeRegex.ImportCoverage;
 /// Usage:
 ///   dotnet run --project tools/PoeRegex.ImportCoverage
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --guides /path/to/guides.txt
-///   dotnet run --project tools/PoeRegex.ImportCoverage -- --phase1
+///   dotnet run --project tools/PoeRegex.ImportCoverage -- --legacy
 ///   dotnet run --project tools/PoeRegex.ImportCoverage -- --out out/X.md --json out/X.json
 ///
 /// Guide files use <c>Name = filter</c> per line; quoted filters may use several
 /// groups. Guide text is supplied locally and is never written to the report.
-/// <c>--phase1</c> runs the Phase 1 QueryReconstructionService over the same
-/// fixture matrix and writes a reconstruction report instead.
+/// Reconstruction (the current app path) is the default report.
+/// <c>--legacy</c> runs the older QueryImportService spike instead.
 /// </summary>
 public static class Program
 {
@@ -39,7 +39,7 @@ public static class Program
         string outPath = DefaultOut;
         string? jsonPath = DefaultJson;
         string? guidesPath = null;
-        var phase1 = false;
+        var phase1 = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -60,8 +60,11 @@ public static class Program
                 case "--phase1":
                     phase1 = true;
                     break;
+                case "--legacy":
+                    phase1 = false;
+                    break;
                 case "-h" or "--help":
-                    Console.WriteLine("Usage: [--phase1] [--guides <file>] [--out <md>] [--json <json>|--no-json]");
+                    Console.WriteLine("Usage: [--legacy] [--guides <file>] [--out <md>] [--json <json>|--no-json]");
                     return 0;
                 default:
                     Console.Error.WriteLine($"Unknown argument: {args[i]}");

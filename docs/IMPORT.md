@@ -18,7 +18,8 @@ every class it can roll on, and every display form:
 
 For each form, `MapLineToMods(class, line)` must return a candidate set that
 contains the source mod. The audit currently checks more than 1,000 forms and
-passes.
+passes. A second pass builds realistic advanced forms (ranges and header names)
+and checks catalog forms map exactly; all non-implicit advanced forms pass.
 
 ### Fixtures and policy
 
@@ -34,7 +35,8 @@ Expected exceptions remain explicit:
 
 - implicits are quiet and do not participate in affix rules
 - unknown text maps nowhere
-- approximate renderer-shorthand matches stay flagged as `approximate`
+- the fuzzy word-stem fallback remains only for unmatched renderer wording and
+  stays flagged as `approximate`
 - ambiguous text keeps a ranked candidate list; the header name/range is used
   to choose the default
 
@@ -51,6 +53,8 @@ Expected exceptions remain explicit:
 
 The fallback is only used for synthetic/regex-shaped phrases, so plain unknown
 text is still treated as a keyword rather than expanded into unrelated mods.
+The coverage tool now defaults to the reconstruction report; `--legacy` keeps
+the older `QueryImportService` spike for comparison.
 
 Regression tests:
 
@@ -122,7 +126,14 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Implicit-only and corrupted catalog entries are class-level picker/builder
   families; import never annotates plain game implicit lines, because the same
   header is used for base implicits and corruption enchantments.
-- Approximate shorthand (`LightRadius`, `ManaLeech`) remains flagged, not silent.
+- Advanced range forms are range-first: rounded displayed rolls get half a
+  display unit of tolerance, reversed ranges (`10(15-10)`) are accepted, and
+  decimal stats use the catalog's two-placeholder pattern shape (`0.17` ->
+  `\x01.\x01`).
+- Multi-line stat descriptions are mapped line by line; a wrapped first line
+  can remain approximate (the Focus infusion line).
+- Genuine ambiguity, such as two desecrated Cost Efficiency suffixes sharing
+  one text, keeps a ranked candidate list with a deterministic default.
 - A line with neither a bracketed range nor a header/name match can remain
   ambiguous (`+N`) in the preview.
 - Multi-class search-string import is applied by the reconstruction path;

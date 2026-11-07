@@ -352,8 +352,8 @@ Acceptance criteria and current measurements:
   wanted/unwanted chips; clicking a slot only moves the editing focus.
 - The derived catalog ships explicit prefix/suffix affixes, Abyss desecrated
   prefixes/suffixes, implicit-only base families, and corrupted enchantments,
-  and renders some internal shorthand forms (`LightRadius`, `ManaLeech`); the
-  importer maps those via flagged approximate fallbacks. Desecrated families
+  and renders some internal shorthand forms; the importer maps advanced range
+  forms exactly, with fuzzy fallbacks only for unmatched wording. Desecrated families
   stay in the normal Prefixes/Suffixes columns with a green `<faction>` tag
   (for example `Amanamu`) after the family row label; implicit families sit in
   a dedicated **Implicits** section above the columns with a muted-blue
