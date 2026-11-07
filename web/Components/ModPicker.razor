@@ -10,8 +10,16 @@
         @* The add-all button is the filter's right edge; it only exists
            while a filter is typed (matching every family is not a workflow). *@
         <div class="search-unit">
-            <input id="mod-search" placeholder="@_placeholder" value="@_search"
-                   @oninput="OnSearch" aria-label="Filter mods" />
+            <div class="search-field @(_search.Length > 0 ? "has-clear" : "")">
+                <input id="mod-search" placeholder="@_placeholder" value="@_search"
+                       @oninput="OnSearch" aria-label="Filter mods" @ref="_searchInput" />
+                @if (_search.Length > 0)
+                {
+                    <button type="button" id="mod-search-clear" class="search-clear"
+                            title="Clear filter" aria-label="Clear filter"
+                            @onclick="ClearSearch"><span aria-hidden="true">×</span></button>
+                }
+            </div>
             @if (_bulkVisible)
             {
                 <button id="suggest-all" title="@BulkTitle()" aria-label="@BulkTitle()"
@@ -225,6 +233,7 @@
     public required IReadOnlyList<ModEntry> Mods { get; set; }
 
     private string _search = "";
+    private ElementReference _searchInput;
     private IReadOnlyList<ModEntry>? _groupedMods;
     private bool _groupedGlobal;
     private bool _unionActive;
@@ -682,6 +691,13 @@
     {
         _search = e.Value?.ToString() ?? "";
         Refresh();
+    }
+
+    private async Task ClearSearch()
+    {
+        _search = "";
+        Refresh();
+        await _searchInput.FocusAsync();
     }
 
     private void ToggleFamilyInclude(ModFamily fam)
