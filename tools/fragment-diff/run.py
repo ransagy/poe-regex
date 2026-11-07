@@ -87,23 +87,30 @@ def scope_summary(name: str, old: dict[str, str], new: dict[str, str],
     }
 
 
-def markdown_table(rows: list[dict]) -> list[str]:
-    lines = [
-        "| Kind | Pattern | Old | Old len | New | New len | Δ |",
-        "|---|---|---|---:|---|---:|---:|",
-    ]
+def markdown_table(rows: list[dict], include_scope: bool = False) -> list[str]:
+    if include_scope:
+        lines = [
+            "| Class | Kind | Pattern | Old | Old len | New | New len | Δ |",
+            "|---|---|---|---|---:|---|---:|---:|",
+        ]
+    else:
+        lines = [
+            "| Kind | Pattern | Old | Old len | New | New len | Δ |",
+            "|---|---|---|---:|---|---:|---:|",
+        ]
     for change in rows:
-        lines.append(
-            "| {kind} | `{pattern}` | `{old}` | {oldlen} | `{new}` | {newlen} | {delta} |".format(
-                kind=change["kind"],
-                pattern=display(change["pattern"]),
-                old=display(change["old"]),
-                oldlen="" if change["oldLength"] is None else change["oldLength"],
-                new=display(change["new"]),
-                newlen="" if change["newLength"] is None else change["newLength"],
-                delta=signed_delta(change["delta"]),
-            )
-        )
+        values = [
+            change["kind"],
+            f"`{display(change['pattern'])}`",
+            f"`{display(change['old'])}`",
+            "" if change["oldLength"] is None else str(change["oldLength"]),
+            f"`{display(change['new'])}`",
+            "" if change["newLength"] is None else str(change["newLength"]),
+            signed_delta(change["delta"]),
+        ]
+        if include_scope:
+            values.insert(0, display(change["scope"]))
+        lines.append("| " + " | ".join(values) + " |")
     return lines
 
 
@@ -183,15 +190,14 @@ def main() -> int:
         lines.append("No global changes.")
 
     lines += ["", "## Class changes", ""]
-    any_class = False
-    for summary in class_summaries:
-        if not summary["changes"]:
-            continue
-        any_class = True
-        lines += [f"### {display(summary['scope'])}", ""]
-        lines += markdown_table(summary["changes"])
-        lines.append("")
-    if not any_class:
+    class_rows = [
+        {**change, "scope": summary["scope"]}
+        for summary in class_summaries
+        for change in summary["changes"]
+    ]
+    if class_rows:
+        lines += markdown_table(class_rows, include_scope=True)
+    else:
         lines.append("No class changes.")
 
     args.out_md.parent.mkdir(parents=True, exist_ok=True)
