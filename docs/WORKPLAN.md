@@ -44,11 +44,13 @@ Current planned and parked work. Behavior is documented in
   game rarity colors are unchanged and the unique name keeps its exact hex
   with a dark edge. Compact layout reviewed at 390×844 and 768×1024;
   color-vision simulation passed with text/icon labels preserved.
+- Perf: a manual `web-perf` workflow builds the app, runs the 1920×1080
+  harness, publishes the JSON/log artifact, and writes a step summary. It is
+  observational; the local release-prep run remains the blocking gate.
 
 ## Next
 
-1. **Web-perf smoke:** add the 1920×1080 harness to CI, or keep it documented
-   as a manual gate.
+No active next items. Catalog coverage and platform work are parked below.
 
 ## Parked
 
