@@ -27,6 +27,7 @@ const debugPort = Number(args.debugPort ?? 9222);
 const width = Number(args.width ?? 1920);
 const height = Number(args.height ?? 1080);
 const throttle = Number(args.throttle ?? 1);
+const chromeBin = args.chrome ?? process.env.CHROME_BIN ?? 'chromium';
 
 if (!fs.existsSync(path.join(root, 'index.html'))) {
   console.error(`published site not found: ${root}/index.html`);
@@ -305,7 +306,7 @@ function makeActions(sampleText) {
 async function main() {
   await new Promise(resolve => server.listen(httpPort, '127.0.0.1', resolve));
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'poe-web-perf-'));
-  chrome = spawn('chromium', [
+  chrome = spawn(chromeBin, [
     '--headless=new', '--no-sandbox', '--disable-gpu',
     `--window-size=${width},${height}`,
     `--remote-debugging-port=${debugPort}`,

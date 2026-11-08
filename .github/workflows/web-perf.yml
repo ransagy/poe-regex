@@ -1,0 +1,114 @@
+name: web-perf
+
+# Observational 1920x1080 web performance sample. This is not a merge gate;
+# the local release-prep run remains the blocking check.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Runs per action'
+        required: true
+        default: '5'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-perf
+  cancel-in-progress: false
+
+jobs:
+  web-perf:
+    name: web perf
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish web
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish web/web.csproj -c Release -o out/web -p:BlazorEnableCompression=false
+          find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
+          [ -f out/web/wwwroot/web.styles.css ] || touch out/web/wwwroot/web.styles.css
+          cp LICENSE NOTICE docs/PROVENANCE.md out/web/wwwroot/
+          printf '[]\n' > out/web/wwwroot/precache-manifest.json
+          printf '{"commit":"%s","branch":"perf"}\n' "$GITHUB_SHA" > out/web/wwwroot/build-info.json
+          sed -i "s/__BUILD_COMMIT__/$GITHUB_SHA/g" out/web/wwwroot/index.html
+
+      - name: Select browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$chrome" ]; then
+            echo "no Chrome/Chromium browser found" >&2
+            exit 1
+          fi
+          echo "CHROME_BIN=$chrome" >> "$GITHUB_ENV"
+
+      - name: Run web perf
+        shell: bash
+        env:
+          RUNS: ${{ inputs.runs }}
+        run: |
+          set -euo pipefail
+          case "${RUNS}" in
+            ''|*[!0-9]*) echo "runs must be a positive integer" >&2; exit 1 ;;
+          esac
+          if [ "$RUNS" -lt 1 ]; then
+            echo "runs must be a positive integer" >&2
+            exit 1
+          fi
+          node tools/web-perf/run.mjs \
+            --root out/web/wwwroot \
+            --runs "$RUNS" \
+            --width 1920 \
+            --height 1080 \
+            --out perf.json 2>&1 | tee perf.log
+
+      - name: Summarize
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f perf.json ]; then exit 0; fi
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync('perf.json', 'utf8'));
+          const ms = (x) => x == null ? '—' : `${x.p50} / ${x.p95} ms`;
+          const lines = [
+            `## Web perf — ${r.viewport.width}×${r.viewport.height}, ${r.runs} runs`,
+            '',
+            '| Action | p50 / p95 |',
+            '|---|---:|',
+            `| Boot | ${ms(r.boot)} |`,
+          ];
+          for (const [name, value] of Object.entries(r.actions ?? {})) {
+            if (value && typeof value === 'object' && 'p50' in value)
+              lines.push(`| ${name} | ${ms(value)} |`);
+          }
+          lines.push('', `Long tasks: ${r.longTasks?.count ?? 0} (max ${r.longTasks?.max ?? 0} ms)`);
+          lines.push('', 'Observational only; the local release-prep run remains the blocking gate.');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          NODE
+
+      - name: Upload perf result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-perf-${{ github.sha }}
+          path: |
+            perf.json
+            perf.log
+          if-no-files-found: warn
+          retention-days: 14

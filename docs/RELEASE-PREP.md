@@ -138,6 +138,9 @@ Run when data/table size or web code changed.
   recorded, not hidden.
 - [ ] Check advanced picks, bulk add, import parse, explain, builder open, and
   the 10-slot paste update against [`ACCEPTANCE.md`](ACCEPTANCE.md).
+- [ ] Optional: run the manual **web-perf** workflow for a CI-host sample.
+  It uploads the JSON/log and writes a step summary, but it is observational;
+  the local run above remains the blocking gate.
 
 ## 7. Merge
 
