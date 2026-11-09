@@ -65,7 +65,7 @@ Examples:
 |---|---|---|
 | `#% increased maximum Life` | global | `^\d.+d m.*fe$` |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` |
-| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*f d.+f.+e$` |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
 | `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` |
@@ -134,9 +134,9 @@ authority when the cache is stale.
 
 Any change that adds catalog lines, changes the vendor/safety corpus, or changes
 the solver must regenerate the table from scratch and review a before/after
-fragment report before merge. The report covers every changed existing scope
-with its old/new fragment, both lengths, the length delta, and the collision
-reason, plus every added/removed scope. Keep the report outside the repository;
+fragment report before merge. The report states the change reason and covers
+every changed existing scope with its old/new fragment, both lengths, and the
+length delta, plus every added/removed scope. Keep the report outside the repository;
 the shipped table and proof remain the source of truth.
 
 Generate it with [`../tools/fragment-diff/run.py`](../tools/fragment-diff/run.py)
@@ -161,13 +161,13 @@ Quoted length includes the two block quotes; inner length excludes them.
 | `#% increased maximum Life` | Amulet | `d.*m l` | 6 |
 | `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 12 |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` | 14 |
-| `#% increased Critical Damage Bonus` | Gloves | `bon` | 3 |
-| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 13 |
+| `#% increased Critical Damage Bonus` | Gloves | `Bon` | 3 |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*f d.+f.+e$` | 14 |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 15 |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` | 12 |
-| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` | 18 |
-| `#% increased Armour` | global | `^\d.*d armour$` | 14 |
-| `#% increased Energy Shield` | global | `ed en.*d$` | 9 |
+| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` | 17 |
+| `#% increased Armour` | global | `^\d.*d Armour$` | 14 |
+| `#% increased Energy Shield` | global | `ed en.+d$` | 9 |
 | `+# to maximum Energy Shield` | global | `^\+.*gy` | 7 |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` | 6 |
 | `#% increased Armour` | Amulet | `d..rmour$` | 9 |
@@ -286,7 +286,8 @@ foreign unless the target pattern itself includes that subject/source.
 
 Examples of strict forms:
 
-- `-.*d a.+,` excludes the fixed-value jewel line without matching it.
+- `d a.+v.+y shield$` covers both ranged local lines and fixed-value rune
+  lines while excluding the `Global Armour` jewel/desecrated lines.
 - Amulet Evasion is ` e.+g$`, not `d Ev`.
 - Amulet Armour is `d..rmour$`, not `d Ar`.
 

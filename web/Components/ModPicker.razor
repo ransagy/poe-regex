@@ -40,7 +40,7 @@
             @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
             {
                 <div class="mod-scope">
-                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks + augments · {_families.Count} shown")</span>
+                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks · {CommonCount} shown")</span>
                     <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
                         @(_showAll ? "Show common only" : $"Show all {_allFamilies.Count} mods")
                     </button>
@@ -314,7 +314,7 @@
         _families = filter.Length == 0
             ? _showAll || CommonCount == 0
                 ? _allFamilies
-                : _allFamilies.Where(f => ModFamilies.IsCommon(f) || f.IsAugment).ToList()
+                : _allFamilies.Where(ModFamilies.IsCommon).ToList()
             : _allFamilies
                 .Select(f =>
                 {

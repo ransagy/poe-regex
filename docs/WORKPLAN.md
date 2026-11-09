@@ -33,7 +33,7 @@ Current planned and parked work. Behavior is documented in
   classes can carry each effect. Attribute runes (the `All Equipment` target),
   special/transformative augments, Soul Cores, Idols, Abyssal Eyes, bonded
   stats, and a socket model remain parked.
-- Tests: 111 core, 379 web, 34 data-build; local suites green.
+- Tests: 111 core, 380 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.

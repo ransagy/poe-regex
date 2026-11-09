@@ -160,8 +160,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   basic tiered runes with a Rune source tag and the export's Armour / Martial
   Weapon / Wand or Staff target tag; its tier rows show the rune name and
   value for reference, and the family `+` selects the effect across tiers;
-  before typing, the curated common shortlist plus augments shows under a
-  `Common picks + augments · N shown` line with `Show all N mods` (the filter placeholder is `Search mods…`;
+  augments are not in the default common shortlist and appear when searched
+  or after `Show all N mods`; before typing, the curated common shortlist
+  shows under a `Common picks · N shown` line (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk

@@ -38,6 +38,29 @@ public class AugmentTests
     }
 
     [Fact]
+    public void Augments_AreNotInTheDefaultCommonShortlist()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddSingleton(Engine);
+        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        var state = new WorkbenchState();
+        var mods = Engine.ModsForClass("Helmet");
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Mods, mods));
+
+        cut.FindAll(".mod-sec.augment-sec").Should().BeEmpty(
+            "basic runes are a separate source, not generic common picks");
+        cut.Find(".mod-scope").TextContent.Should().Contain("Common picks");
+
+        cut.Find("#mod-search").Input("iron");
+        cut.FindAll(".mod-sec.augment-sec").Should().ContainSingle();
+    }
+
+    [Fact]
     public void LesserDesertRune_HasCorrectTargetScopes()
     {
         var armour = Engine.FindMod("augment:RuneFireLesser:armour")!;
@@ -104,6 +127,7 @@ public class AugmentTests
             .Add(x => x.Scope, "helmet")
             .Add(x => x.Mods, mods));
 
+        cut.Find("#mod-search").Input("iron");
         cut.Find($"[id='fam-toggle-{family.Anchor.Id}']").Click();
         cut.FindAll($"[id='pick-tier-{family.Tiers[0].Anchor.Id}']").Should().BeEmpty(
             "basic-rune tiers are display-only; the family + selects the effect");
