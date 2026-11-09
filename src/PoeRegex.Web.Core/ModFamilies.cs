@@ -424,40 +424,72 @@ public static class ModFamilies
     internal static string? CompactAlternatives(IReadOnlyList<string> lines)
     {
         if (lines.Count < 2) return null;
-        var prefix = lines[0];
-        foreach (var line in lines.Skip(1))
-            prefix = CommonPrefix(prefix, line);
-        if (prefix.Length == 0) return null;
-        var suffix = lines[0];
-        foreach (var line in lines.Skip(1))
-            suffix = CommonSuffix(suffix, line);
-        if (suffix.Length == 0) return null;
+        var prefix = CommonPrefix(lines);
+        var suffix = CommonSuffix(lines);
+        if (prefix.Length == 0 && suffix.Length == 0) return null;
         if (lines.Any(line => prefix.Length + suffix.Length >= line.Length)) return null;
         var middles = lines
             .Select(line => line[prefix.Length..(line.Length - suffix.Length)])
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (middles.Count < 2 || middles.Any(m => m.Length == 0)) return null;
-        // Keep the prefix on every short alternative (`+1 / +2`), but only
-        // once for a long textual prefix (`Break Armour equal to 2–4 / 4–7`).
-        var body = prefix.Length <= 2
+        // Keep the prefix on every short alternative (`+1 / +2`). A numeric
+        // prefix that ends at the number/range boundary (`10–`, `1.`) also
+        // belongs to every middle; without it `10–15 / 18%` loses the base
+        // number. Long textual prefixes (`Break Armour equal to 2–4 / 4–7`)
+        // are still emitted once.
+        var repeatPrefix =
+            prefix.Length <= 2 ||
+            (prefix.Any(char.IsDigit) &&
+             middles.All(m => m.Any(char.IsDigit)) &&
+             (char.IsDigit(prefix[^1]) || prefix[^1] is '–' or '-' or '.' or ':'));
+        var body = repeatPrefix
             ? string.Join(" / ", middles.Select(m => prefix + m))
             : prefix + string.Join(" / ", middles);
         return body + suffix;
     }
 
-    private static string CommonPrefix(string a, string b)
+    private static string CommonPrefix(IReadOnlyList<string> lines)
     {
-        var i = 0;
-        while (i < a.Length && i < b.Length && a[i] == b[i]) i++;
-        return a[..i];
+        var first = lines[0];
+        var length = first.Length;
+        foreach (var line in lines.Skip(1))
+        {
+            length = Math.Min(length, line.Length);
+            var i = 0;
+            while (i < length && first[i] == line[i]) i++;
+            length = i;
+        }
+        // Never end a common prefix in the middle of a digit run. A shared
+        // leading digit would otherwise turn `10–19 / 15–29` into
+        // `10–1 / 15–29`.
+        while (length > 0 && char.IsDigit(first[length - 1]) &&
+               lines.All(line => line.Length > length && char.IsDigit(line[length])))
+        {
+            length--;
+        }
+        return first[..length];
     }
 
-    private static string CommonSuffix(string a, string b)
+    private static string CommonSuffix(IReadOnlyList<string> lines)
     {
-        var i = 0;
-        while (i < a.Length && i < b.Length && a[^(i + 1)] == b[^(i + 1)]) i++;
-        return a[^i..];
+        var first = lines[0];
+        var length = 0;
+        var minLength = lines.Min(line => line.Length);
+        while (length < minLength &&
+               lines.All(line => line[^(length + 1)] == first[^(length + 1)]))
+        {
+            length++;
+        }
+        // Likewise, never start a common suffix in the middle of a digit
+        // run. The shared trailing `9` in `10–19 / 15–29` belongs to the
+        // ranges, not to the stat text.
+        while (length > 0 && char.IsDigit(first[^(length)]) &&
+               lines.All(line => line.Length > length && char.IsDigit(line[^(length + 1)])))
+        {
+            length--;
+        }
+        return first[^length..];
     }
 
     internal static double FirstNumber(string text)

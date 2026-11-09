@@ -69,6 +69,19 @@ public class FamilyPickTests
     }
 
     [Fact]
+    public void GlobalManaRegeneration_AlternativesShareOneStatPhrase()
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods())
+            .Single(f => f.Key == "ManaRegeneration");
+
+        family.Tiers.Single(t => t.Name == "of Excitement").UnionLines
+            .Should().Equal(["10–19 / 15–29% increased Mana Regeneration Rate"],
+                "class variants are one stat with two roll ranges, not a hybrid mod");
+        family.Tiers.Single(t => t.Name == "of Joy").UnionLines
+            .Should().Equal(["20–29 / 30–44% increased Mana Regeneration Rate"]);
+    }
+
+    [Fact]
     public void PerSlotProjectileFamily_KeepsConcreteRolls()
     {
         var family = ModFamilies.Group(Engine.ModsForClass("Amulet"))

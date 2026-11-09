@@ -11,4 +11,8 @@
     <ProjectReference Include="..\PoeRegex.Core\PoeRegex.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PoeRegex.Web.Tests" />
+  </ItemGroup>
+
 </Project>
