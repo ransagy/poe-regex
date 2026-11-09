@@ -40,7 +40,7 @@
             @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
             {
                 <div class="mod-scope">
-                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks · {CommonCount} shown")</span>
+                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks + augments · {_families.Count} shown")</span>
                     <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
                         @(_showAll ? "Show common only" : $"Show all {_allFamilies.Count} mods")
                     </button>
@@ -48,7 +48,8 @@
             }
             @{
                 (IReadOnlyList<ModFamily> List, string Header, string Css)[] sections =
-                    [(_implicits, "Implicits", "implicit-sec"),
+                    [(_augments, "Augments", "augment-sec"),
+                     (_implicits, "Implicits", "implicit-sec"),
                      (_corrupted, "Corrupted", "corrupted-sec"),
                      (_prefixes, "Prefixes", ""),
                      (_suffixes, "Suffixes", "")];
@@ -174,30 +175,33 @@
                                                     {
                                                         <span class="covered-note" title="@coveredHint">≥ covered</span>
                                                     }
-                                                    <button id="pick-tier-@tier.Anchor.Id" class="inc @(includedTier ? "active" : "")"
-                                                            disabled="@coveredByUp"
-                                                            aria-disabled="@(coveredByUp ? "true" : "false")"
-                                                            title="@TierPickTitle(tier, includedTier, coveredHint)"
-                                                            aria-label="@TierPickTitle(tier, includedTier, coveredHint)"
-                                                            aria-pressed="@(includedTier ? "true" : "false")"
-                                                            @onclick="() => ToggleTierExact(fam, tier)">@(includedTier ? "✓" : "+")</button>
-                                                    @if (upNames.Count > 1)
+                                                    @if (!fam.IsAugment)
                                                     {
-                                                        <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "")"
-                                                                disabled="@upDisabled"
-                                                                aria-disabled="@(upDisabled ? "true" : "false")"
-                                                                title="@TierUpTitle(tier, upNames, upSelected, coveredHint)"
-                                                                aria-label="@TierUpTitle(tier, upNames, upSelected, coveredHint)"
-                                                                aria-pressed="@(upSelected ? "true" : "false")"
-                                                                @onclick="() => ToggleTierUp(fam, tier)">≥</button>
+                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(includedTier ? "active" : "")"
+                                                                disabled="@coveredByUp"
+                                                                aria-disabled="@(coveredByUp ? "true" : "false")"
+                                                                title="@TierPickTitle(tier, includedTier, coveredHint)"
+                                                                aria-label="@TierPickTitle(tier, includedTier, coveredHint)"
+                                                                aria-pressed="@(includedTier ? "true" : "false")"
+                                                                @onclick="() => ToggleTierExact(fam, tier)">@(includedTier ? "✓" : "+")</button>
+                                                        @if (upNames.Count > 1)
+                                                        {
+                                                            <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "")"
+                                                                    disabled="@upDisabled"
+                                                                    aria-disabled="@(upDisabled ? "true" : "false")"
+                                                                    title="@TierUpTitle(tier, upNames, upSelected, coveredHint)"
+                                                                    aria-label="@TierUpTitle(tier, upNames, upSelected, coveredHint)"
+                                                                    aria-pressed="@(upSelected ? "true" : "false")"
+                                                                    @onclick="() => ToggleTierUp(fam, tier)">≥</button>
+                                                        }
+                                                        <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(excludedTier ? "active" : "")"
+                                                                disabled="@coveredByUp"
+                                                                aria-disabled="@(coveredByUp ? "true" : "false")"
+                                                                title="@TierExcludeTitle(tier, excludedTier, coveredHint)"
+                                                                aria-label="@TierExcludeTitle(tier, excludedTier, coveredHint)"
+                                                                aria-pressed="@(excludedTier ? "true" : "false")"
+                                                                @onclick="() => ToggleTierExclude(fam, tier)">@(excludedTier ? "⊘" : "−")</button>
                                                     }
-                                                    <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(excludedTier ? "active" : "")"
-                                                            disabled="@coveredByUp"
-                                                            aria-disabled="@(coveredByUp ? "true" : "false")"
-                                                            title="@TierExcludeTitle(tier, excludedTier, coveredHint)"
-                                                            aria-label="@TierExcludeTitle(tier, excludedTier, coveredHint)"
-                                                            aria-pressed="@(excludedTier ? "true" : "false")"
-                                                            @onclick="() => ToggleTierExclude(fam, tier)">@(excludedTier ? "⊘" : "−")</button>
                                                 </li>
                                             }
                                         </ul>
@@ -239,6 +243,7 @@
     private bool _unionActive;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private IReadOnlyList<ModFamily> _families = [];
+    private IReadOnlyList<ModFamily> _augments = [];
     private IReadOnlyList<ModFamily> _implicits = [];
     private IReadOnlyList<ModFamily> _corrupted = [];
     private IReadOnlyList<ModFamily> _prefixes = [];
@@ -307,7 +312,9 @@
             _unionActive = true;
         }
         _families = filter.Length == 0
-            ? _showAll || CommonCount == 0 ? _allFamilies : _allFamilies.Where(ModFamilies.IsCommon).ToList()
+            ? _showAll || CommonCount == 0
+                ? _allFamilies
+                : _allFamilies.Where(f => ModFamilies.IsCommon(f) || f.IsAugment).ToList()
             : _allFamilies
                 .Select(f =>
                 {
@@ -322,7 +329,8 @@
                 .Where(f => f is not null)
                 .Select(f => f!)
                 .ToList();
-        var shown = filter.Length == 0 && (_showAll || CommonCount == 0) ? _families : _families.Take(MaxShown).ToList();
+        var shown = filter.Length == 0 ? _families : _families.Take(MaxShown).ToList();
+        _augments = shown.Where(f => f.IsAugment).ToList();
         _implicits = shown.Where(f => f.IsImplicit).ToList();
         _corrupted = shown.Where(f => f.IsCorrupted).ToList();
         _prefixes = shown.Where(f => f.Kind == "prefix").ToList();
@@ -559,12 +567,13 @@
             : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
 
     private static WantedMod TierPick(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || tier.Name.Length == 0
+        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugment || tier.Name.Length == 0
             ? new WantedMod(tier.Anchor.Id)
             : new WantedMod(tier.Anchor.Id, [tier.Name]);
 
     private bool CanCollapse(ModFamily fam)
     {
+        if (fam.IsAugment) return false;
         if (fam.Tiers.Count != 1) return false;
         var tier = fam.Tiers[0];
         var familyFragment = Engine.PickFragment(fam.Pick(), ScopeClassId);
@@ -795,7 +804,8 @@
             foreach (var pick in TierUpPicks(fam, tier, crit.Included))
                 State.RemoveInclude(Scope, pick);
             State.AddExclude(Scope,
-                fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || tier.Name.Length == 0
+                fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugment ||
+                tier.Name.Length == 0
                     ? tier.Anchor.Id
                     : tier.Name);
         }

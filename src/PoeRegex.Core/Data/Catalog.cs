@@ -52,6 +52,16 @@ public sealed class ModEntry
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Source { get; init; } = "";
 
+    /// <summary>Socketable type for augment entries ("Rune", "Soul Core", ...); empty otherwise.</summary>
+    [JsonPropertyName("augmentType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string AugmentType { get; init; } = "";
+
+    /// <summary>Augment target category ("Armour", "Martial Weapon", ...); empty otherwise.</summary>
+    [JsonPropertyName("augmentTarget")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string AugmentTarget { get; init; } = "";
+
     /// <summary>RePoE family key (`type`): all tiers of one stat share it
     /// (merges scopes, e.g. one-hand/two-hand). Empty on catalogs built
     /// before families were captured.</summary>

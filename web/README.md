@@ -151,14 +151,17 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   headers (two columns when the editor is wide, stacked when narrow; no
   per-row tags) and the family tooltip names the content (`Show 6 tiers of
   % increased Movement Speed`); a picked family tints and its `+` becomes `✓`,
-  and a family with a tier picked gets an underline; with a filter typed, an
+  and a family with a tier picked keeps its picked count and tint; with a filter typed, an
   `Add all N` button beside the search box adds every matching family in one
   batch (disabled, with the prospective k/N in its tooltip, when that would
   exceed the game's 250-character limit; the preview handles up to 64 matches
   and larger sets stay visible but disabled with the budget message; one
-  match keeps the row's own `+`); before typing,
-  only the curated common shortlist shows under a `Common picks · N shown`
-  line with `Show all N mods` (the filter placeholder is `Search mods…`;
+  match keeps the row's own `+`); a dedicated **Augments** section lists the
+  basic tiered runes with a Rune source tag and the export's Armour / Martial
+  Weapon / Wand or Staff target tag; its tier rows show the rune name and
+  value for reference, and the family `+` selects the effect across tiers;
+  before typing, the curated common shortlist plus augments shows under a
+  `Common picks + augments · N shown` line with `Show all N mods` (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk
@@ -227,10 +230,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   vendor/stash corpus, and the table is strict: zero foreign modeled or
   captured-safety lines. The oracle corpus includes both plain copy text and
   advanced `roll(min-max)` forms. Desecrated item affixes and implicit-only
-  base families are modeled; unique-only text, flavour, rare names, augments,
-  and bonded modifiers remain unmodeled and are reported separately. The
-  exact table has 1672 expanded scopes (379 global patterns, 21 classes, 1030
-  class fragments, 0 unresolved).
+  base families and basic-rune augment effects are modeled; unique-only text,
+  flavour, rare names, special/transformative augments, and bonded modifiers
+  remain unmodeled and are reported separately. The exact table has 1894
+  expanded scopes (381 global patterns, 21 classes, 1081 class fragments,
+  0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
@@ -367,7 +371,8 @@ Acceptance criteria and current measurements:
   normalized stat pattern and shows the merged tier's roll alternatives;
   per-slot rows keep the class's concrete roll. Desecrated tiers that share a
   pattern collapse into one row while range-specific strings are deferred.
-  Jewel affixes, augments, and bonded modifiers remain unmodeled. The export's `crafted`
+  Jewel affixes, special/transformative augments, and bonded modifiers remain
+  unmodeled; basic tiered runes are modeled as a separate Augments source. The export's `crafted`
   prefix/suffix records are PoE1 leftovers and are excluded; actual PoE2
   crafted mods are jewel-only in domain `misc`. Imports resolve by bracket
   ranges and header names, so a line with neither (and no plain-text match)

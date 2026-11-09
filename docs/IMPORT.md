@@ -110,7 +110,9 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   scopes.
 - Desecrated tier exclusions are family-wide for the same reason: excluding
   one range excludes every range that shares its fragment.
-- Augments, bonded modifiers, and jewel affixes are not modeled yet. The PoE2
+- Basic-rune augment effects are modeled in the picker but import mapping is
+  deferred; special/transformative augments, bonded modifiers, and jewel
+  affixes are not modeled yet. The PoE2
   export's `crafted` prefix/suffix records are PoE1 master-craft leftovers
   (no positive PoE2 base mapping) and are excluded; crafted stat lines can
   still map to a normal affix with the same text. Actual PoE2 crafted mods are

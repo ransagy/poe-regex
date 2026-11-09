@@ -1,0 +1,54 @@
+{
+  "game": "poe2",
+  "export": "poe2",
+  "downloadedAt": "2026-11-08T22:45:08.5187013Z",
+  "dataVersion": "2026-11-08",
+  "source": "https://repoe-fork.github.io/poe2",
+  "files": [
+    {
+      "path": "augments.min.json",
+      "bytes": 206170,
+      "sha256": "8f39db1eec0f927c30bd944a3a5bf62d6ce74d9d4a655161a91fce3e85d76977"
+    },
+    {
+      "path": "base_items.min.json",
+      "bytes": 3116877,
+      "sha256": "e86a1919950682e4041cb96e599b7f217cc0ea584cd9a817acc9825d0789eed6"
+    },
+    {
+      "path": "item_classes.min.json",
+      "bytes": 8763,
+      "sha256": "34971a7a2453d2ebcd77f4fd3a7b9251cab17534d8c215742101cb2437fbd380"
+    },
+    {
+      "path": "mods.min.json",
+      "bytes": 8775773,
+      "sha256": "d5ba558ed408af9bc8f79dac471758422401f7e1291440b44cebad87b0ed4e90"
+    },
+    {
+      "path": "mods_by_base.min.json",
+      "bytes": 3652143,
+      "sha256": "f7b36482847fad7ab3c518b5e641b64422716968aa737ced9c61e0fafe0f374c"
+    },
+    {
+      "path": "stat_translations/advanced_mod_stat_descriptions.min.json",
+      "bytes": 14529,
+      "sha256": "823b618506fc46265b537cd976bb5f42a9a747ebf97af2616ecec8bcedbf228c"
+    },
+    {
+      "path": "stat_translations/stat_descriptions.min.json",
+      "bytes": 2958906,
+      "sha256": "997cf70a7b39a688786f9e96aa2bb5abeaec3b8f70753bad6de8cc519214e1d1"
+    },
+    {
+      "path": "stat_value_handlers.min.json",
+      "bytes": 289509,
+      "sha256": "251749c118b8cf3b4b00f816df73e3fb10788b1f50acfde892f8eb3d91f20114"
+    },
+    {
+      "path": "stats_by_file.min.json",
+      "bytes": 9533342,
+      "sha256": "2ef3784aff24d9b6df0fffc209d28613f537e8fb9f0f7709a4c2ceeec2bdf3e4"
+    }
+  ]
+}

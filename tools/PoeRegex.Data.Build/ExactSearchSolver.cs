@@ -56,8 +56,28 @@ internal static class ExactSearchSolver
         string pattern,
         int minLength,
         int maxLength,
-        int maxLetters = 2)
+        int maxLetters = 2,
+        TimeSpan? timeout = null)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var deadline = timeout is { } t
+            ? started + (long)(t.TotalSeconds * System.Diagnostics.Stopwatch.Frequency)
+            : long.MaxValue;
+        if (timeout is { } immediate && immediate <= TimeSpan.Zero)
+        {
+            throw new TimeoutException(
+                $"exact solve exceeded {timeout?.TotalSeconds:0.#}s for {scope.Scope ?? "global"} / " +
+                pattern.Replace('\u0001', '#'));
+        }
+
+        bool TimedOut()
+        {
+            if (System.Diagnostics.Stopwatch.GetTimestamp() < deadline) return false;
+            throw new TimeoutException(
+                $"exact solve exceeded {timeout?.TotalSeconds:0.#}s for {scope.Scope ?? "global"} / " +
+                pattern.Replace('\u0001', '#'));
+        }
+
         var targets = scope.Targets(pattern);
         if (targets.Count == 0) return null;
         var foreignEntries = scope.Lines
@@ -74,8 +94,18 @@ internal static class ExactSearchSolver
         var negatives = SeedNegatives(pattern, targets, foreign);
         for (var iteration = 1; iteration <= 200; iteration++)
         {
-            var fragment = SolveOnce(
-                targets, negatives.ToList(), minLength, maxLength, maxLetters);
+            TimedOut();
+            string? fragment;
+            try
+            {
+                fragment = SolveOnce(
+                    targets, negatives.ToList(), minLength, maxLength, maxLetters, deadline, timeout);
+            }
+            catch (TimeoutException)
+            {
+                TimedOut();
+                throw;
+            }
             if (fragment is null) return null;
 
             var regex = new Regex(
@@ -158,7 +188,9 @@ internal static class ExactSearchSolver
         IReadOnlyList<string> negatives,
         int minLength,
         int maxLength,
-        int maxLetters)
+        int maxLetters,
+        long deadline,
+        TimeSpan? timeout)
     {
         var alphabet = targets
             .SelectMany(x => x.ToLowerInvariant())
@@ -230,8 +262,15 @@ internal static class ExactSearchSolver
             Token = "^",
         });
 
+        var dequeues = 0;
         while (queue.TryDequeue(out var node, out var priority))
         {
+            if ((++dequeues & 0x3FF) == 0 &&
+                System.Diagnostics.Stopwatch.GetTimestamp() >= deadline)
+            {
+                throw new TimeoutException(
+                    $"exact search exceeded {timeout?.TotalSeconds:0.#}s");
+            }
             if (priority >= bestGoalCost) break;
             if (node.Cost < minLength)
             {

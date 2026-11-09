@@ -168,6 +168,7 @@ public sealed class EngineService
         }
         var compact = Compact(pattern);
         var spaceless = FilterCandidates(_corpus.Mods
+            .Where(m => m.Source != "augment")
             .Where(m => m.StatLines.Any(s => Compact(s.Pattern) == compact))
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Select(m => m.Id)
@@ -178,6 +179,7 @@ public sealed class EngineService
         if (spaceless.Count > 0) return new ModMapping(spaceless, Approximate: true);
         var stems = WordStemGroups(canonicalLine);
         var wordy = FilterCandidates(_corpus.Mods
+            .Where(m => m.Source != "augment")
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Where(m => m.StatLines.Any(s => StemsMatch(stems, Compact(s.Pattern))))
             .Select(m => m.Id)
@@ -215,7 +217,9 @@ public sealed class EngineService
         string? classId, string pattern, IReadOnlyList<double> rolls,
         IReadOnlyList<(double Lo, double Hi)> ranges)
     {
-        var candidates = _corpus.ModsWithPattern(pattern);
+        var candidates = _corpus.ModsWithPattern(pattern)
+            .Where(m => m.Source != "augment")
+            .ToList();
         if (classId is not null)
             candidates = candidates
                 .Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();

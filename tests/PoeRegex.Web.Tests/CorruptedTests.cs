@@ -31,7 +31,7 @@ public class CorruptedTests
             .Should().HaveCount(17);
 
         var ordinary = Engine.PlayableMods()
-            .Where(m => m.Source != "corrupted")
+            .Where(m => m.Source is not ("corrupted" or "augment"))
             .ToList();
         foreach (var mod in corrupted)
         foreach (var line in mod.StatLines)

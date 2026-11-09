@@ -41,22 +41,22 @@ safe for both.
 ## Artifact coverage
 
 ```text
-422 families · 485 patterns · 1258 expanded scopes · 0 unresolved
+456 families · 519 patterns · 1360 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 485 |
-| Class | 464 |
-| Per-class | 309 |
+| Global | 519 |
+| Class | 518 |
+| Per-class | 323 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-379 global patterns · 21 classes · 1030 class fragments · 0 unresolved
+381 global patterns · 21 classes · 1081 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -68,7 +68,7 @@ Examples:
 | `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
-| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` |
+| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` |
 | `Always Hits` | One Hand Mace | `ay` |
 | `Crushes Enemies on Hit` | global | `shes` |
@@ -80,10 +80,10 @@ The strict pass is exact for the declared grammar and target display model
 
 ## Non-game class pruning
 
-Nine catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
+Ten catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
 `One Hand Sword`, `One Hand Axe`, `Two Hand Sword`, `Two Hand Axe`,
-`FishingRod`, `TrapTool`) are excluded from the in-game matrix, shipped table,
-global union, and proof. Their catalog entries remain for data fidelity. The
+`FishingRod`, `TrapTool`, `HiddenItem`) are excluded from the in-game matrix,
+shipped table, global union, and proof. Their catalog entries remain for data fidelity. The
 pruned artifacts exclude those classes from the in-game matrix, table, and
 proof; released classes keep their fragments. The global union,
 safety lines, and cross-line sections contain released classes only.
@@ -91,7 +91,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1672 / 1672 expanded scopes checked
+1894 / 1894 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -109,9 +109,9 @@ dotnet ... matrix-solve --from-scratch --jobs 4
 
 ```text
 runtime: local from-scratch run
-matrix:  422 families · 485 patterns · 1258 expanded scopes
-table:   379 global · 21 classes · 1030 class fragments
-proof:   1672 / 1672 · 0 failures
+matrix:  456 families · 519 patterns · 1360 expanded scopes
+table:   381 global · 21 classes · 1081 class fragments
+proof:   1894 / 1894 · 0 failures
 ```
 
 This from-scratch run is the basis for the shipped table. The shipped table
@@ -121,9 +121,9 @@ tie churn does not retire working strings. The diff report therefore lists
 only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
 reproduce that stability pass.
 
-- Expanded scopes: 1672 / 1672, all proven.
+- Expanded scopes: 1894 / 1894, all proven.
 - Chosen length: proven on every scope.
-- Table: 379 global patterns, 21 classes, 1030 class fragments, 0 unresolved.
+- Table: 381 global patterns, 21 classes, 1081 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -165,7 +165,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 | `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 13 |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 15 |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` | 12 |
-| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` | 9 |
+| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` | 18 |
 | `#% increased Armour` | global | `^\d.*d armour$` | 14 |
 | `#% increased Energy Shield` | global | `ed en.*d$` | 9 |
 | `+# to maximum Energy Shield` | global | `^\+.*gy` | 7 |

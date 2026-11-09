@@ -93,6 +93,32 @@ public static class RePoESchema
         [JsonPropertyName("drop_level")] public int DropLevel { get; init; }
     }
 
+    // ---- augments.json ----
+    public sealed class Augment
+    {
+        [JsonPropertyName("categories")] public required Dictionary<string, AugmentCategory> Categories { get; init; }
+        [JsonPropertyName("type_id")] public string? TypeId { get; init; }
+        [JsonPropertyName("type_name")] public string? TypeName { get; init; }
+        [JsonPropertyName("required_level")] public int RequiredLevel { get; init; }
+        [JsonPropertyName("limit")] public string? Limit { get; init; }
+    }
+
+    public sealed class AugmentCategory
+    {
+        /// <summary>String or array of target display names.</summary>
+        [JsonPropertyName("target")] public JsonElement Target { get; init; }
+        [JsonPropertyName("stats")] public List<AugmentStat>? Stats { get; init; }
+        [JsonPropertyName("stat_text")] public List<string>? StatText { get; init; }
+        [JsonPropertyName("bonded_stats")] public List<AugmentStat>? BondedStats { get; init; }
+        [JsonPropertyName("bonded_stat_text")] public List<string>? BondedStatText { get; init; }
+    }
+
+    public sealed class AugmentStat
+    {
+        [JsonPropertyName("id")] public required string Id { get; init; }
+        [JsonPropertyName("local")] public bool Local { get; init; }
+    }
+
     public sealed class BaseRequirements
     {
         [JsonPropertyName("level")] public int Level { get; init; }
@@ -158,6 +184,21 @@ public static class RePoEJson
             var item = prop.Value.Deserialize<RePoESchema.BaseItem>(Options);
             if (item is null) continue;
             result[prop.Name] = item;
+        }
+        return result;
+    }
+
+    /// <summary>Loads augments.json (dict keyed by metadata path).</summary>
+    public static Dictionary<string, RePoESchema.Augment> LoadAugments(string path)
+    {
+        var json = File.ReadAllText(path);
+        using var doc = JsonDocument.Parse(json);
+        var result = new Dictionary<string, RePoESchema.Augment>();
+        foreach (var prop in doc.RootElement.EnumerateObject())
+        {
+            var augment = prop.Value.Deserialize<RePoESchema.Augment>(Options);
+            if (augment is null) continue;
+            result[prop.Name] = augment;
         }
         return result;
     }

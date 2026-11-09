@@ -107,12 +107,15 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsCorrupted => Source == "corrupted";
 
+    public bool IsAugment => Source == "augment";
+
     /// <summary>CSS class for the source tag; empty for normal families.</summary>
     public string SourceCssClass => Source switch
     {
         "desecrated" => "source-desecrated",
         "implicit" => "source-implicit",
         "corrupted" => "source-corrupted",
+        "augment" => "source-augment",
         _ => "",
     };
 
@@ -151,6 +154,9 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
+        "augment" => string.Join(" · ",
+            new[] { Anchor.AugmentType, Anchor.AugmentTarget }
+                .Where(x => !string.IsNullOrWhiteSpace(x))),
         _ => null,
     };
 
@@ -196,7 +202,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) =>
-        Source is "desecrated" or "implicit" or "corrupted"
+        Source is "desecrated" or "implicit" or "corrupted" or "augment"
             ? []
             : Tiers
                 .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
@@ -231,7 +237,12 @@ public static class ModFamilies
             return mod.Source + ":" + string.Join("\u0001", patterns);
         }
         var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
-        return mod.Source == "desecrated" ? "desecrated:" + key : key;
+        return mod.Source switch
+        {
+            "desecrated" => "desecrated:" + key,
+            "augment" => "augment:" + key,
+            _ => key,
+        };
     }
 
     /// <summary>
@@ -343,7 +354,8 @@ public static class ModFamilies
         "suffix" => 1,
         "implicit" => 2,
         "corrupted" => 3,
-        _ => 4,
+        "augment" => 4,
+        _ => 5,
     };
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
@@ -396,6 +408,10 @@ public static class ModFamilies
 
     private static string UnionKeyOf(ModFamily family)
     {
+        // Augment families are already keyed by rune family + target. Merging
+        // them across the All-gear union would collapse different runes or
+        // target categories that happen to share a stat pattern.
+        if (family.IsAugment) return "union:augment:" + family.Key;
         var patterns = family.Members
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)

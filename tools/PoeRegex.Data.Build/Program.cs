@@ -17,7 +17,8 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- matrix-status [--check --check-shortest]
 ///   dotnet run -- solve-exact --pattern "#% increased maximum Life"
 ///   dotnet run -- probe --pattern "#% increased maximum Life" --fragment "fe$"
-///   dotnet run -- fetch
+///   dotnet run -- fetch [--refresh]
+///   dotnet run -- data-audit [--check] [--out report.md]
 /// </summary>
 public static class Program
 {
@@ -49,6 +50,7 @@ public static class Program
                 "solve-exact" => SolveExact(args[1..]),
                 "probe" => Probe(args[1..]),
                 "fetch" => Fetch(args[1..]),
+                "data-audit" => DataAudit.Run(args[1..]),
                 _ => Usage(args[0]),
             };
         }
@@ -61,7 +63,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit");
         return 2;
     }
 
@@ -116,9 +118,10 @@ public static class Program
         var proof = GetValue(opts, "--proof", ProofPath);
         var status = GetValue(opts, "--status", StatusPath);
         var prefer = opts.TryGetValue("--prefer", out var preferPath) ? preferPath : "";
+        var timeout = GetValue(opts, "--timeout", "120");
 
         var common = new[] { "--catalog", catalog };
-        var matrixArgs = common.Concat(new[] { "--jobs", jobs, "--out", matrix });
+        var matrixArgs = common.Concat(new[] { "--jobs", jobs, "--timeout", timeout, "--out", matrix });
         if (opts.ContainsKey("--from-scratch"))
             matrixArgs = matrixArgs.Append("--from-scratch");
         var code = CandidateMatrix.Run(matrixArgs.ToArray());
@@ -316,6 +319,7 @@ public static class Program
         var scope = opts.TryGetValue("--scope", out var value) ? value : null;
         var min = int.TryParse(GetValue(opts, "--min", "3"), out var mn) ? mn : 3;
         var max = int.TryParse(GetValue(opts, "--max", "48"), out var mx) ? mx : 48;
+        var timeoutSeconds = int.TryParse(GetValue(opts, "--timeout", "60"), out var ts) && ts > 0 ? ts : 60;
         if (string.IsNullOrEmpty(pattern))
         {
             Console.Error.WriteLine("solve-exact requires --pattern");
@@ -324,7 +328,8 @@ public static class Program
         var catalog = new FileCatalogSource(catalogPath).Load();
         var corpus = new EngineCorpus(catalog);
         var result = ExactSearchSolver.Solve(
-            ScopeCorpus.Build(corpus, scope), pattern, min, max);
+            ScopeCorpus.Build(corpus, scope), pattern, min, max,
+            timeout: TimeSpan.FromSeconds(timeoutSeconds));
         if (result is null)
         {
             Console.WriteLine("none");
@@ -386,42 +391,89 @@ public static class Program
     {
         var opts = ParseOptions(args);
         var outDir = GetValue(opts, "--out", "data/raw/poe2");
-        const string baseUrl = "https://repoe-fork.github.io/poe2";
-        var files = new List<(string Url, string File)>
+        var manifestPath = GetValue(opts, "--manifest", "data/repoe.manifest.json");
+        var snapshotPath = GetValue(opts, "--snapshot", "data/repoe.snapshot.json");
+        var refresh = opts.ContainsKey("--refresh");
+
+        if (!File.Exists(manifestPath))
         {
-            ($"{baseUrl}/mods.min.json", "mods.min.json"),
-            ($"{baseUrl}/base_items.min.json", "base_items.min.json"),
-            ($"{baseUrl}/item_classes.min.json", "item_classes.min.json"),
-            ($"{baseUrl}/mods_by_base.min.json", "mods_by_base.min.json"),
-            ($"{baseUrl}/stat_value_handlers.min.json", "stat_value_handlers.min.json"),
-            ($"{baseUrl}/stat_translations/stat_descriptions.min.json", "stat_descriptions.min.json"),
-            ($"{baseUrl}/stat_translations/advanced_mod_stat_descriptions.min.json", "advanced_mod_stat_descriptions.min.json"),
-            ($"{baseUrl}/stats_by_file.min.json", "stats_by_file.min.json"),
-        };
+            Console.Error.WriteLine($"manifest not found: {manifestPath}");
+            return 1;
+        }
+
+        using var manifestDoc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var export = manifestDoc.RootElement.GetProperty("exports")
+            .EnumerateArray()
+            .FirstOrDefault(e => e.GetProperty("id").GetString() == "poe2");
+        if (export.ValueKind == JsonValueKind.Undefined)
+        {
+            Console.Error.WriteLine("manifest has no poe2 export");
+            return 1;
+        }
+
+        var baseUrl = export.GetProperty("baseUrl").GetString()!.TrimEnd('/');
+        var files = export.GetProperty("entries")
+            .EnumerateArray()
+            .Where(e => e.GetProperty("status").GetString() == "used")
+            .Select(e => e.GetProperty("path").GetString()!)
+            .OrderBy(p => p, StringComparer.Ordinal)
+            .ToList();
 
         Directory.CreateDirectory(outDir);
         using var client = new HttpClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("PoeRegex.Data.Build/0.1");
-        foreach (var (url, file) in files)
+        var snapshotFiles = new List<(string Path, long Bytes, string Sha256)>();
+        var failures = 0;
+        foreach (var file in files)
         {
             var dest = Path.Combine(outDir, file);
-            if (File.Exists(dest))
+            if (File.Exists(dest) && !refresh)
             {
                 Console.WriteLine($"  skip {file} (exists)");
-                continue;
             }
-            Console.Write($"  download {file} ... ");
-            var resp = client.GetAsync(url).GetAwaiter().GetResult();
-            if (!resp.IsSuccessStatusCode)
+            else
             {
-                Console.WriteLine($"FAILED ({resp.StatusCode})");
-                continue;
+                Console.Write($"  download {file} ... ");
+                var url = $"{baseUrl}/{file}";
+                using var resp = client.GetAsync(url).GetAwaiter().GetResult();
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"FAILED ({resp.StatusCode})");
+                    failures++;
+                    continue;
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                var bytes = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                File.WriteAllBytes(dest, bytes);
+                Console.WriteLine($"ok ({bytes.Length / 1024} KiB)");
             }
-            File.WriteAllBytes(dest, resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult());
-            Console.WriteLine($"ok ({new FileInfo(dest).Length / 1024} KiB)");
+
+            var data = File.ReadAllBytes(dest);
+            snapshotFiles.Add((file, data.Length, Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(data)).ToLowerInvariant()));
         }
-        Console.WriteLine("done");
-        return 0;
+
+        var downloadedAt = DateTime.UtcNow;
+        var snapshot = new
+        {
+            game = "poe2",
+            export = "poe2",
+            downloadedAt = downloadedAt.ToString("O"),
+            dataVersion = downloadedAt.ToString("yyyy-MM-dd"),
+            source = baseUrl,
+            files = snapshotFiles.Select(f => new
+            {
+                path = f.Path,
+                bytes = f.Bytes,
+                sha256 = f.Sha256,
+            }).ToList(),
+        };
+        Directory.CreateDirectory(Path.GetDirectoryName(snapshotPath)!);
+        File.WriteAllText(snapshotPath,
+            JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        Console.WriteLine($"  snapshot {snapshotPath} ({snapshotFiles.Count} files)");
+        Console.WriteLine(failures == 0 ? "done" : $"done with {failures} failure(s)");
+        return failures == 0 ? 0 : 1;
     }
 
     private static Dictionary<string, string> ParseOptions(string[] args)

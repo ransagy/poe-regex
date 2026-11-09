@@ -52,6 +52,11 @@ public static class CandidateMatrix
                    requestedJobs > 0
             ? requestedJobs
             : Environment.ProcessorCount;
+        var timeoutSeconds = int.TryParse(GetValue(opts, "--timeout", "120"), out var requestedTimeout) &&
+                             requestedTimeout > 0
+            ? requestedTimeout
+            : 120;
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
         var catalog = new FileCatalogSource(catalogPath).Load();
         var corpus = new EngineCorpus(catalog);
@@ -124,8 +129,21 @@ public static class CandidateMatrix
                 // new source added a same-worded line) is not a candidate.
                 var reusableCurrent = currentOption is { ForeignLines: 0 } ? currentOption : null;
                 var minimum = scope is null ? 3 : 2;
-                var maximum = reusableCurrent is not null ? current.Length - 1 : 250;
-                var solved = ExactOracle.Solve(scopeCorpus, pattern, minimum, maximum);
+                // Search in increasing length bands. Starting at 48 avoids
+                // building a 250-token frontier for patterns whose shortest
+                // form is short (the old single 250 bound could spend a very
+                // long time enqueueing states that are never used). The first
+                // band that finds a solution is the globally shortest one.
+                var bands = reusableCurrent is not null
+                    ? new[] { current.Length - 1 }
+                    : new[] { 48, 96, 160, 250 };
+                MatrixOption? solved = null;
+                foreach (var maximum in bands)
+                {
+                    if (maximum < minimum) continue;
+                    solved = ExactOracle.Solve(scopeCorpus, pattern, minimum, maximum, timeout);
+                    if (solved is not null) break;
+                }
                 var chosen = solved ?? reusableCurrent;
                 var coverage = chosen is null
                     ? "none"

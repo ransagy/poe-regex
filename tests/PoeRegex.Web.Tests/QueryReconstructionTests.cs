@@ -205,9 +205,9 @@ public class QueryReconstructionTests
     [Fact]
     public void DuplicateExclusions_RoundTripAndApply()
     {
-        // Two distinct mods compile to the same `!"o Ar"`; both must survive.
+        // Two distinct corrupted mods compile to the same `!"\) ch.*e$"`; both must survive.
         const string query =
-            "\"\\) co.*e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"o Ar\" !\"o Ar\"";
+            "\"ds.*d .+e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"\\) ch.*e$\" !\"\\) ch.*e$\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 

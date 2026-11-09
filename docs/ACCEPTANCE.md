@@ -92,8 +92,9 @@ The exact-table proof is complete for the modeled corpus plus the captured
 safety fixtures. Desecrated item affixes, implicit-only base families, and
 corrupted enchantments are modeled; PoE1 `crafted` leftovers are excluded, and
 PoE2's actual crafted jewel mods are not modeled. Unmodeled unique/rare names, unique-only text,
-flavour, augments/bonded text, and some socketable/base text can still make an
-item highlight. This is accepted and out of scope; therefore there are **no
+flavour, special/transformative augment text, bonded text, and some
+socketable/base text can still make an item highlight. Basic tiered rune
+effects are modeled in the picker. This is accepted and out of scope; therefore there are **no
 manual in-game acceptance checks**.
 
 ## Accepted limitations

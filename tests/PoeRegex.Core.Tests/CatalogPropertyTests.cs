@@ -188,7 +188,7 @@ public class CatalogPropertyTests
 
         // The local "% increased Physical Damage" family (Heavy … Merciless).
         catalog.Mods
-            .Where(m => m.Classes.Contains("Two Hand Sword"))
+            .Where(m => m.Classes.Contains("One Hand Mace"))
             .SelectMany(m => m.StatLines)
             .Should().Contain(sl => sl.RangeLine.Contains("increased Physical Damage"));
 

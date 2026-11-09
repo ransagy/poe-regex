@@ -29,7 +29,7 @@ public class ImplicitTests
             .Should().HaveCount(85);
 
         var ordinary = Engine.PlayableMods()
-            .Where(m => m.Source != "implicit")
+            .Where(m => m.Source is not ("implicit" or "augment"))
             .ToList();
         foreach (var mod in implicitMods)
         foreach (var line in mod.StatLines)

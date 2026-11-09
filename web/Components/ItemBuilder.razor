@@ -189,7 +189,12 @@
     {
         // Chosen mods stay in the list (their + disables via CanAdd) so the
         // families and tiers never shift while assembling.
-        var all = ModFamilies.CachedGroup(Engine.ModsForClass(_classId));
+        // Socketable augments are a separate source and are not normal
+        // prefixes/suffixes; keep them out of the assembler until the socket
+        // model exists.
+        var all = ModFamilies.CachedGroup(Engine.ModsForClass(_classId))
+            .Where(f => !f.IsAugment)
+            .ToList();
         var filter = _search.Trim();
         _families = filter.Length == 0
             ? all

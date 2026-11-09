@@ -22,6 +22,14 @@ Do not merge until every applicable gate is green. Do not run
     tags, a base `implicits` link, or another explicit PoE2-only source.
   - Do not infer a normal-equipment category from a bare domain label
     (`crafted` is PoE1 legacy in the current export).
+- [ ] Run the RePoE inventory audit and classify any new export file before
+  using it:
+
+  ```sh
+  dotnet run --project tools/PoeRegex.Data.Build -- data-audit --check \
+    --out /tmp/opencode/repoe-audit.md
+  ```
+
 - [ ] Record the raw `dataVersion` and the affected item classes.
 - [ ] Update the coverage backlog and any changed limitations in
   [`WORKPLAN.md`](WORKPLAN.md), [`IMPORT.md`](IMPORT.md), and
@@ -47,12 +55,19 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   dotnet run --project tools/PoeRegex.Data.Build -- corpus
   ```
 
+  For a full RePoE refresh, first run
+  `dotnet run --project tools/PoeRegex.Data.Build -- fetch --refresh` and
+  regenerate all raw inputs together; do not mix a new file with the previous
+  snapshot. The manual **data-audit** workflow is the remote check; the local
+  command above remains the release gate.
+
 - [ ] Regenerate the exact table with a stability pass against the shipped
   table:
 
   ```sh
   dotnet run --project tools/PoeRegex.Data.Build -- matrix-solve \
-    --from-scratch --prefer /tmp/opencode/poe2.fragments.main.json --jobs 8
+    --from-scratch --prefer /tmp/opencode/poe2.fragments.main.json \
+    --jobs 2 --timeout 60
   ```
 
 - [ ] Verify the proof/status:
