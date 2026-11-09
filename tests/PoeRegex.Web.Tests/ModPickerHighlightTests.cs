@@ -45,6 +45,63 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void Search_HidesSourcedDuplicatesWithTheSameFragment()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Body Armour");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+        var cut = Render(ctx, state, mods, "body");
+
+        const string display = "% increased Mana Regeneration Rate";
+        var families = ModFamilies.Group(mods)
+            .Where(f => f.DisplayText == display)
+            .ToList();
+        var implicitFamily = families.Single(f => f.Source == "implicit");
+        var augmentFamily = families.Single(f => f.Source == "augment");
+
+        cut.Find("#mod-search").Input("mana regeneration rate");
+        cut.FindAll($"[id='pick-inc-{implicitFamily.Anchor.Id}']").Should().ContainSingle();
+        cut.FindAll($"[id='pick-inc-{augmentFamily.Anchor.Id}']").Should().BeEmpty(
+            "the rune and the implicit compile to the same fragment");
+        var texts = cut.FindAll(".fam-text").Select(e => e.TextContent.Trim()).ToList();
+        texts.Count(t => t.EndsWith(display, StringComparison.Ordinal)).Should().Be(1,
+            "the implicit family is collapsed to its tier line and the augment duplicate is hidden");
+
+        cut.Find("#mod-search").Input("inspiration");
+        cut.FindAll($"[id='pick-inc-{augmentFamily.Anchor.Id}']").Should().ContainSingle(
+            "a rune-name search must still find the augment when the implicit does not match");
+    }
+
+    [Fact]
+    public void GlobalManaRegeneration_SearchShowsOneNormalRow()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.PlayableMods();
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods);
+
+        cut.Find("#mod-search").Input("mana regeneration rate");
+
+        const string display = "% increased Mana Regeneration Rate";
+        var families = ModFamilies.Group(mods)
+            .Where(f => f.DisplayText == display)
+            .ToList();
+        var normal = families.Single(f => f.Source == "");
+        var duplicates = families
+            .Where(f => f.Source is "implicit" or "corrupted" or "desecrated" or "augment")
+            .ToList();
+
+        cut.FindAll($"[id='pick-inc-{normal.Anchor.Id}']").Should().ContainSingle();
+        foreach (var duplicate in duplicates)
+            cut.FindAll($"[id='pick-inc-{duplicate.Anchor.Id}']").Should().BeEmpty(
+                $"{duplicate.Source} duplicates the normal family's fragment");
+    }
+
+    [Fact]
     public void DesecratedFamily_ShowsPlainGreenSourceText()
     {
         using var ctx = Context();

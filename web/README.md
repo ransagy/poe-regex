@@ -161,8 +161,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   Weapon / Wand or Staff target tag; its tier rows show the rune name and
   value for reference, and the family `+` selects the effect across tiers;
   augments are not in the default common shortlist and appear when searched
-  or after `Show all N mods`; before typing, the curated common shortlist
-  shows under a `Common picks · N shown` line (the filter placeholder is `Search mods…`;
+  or after `Show all mods`; a sourced row whose stat shape and fragment match
+  a higher-priority row is collapsed (normal, then implicit, corrupted,
+  desecrated, augment), while a rune-name search still shows the augment row
+  when the normal family does not match; before typing, the curated common
+  shortlist shows under a `Common picks · N shown` line (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk

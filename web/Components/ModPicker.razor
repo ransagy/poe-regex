@@ -40,9 +40,9 @@
             @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
             {
                 <div class="mod-scope">
-                    <span>@(_showAll ? $"All {_allFamilies.Count} mods" : $"Common picks · {CommonCount} shown")</span>
+                    <span>@(_showAll ? $"All {_families.Count} mods" : $"Common picks · {CommonCount} shown")</span>
                     <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
-                        @(_showAll ? "Show common only" : $"Show all {_allFamilies.Count} mods")
+                        @(_showAll ? "Show common only" : "Show all mods")
                     </button>
                 </div>
             }
@@ -329,6 +329,11 @@
                 .Where(f => f is not null)
                 .Select(f => f!)
                 .ToList();
+        // The source variant is only noise when the same displayed shape and
+        // fragment are already present. Search first, so a rune-name hit (where
+        // the normal family is absent) still keeps the augment row.
+        _families = ModFamilies.DedupeSources(
+            _families, f => Engine.PickFragment(f.Pick(), ScopeClassId));
         var shown = filter.Length == 0 ? _families : _families.Take(MaxShown).ToList();
         _augments = shown.Where(f => f.IsAugment).ToList();
         _implicits = shown.Where(f => f.IsImplicit).ToList();
