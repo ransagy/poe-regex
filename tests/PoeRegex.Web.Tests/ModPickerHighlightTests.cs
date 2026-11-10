@@ -61,8 +61,9 @@ public class ModPickerHighlightTests
         cut.Find("#mod-search").Input("of Ulaman");
 
         var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
-        row.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().Be("Ulaman");
+        var status = row.QuerySelector(".fam-status")!;
+        status.LastElementChild!.ClassList.Should().Contain("mod-source");
+        status.LastElementChild!.TextContent.Trim().Should().Be("Ulaman");
         row.QuerySelector(".fam-text .mod-source").Should().BeNull(
             "the source tag belongs in the row's tag cluster, not inside the stat text");
         row.QuerySelector(".fam-caret").Should().BeNull(
@@ -242,6 +243,11 @@ public class ModPickerHighlightTests
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.QuerySelectorAll(".state-badge").Should().BeEmpty();
         coveredRow.TextContent.Should().Contain("≥ covered");
+        var rightOrder = coveredRow.QuerySelectorAll(".covered-note, .tier-name").ToList();
+        rightOrder.Should().HaveCount(2);
+        rightOrder[0].ClassList.Should().Contain("covered-note");
+        rightOrder[1].ClassList.Should().Contain("tier-name",
+            "the tier name is the rightmost text before the actions");
 
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeTrue();

@@ -228,6 +228,15 @@ public class AugmentTests
             .Add(x => x.Mods, mods));
 
         cut.Find("#mod-search").Input("stone");
+        var row = cut.Find($"[id='pick-inc-{family.Anchor.Id}']").ParentElement!;
+        var status = row.QuerySelector(".fam-status")!;
+        status.LastElementChild!.ClassList.Should().Contain("mod-source");
+        status.LastElementChild!.TextContent.Trim().Should().Be("Rune · Armour");
+        row.QuerySelector(".fam-toggle .mod-source").Should().BeNull(
+            "the rune target tag belongs in the right-aligned metadata");
+        row.QuerySelector(".fam-toggle .tier-count").Should().NotBeNull(
+            "the tier count stays with the mod text");
+
         cut.Find($"[id='fam-toggle-{family.Anchor.Id}']").Click();
         cut.FindAll($"[id='pick-tier-{family.Tiers[0].Anchor.Id}']").Should().BeEmpty(
             "basic-rune tiers are display-only; the family + selects the effect");

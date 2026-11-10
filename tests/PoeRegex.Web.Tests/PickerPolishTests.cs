@@ -347,9 +347,18 @@ public class PickerPolishTests
             .Add(x => x.State, state)
             .Add(x => x.Mods, engine.PlayableMods()));
 
-        var row = cut.Find($"#fam-toggle-{tier.Anchor.Id}").ParentElement!;
+        var toggle = cut.Find($"#fam-toggle-{tier.Anchor.Id}");
+        var row = toggle.ParentElement!;
         row.ClassList.Should().NotContain("has-tier");
         row.TextContent.Should().Contain("1 picked");
-        row.QuerySelector(".picked-count").Should().NotBeNull();
+
+        var status = row.QuerySelector(".fam-status")!;
+        status.QuerySelector(".picked-count").Should().NotBeNull();
+        toggle.QuerySelector(".picked-count").Should().BeNull(
+            "status notes stay outside the expand toggle");
+        toggle.QuerySelector(".tier-count").Should().NotBeNull(
+            "the tier count stays with the mod text");
+        status.NextElementSibling!.Id.Should().Be($"pick-inc-{family.Anchor.Id}",
+            "the status group sits immediately before the actions");
     }
 }

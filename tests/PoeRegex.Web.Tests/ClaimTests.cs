@@ -241,7 +241,12 @@ public class ClaimTests
 
         var covered = cut.Find($"[id='pick-inc-{kurgal.Anchor.Id}']");
         covered.GetAttribute("title")!.Should().Contain("Use ⇄ to switch");
-        covered.ParentElement!.QuerySelector(".covered-note")!.TextContent.Should().Be("covered");
+        var right = covered.ParentElement!.QuerySelector(".fam-status")!;
+        var order = right.QuerySelectorAll(".covered-note, .mod-source").ToList();
+        order.Should().HaveCount(2);
+        order[0].ClassList.Should().Contain("covered-note");
+        order[1].ClassList.Should().Contain("mod-source");
+        right.QuerySelector(".covered-note")!.TextContent.Should().Be("covered");
     }
 
     [Fact]

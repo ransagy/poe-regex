@@ -143,11 +143,12 @@
                                                         }
                                                     }
                                                 </span>
-                                                @if (displayTag is not null)
-                                                {
-                                                    <span class="mod-source @fam.SourceCssClass">@displayTag</span>
-                                                }
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
+                                            </button>
+                                        }
+                                        @if (coveredClaim || pickedTiers > 0 || excludedTiers > 0 || displayTag is not null)
+                                        {
+                                            <span class="fam-status">
                                                 @if (coveredClaim)
                                                 {
                                                     <span class="covered-note" title="@CoveredTitle(coveredClaimLabel)">covered</span>
@@ -164,18 +165,11 @@
                                                 {
                                                     <span class="excluded-count" title="@($"{excludedTiers} {(excludedTiers == 1 ? "tier" : "tiers")} excluded in this family")">@excludedTiers excluded</span>
                                                 }
-                                            </button>
-                                        }
-                                        @if (collapsed)
-                                        {
-                                            @if (displayTag is not null)
-                                            {
-                                                <span class="mod-source @fam.SourceCssClass">@displayTag</span>
-                                            }
-                                            @if (coveredClaim)
-                                            {
-                                                <span class="covered-note" title="@CoveredTitle(coveredClaimLabel)">covered</span>
-                                            }
+                                                @if (displayTag is not null)
+                                                {
+                                                    <span class="mod-source @fam.SourceCssClass">@displayTag</span>
+                                                }
+                                            </span>
                                         }
                                         <button id="pick-inc-@fam.Anchor.Id" class="inc @(familyClaimed ? "active" : "") @(coveredClaim ? "switch" : "")"
                                                 title="@FamilyIncludeActionTitle(fam, familyClaimed, coveredClaimLabel)"
@@ -229,7 +223,6 @@
                                                             <span class="mod-line">@l</span>
                                                         }
                                                     </span>
-                                                    <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (tierCoveredClaim)
                                                     {
                                                         <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
@@ -238,6 +231,7 @@
                                                     {
                                                         <span class="covered-note" title="@coveredHint">≥ covered</span>
                                                     }
+                                                    <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (!fam.IsAugment)
                                                     {
                                                         <button id="pick-tier-@tier.Anchor.Id" class="inc @(tierClaimedHere ? "active" : "") @(tierCoveredClaim ? "switch" : "")"

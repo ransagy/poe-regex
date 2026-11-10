@@ -441,6 +441,11 @@ input:disabled { opacity: 0.5; }
 .suggest-row.fam-row.picked.excluded, .suggest-row.tier-row.picked.excluded {
     background: linear-gradient(90deg, var(--mod-soft), var(--no-soft));
 }
+.fam-status {
+    display: flex; align-items: baseline; gap: 0.45rem;
+    flex: none; margin-left: auto; white-space: nowrap;
+}
+.fam-status .mod-source { margin-right: 0; }
 .picked-count { flex: none; color: var(--ember); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
 .excluded-count { flex: none; color: var(--no); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
 .summary-sep { flex: none; color: var(--faint); }
