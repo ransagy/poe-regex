@@ -162,8 +162,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   value for reference, and the family `+` selects the effect across tiers;
   duplicate rune effects already covered by a normal, desecrated, implicit or
   corrupted family are removed at data build, so Augments shows unique effects
-  only; augments are not in the default common shortlist and appear when
-  searched or after `Show all mods`; mods and tiers that compile to the same
+  only; the All-gear union additionally omits a rune family when one
+  non-augment family covers all of its patterns, while per-slot views keep the
+  rune where it is the only source; augments are not in the default common
+  shortlist and appear when searched or after `Show all mods`; mods and tiers
+  that compile to the same
   positive query share one selection: selecting one leaves the others visible
   as `covered` rows, and their `⇄` button switches to that mod instead of
   adding a second chip; an always-visible color-coded glyph legend under the

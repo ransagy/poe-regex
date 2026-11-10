@@ -360,6 +360,22 @@ public static class ModFamilies
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
     {
+        // The All-gear union combines every class, so a rune that was kept
+        // for one class can be redundant with a normal, implicit, corrupted
+        // or desecrated family from another class. A rune is safe to omit
+        // only when one non-augment family covers every one of its patterns;
+        // if the patterns are split across rows, keep it so its combined
+        // query remains selectable. Per-slot views still show the rune where
+        // it is the only source.
+        var nonAugmentPatterns = families
+            .Where(f => !f.IsAugment)
+            .Select(f => f.Members
+                .SelectMany(m => m.StatLines)
+                .Select(sl => sl.Pattern)
+                .ToHashSet(StringComparer.Ordinal))
+            .Where(patterns => patterns.Count > 0)
+            .ToList();
+
         var result = new List<ModFamily>();
         foreach (var group in families
                      .GroupBy(UnionKeyOf)
@@ -395,13 +411,24 @@ public static class ModFamilies
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
                 .ToList();
-            result.Add(new ModFamily(group.Key, group.First().IsPrefix, tiers)
+            var union = new ModFamily(group.Key, group.First().IsPrefix, tiers)
             {
                 Source = group.First().Source,
                 Kind = group.First().Kind,
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
-            });
+            };
+            if (union.IsAugment)
+            {
+                var patterns = union.Members
+                    .SelectMany(m => m.StatLines)
+                    .Select(sl => sl.Pattern)
+                    .ToHashSet(StringComparer.Ordinal);
+                if (patterns.Count > 0 &&
+                    nonAugmentPatterns.Any(covered => patterns.IsSubsetOf(covered)))
+                    continue;
+            }
+            result.Add(union);
         }
         return result;
     }

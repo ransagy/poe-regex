@@ -55,7 +55,11 @@ least one of its effect patterns is not already represented by a normal,
 desecrated, implicit or corrupted family. All tiers of a kept rune family are
 kept together. The filter is family-aware, not tier-row-by-tier-row. Of the 63
 basic tiered runes, 14 unique effect families (55 target rows) remain in the
-catalog; the vendor/safety corpus still carries every raw augment line.
+catalog; the vendor/safety corpus still carries every raw augment line. The
+All-gear union applies the same rule across classes: a rune family is omitted
+when one non-augment family covers every one of its patterns. Per-slot views
+still show the rune where it is the only source, so the union keeps only the
+two globally unique effects.
 
 ## PoB files
 

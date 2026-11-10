@@ -115,6 +115,99 @@ public class AugmentTests
     }
 
     [Fact]
+    public void AllGearUnion_HidesOnlyAugmentsAlreadyCoveredByOneFamily()
+    {
+        var all = Engine.PlayableMods();
+        var raw = ModFamilies.Group(all);
+        var union = ModFamilies.Group(all, union: true);
+
+        var rawAugments = raw.Where(f => f.IsAugment).ToList();
+        rawAugments.Should().HaveCount(14);
+        union.Where(f => f.IsAugment).Should().HaveCount(2,
+            "only rune effects that no other family can express belong in the All-gear union");
+
+        var nonAugment = union.Where(f => !f.IsAugment).ToList();
+        foreach (var augment in rawAugments)
+        {
+            var patterns = PatternSet(augment);
+            var covering = nonAugment
+                .Where(f => PatternSet(f).IsSupersetOf(patterns))
+                .ToList();
+            var unionAugment = union.FirstOrDefault(f => f.IsAugment &&
+                f.Members.Any(m => m.Id == augment.Anchor.Id));
+            var augmentQuery = Engine.CompilePicks([augment.Pick()], [], false, null).Query;
+
+            if (covering.Count == 0)
+            {
+                unionAugment.Should().NotBeNull(
+                    $"{augment.Key} has no single non-augment row that covers its patterns");
+            }
+            else
+            {
+                unionAugment.Should().BeNull($"{augment.Key} is redundant in the All-gear union");
+                covering.Select(f => Engine.CompilePicks([f.Pick()], [], false, null).Query)
+                    .Should().Contain(augmentQuery,
+                        $"{augment.Key} is only safe to hide when a visible row compiles the same query");
+            }
+        }
+    }
+
+    [Fact]
+    public void PerSlotViews_KeepAugmentsThatAreUniqueForTheirClass()
+    {
+        var bow = ModFamilies.Group(Engine.ModsForClass("Bow"));
+        bow.Should().Contain(f => f.IsAugment &&
+            f.Members.Any(m => m.Family == "rune:Stone Rune:martial-weapon"));
+
+        var helmet = ModFamilies.Group(Engine.ModsForClass("Helmet"));
+        helmet.Should().Contain(f => f.IsAugment &&
+            f.Members.Any(m => m.Family == "rune:Stone Rune:armour"));
+    }
+
+    [Fact]
+    public void AllGearPicker_SearchStun_KeepsTheDistinctRune()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddSingleton(Engine);
+        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        var state = new WorkbenchState();
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Mods, Engine.PlayableMods()));
+
+        cut.Find("#mod-search").Input("stun");
+        var stunBuildup = cut.FindAll(".fam-row")
+            .Where(r => r.QuerySelector(".fam-text")?.TextContent.Trim() ==
+                        "Causes % increased Stun Buildup")
+            .ToList();
+        stunBuildup.Should().ContainSingle(
+            "the normal suffix and the Stone Rune share one query");
+        stunBuildup[0].QuerySelector(".mod-source").Should().BeNull(
+            "the retained row is the normal suffix, not the rune");
+
+        cut.FindAll(".fam-row .fam-text")
+            .Select(e => e.TextContent.Trim())
+            .Should().Contain("Gain additional Stun Threshold equal to % of maximum Energy Shield",
+                "the Wand/Staff Stone Rune effect has no normal-family equivalent");
+
+        cut.Find("#mod-search").Input("flask");
+        var vision = cut.FindAll(".fam-row").Single(r =>
+            r.QuerySelector(".fam-text")?.TextContent.Trim() ==
+            "% increased Life and Mana Recovery from Flasks");
+        vision.QuerySelector(".mod-source")?.TextContent.Trim().Should().Be("Rune · Armour",
+            "the Vision Rune effect has no normal-family equivalent");
+    }
+
+    private static HashSet<string> PatternSet(ModFamily family) =>
+        family.Members
+            .SelectMany(m => m.StatLines)
+            .Select(line => line.Pattern)
+            .ToHashSet(StringComparer.Ordinal);
+
+    [Fact]
     public void AugmentTierRows_HaveNoExactTierControls()
     {
         using var ctx = new BunitContext();

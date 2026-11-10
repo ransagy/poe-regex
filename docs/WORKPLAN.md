@@ -33,7 +33,11 @@ Current planned and parked work. Behavior is documented in
   (55 target rows). They render in a dedicated **Augments** section with a
   Rune source tag and an Armour / Martial Weapon / Wand or Staff target tag;
   the export's target category controls which item classes can carry each
-  effect. Attribute runes (the `All Equipment` target), special/transformative
+  effect. In the All-gear union, a rune family is omitted when one
+  non-augment family covers every one of its effect patterns; per-slot views
+  keep it where it is the only source, so the union shows only the two
+  globally unique effects (Stone Rune Wand/Staff and Vision Rune Armour).
+  Attribute runes (the `All Equipment` target), special/transformative
   augments, Soul Cores, Idols, Abyssal Eyes, bonded stats, and a socket model
   remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
@@ -46,7 +50,7 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tests: 111 core, 399 web, 34 data-build; local suites green.
+- Tests: 111 core, 402 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
