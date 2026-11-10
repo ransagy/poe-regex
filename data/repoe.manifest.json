@@ -1,0 +1,1321 @@
+{
+  "game": "poe2",
+  "lastAudited": "2026-11-09",
+  "notes": "Inventory of RePoE hosts. used = fetched by tools/PoeRegex.Data.Build fetch. cross-check = development reference only, never shipped. known-unused/not-relevant must still be classified, not silently ignored.",
+  "exports": [
+    {
+      "id": "poe2",
+      "baseUrl": "https://repoe-fork.github.io/poe2",
+      "entries": [
+        {
+          "path": "Art/",
+          "kind": "assets",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Art assets; not used by the regex/catalog pipeline."
+        },
+        {
+          "path": "Metadata/",
+          "kind": "raw-metadata",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Raw metadata tree; not used by the pipeline."
+        },
+        {
+          "path": "base_items/",
+          "kind": "base-items-dir",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-base files; base_items.min.json is the aggregate used by the builder."
+        },
+        {
+          "path": "passive_skill_trees/",
+          "kind": "passive-trees",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Passive tree data; not part of the normal-equipment catalog."
+        },
+        {
+          "path": "stat_translations/",
+          "kind": "stat-translations-dir",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation directory; only the two used files are fetched."
+        },
+        {
+          "path": "active_skill_types.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "active_skill_types.min.json",
+          "kind": "skill-types",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Active skill type metadata."
+        },
+        {
+          "path": "ascendancies.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "ascendancies.min.json",
+          "kind": "ascendancies",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Ascendancy data."
+        },
+        {
+          "path": "audio.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "audio.min.json",
+          "kind": "audio",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Audio references."
+        },
+        {
+          "path": "augments.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "augments.min.json",
+          "kind": "augments",
+          "status": "used",
+          "consumer": "AugmentCatalogBuilder",
+          "notes": "Rune/Soul Core/Idol/Abyssal Eye effects by target category."
+        },
+        {
+          "path": "base_items.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "base_items.min.json",
+          "kind": "item-bases",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Base item names, tags, implicits, requirements, sockets/properties."
+        },
+        {
+          "path": "buff_visuals.html",
+          "kind": "html-preview",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML preview."
+        },
+        {
+          "path": "buff_visuals.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "buff_visuals.min.json",
+          "kind": "buff-visuals",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Buff visual metadata."
+        },
+        {
+          "path": "buff_visuals_grid.html",
+          "kind": "html-preview",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML preview."
+        },
+        {
+          "path": "buffs.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "buffs.min.json",
+          "kind": "buffs",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Buff definitions."
+        },
+        {
+          "path": "characters.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "characters.min.json",
+          "kind": "characters",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Character/class data."
+        },
+        {
+          "path": "cost_types.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "cost_types.min.json",
+          "kind": "cost-types",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Skill cost types."
+        },
+        {
+          "path": "default_monster_stats.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "default_monster_stats.min.json",
+          "kind": "monster-stats",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Default monster stats."
+        },
+        {
+          "path": "flavour.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "flavour.min.json",
+          "kind": "flavour",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Flavour text; deliberately excluded."
+        },
+        {
+          "path": "gem_tags.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "gem_tags.min.json",
+          "kind": "gem-tags",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Skill gem tags."
+        },
+        {
+          "path": "item_classes.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "item_classes.min.json",
+          "kind": "item-classes",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Item class ids, display names, categories."
+        },
+        {
+          "path": "keywords.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "keywords.min.json",
+          "kind": "keywords",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Keyword definitions."
+        },
+        {
+          "path": "mods.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mods.min.json",
+          "kind": "mods",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Affix, implicit, corrupted, desecrated and other modifier records."
+        },
+        {
+          "path": "mods_by_base.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mods_by_base.min.json",
+          "kind": "mods-by-base",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Authoritative base/tag to mod mapping."
+        },
+        {
+          "path": "skill_gems.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "skill_gems.min.json",
+          "kind": "skill-gems",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Skill gem data."
+        },
+        {
+          "path": "skills.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "skills.min.json",
+          "kind": "skills",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Skill data."
+        },
+        {
+          "path": "stat_value_handlers.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stat_value_handlers.min.json",
+          "kind": "value-handlers",
+          "status": "used",
+          "consumer": "StatTextRenderer",
+          "notes": "RePoE stat value handlers for rendering."
+        },
+        {
+          "path": "stats_by_file.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stats_by_file.min.json",
+          "kind": "stat-descriptions",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Stat text templates grouped by source file."
+        },
+        {
+          "path": "tag_details.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "tag_details.min.json",
+          "kind": "tag-details",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Tag details and relationships."
+        },
+        {
+          "path": "tags.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "tags.min.json",
+          "kind": "tags",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Tag list."
+        },
+        {
+          "path": "uniques.html",
+          "kind": "html-preview",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML preview."
+        },
+        {
+          "path": "uniques.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "uniques.min.json",
+          "kind": "uniques",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Unique items; out of normal-rarity scope."
+        },
+        {
+          "path": "world_areas.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "world_areas.min.json",
+          "kind": "world-areas",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Area data."
+        },
+        {
+          "path": "stat_translations/specific_skill_stat_descriptions/",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/active_skill_gem_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/active_skill_gem_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/advanced_mod_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/advanced_mod_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Stat text translations."
+        },
+        {
+          "path": "stat_translations/atlas_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/atlas_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/atlas_variant_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/atlas_variant_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/character_panel_gamepad_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/character_panel_gamepad_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/character_panel_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/character_panel_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/chest_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/chest_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/endgame_map_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/endgame_map_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/expedition_relic_special_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/expedition_relic_special_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/expedition_relic_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/expedition_relic_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/gem_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/gem_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/heist_equipment_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/heist_equipment_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/leaguestone_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/leaguestone_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/map_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/map_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/map_temple_room_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/map_temple_room_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/meta_gem_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/meta_gem_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/monster_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/monster_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_aura_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_aura_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_variant_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/passive_skill_variant_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/primordial_altar_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/primordial_altar_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/sanctum_relic_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/sanctum_relic_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/sentinel_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/sentinel_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/skill_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/skill_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "used",
+          "consumer": "CatalogBuilder",
+          "notes": "Stat text translations."
+        },
+        {
+          "path": "stat_translations/tablet_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/tablet_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/utility_flask_buff_stat_descriptions.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "stat_translations/utility_flask_buff_stat_descriptions.min.json",
+          "kind": "stat-translations",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Translation domain not currently consumed; retained in the map."
+        }
+      ]
+    },
+    {
+      "id": "pob-data/poe2",
+      "baseUrl": "https://repoe-fork.github.io/pob-data/poe2",
+      "entries": [
+        {
+          "path": "Bases/",
+          "kind": "pob-bases",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-class base item data; useful cross-check for slots."
+        },
+        {
+          "path": "Skills/",
+          "kind": "pob-skills",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB skill data."
+        },
+        {
+          "path": "StatDescriptions/",
+          "kind": "pob-stats",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB stat descriptions; potential cross-check."
+        },
+        {
+          "path": "TimelessJewelData/",
+          "kind": "pob-timeless",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "PoB timeless jewel data."
+        },
+        {
+          "path": "Uniques/",
+          "kind": "pob-uniques",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "PoB unique data; out of normal-rarity scope."
+        },
+        {
+          "path": "Assets.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Assets.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "BossSkills.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "BossSkills.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Bosses.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Bosses.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "CharacterMeleeSkills.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "CharacterMeleeSkills.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "ClusterJewels.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ClusterJewels.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Costs.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Costs.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "CurrencyNames.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "CurrencyNames.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Essence.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Essence.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "FlavourText.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "FlavourText.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Gems.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Gems.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "InventorySlots.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "InventorySlots.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "LiquidEmotions.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "LiquidEmotions.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Minions.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Minions.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Misc.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Misc.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "ModCache.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModCache.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "ModCharm.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModCharm.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB charm mods."
+        },
+        {
+          "path": "ModCorrupted.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModCorrupted.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB corrupted mods."
+        },
+        {
+          "path": "ModFlask.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModFlask.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB flask mods."
+        },
+        {
+          "path": "ModIncursionLimb.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModIncursionLimb.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB incursion limb mods."
+        },
+        {
+          "path": "ModItem.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModItem.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB item mods; potential future cross-check."
+        },
+        {
+          "path": "ModItemExclusive.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModItemExclusive.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB exclusive item mods."
+        },
+        {
+          "path": "ModJewel.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModJewel.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB jewel mods; parked with jewel support."
+        },
+        {
+          "path": "ModMap.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModMap.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB map mods."
+        },
+        {
+          "path": "ModRunes.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModRunes.min.json",
+          "kind": "pob-runes",
+          "status": "cross-check",
+          "consumer": "none",
+          "notes": "PoB rune effects; development cross-check only, never shipped."
+        },
+        {
+          "path": "ModScalability.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModScalability.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB mod scaling data."
+        },
+        {
+          "path": "ModVeiled.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModVeiled.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB veiled mods."
+        },
+        {
+          "path": "Pantheons.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Pantheons.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "QueryMods.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "QueryMods.min.json",
+          "kind": "pob-query",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB query metadata."
+        },
+        {
+          "path": "QuestRewards.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "QuestRewards.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Rares.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Rares.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "SkillStatMap.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "SkillStatMap.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "Spectres.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "Spectres.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "TradeSiteStats.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "TradeSiteStats.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "VerisiumCrafts.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "VerisiumCrafts.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
+          "path": "WorldAreas.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "WorldAreas.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        }
+      ]
+    }
+  ]
+}

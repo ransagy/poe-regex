@@ -88,6 +88,16 @@ public static class VendorCorpusBuilder
             else foreach (var cls in list) Add(cls, line, kind, pattern);
         }
 
+        // Augment effects are host-item text too. Add them with the same
+        // digit-normalized pattern as normal stat families, so a fixed rune
+        // line such as "Gain 10 Mana per enemy killed" is a target of the
+        // normal "% Mana per enemy killed" family rather than foreign text
+        // that can make an otherwise ordinary fragment unresolvable.
+        foreach (var augment in AugmentCatalogBuilder.Build(rawDir).Mods)
+        foreach (var line in augment.Lines)
+            AddForClasses(augment.Classes, line.Line, "augment",
+                StatTextRenderer.NormalizeDigits(line.Line));
+
         // Adds the rendered stat line in every display form that can appear in
         // an advanced description. The pattern is always the catalog pattern
         // (the max-roll, range-free form), so the selector's recall check sees

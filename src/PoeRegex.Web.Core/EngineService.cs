@@ -23,8 +23,9 @@ public sealed class EngineService
     private readonly Lazy<HashSet<string>> _playableClassIds;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
     private readonly ConcurrentDictionary<(string PickKey, string? ItemClass), bool> _minCapable = new();
-    private readonly ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<string?>> _pickFragments = new();
+    private readonly ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<IReadOnlyList<string>>> _pickTerms = new();
     private readonly ConcurrentDictionary<string, Lazy<string?>> _excludeFragments = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string Exclusion, string? Class), Lazy<string?>> _excludeClaims = new();
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
@@ -168,6 +169,7 @@ public sealed class EngineService
         }
         var compact = Compact(pattern);
         var spaceless = FilterCandidates(_corpus.Mods
+            .Where(m => m.Source != "augment")
             .Where(m => m.StatLines.Any(s => Compact(s.Pattern) == compact))
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Select(m => m.Id)
@@ -178,6 +180,7 @@ public sealed class EngineService
         if (spaceless.Count > 0) return new ModMapping(spaceless, Approximate: true);
         var stems = WordStemGroups(canonicalLine);
         var wordy = FilterCandidates(_corpus.Mods
+            .Where(m => m.Source != "augment")
             .Where(m => classId is null || m.Classes.Contains(classId, StringComparer.Ordinal))
             .Where(m => m.StatLines.Any(s => StemsMatch(stems, Compact(s.Pattern))))
             .Select(m => m.Id)
@@ -215,7 +218,9 @@ public sealed class EngineService
         string? classId, string pattern, IReadOnlyList<double> rolls,
         IReadOnlyList<(double Lo, double Hi)> ranges)
     {
-        var candidates = _corpus.ModsWithPattern(pattern);
+        var candidates = _corpus.ModsWithPattern(pattern)
+            .Where(m => m.Source != "augment")
+            .ToList();
         if (classId is not null)
             candidates = candidates
                 .Where(m => m.Classes.Contains(classId, StringComparer.Ordinal)).ToList();
@@ -451,18 +456,22 @@ public sealed class EngineService
 
     /// <summary>Fragment one pick compiles to on its own, cached across models.</summary>
     public string? PickFragment(WantedMod pick, string? cls) =>
-        _pickFragments.GetOrAdd(
-            (pick, cls),
-            key => new Lazy<string?>(() => ComputePickFragment(key.Pick, key.Class))).Value;
+        PickTerms(pick, cls).FirstOrDefault();
 
-    private string? ComputePickFragment(WantedMod pick, string? cls)
+    private IReadOnlyList<string> PickTerms(WantedMod pick, string? cls) =>
+        _pickTerms.GetOrAdd(
+            (pick, cls),
+            key => new Lazy<IReadOnlyList<string>>(() => ComputePickTerms(key.Pick, key.Class))).Value;
+
+    private IReadOnlyList<string> ComputePickTerms(WantedMod pick, string? cls)
     {
         var result = Compile(pick.Requirements(), [], itemClass: cls, allowOverflow: true);
-        return Explainer.Tokenize(result.Query)
-            .Where(t => !t.Excluded)
-            .Select(t => t.Phrase)
-            .Skip(cls is null ? 0 : 1)
-            .FirstOrDefault();
+        var terms = Explainer.Tokenize(result.Query)
+            .Where(token => !token.Excluded)
+            .Select(token => token.Phrase)
+            .ToList();
+        if (cls is not null && terms.Count > 0) terms.RemoveAt(0);
+        return terms;
     }
 
     public string? ExcludeFragment(string exc) =>
@@ -471,6 +480,35 @@ public sealed class EngineService
             : _excludeFragments.GetOrAdd(
                 exc,
                 key => new Lazy<string?>(() => ComputeExcludeFragment(key))).Value;
+
+    /// <summary>
+    /// Canonical claim identity for an included pick in a scope: every
+    /// positive quoted phrase, without the class anchor. Two mods/tiers with
+    /// the same claim key compile to the same search and must share one
+    /// interactive claim.
+    /// </summary>
+    public string? PickClaimKey(WantedMod pick, string? cls)
+    {
+        var terms = PickTerms(pick, cls);
+        return terms.Count == 0 ? null : string.Join("\u0001", terms);
+    }
+
+    /// <summary>Canonical claim identity for an exclusion in a scope.</summary>
+    public string? ExcludeClaimKey(string exc, string? cls) =>
+        _excludeClaims.GetOrAdd(
+            (exc, cls),
+            key => new Lazy<string?>(() => ComputeExcludeClaimKey(key.Exclusion, key.Class))).Value;
+
+    private string? ComputeExcludeClaimKey(string exc, string? cls)
+    {
+        var result = Compile(
+            [], [ExclusionRequirement(exc)], itemClass: cls, allowOverflow: true);
+        var terms = Explainer.Tokenize(result.Query)
+            .Where(token => token.Excluded)
+            .Select(token => token.Phrase)
+            .ToList();
+        return terms.Count == 0 ? null : string.Join("\u0001", terms);
+    }
 
     private string? ComputeExcludeFragment(string exc)
     {

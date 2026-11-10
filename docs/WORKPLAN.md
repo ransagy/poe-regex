@@ -13,7 +13,7 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`; the Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 1672/1672 scopes proven, not
+- Engine: exact PoE2 table/proof is current: 1737/1737 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
 - Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
   implicits, and corrupted enchantments. Implicits render in a dedicated
@@ -27,9 +27,30 @@ Current planned and parked work. Behavior is documented in
   legacy PoE1 `crafted` prefix/suffix records (Navali/Helena master crafts);
   they are excluded because they have no positive PoE2 base mapping. PoE2's
   actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
-  remain parked with jewel support. Augments, bonded modifiers, and jewel
-  affixes remain unmodeled.
-- Tests: 111 core, 375 web, 31 data-build; local suites green.
+  remain parked with jewel support. Basic tiered runes use the same
+  unique-only policy as implicits/corrupted: a rune family is kept only where
+  at least one effect pattern is new, leaving 14 unique effect families
+  (55 target rows). They render in a dedicated **Augments** section with a
+  Rune source tag and an Armour / Martial Weapon / Wand or Staff target tag;
+  the export's target category controls which item classes can carry each
+  effect. In the All-gear union, a rune family is omitted when one
+  non-augment family covers every one of its effect patterns; per-slot views
+  keep it where it is the only source, so the union shows only the two
+  globally unique effects (Stone Rune Wand/Staff and Vision Rune Armour).
+  Attribute runes (the `All Equipment` target), special/transformative
+  augments, Soul Cores, Idols, Abyssal Eyes, bonded stats, and a socket model
+  remain parked.
+- Picker: selection is claim-covered by the compiled positive query. A mod/tier
+  row with the same query as the active selection stays visible as `covered`;
+  its `⇄` button switches the selection instead of adding a second chip. An
+  always-visible color-coded glyph legend under the scope line (`+` Add,
+  `✓` Selected, `⇄` Switch, `−` Exclude, `⊘` Excluded, `≥` Better, `covered`
+  by an existing pick) keeps the key fixed while typing; the always-present
+  scope line shows `Common picks`, `All N mods`, or `N matches`, and the `(?)`
+  there explains multi-effect searches, covered rows, duplicate merging, and
+  exclusions. Includes and exclusions are mutually exclusive per search;
+  duplicate exclusion fragments collapse in the compiler.
+- Tests: 111 core, 410 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -44,6 +65,11 @@ Current planned and parked work. Behavior is documented in
   game rarity colors are unchanged and the unique name keeps its exact hex
   with a dark edge. Compact layout reviewed at 390×844 and 768×1024;
   color-vision simulation passed with text/icon labels preserved.
+- Data sync: `data/repoe.manifest.json` maps the public RePoE and PoB exports;
+  `data-audit --check` fails on new/unmapped files. `fetch` is manifest-driven,
+  writes `data/repoe.snapshot.json` (313 SoulCore bases, 16,911 mods,
+  `dataVersion` 2026-11-08), and the manual **data-audit** workflow checks the
+  published inventory weekly.
 - Perf: a manual `web-perf` workflow builds the app, runs the 1920×1080
   harness, publishes the JSON/log artifact, and writes a step summary. It is
   observational; the local release-prep run remains the blocking gate.
@@ -53,6 +79,45 @@ Current planned and parked work. Behavior is documented in
 No active next items. Catalog coverage and platform work are parked below.
 
 ## Parked
+
+### UI follow-ups
+
+- **Compact sticky search box.** Replace the fixed bottom `.out-dock`
+  (length/copy only) with the main `SearchBar` hero made sticky at the top in
+  compact/mobile modes. Effort: **small-medium** — layout/CSS only, no data or
+  solver work, but it needs shell-header stacking, safe-area and keyboard
+  checks, ruler/copy behavior, and removal of the `.shell` bottom padding.
+  Main risks are the mobile viewport and the scaled compact layout.
+- **Reset workbench visibility.** The current footer text link
+  (`#workbench-reset`) is easy to miss. Make it a clearly styled secondary
+  button, or move it into the header/options area with a confirmation.
+  Effort: **small** — one markup/CSS change plus placement/accessibility review.
+- **Picked rows survive filtering.** Active includes/excludes can disappear when
+  the search text, the common-only shortlist, or a scope switch stops matching
+  them. Keep claimed rows visible (with their picked tiers) and exempt from
+  `MaxShown`; unpicking restores normal filtering. Search/common-only version:
+  **medium** — `Refresh()`, tier mapping, counts, bulk add, and tests. Full
+  cross-scope version (imported picks or picks from another class not in
+  `RailMods`): **medium-high** — resolve claims against the catalog and render
+  a pinned section.
+- **Touch hover/focus after picker undo.** Tapping a family or tier action
+  leaves the button focused and in a sticky `:hover` state after the choice is
+  undone, so it still looks active. Scope the picker hover rules to
+  hover-capable pointers and blur the action after a touch `pointerup`; keep
+  the real `.active` state classes. Effort: **small** — CSS media scoping plus
+  a delegated touch handler, with keyboard focus unaffected. Verify on mobile
+  emulation that undo returns the button to its neutral background/border while
+  the selected state remains visible.
+- **Contributor-friendly common picks.** The baseline lives in
+  `data/common-picks.json`; entries can use a visible `match` display text or an
+  explicit `family` key. `classes` is both the runtime scope and the validation
+  scope, so class-specific picks stay out of All gear. Remaining: a generated
+  contributor table; future picks belong in the data file. Effort:
+  **small-medium**.
+- **Common-picks CI validation.** `common-picks --check` resolves every entry
+  against the catalog, verifies the family compiles for its classes, enforces
+  the shortlist cap, and reports unknown/ambiguous matches. The `ci` workflow
+  runs it on every PR. Effort: **small** — command + workflow step + tests.
 
 ### Distribution and platform
 
@@ -76,7 +141,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 | Base implicits | 168 ids / 348 base entries | 85 (94 mods) | Medium | High | Done |
 | Corrupted mods | 108 records / 103 mapped | 43 (44 mods) | Medium | Medium | Done |
 | Jewels | 320 normal + 44 desecrated + 13 crafted | ~196 + 34 | High | High for jewel users | Parked |
-| Augments / Soul Cores | 295 released bases | Unknown | High / blocked | High for socketed items | Parked |
+| Augments / Soul Cores | 313 released bases | 14 unique rune effect families / 55 target rows | Medium | High for socketed items | Unique basic runes done; specials parked |
 
 - **PoE1 crafted leftovers** are not PoE2 coverage. The nine `crafted`
   prefix/suffix records in the PoE2 export are verbatim PoE1 Navali/Helena
@@ -104,9 +169,15 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   jewel mods, desecrated jewel mods, and the actual PoE2 crafted jewel mods
   are all outside the current normal-equipment scope. Parked until the
   item-class/slot work is justified.
-- **Augments / Soul Cores** need a socket/effect model. The current raw export
-  has 295 released Augment bases but no linked effect lines in `mods`, so this
-  is not just another source. Parked and blocked on data.
+- **Augments / Soul Cores** are now sourced from RePoE `augments.json`, which
+  maps each base to its target category and rendered effect lines. The first
+  pass covers the 63 basic tiered runes, filtered to 14 unique effect families
+  (55 target rows); they are treated as
+  a separate non-affix source and do not need a socket system for search.
+  Attribute runes (`All Equipment`), the 36 bonded-only category rows, special
+  and transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded stats, and
+  any socket-count model remain parked. The RePoE inventory and PoB
+  cross-check are documented in [`REPOE-DATA.md`](REPOE-DATA.md).
 - **Unique-item mods** are out of normal-rarity scope. **Essence/veiled**
   records are placeholders with no usable rendered text in the current export.
 

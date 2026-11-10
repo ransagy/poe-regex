@@ -11,7 +11,7 @@ public static class GameItemClasses
     {
         "Dagger", "Claw", "Flail",
         "One Hand Sword", "One Hand Axe", "Two Hand Sword", "Two Hand Axe",
-        "FishingRod", "TrapTool",
+        "FishingRod", "TrapTool", "HiddenItem",
     };
 
     public static bool IsInGame(string? classId) =>

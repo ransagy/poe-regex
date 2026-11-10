@@ -11,4 +11,13 @@
     <ProjectReference Include="..\PoeRegex.Core\PoeRegex.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PoeRegex.Web.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\common-picks.json"
+                      LogicalName="PoeRegex.Web.Core.Data.common-picks.json" />
+  </ItemGroup>
+
 </Project>

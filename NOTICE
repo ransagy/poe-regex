@@ -26,8 +26,8 @@ use."
 The contents of the game data are owned by Grinding Gear Games Limited
 ("GGG"). This repository ships only a minimal derived subset (item class names,
 mod ids and affix names, generation/family/level metadata, rendered modifier
-text, and derived search fingerprints); raw RePoE exports are never
-redistributed. Redistribution and use must be in accordance with GGG's terms of
+text including basic augment/rune/soul-core effect lines, and derived search
+fingerprints); raw RePoE exports are never redistributed. Redistribution and use must be in accordance with GGG's terms of
 use.
 
 Third-Party Notices
@@ -40,6 +40,10 @@ Application runtime:
 Build-time data pipeline:
 - RePoE (https://github.com/repoe-fork/repoe) - MIT; extracted game data
 - RePoE, original project (https://github.com/brather1ng/RePoE) - MIT
+- Path of Building Community data export (https://repoe-fork.github.io/pob-data/poe2;
+  source https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2-v2) -
+  MIT tooling; generated item data owned by GGG. Reference/cross-check only;
+  no PoB data is shipped.
 - PyPoE (https://github.com/OmegaK2/PyPoE; maintained fork
   https://github.com/Project-Path-of-Exile-Wiki/PyPoE) - GNU GPL v3.0.
   Behavioural prior art for stat-text rendering only; no PyPoE code is

@@ -44,6 +44,14 @@ public static class CatalogBuilder
         foreach (var (modId, classes) in implicitByMod)
             classByMod[modId] = classes;
 
+        // The refreshed export contains hidden/legacy item classes that are
+        // not playable equipment. Filter every mapping once; otherwise a
+        // hidden base tag leaks into normal, implicit and desecrated scopes.
+        foreach (var modId in classByMod.Keys.ToList())
+            classByMod[modId] = classByMod[modId]
+                .Where(GameItemClasses.IsInGame)
+                .ToHashSet(StringComparer.Ordinal);
+
         // 1. Render mod text lines.
         var renderedLines = new Dictionary<string, List<StatTextRenderer.RenderedLine>>();
         var classLines = new Dictionary<string, HashSet<string>>();
@@ -140,6 +148,37 @@ public static class CatalogBuilder
             }
         }
 
+        // Augments (Runes in this first pass) are a separate non-affix source.
+        // Their effect is conditional on the host item's target category, so
+        // the builder maps the export's target category to in-game item
+        // classes. Only the basic tiered runes are enabled here; special and
+        // transformative socketables are deliberately left out until their
+        // socket semantics are reviewed.
+        var augmentResult = AugmentCatalogBuilder.Build(rawDir, classLines);
+        var augmentById = new Dictionary<string, AugmentCatalogBuilder.AugmentBuild>(StringComparer.Ordinal);
+        foreach (var augment in augmentResult.Mods)
+        {
+            augmentById[augment.Id] = augment;
+            classByMod[augment.Id] = augment.Classes.ToHashSet(StringComparer.Ordinal);
+            renderedLines[augment.Id] = augment.Lines.ToList();
+            foreach (var cls in augment.Classes)
+            {
+                if (!classLines.TryGetValue(cls, out var set))
+                {
+                    set = new HashSet<string>();
+                    classLines[cls] = set;
+                }
+                foreach (var line in augment.Lines) set.Add(line.Pattern);
+            }
+        }
+        if (augmentResult.Mods.Count > 0)
+        {
+            Console.WriteLine(
+                $"  augments: {augmentResult.Mods.Count} basic-rune target rows, " +
+                $"{augmentResult.RemovedDuplicateRows} duplicate target rows removed, " +
+                $"{augmentResult.SkippedCategories} categories deferred");
+        }
+
         var unrenderedCorrupted = corruptedByMod.Keys
             .Where(id => !corruptedLines.ContainsKey(id))
             .OrderBy(id => id, StringComparer.Ordinal)
@@ -231,6 +270,25 @@ public static class CatalogBuilder
                 });
             }
 
+            if (augmentById.TryGetValue(modId, out var augment))
+            {
+                modEntries.Add(new ModEntry
+                {
+                    Id = modId,
+                    Name = augment.Name,
+                    GenerationType = "augment",
+                    Source = "augment",
+                    AugmentType = augment.TypeName,
+                    AugmentTarget = augment.TargetDisplay,
+                    Family = augment.Family,
+                    RequiredLevel = augment.RequiredLevel,
+                    Classes = classes.ToList(),
+                    Groups = [],
+                    StatLines = statLines,
+                });
+                continue;
+            }
+
             modEntries.Add(new ModEntry
             {
                 Id = modId,
@@ -290,6 +348,23 @@ public static class CatalogBuilder
     /// </summary>
     internal static string ReadVersionFile(string rawDir)
     {
+        var snapshot = Path.GetFullPath(Path.Combine(rawDir, "..", "..", "repoe.snapshot.json"));
+        if (File.Exists(snapshot))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(snapshot));
+                if (doc.RootElement.TryGetProperty("dataVersion", out var version) &&
+                    version.GetString() is { Length: > 0 } value)
+                {
+                    return value;
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Fall through to the file timestamp for a hand-built raw dir.
+            }
+        }
         var modsPath = Path.Combine(rawDir, "mods.min.json");
         if (File.Exists(modsPath)) return File.GetLastWriteTimeUtc(modsPath).ToString("yyyy-MM-dd");
         return "unknown";

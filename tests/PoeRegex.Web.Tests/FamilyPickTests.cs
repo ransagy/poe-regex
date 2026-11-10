@@ -24,7 +24,7 @@ public class FamilyPickTests
         var keys = families.Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var key in ModFamilies.CommonKeys)
             keys.Should().Contain(key, $"curated family '{key}' must exist in the catalog");
-        var common = families.Where(ModFamilies.IsCommon).ToList();
+        var common = families.Where(f => ModFamilies.IsCommon(f)).ToList();
         common.Should().Contain(f => f.IsPrefix);
         common.Should().Contain(f => !f.IsPrefix);
         common.Should().HaveCountLessThan(30, "the pre-typing list stays a shortlist");
@@ -66,6 +66,19 @@ public class FamilyPickTests
         fletcher.ShapeLines.Should().Equal(["+ to Level of all Projectile Skills"]);
         fletcher.UnionLines.Should().Equal(["+1 / +2 to Level of all Projectile Skills"]);
         fletcher.VariantLines.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void GlobalManaRegeneration_AlternativesShareOneStatPhrase()
+    {
+        var family = ModFamilies.Group(Engine.PlayableMods())
+            .Single(f => f.Key == "ManaRegeneration");
+
+        family.Tiers.Single(t => t.Name == "of Excitement").UnionLines
+            .Should().Equal(["10–19 / 15–29% increased Mana Regeneration Rate"],
+                "class variants are one stat with two roll ranges, not a hybrid mod");
+        family.Tiers.Single(t => t.Name == "of Joy").UnionLines
+            .Should().Equal(["20–29 / 30–44% increased Mana Regeneration Rate"]);
     }
 
     [Fact]

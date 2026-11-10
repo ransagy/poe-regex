@@ -217,6 +217,10 @@
                             {
                                 <span class="bd-detail">@string.Join(" / ", PickTierLines(family, tier))</span>
                             }
+                            else if (family?.IsAugment == true && tier is not null)
+                            {
+                                <span class="bd-detail">@tier.DisplayLabel</span>
+                            }
                         </span>
                         @if (!ReadOnly && AcceptsMin(inc, cls))
                         {
@@ -471,6 +475,14 @@
             .ToList();
         if (mods.Any(m => m.Source == "implicit")) return ("Implicit", "source-implicit");
         if (mods.Any(m => m.Source == "corrupted")) return ("Corrupted", "source-corrupted");
+        if (mods.Any(m => m.Source == "augment"))
+        {
+            var mod = mods.First(m => m.Source == "augment");
+            var text = string.Join(" · ",
+                new[] { mod.AugmentType, mod.AugmentTarget }
+                    .Where(x => !string.IsNullOrWhiteSpace(x)));
+            return (text, "source-augment");
+        }
         var factions = mods
             .Where(m => m.Source == "desecrated")
             .Select(m => ModFamily.FactionName(m.Name))

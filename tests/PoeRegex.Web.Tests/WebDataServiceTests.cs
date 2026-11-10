@@ -35,7 +35,7 @@ public class WebDataServiceTests
             "FishingRod", "TrapTool"]);
         ids.Should().Contain(["Ring", "Crossbow", "Bow", "Staff", "Spear", "Wand",
             "Sceptre", "Shield", "Focus", "Buckler", "Quiver", "Warstaff", "Talisman"]);
-        ids.Should().HaveCount(Engine.PlayableClasses().Count() - 9);
+        ids.Should().HaveCount(Engine.PlayableClasses().Count());
     }
 
     [Fact]

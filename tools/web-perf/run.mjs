@@ -204,7 +204,7 @@ function makeActions(sampleText) {
       `!document.querySelector('#more-info')`],
     ['clear picks', () => `document.querySelector('#chips-clear-global').click()`,
       `!document.querySelector('[id^="chip-inc-"]')`],
-    ['bulk add (++)', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('#suggest-all')?.click(), 0)`,
+    ['bulk add (++)', () => `(() => { const e=document.querySelector('#mod-search'); e.value='fire resistance'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('#suggest-all')?.click(), 0)`,
       `[...document.querySelectorAll('[id^="chip-inc-"]')].length > 0`, 10000],
     ['query import open', () => `document.querySelector('#query-import-open').click()`,
       `!!document.querySelector('#query-import-dialog')`],

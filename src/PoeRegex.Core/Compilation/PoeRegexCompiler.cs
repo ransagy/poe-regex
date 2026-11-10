@@ -81,7 +81,9 @@ public sealed class PoeRegexCompiler
             }
         }
 
-        // Exclusions → separate quoted blocks.
+        // Exclusions → separate quoted blocks. Identical fragments are one
+        // exclusion; different mod ids can resolve to the same search term.
+        var excludedTerms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var req in spec.ExcludedModifiers)
         {
             // A raw exclusion is already a regex fragment (guide imports);
@@ -92,6 +94,13 @@ public sealed class PoeRegexCompiler
                 : mod is not null
                     ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
                     : Poe2Syntax.EscapeLiteral(req.Value);
+            if (!excludedTerms.Add(term)) continue;
+            if (included.Contains(term))
+            {
+                diagnostics.Add(new CompilerDiagnostic(
+                    DiagnosticLevel.Warning, "contradictory-filter",
+                    $"Included and excluded fragments are identical: \"{term}\"."));
+            }
             blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 

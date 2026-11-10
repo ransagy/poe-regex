@@ -25,11 +25,26 @@ public class ExactSolverTests
         var armour = ExactSearchSolver.Solve(
             scope, "\u0001% increased Armour, Evasion and Energy Shield", 3, 20);
         armour.Should().NotBeNull();
-        armour!.Fragment.Should().Be("-.*d a.+,");
+        armour!.Fragment.Should().Be("d a.+v.+y shield$");
         Regex.IsMatch(
                 "18% increased Armour, Evasion and Energy Shield from Equipped Shield",
                 armour.Fragment, RegexOptions.IgnoreCase)
             .Should().BeFalse("same-stat from-Equipped lines are foreign");
+    }
+
+    [Fact]
+    public void ExactSolver_TimeoutFailsClosed()
+    {
+        var root = RepoRoot();
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe2.catalog.json")).Load();
+        var scope = ScopeCorpus.Build(new EngineCorpus(catalog), null);
+
+        Action act = () => ExactSearchSolver.Solve(
+            scope, "+# to maximum Life", 3, 48, timeout: TimeSpan.Zero);
+
+        act.Should().Throw<TimeoutException>(
+            "the matrix must fail rather than silently ship an unresolved pattern");
     }
 
     private static string RepoRoot()

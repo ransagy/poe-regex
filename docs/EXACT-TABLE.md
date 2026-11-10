@@ -41,22 +41,22 @@ safe for both.
 ## Artifact coverage
 
 ```text
-422 families · 485 patterns · 1258 expanded scopes · 0 unresolved
+436 families · 499 patterns · 1288 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 485 |
-| Class | 464 |
-| Per-class | 309 |
+| Global | 499 |
+| Class | 471 |
+| Per-class | 318 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-379 global patterns · 21 classes · 1030 class fragments · 0 unresolved
+381 global patterns · 21 classes · 1081 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -65,10 +65,10 @@ Examples:
 |---|---|---|
 | `#% increased maximum Life` | global | `^\d.+d m.*fe$` |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` |
-| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*f d.+f.+e$` |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` |
-| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` |
+| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` |
 | `Always Hits` | One Hand Mace | `ay` |
 | `Crushes Enemies on Hit` | global | `shes` |
@@ -80,10 +80,10 @@ The strict pass is exact for the declared grammar and target display model
 
 ## Non-game class pruning
 
-Nine catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
+Ten catalog classes with no released bases (`Dagger`, `Claw`, `Flail`,
 `One Hand Sword`, `One Hand Axe`, `Two Hand Sword`, `Two Hand Axe`,
-`FishingRod`, `TrapTool`) are excluded from the in-game matrix, shipped table,
-global union, and proof. Their catalog entries remain for data fidelity. The
+`FishingRod`, `TrapTool`, `HiddenItem`) are excluded from the in-game matrix,
+shipped table, global union, and proof. Their catalog entries remain for data fidelity. The
 pruned artifacts exclude those classes from the in-game matrix, table, and
 proof; released classes keep their fragments. The global union,
 safety lines, and cross-line sections contain released classes only.
@@ -91,7 +91,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1672 / 1672 expanded scopes checked
+1737 / 1737 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -104,14 +104,14 @@ claim about arbitrary regexes outside that grammar.
 The post-patch independence run used the exact solver with no table seed:
 
 ```bash
-dotnet ... matrix-solve --from-scratch --jobs 4
+dotnet ... matrix-solve --from-scratch --jobs 2 --timeout 60
 ```
 
 ```text
 runtime: local from-scratch run
-matrix:  422 families · 485 patterns · 1258 expanded scopes
-table:   379 global · 21 classes · 1030 class fragments
-proof:   1672 / 1672 · 0 failures
+matrix:  436 families · 499 patterns · 1288 expanded scopes
+table:   381 global · 21 classes · 1081 class fragments
+proof:   1737 / 1737 · 0 failures
 ```
 
 This from-scratch run is the basis for the shipped table. The shipped table
@@ -121,9 +121,9 @@ tie churn does not retire working strings. The diff report therefore lists
 only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
 reproduce that stability pass.
 
-- Expanded scopes: 1672 / 1672, all proven.
+- Expanded scopes: 1737 / 1737, all proven.
 - Chosen length: proven on every scope.
-- Table: 379 global patterns, 21 classes, 1030 class fragments, 0 unresolved.
+- Table: 381 global patterns, 21 classes, 1081 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -134,9 +134,9 @@ authority when the cache is stale.
 
 Any change that adds catalog lines, changes the vendor/safety corpus, or changes
 the solver must regenerate the table from scratch and review a before/after
-fragment report before merge. The report covers every changed existing scope
-with its old/new fragment, both lengths, the length delta, and the collision
-reason, plus every added/removed scope. Keep the report outside the repository;
+fragment report before merge. The report states the change reason and covers
+every changed existing scope with its old/new fragment, both lengths, and the
+length delta, plus every added/removed scope. Keep the report outside the repository;
 the shipped table and proof remain the source of truth.
 
 Generate it with [`../tools/fragment-diff/run.py`](../tools/fragment-diff/run.py)
@@ -161,13 +161,13 @@ Quoted length includes the two block quotes; inner length excludes them.
 | `#% increased maximum Life` | Amulet | `d.*m l` | 6 |
 | `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 12 |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` | 14 |
-| `#% increased Critical Damage Bonus` | Gloves | `bon` | 3 |
-| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*-.*ir.+e$` | 13 |
+| `#% increased Critical Damage Bonus` | Gloves | `Bon` | 3 |
+| `Gain #% of Damage as Extra Fire Damage` | global | `^g.*f d.+f.+e$` | 14 |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` | 15 |
 | `#% of Damage taken Recouped as Life` | global | `f d.*n r.*e$` | 12 |
-| `#% increased Armour, Evasion and Energy Shield` | global | `-.*d a.+,` | 9 |
-| `#% increased Armour` | global | `^\d.*d armour$` | 14 |
-| `#% increased Energy Shield` | global | `ed en.*d$` | 9 |
+| `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` | 17 |
+| `#% increased Armour` | global | `^\d.*d Armour$` | 14 |
+| `#% increased Energy Shield` | global | `ed en.+d$` | 9 |
 | `+# to maximum Energy Shield` | global | `^\+.*gy` | 7 |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` | 6 |
 | `#% increased Armour` | Amulet | `d..rmour$` | 9 |
@@ -286,7 +286,8 @@ foreign unless the target pattern itself includes that subject/source.
 
 Examples of strict forms:
 
-- `-.*d a.+,` excludes the fixed-value jewel line without matching it.
+- `d a.+v.+y shield$` covers both ranged local lines and fixed-value rune
+  lines while excluding the `Global Armour` jewel/desecrated lines.
 - Amulet Evasion is ` e.+g$`, not `d Ev`.
 - Amulet Armour is `d..rmour$`, not `d Ar`.
 

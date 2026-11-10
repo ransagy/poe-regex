@@ -84,9 +84,10 @@ internal static class ExactOracle
     }
 
     public static MatrixOption? Solve(
-        ScopeCorpus scope, string pattern, int minLength, int maxLength)
+        ScopeCorpus scope, string pattern, int minLength, int maxLength,
+        TimeSpan? timeout = null)
     {
-        var result = ExactSearchSolver.Solve(scope, pattern, minLength, maxLength);
+        var result = ExactSearchSolver.Solve(scope, pattern, minLength, maxLength, timeout: timeout);
         if (result is null) return null;
         var option = Check(scope, pattern, result.Fragment);
         if (option is null)

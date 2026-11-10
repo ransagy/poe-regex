@@ -107,12 +107,15 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsCorrupted => Source == "corrupted";
 
+    public bool IsAugment => Source == "augment";
+
     /// <summary>CSS class for the source tag; empty for normal families.</summary>
     public string SourceCssClass => Source switch
     {
         "desecrated" => "source-desecrated",
         "implicit" => "source-implicit",
         "corrupted" => "source-corrupted",
+        "augment" => "source-augment",
         _ => "",
     };
 
@@ -151,6 +154,9 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
+        "augment" => string.Join(" · ",
+            new[] { Anchor.AugmentType, Anchor.AugmentTarget }
+                .Where(x => !string.IsNullOrWhiteSpace(x))),
         _ => null,
     };
 
@@ -196,7 +202,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
     /// <summary>This tier's affix name and every better tier's name, by
     /// required level (the honest "tier or better" — never game tier numbers).</summary>
     public IReadOnlyList<string> NamesFrom(ModTier tier) =>
-        Source is "desecrated" or "implicit" or "corrupted"
+        Source is "desecrated" or "implicit" or "corrupted" or "augment"
             ? []
             : Tiers
                 .Where(t => t.Name.Length > 0 && t.RequiredLevel >= tier.RequiredLevel)
@@ -231,32 +237,29 @@ public static class ModFamilies
             return mod.Source + ":" + string.Join("\u0001", patterns);
         }
         var key = mod.Family.Length > 0 ? mod.Family : "\u0001" + mod.Id;
-        return mod.Source == "desecrated" ? "desecrated:" + key : key;
+        return mod.Source switch
+        {
+            "desecrated" => "desecrated:" + key,
+            "augment" => "augment:" + key,
+            _ => key,
+        };
     }
 
     /// <summary>
-    /// Families offered before the user types: the usual goals across gear
-    /// (defence, resistances, attributes, speed, damage). Scope-dependent —
-    /// keys missing from the current scope are simply skipped.
+    /// Families offered before the user types, loaded from
+    /// <c>data/common-picks.json</c>. This compatibility view exposes the
+    /// explicit family-key entries; visible-text entries are exposed through
+    /// <see cref="CommonPicks.MatchTexts"/>.
     /// </summary>
-    public static readonly IReadOnlySet<string> CommonKeys = new HashSet<string>(StringComparer.Ordinal)
-    {
-        // prefixes
-        "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
-        "LocalFireDamage", "LocalColdDamage", "LocalLightningDamage",
-        "LocalEnergyShield", "LocalPhysicalDamageReductionRating", "LocalEvasionRating",
-        "BaseSpirit",
-        // suffixes
-        "FireResistance", "ColdResistance", "LightningResistance", "ChaosResistance",
-        "Strength", "Dexterity", "Intelligence",
-        "MovementVelocity", "LocalIncreasedAttackSpeed", "LocalBaseCriticalStrikeChance",
-        "LocalAccuracyRating", "ManaRegeneration",
-    };
+    public static IReadOnlySet<string> CommonKeys => CommonPicks.FamilyKeys;
 
-    /// <summary>True when the family is in the pre-typing shortlist.</summary>
-    public static bool IsCommon(ModFamily family) =>
-        CommonKeys.Contains(family.Key) ||
-        family.Members.Any(m => CommonKeys.Contains(KeyOf(m)));
+    /// <summary>
+    /// True when the family is in the pre-typing shortlist. A null
+    /// <paramref name="classId"/> is the All-gear/global view; class-scoped
+    /// entries apply only to their class views.
+    /// </summary>
+    public static bool IsCommon(ModFamily family, string? classId = null) =>
+        CommonPicks.IsCommon(family, classId);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();
@@ -343,11 +346,28 @@ public static class ModFamilies
         "suffix" => 1,
         "implicit" => 2,
         "corrupted" => 3,
-        _ => 4,
+        "augment" => 4,
+        _ => 5,
     };
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
     {
+        // The All-gear union combines every class, so a rune that was kept
+        // for one class can be redundant with a normal, implicit, corrupted
+        // or desecrated family from another class. A rune is safe to omit
+        // only when one non-augment family covers every one of its patterns;
+        // if the patterns are split across rows, keep it so its combined
+        // query remains selectable. Per-slot views still show the rune where
+        // it is the only source.
+        var nonAugmentPatterns = families
+            .Where(f => !f.IsAugment)
+            .Select(f => f.Members
+                .SelectMany(m => m.StatLines)
+                .Select(sl => sl.Pattern)
+                .ToHashSet(StringComparer.Ordinal))
+            .Where(patterns => patterns.Count > 0)
+            .ToList();
+
         var result = new List<ModFamily>();
         foreach (var group in families
                      .GroupBy(UnionKeyOf)
@@ -383,19 +403,34 @@ public static class ModFamilies
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
                 .ToList();
-            result.Add(new ModFamily(group.Key, group.First().IsPrefix, tiers)
+            var union = new ModFamily(group.Key, group.First().IsPrefix, tiers)
             {
                 Source = group.First().Source,
                 Kind = group.First().Kind,
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
-            });
+            };
+            if (union.IsAugment)
+            {
+                var patterns = union.Members
+                    .SelectMany(m => m.StatLines)
+                    .Select(sl => sl.Pattern)
+                    .ToHashSet(StringComparer.Ordinal);
+                if (patterns.Count > 0 &&
+                    nonAugmentPatterns.Any(covered => patterns.IsSubsetOf(covered)))
+                    continue;
+            }
+            result.Add(union);
         }
         return result;
     }
 
     private static string UnionKeyOf(ModFamily family)
     {
+        // Augment families are already keyed by rune family + target. Merging
+        // them across the All-gear union would collapse different runes or
+        // target categories that happen to share a stat pattern.
+        if (family.IsAugment) return "union:augment:" + family.Key;
         var patterns = family.Members
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)
@@ -408,40 +443,72 @@ public static class ModFamilies
     internal static string? CompactAlternatives(IReadOnlyList<string> lines)
     {
         if (lines.Count < 2) return null;
-        var prefix = lines[0];
-        foreach (var line in lines.Skip(1))
-            prefix = CommonPrefix(prefix, line);
-        if (prefix.Length == 0) return null;
-        var suffix = lines[0];
-        foreach (var line in lines.Skip(1))
-            suffix = CommonSuffix(suffix, line);
-        if (suffix.Length == 0) return null;
+        var prefix = CommonPrefix(lines);
+        var suffix = CommonSuffix(lines);
+        if (prefix.Length == 0 && suffix.Length == 0) return null;
         if (lines.Any(line => prefix.Length + suffix.Length >= line.Length)) return null;
         var middles = lines
             .Select(line => line[prefix.Length..(line.Length - suffix.Length)])
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (middles.Count < 2 || middles.Any(m => m.Length == 0)) return null;
-        // Keep the prefix on every short alternative (`+1 / +2`), but only
-        // once for a long textual prefix (`Break Armour equal to 2–4 / 4–7`).
-        var body = prefix.Length <= 2
+        // Keep the prefix on every short alternative (`+1 / +2`). A numeric
+        // prefix that ends at the number/range boundary (`10–`, `1.`) also
+        // belongs to every middle; without it `10–15 / 18%` loses the base
+        // number. Long textual prefixes (`Break Armour equal to 2–4 / 4–7`)
+        // are still emitted once.
+        var repeatPrefix =
+            prefix.Length <= 2 ||
+            (prefix.Any(char.IsDigit) &&
+             middles.All(m => m.Any(char.IsDigit)) &&
+             (char.IsDigit(prefix[^1]) || prefix[^1] is '–' or '-' or '.' or ':'));
+        var body = repeatPrefix
             ? string.Join(" / ", middles.Select(m => prefix + m))
             : prefix + string.Join(" / ", middles);
         return body + suffix;
     }
 
-    private static string CommonPrefix(string a, string b)
+    private static string CommonPrefix(IReadOnlyList<string> lines)
     {
-        var i = 0;
-        while (i < a.Length && i < b.Length && a[i] == b[i]) i++;
-        return a[..i];
+        var first = lines[0];
+        var length = first.Length;
+        foreach (var line in lines.Skip(1))
+        {
+            length = Math.Min(length, line.Length);
+            var i = 0;
+            while (i < length && first[i] == line[i]) i++;
+            length = i;
+        }
+        // Never end a common prefix in the middle of a digit run. A shared
+        // leading digit would otherwise turn `10–19 / 15–29` into
+        // `10–1 / 15–29`.
+        while (length > 0 && char.IsDigit(first[length - 1]) &&
+               lines.All(line => line.Length > length && char.IsDigit(line[length])))
+        {
+            length--;
+        }
+        return first[..length];
     }
 
-    private static string CommonSuffix(string a, string b)
+    private static string CommonSuffix(IReadOnlyList<string> lines)
     {
-        var i = 0;
-        while (i < a.Length && i < b.Length && a[^(i + 1)] == b[^(i + 1)]) i++;
-        return a[^i..];
+        var first = lines[0];
+        var length = 0;
+        var minLength = lines.Min(line => line.Length);
+        while (length < minLength &&
+               lines.All(line => line[^(length + 1)] == first[^(length + 1)]))
+        {
+            length++;
+        }
+        // Likewise, never start a common suffix in the middle of a digit
+        // run. The shared trailing `9` in `10–19 / 15–29` belongs to the
+        // ranges, not to the stat text.
+        while (length > 0 && char.IsDigit(first[^(length)]) &&
+               lines.All(line => line.Length > length && char.IsDigit(line[^(length + 1)])))
+        {
+            length--;
+        }
+        return first[^length..];
     }
 
     internal static double FirstNumber(string text)

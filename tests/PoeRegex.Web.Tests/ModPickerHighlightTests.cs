@@ -61,12 +61,38 @@ public class ModPickerHighlightTests
         cut.Find("#mod-search").Input("of Ulaman");
 
         var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
-        row.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().Be("Ulaman");
+        var status = row.QuerySelector(".fam-status")!;
+        status.LastElementChild!.ClassList.Should().Contain("mod-source");
+        status.LastElementChild!.TextContent.Trim().Should().Be("Ulaman");
         row.QuerySelector(".fam-text .mod-source").Should().BeNull(
             "the source tag belongs in the row's tag cluster, not inside the stat text");
         row.QuerySelector(".fam-caret").Should().BeNull(
             "a single-tier same-fragment family collapses without an expand control");
+    }
+
+    [Fact]
+    public void CollapsedFamilyExclude_ShowsButtonWithoutCount()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Helmet");
+        var sourceMod = mods.Single(m =>
+            m.Id == "AbyssModHelmUlamanSuffixMarkedEnemyTakeIncreasedDamage");
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsDesecrated && f.Members.Any(m => m.Id == sourceMod.Id));
+        var state = new WorkbenchState();
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        cut.Find("#mod-search").Input("of Ulaman");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("excluded");
+        row.QuerySelector(".fam-caret").Should().BeNull();
+        row.QuerySelector(".excluded-count").Should().BeNull(
+            "the ⊘ action already conveys the exclusion on a non-expanding row");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").TextContent.Should().Be("⊘");
+        row.QuerySelector(".fam-status .mod-source")!.TextContent.Trim().Should().Be("Ulaman");
     }
 
     [Fact]
@@ -242,6 +268,11 @@ public class ModPickerHighlightTests
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.QuerySelectorAll(".state-badge").Should().BeEmpty();
         coveredRow.TextContent.Should().Contain("≥ covered");
+        var rightOrder = coveredRow.QuerySelectorAll(".covered-note, .tier-name").ToList();
+        rightOrder.Should().HaveCount(2);
+        rightOrder[0].ClassList.Should().Contain("covered-note");
+        rightOrder[1].ClassList.Should().Contain("tier-name",
+            "the tier name is the rightmost text before the actions");
 
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeTrue();
@@ -524,7 +555,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void TierIncludedAndExcluded_ShowsBothStatesWithoutPills()
+    public void TierIncludeAndExcludeSameClaim_NormalizesToInclude()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -535,15 +566,15 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods, "helmet");
         Expand(cut, family);
 
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle();
+        crit.Excluded.Should().BeEmpty("include and exclude cannot share a claim");
+
         var row = TierRow(cut, tier);
         row.ClassList.Should().Contain("picked");
-        row.ClassList.Should().Contain("excluded");
-        row.QuerySelectorAll(".state-badge").Should().BeEmpty();
-        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").TextContent.Should().Be("⊘");
+        row.ClassList.Should().NotContain("excluded");
         var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
         exact.GetAttribute("aria-pressed").Should().Be("true");
-        exact.HasAttribute("disabled").Should().BeFalse();
         exact.TextContent.Should().Be("✓");
     }
 
@@ -683,6 +714,36 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void TierUp_ClearsHigherTierIncludesAndExclusions()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 3];
+        var higher = family.Tiers
+            .Where(t => t.RequiredLevel > tier.RequiredLevel &&
+                        t.Name.Length > 0 &&
+                        family.NamesFrom(tier).Contains(t.Name))
+            .ToList();
+        higher.Should().HaveCountGreaterThan(1);
+
+        var includedHigher = higher[0];
+        var excludedHigher = higher.First(t => t.Name != includedHigher.Name);
+        var crit = state.CriteriaFor("helmet");
+        state.AddInclude("helmet", new WantedMod(includedHigher.Anchor.Id, [includedHigher.Name]));
+        state.AddExclude("helmet", excludedHigher.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+
+        crit.Included.Should().ContainSingle(pick =>
+            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+        crit.Excluded.Should().BeEmpty();
+        TierRow(cut, includedHigher).ClassList.Should().NotContain("picked");
+        TierRow(cut, excludedHigher).ClassList.Should().NotContain("excluded");
+    }
+
+    [Fact]
     public void TierExclude_RemovesExact_WhenNotCovered()
     {
         using var ctx = Context();
@@ -708,7 +769,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void MixedFamilyStates_PreserveBothWithoutPills()
+    public void FamilyIncludeAndExcludeSameClaim_NormalizesToInclude()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -717,15 +778,14 @@ public class ModPickerHighlightTests
 
         var cut = Render(ctx, state, mods, "helmet");
 
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle();
+        crit.Excluded.Should().BeEmpty("include and exclude cannot share a claim");
         var row = FamilyRow(cut, family);
         row.ClassList.Should().Contain("picked");
-        row.ClassList.Should().Contain("excluded");
-        row.QuerySelectorAll(".state-badge").Should().BeEmpty(
-            "family rows have no Included/Excluded pills");
-        row.GetAttribute("style").Should().BeNullOrEmpty("excluded rows have no side-border style");
+        row.ClassList.Should().NotContain("excluded");
         cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-exc-{family.Anchor.Id}").TextContent.Should().Be("⊘");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
     }
 
     [Fact]
