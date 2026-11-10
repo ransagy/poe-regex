@@ -714,6 +714,36 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void TierUp_ClearsHigherTierIncludesAndExclusions()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 3];
+        var higher = family.Tiers
+            .Where(t => t.RequiredLevel > tier.RequiredLevel &&
+                        t.Name.Length > 0 &&
+                        family.NamesFrom(tier).Contains(t.Name))
+            .ToList();
+        higher.Should().HaveCountGreaterThan(1);
+
+        var includedHigher = higher[0];
+        var excludedHigher = higher.First(t => t.Name != includedHigher.Name);
+        var crit = state.CriteriaFor("helmet");
+        state.AddInclude("helmet", new WantedMod(includedHigher.Anchor.Id, [includedHigher.Name]));
+        state.AddExclude("helmet", excludedHigher.Name);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+
+        crit.Included.Should().ContainSingle(pick =>
+            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+        crit.Excluded.Should().BeEmpty();
+        TierRow(cut, includedHigher).ClassList.Should().NotContain("picked");
+        TierRow(cut, excludedHigher).ClassList.Should().NotContain("excluded");
+    }
+
+    [Fact]
     public void TierExclude_RemovesExact_WhenNotCovered()
     {
         using var ctx = Context();

@@ -139,6 +139,74 @@ public class ClaimTests
     }
 
     [Fact]
+    public void Picker_FamilyCoveredStateSurvivesTierPick()
+    {
+        using var ctx = Context();
+        var mods = Engine.ModsForClass("Body Armour");
+        var evasion = Family(mods, "LocalEvasionRatingIncreasePercent");
+        var hybrid = Family(mods, "LocalIncreasedEvasionAndLife");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+        state.SetSlotClass("body", "Body Armour");
+        state.AddInclude("body", evasion.Pick());
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, mods));
+        cut.Find("#mod-search").Input("evasion");
+
+        var row = cut.Find($"[id='pick-inc-{hybrid.Anchor.Id}']").ParentElement!;
+        row.ClassList.Should().Contain("covered");
+        cut.Find($"[id='pick-inc-{hybrid.Anchor.Id}']").TextContent.Should().Be("⇄");
+
+        var toggle = cut.Find($"[id='fam-toggle-{hybrid.Anchor.Id}']");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"[id='pick-tier-{hybrid.Tiers[0].Anchor.Id}']").Click();
+
+        row = cut.Find($"[id='pick-inc-{hybrid.Anchor.Id}']").ParentElement!;
+        row.ClassList.Should().Contain("covered").And.Contain("picked");
+        row.QuerySelector(".fam-status")!.TextContent.Should()
+            .Contain("covered").And.Contain("1 picked");
+        var include = cut.Find($"[id='pick-inc-{hybrid.Anchor.Id}']");
+        include.TextContent.Should().Be("⇄",
+            "the family-level claim is still owned by the evasion family");
+        include.GetAttribute("title").Should().Contain("Use ⇄ to switch");
+    }
+
+    [Fact]
+    public void Picker_FamilyExcludeCoveredStateSurvivesTierPick()
+    {
+        using var ctx = Context();
+        var mods = Engine.ModsForClass("Body Armour");
+        var evasion = Family(mods, "LocalEvasionRatingIncreasePercent");
+        var hybrid = Family(mods, "LocalIncreasedEvasionAndLife");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+        state.SetSlotClass("body", "Body Armour");
+        state.AddExclude("body", evasion.Anchor.Id);
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, mods));
+        cut.Find("#mod-search").Input("evasion");
+
+        var exclude = cut.Find($"[id='pick-exc-{hybrid.Anchor.Id}']");
+        exclude.TextContent.Should().Be("⇄");
+
+        var toggle = cut.Find($"[id='fam-toggle-{hybrid.Anchor.Id}']");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"[id='pick-tier-{hybrid.Tiers[0].Anchor.Id}']").Click();
+
+        exclude = cut.Find($"[id='pick-exc-{hybrid.Anchor.Id}']");
+        exclude.TextContent.Should().Be("⇄",
+            "a tier pick does not take over the family-level exclusion claim");
+    }
+
+    [Fact]
     public void Picker_HelpTip_ExplainsModTypesAndClaims()
     {
         using var ctx = Context();

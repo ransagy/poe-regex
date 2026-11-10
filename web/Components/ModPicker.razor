@@ -89,8 +89,11 @@
                                     FamilyPicks(fam, [familyClaim]).Count > 0;
                                 var familyRowPicked = familyClaimTouches ||
                                     FamilyPicked(fam, crit.Included);
+                                // A tier pick does not own the family-level
+                                // claim. Keep the covered state so the family
+                                // include action still offers the switch.
                                 var coveredClaim = familyClaim is not null &&
-                                    !familyClaimTouches && !FamilyPicked(fam, crit.Included);
+                                    !familyClaimTouches;
                                 var coveredClaimLabel = coveredClaim ? ClaimLabel(familyClaim!) : null;
                                 var excludedFamily = crit.Excluded.Count > 0 &&
                                     FamilyExcludedClaim(fam, crit.Excluded);
@@ -217,20 +220,33 @@
                                                 var excludedTier = tierExcludedHere || tierExcludedClaim;
                                                 var tierExcludedCovered = excludedTier && !tierExcludedHere;
                                                 var tierLines = TierLines(fam, tier);
-                                                <li class="suggest-row tier-row @(includedTier ? "picked" : "") @(coveredByUp ? "covered up-covered" : "") @(tierCoveredClaim ? "covered" : "") @(excludedTier ? "excluded" : "")">
+                                                // Rune tiers are informational: the family row carries
+                                                // the selection and these rows have no actions.
+                                                var tierStateClass = "";
+                                                if (!fam.IsAugment)
+                                                {
+                                                    if (includedTier) tierStateClass += "picked ";
+                                                    if (coveredByUp) tierStateClass += "covered up-covered ";
+                                                    if (tierCoveredClaim) tierStateClass += "covered ";
+                                                    if (excludedTier) tierStateClass += "excluded";
+                                                }
+                                                <li class="suggest-row tier-row @tierStateClass">
                                                     <span class="suggest-line @(tierLines.Count > 1 ? "multi" : "")" title="@TierTooltip(tier)">
                                                         @foreach (var l in tierLines)
                                                         {
                                                             <span class="mod-line">@l</span>
                                                         }
                                                     </span>
-                                                    @if (tierCoveredClaim)
+                                                    @if (!fam.IsAugment)
                                                     {
-                                                        <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
-                                                    }
-                                                    else if (coveredByUp && !upSelected)
-                                                    {
-                                                        <span class="covered-note" title="@coveredHint">≥ covered</span>
+                                                        @if (tierCoveredClaim)
+                                                        {
+                                                            <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
+                                                        }
+                                                        else if (coveredByUp && !upSelected)
+                                                        {
+                                                            <span class="covered-note" title="@coveredHint">≥ covered</span>
+                                                        }
                                                     }
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (!fam.IsAugment)
@@ -1008,9 +1024,19 @@
                 covering.Anchor.Id != tier.Anchor.Id) return;
             foreach (var p in FamilyUpPicks(fam, crit.Included))
                 State.RemoveInclude(Scope, p);
-            foreach (var p in TierExplicitPicks(fam, tier, crit.Included))
+            // Selecting "this or better" covers every tier at or above the
+            // anchor. Any explicit include or exclusion left on one of those
+            // tiers is now contradictory, so clear the whole covered range.
+            var coveredTiers = fam.Tiers
+                .Where(t => t.RequiredLevel >= tier.RequiredLevel)
+                .ToList();
+            foreach (var p in coveredTiers
+                         .SelectMany(t => TierExplicitPicks(fam, t, crit.Included))
+                         .Distinct())
                 State.RemoveInclude(Scope, p);
-            foreach (var e in TierExclusionTerms(fam, tier, crit.Excluded))
+            foreach (var e in coveredTiers
+                         .SelectMany(t => TierExclusionTerms(fam, t, crit.Excluded))
+                         .Distinct(StringComparer.Ordinal))
                 State.RemoveExclude(Scope, e);
             State.AddInclude(Scope, pick);
         }

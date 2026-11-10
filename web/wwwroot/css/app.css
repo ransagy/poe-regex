@@ -434,12 +434,22 @@ input:disabled { opacity: 0.5; }
 .suggest-row.fam-row.covered { background: var(--surface); }
 .suggest-row.tier-row.covered { background: var(--surface); }
 .suggest-row.tier-row.up-covered { background: var(--surface); }
+.suggest-row.tier-row.covered .tier-name { color: var(--mod); }
 .suggest-row.tier-row.up-covered .tier-name { color: var(--mod); }
 .suggest-row.fam-row.excluded, .suggest-row.tier-row.excluded {
     background: var(--no-soft);
 }
 .suggest-row.fam-row.picked.excluded, .suggest-row.tier-row.picked.excluded {
     background: linear-gradient(90deg, var(--mod-soft), var(--no-soft));
+}
+.suggest-row.fam-row.picked.covered {
+    background: linear-gradient(90deg, var(--mod-soft), var(--surface));
+}
+.suggest-row.fam-row.covered.excluded {
+    background: linear-gradient(90deg, var(--surface), var(--no-soft));
+}
+.suggest-row.fam-row.picked.covered.excluded {
+    background: linear-gradient(90deg, var(--mod-soft), var(--surface), var(--no-soft));
 }
 .fam-status {
     display: flex; align-items: baseline; gap: 0.45rem;

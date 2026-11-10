@@ -245,5 +245,9 @@ public class AugmentTests
         cut.Find($"[id='pick-inc-{family.Anchor.Id}']").Click();
         cut.Find($"[id='pick-inc-{family.Anchor.Id}']").GetAttribute("aria-pressed").Should().Be("true");
         state.CriteriaFor("helmet").Included.Should().ContainSingle();
+        cut.FindAll(".tier-row .covered-note").Should().BeEmpty(
+            "rune tiers are informational; the family row carries the selection");
+        cut.FindAll(".tier-row.picked, .tier-row.covered, .tier-row.excluded").Should().BeEmpty(
+            "informational rune tiers do not show interactive state");
     }
 }

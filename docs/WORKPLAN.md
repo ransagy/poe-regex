@@ -50,7 +50,7 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tests: 111 core, 403 web, 34 data-build; local suites green.
+- Tests: 111 core, 406 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
