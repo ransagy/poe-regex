@@ -164,11 +164,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   corrupted family are removed at data build, so Augments shows unique effects
   only; augments are not in the default common shortlist and appear when
   searched or after `Show all mods`; mods and tiers that compile to the same
-  positive query share one **claim**: selecting one leaves the others visible
-  as `same search` covered rows, and selecting a covered row switches the
-  claim instead of adding a second chip; a `(?)` help beside `Show all mods`
-  explains Simple vs Hybrid mods, same-search claims, line-search overlap,
-  and the unique-only augment filter; before typing, the curated common
+  positive query share one selection: selecting one leaves the others visible
+  as `covered` rows, and their `⇄` button switches to that mod instead of
+  adding a second chip; a conditional glyph legend beside the common/all
+  switch explains `+ Add`, `✓ Selected`, `⇄ Switch`, `− Exclude`,
+  `⊘ Excluded`, `≥ Better`, and `covered Same search`; the `(?)` there
+  explains multi-effect searches, covered rows, and duplicate merging;
+  before typing, the curated common
   shortlist shows under a `Common picks · N shown`
   line (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
@@ -269,10 +271,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   any of there and the section says so. "None of" lists exclusions (each its
   own `!"…"` block; in advanced they apply to every slot, and `All gear`
   exclusions carry over). Identical exclusion fragments collapse to one
-  block; a claim cannot be both included and excluded. Mods/tiers that
-  compile to the same query share one claim: the active one carries the chip,
-  the others stay visible as `same search` and selecting one switches the
-  claim instead of adding a duplicate chip. Plain single-line picks with a number take a
+  block; a search cannot be both included and excluded. Mods/tiers that
+  compile to the same query share one selection: the active one carries the
+  chip, the others stay visible as `covered` with a `⇄` switch button. Plain
+  single-line picks with a number take a
   `min` value (floors the first number, compiled by the engine's threshold
   fragment against the advanced `roll(min-max)` text, so it costs far more
   than the plain fragment; when the engine cannot carry the floor safely it

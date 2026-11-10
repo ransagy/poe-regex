@@ -37,13 +37,15 @@ Current planned and parked work. Behavior is documented in
   augments, Soul Cores, Idols, Abyssal Eyes, bonded stats, and a socket model
   remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
-  row with the same query as the active claim stays visible as `same search`;
-  selecting it switches the claim instead of adding a second chip. A `(?)`
-  help beside the common/all switch explains Simple vs Hybrid mods,
-  same-search claims, line-search overlap, and the unique-only augment
-  filter. Includes and exclusions are mutually exclusive per claim;
+  row with the same query as the active selection stays visible as `covered`;
+  its `⇄` button switches the selection instead of adding a second chip. A
+  conditional glyph legend (`+` Add, `✓` Selected, `⇄` Switch, `−` Exclude,
+  `⊘` Excluded, `≥` Better, `covered` Same search) sits beside the common/all
+  switch; the `(?)` there explains multi-effect searches, covered rows,
+  duplicate merging, and exclusions. Includes and exclusions are mutually
+  exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tests: 111 core, 397 web, 34 data-build; local suites green.
+- Tests: 111 core, 398 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -72,6 +74,19 @@ Current planned and parked work. Behavior is documented in
 No active next items. Catalog coverage and platform work are parked below.
 
 ## Parked
+
+### UI follow-ups
+
+- **Compact sticky search box.** Replace the fixed bottom `.out-dock`
+  (length/copy only) with the main `SearchBar` hero made sticky at the top in
+  compact/mobile modes. Effort: **small-medium** — layout/CSS only, no data or
+  solver work, but it needs shell-header stacking, safe-area and keyboard
+  checks, ruler/copy behavior, and removal of the `.shell` bottom padding.
+  Main risks are the mobile viewport and the scaled compact layout.
+- **Reset workbench visibility.** The current footer text link
+  (`#workbench-reset`) is easy to miss. Make it a clearly styled secondary
+  button, or move it into the header/options area with a confirmation.
+  Effort: **small** — one markup/CSS change plus placement/accessibility review.
 
 ### Distribution and platform
 

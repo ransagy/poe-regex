@@ -127,11 +127,15 @@ public class ClaimTests
 
         cut.Find($"[id='pick-inc-{pure.Anchor.Id}']").Click();
         state.CriteriaFor("weapon").Included.Should().ContainSingle();
-        cut.FindAll(".covered-note").Should().Contain(e => e.TextContent.Contains("same search"));
+        cut.FindAll(".covered-note").Should().Contain(e => e.TextContent.Contains("covered"));
+        cut.Find($"[id='pick-inc-{pure.Anchor.Id}']").TextContent.Should().Be("✓");
+        cut.Find($"[id='pick-inc-{kurgal.Anchor.Id}']").TextContent.Should().Be("⇄");
 
         cut.Find($"[id='pick-inc-{kurgal.Anchor.Id}']").Click();
         state.CriteriaFor("weapon").Included.Should().ContainSingle();
         state.CriteriaFor("weapon").Included[0].ModId.Should().Be(kurgal.Anchor.Id);
+        cut.Find($"[id='pick-inc-{kurgal.Anchor.Id}']").TextContent.Should().Be("✓");
+        cut.Find($"[id='pick-inc-{pure.Anchor.Id}']").TextContent.Should().Be("⇄");
     }
 
     [Fact]
@@ -149,10 +153,35 @@ public class ClaimTests
             .Add(x => x.Mods, mods));
 
         cut.FindAll(".mod-shape").Should().BeEmpty();
+        cut.FindAll(".glyph-legend").Should().BeEmpty(
+            "the legend stays out of the quiet initial state");
+        cut.Find(".help").ClassList.Should().Contain("help-fixed");
         cut.Find(".help-btn").Click();
         var help = cut.Find(".help-pop").TextContent;
-        help.Should().Contain("Simple").And.Contain("Hybrid")
-            .And.Contain("Same search").And.Contain("Overlap").And.Contain("Augments");
+        help.Should().Contain("selected (✓)").And.Contain("covered")
+            .And.Contain("Duplicate mods").And.NotContain("augment");
+    }
+
+    [Fact]
+    public void Picker_LegendAppearsWhenClaimStateExists()
+    {
+        using var ctx = Context();
+        var mods = Engine.ModsForClass("Body Armour");
+        var life = Family(mods, "IncreasedLife");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, mods));
+        cut.FindAll(".glyph-legend").Should().BeEmpty();
+        cut.Find($"[id='pick-inc-{life.Anchor.Id}']").Click();
+        var legend = cut.Find(".glyph-legend").TextContent;
+        legend.Should().Contain("Add").And.Contain("Selected").And.Contain("Switch")
+            .And.Contain("Exclude").And.Contain("Excluded").And.Contain("Better")
+            .And.Contain("covered");
     }
 
     [Fact]
@@ -175,8 +204,8 @@ public class ClaimTests
         cut.Find($"[id='pick-inc-{pure.Anchor.Id}']").Click();
 
         var covered = cut.Find($"[id='pick-inc-{kurgal.Anchor.Id}']");
-        covered.GetAttribute("title")!.Should().Contain("Switch the claim");
-        covered.ParentElement!.QuerySelector(".covered-note")!.TextContent.Should().Be("same search");
+        covered.GetAttribute("title")!.Should().Contain("Use ⇄ to switch");
+        covered.ParentElement!.QuerySelector(".covered-note")!.TextContent.Should().Be("covered");
     }
 
     [Fact]

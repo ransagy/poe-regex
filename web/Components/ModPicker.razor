@@ -28,6 +28,34 @@
         </div>
     </div>
 
+    @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
+    {
+        <div class="mod-scope">
+            <span>@(_showAll ? $"All {_families.Count} mods" : $"Common picks · {CommonCount} shown")</span>
+            <span class="mod-scope-actions">
+                <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
+                    @(_showAll ? "Show common only" : "Show all mods")
+                </button>
+                <HelpTip Title="Mod search and picker limitations" Class="help-fixed">
+                    <p>Some mods list several effects, but the game can search only one effect line at a time. The picker uses the best line, so a search can also match other mods that share that line.</p>
+                    <p>When two rows share a search, one is selected (✓). A covered row uses ⇄ to switch to that mod instead.</p>
+                    <p>Duplicate mods are merged: if the same effect already exists as a normal mod, the duplicate version from another source is omitted.</p>
+                </HelpTip>
+            </span>
+        </div>
+    }
+    @if (ShowLegend)
+    {
+        <div class="glyph-legend" aria-label="Picker symbol legend">
+            <span><b>+</b> Add</span>
+            <span><b>✓</b> Selected</span>
+            <span><b>⇄</b> Switch</span>
+            <span><b>−</b> Exclude</span>
+            <span><b>⊘</b> Excluded</span>
+            <span><b>≥</b> Better</span>
+            <span><b>covered</b> Same search</span>
+        </div>
+    }
     @if (_families.Count == 0)
     {
         <div class="more">@(_search.Trim().Length == 0
@@ -37,27 +65,6 @@
     else
     {
         <div class="mod-list">
-            @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
-            {
-                <div class="mod-scope">
-                    <span>@(_showAll ? $"All {_families.Count} mods" : $"Common picks · {CommonCount} shown")</span>
-                    <span class="mod-scope-actions">
-                        <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
-                            @(_showAll ? "Show common only" : "Show all mods")
-                        </button>
-                        <HelpTip Title="Mod search and picker limitations" Class="help-right">
-                            <ul>
-                                <li><b>Simple</b> mods have one stat line; the search matches that line.</li>
-                                <li><b>Hybrid</b> mods have several stat lines. A single quoted search term can require only one line, so the picker searches the line that best distinguishes the mod; the other lines are not required.</li>
-                                <li><b>Same search</b> means different mods or tiers compile to the same query. They share one claim; selecting one leaves the others visible as covered, and selecting a covered row switches the claim.</li>
-                                <li><b>Overlap:</b> a line search can also match items that carry that line as part of another mod. Exact full-mod matching is not expressible with one quoted term.</li>
-                                <li>Include and exclude cannot share a claim; duplicate exclusion fragments collapse to one block.</li>
-                                <li>Augments list unique rune effects only; rune effects already covered by normal modifiers are omitted.</li>
-                            </ul>
-                        </HelpTip>
-                    </span>
-                </div>
-            }
             @{
                 (IReadOnlyList<ModFamily> List, string Header, string Css)[] sections =
                     [(_augments, "Augments", "augment-sec"),
@@ -92,6 +99,7 @@
                                     FamilyExcludedClaim(fam, crit.Excluded);
                                 var excludedHere = crit.Excluded.Count > 0 &&
                                     FamilyExclusionTerms(fam, crit.Excluded).Count > 0;
+                                var excludedCovered = excludedFamily && !excludedHere;
                                 var pickedTiers = fam.Tiers.Count(t =>
                                     crit.Included.Any(m => TierPicked(t, m)));
                                 var excludedTiers = fam.Tiers.Count(t =>
@@ -145,7 +153,7 @@
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
                                                 @if (coveredClaim)
                                                 {
-                                                    <span class="covered-note" title="@SameSearchTitle(coveredClaimLabel)">same search</span>
+                                                    <span class="covered-note" title="@CoveredTitle(coveredClaimLabel)">covered</span>
                                                 }
                                                 @if (pickedTiers > 0)
                                                 {
@@ -169,19 +177,19 @@
                                             }
                                             @if (coveredClaim)
                                             {
-                                                <span class="covered-note" title="@SameSearchTitle(coveredClaimLabel)">same search</span>
+                                                <span class="covered-note" title="@CoveredTitle(coveredClaimLabel)">covered</span>
                                             }
                                         }
-                                        <button id="pick-inc-@fam.Anchor.Id" class="inc @(familyClaimed ? "active" : "")"
+                                        <button id="pick-inc-@fam.Anchor.Id" class="inc @(familyClaimed ? "active" : "") @(coveredClaim ? "switch" : "")"
                                                 title="@FamilyIncludeActionTitle(fam, familyClaimed, coveredClaimLabel)"
                                                 aria-label="@FamilyIncludeActionTitle(fam, familyClaimed, coveredClaimLabel)"
                                                 aria-pressed="@(familyClaimed ? "true" : "false")"
-                                                @onclick="() => ToggleFamilyInclude(fam)">@(familyClaimed ? "✓" : "+")</button>
-                                        <button id="pick-exc-@fam.Anchor.Id" class="exc @(excludedFamily ? "active" : "")"
-                                                title="@FamilyExcludeActionTitle(fam, excludedFamily, excludedHere)"
-                                                aria-label="@FamilyExcludeActionTitle(fam, excludedFamily, excludedHere)"
-                                                aria-pressed="@(excludedFamily ? "true" : "false")"
-                                                @onclick="() => ToggleFamilyExclude(fam)">@(excludedFamily ? "⊘" : "−")</button>
+                                                @onclick="() => ToggleFamilyInclude(fam)">@(familyClaimed ? "✓" : coveredClaim ? "⇄" : "+")</button>
+                                        <button id="pick-exc-@fam.Anchor.Id" class="exc @(excludedHere ? "active" : "") @(excludedCovered ? "switch" : "")"
+                                                title="@FamilyExcludeActionTitle(fam, excludedHere, excludedCovered)"
+                                                aria-label="@FamilyExcludeActionTitle(fam, excludedHere, excludedCovered)"
+                                                aria-pressed="@(excludedHere ? "true" : "false")"
+                                                @onclick="() => ToggleFamilyExclude(fam)">@(excludedHere ? "⊘" : excludedCovered ? "⇄" : "−")</button>
                                     </div>
                                     @if (expanded && !collapsed)
                                     {
@@ -206,9 +214,18 @@
                                                     ? CoveredTierHint(covering)
                                                     : null;
                                                 var upDisabled = coveredByUp && !upSelected;
-                                                var excludedTier = TierExcluded(fam, tier, crit.Excluded);
+                                                var tierExclusionTerm = TierExclusionTerm(fam, tier);
+                                                var tierExcludedHere = crit.Excluded.Count > 0 &&
+                                                    TierExclusionTerms(fam, tier, crit.Excluded).Count > 0;
+                                                var tierExclusionKey = crit.Excluded.Count > 0
+                                                    ? Engine.ExcludeClaimKey(tierExclusionTerm, ScopeClassId)
+                                                    : null;
+                                                var tierExcludedClaim = tierExclusionKey is not null &&
+                                                    PickClaims.FindExcludes(crit, Engine, ScopeClassId, tierExclusionKey).Count > 0;
+                                                var excludedTier = tierExcludedHere || tierExcludedClaim;
+                                                var tierExcludedCovered = excludedTier && !tierExcludedHere;
                                                 var tierLines = TierLines(fam, tier);
-                                                <li class="suggest-row tier-row @(includedTier ? "picked" : "") @(coveredByUp || tierCoveredClaim ? "covered" : "") @(excludedTier ? "excluded" : "")">
+                                                <li class="suggest-row tier-row @(includedTier ? "picked" : "") @(coveredByUp ? "covered up-covered" : "") @(tierCoveredClaim ? "covered" : "") @(excludedTier ? "excluded" : "")">
                                                     <span class="suggest-line @(tierLines.Count > 1 ? "multi" : "")" title="@TierTooltip(tier)">
                                                         @foreach (var l in tierLines)
                                                         {
@@ -216,23 +233,23 @@
                                                         }
                                                     </span>
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
-                                                    @if (coveredByUp && !upSelected)
+                                                    @if (tierCoveredClaim)
+                                                    {
+                                                        <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
+                                                    }
+                                                    else if (coveredByUp && !upSelected)
                                                     {
                                                         <span class="covered-note" title="@coveredHint">≥ covered</span>
                                                     }
-                                                    @if (tierCoveredClaim)
-                                                    {
-                                                        <span class="covered-note" title="@SameSearchTitle(tierCoveredLabel)">same search</span>
-                                                    }
                                                     @if (!fam.IsAugment)
                                                     {
-                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(includedTier ? "active" : "")"
+                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(tierClaimedHere ? "active" : "") @(tierCoveredClaim ? "switch" : "")"
                                                                 disabled="@coveredByUp"
                                                                 aria-disabled="@(coveredByUp ? "true" : "false")"
                                                                 title="@TierPickActionTitle(tier, tierClaimedHere, tierCoveredLabel, coveredHint)"
                                                                 aria-label="@TierPickActionTitle(tier, tierClaimedHere, tierCoveredLabel, coveredHint)"
                                                                 aria-pressed="@(tierClaimedHere ? "true" : "false")"
-                                                                @onclick="() => ToggleTierExact(fam, tier)">@(tierClaimedHere ? "✓" : "+")</button>
+                                                                @onclick="() => ToggleTierExact(fam, tier)">@(tierClaimedHere ? "✓" : tierCoveredClaim ? "⇄" : "+")</button>
                                                         @if (upNames.Count > 1)
                                                         {
                                                             <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "")"
@@ -243,13 +260,13 @@
                                                                     aria-pressed="@(upSelected ? "true" : "false")"
                                                                     @onclick="() => ToggleTierUp(fam, tier)">≥</button>
                                                         }
-                                                        <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(excludedTier ? "active" : "")"
+                                                        <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(tierExcludedHere ? "active" : "") @(tierExcludedCovered ? "switch" : "")"
                                                                 disabled="@coveredByUp"
                                                                 aria-disabled="@(coveredByUp ? "true" : "false")"
-                                                                title="@TierExcludeTitle(tier, excludedTier, coveredHint)"
-                                                                aria-label="@TierExcludeTitle(tier, excludedTier, coveredHint)"
-                                                                aria-pressed="@(excludedTier ? "true" : "false")"
-                                                                @onclick="() => ToggleTierExclude(fam, tier)">@(excludedTier ? "⊘" : "−")</button>
+                                                                title="@TierExcludeActionTitle(tier, tierExcludedHere, tierExcludedCovered, coveredHint)"
+                                                                aria-label="@TierExcludeActionTitle(tier, tierExcludedHere, tierExcludedCovered, coveredHint)"
+                                                                aria-pressed="@(tierExcludedHere ? "true" : "false")"
+                                                                @onclick="() => ToggleTierExclude(fam, tier)">@(tierExcludedHere ? "⊘" : tierExcludedCovered ? "⇄" : "−")</button>
                                                     }
                                                 </li>
                                             }
@@ -313,6 +330,15 @@
     private bool _showAll;
 
     private int CommonCount => _allFamilies.Count(ModFamilies.IsCommon);
+
+    private bool ShowLegend
+    {
+        get
+        {
+            var crit = ScopeCriteria();
+            return _showAll || crit.Included.Count > 0 || crit.Excluded.Count > 0;
+        }
+    }
 
     private void ToggleShowAll()
     {
@@ -728,15 +754,15 @@
             : $"Exclude {fam.DisplayText} (any tier)";
 
     private static string FamilyExcludeActionTitle(
-        ModFamily fam, bool excluded, bool excludedHere) =>
-        excluded && !excludedHere
-            ? $"Same exclusion search as another mod. Switch the exclusion to {fam.DisplayText}."
-            : FamilyExcludeTitle(fam, excluded);
+        ModFamily fam, bool excludedHere, bool excludedCovered) =>
+        excludedCovered
+            ? $"Same exclusion is selected on another mod. Use ⇄ to switch the exclusion to {fam.DisplayText}."
+            : FamilyExcludeTitle(fam, excludedHere);
 
     private static string FamilyIncludeActionTitle(
         ModFamily fam, bool claimedHere, string? coveredLabel) =>
         coveredLabel is not null
-            ? $"Same search as {coveredLabel}. Switch the claim to {fam.DisplayText}."
+            ? $"Same search is selected on {coveredLabel}. Use ⇄ to switch to {fam.DisplayText}."
             : FamilyIncludeTitle(fam, claimedHere);
 
     private WantedMod? FamilyClaim(ModFamily fam, SlotCriteria crit)
@@ -783,10 +809,10 @@
             ? $"\"{pick.Names[0]}\""
             : SearchModel.FamilyText(_allFamilies, Mods, pick.ModId, Engine);
 
-    private static string SameSearchTitle(string? label) =>
+    private static string CoveredTitle(string? label) =>
         label is null
-            ? "Same search as another selected mod. Select to switch."
-            : $"Same search as {label}. Select this row to switch the claim.";
+            ? "The same search is selected on another row. Use ⇄ to switch."
+            : $"The same search is selected on {label}. Use ⇄ to switch to this mod.";
 
     private static string TierPickTitle(
         ModTier tier, bool included, string? coveredHint)
@@ -802,7 +828,7 @@
         ModTier tier, bool claimedHere, string? coveredLabel, string? coveredHint)
     {
         if (coveredLabel is not null)
-            return $"Same search as {coveredLabel}. Switch the claim to \"{TierLabel(tier)}\".";
+            return $"The same search is selected on {coveredLabel}. Use ⇄ to switch to \"{TierLabel(tier)}\".";
         return TierPickTitle(tier, claimedHere, coveredHint);
     }
 
@@ -816,12 +842,14 @@
         return $"\"{label}\" — this tier or better. Add: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
     }
 
-    private static string TierExcludeTitle(
-        ModTier tier, bool excluded, string? coveredHint)
+    private static string TierExcludeActionTitle(
+        ModTier tier, bool excludedHere, bool excludedCovered, string? coveredHint)
     {
+        if (excludedCovered)
+            return $"The same exclusion is selected on another row. Use ⇄ to switch the exclusion to \"{TierLabel(tier)}\".";
         if (coveredHint is not null) return coveredHint;
         var label = TierLabel(tier);
-        return excluded
+        return excludedHere
             ? $"Excluded: \"{label}\". Remove exclusion."
             : $"Exclude \"{label}\"";
     }
