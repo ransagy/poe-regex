@@ -146,22 +146,23 @@
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
                                             </button>
                                         }
-                                        @if (coveredClaim || pickedTiers > 0 || excludedTiers > 0 || displayTag is not null)
+                                        @if (coveredClaim || displayTag is not null ||
+                                             (!collapsed && (pickedTiers > 0 || excludedTiers > 0)))
                                         {
                                             <span class="fam-status">
                                                 @if (coveredClaim)
                                                 {
                                                     <span class="covered-note" title="@CoveredTitle(coveredClaimLabel)">covered</span>
                                                 }
-                                                @if (pickedTiers > 0)
+                                                @if (!collapsed && pickedTiers > 0)
                                                 {
                                                     <span class="picked-count" title="@($"{pickedTiers} {(pickedTiers == 1 ? "tier" : "tiers")} picked in this family")">@pickedTiers picked</span>
                                                 }
-                                                @if (pickedTiers > 0 && excludedTiers > 0)
+                                                @if (!collapsed && pickedTiers > 0 && excludedTiers > 0)
                                                 {
                                                     <span class="summary-sep" aria-hidden="true">·</span>
                                                 }
-                                                @if (excludedTiers > 0)
+                                                @if (!collapsed && excludedTiers > 0)
                                                 {
                                                     <span class="excluded-count" title="@($"{excludedTiers} {(excludedTiers == 1 ? "tier" : "tiers")} excluded in this family")">@excludedTiers excluded</span>
                                                 }

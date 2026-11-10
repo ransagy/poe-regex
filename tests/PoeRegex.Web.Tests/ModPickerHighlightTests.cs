@@ -71,6 +71,31 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void CollapsedFamilyExclude_ShowsButtonWithoutCount()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Helmet");
+        var sourceMod = mods.Single(m =>
+            m.Id == "AbyssModHelmUlamanSuffixMarkedEnemyTakeIncreasedDamage");
+        var family = ModFamilies.Group(mods)
+            .Single(f => f.IsDesecrated && f.Members.Any(m => m.Id == sourceMod.Id));
+        var state = new WorkbenchState();
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        cut.Find("#mod-search").Input("of Ulaman");
+
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("excluded");
+        row.QuerySelector(".fam-caret").Should().BeNull();
+        row.QuerySelector(".excluded-count").Should().BeNull(
+            "the ⊘ action already conveys the exclusion on a non-expanding row");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").TextContent.Should().Be("⊘");
+        row.QuerySelector(".fam-status .mod-source")!.TextContent.Trim().Should().Be("Ulaman");
+    }
+
+    [Fact]
     public void ImplicitFamily_ShowsImplicitSectionAndTag()
     {
         using var ctx = Context();
