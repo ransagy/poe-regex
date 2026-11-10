@@ -153,8 +153,11 @@ public class ClaimTests
             .Add(x => x.Mods, mods));
 
         cut.FindAll(".mod-shape").Should().BeEmpty();
-        cut.FindAll(".glyph-legend").Should().BeEmpty(
-            "the legend stays out of the quiet initial state");
+        cut.FindAll(".mod-list .glyph-legend").Should().BeEmpty(
+            "the legend stays outside the scrolling list");
+        var legend = cut.Find(".glyph-legend");
+        legend.TextContent.Should().Contain("covered by an existing pick")
+            .And.NotContain("Same search");
         cut.Find(".help").ClassList.Should().Contain("help-fixed");
         cut.Find(".help-btn").Click();
         var help = cut.Find(".help-pop").TextContent;
@@ -163,7 +166,7 @@ public class ClaimTests
     }
 
     [Fact]
-    public void Picker_LegendAppearsWhenClaimStateExists()
+    public void Picker_LegendIsAlwaysVisibleAndColorCoded()
     {
         using var ctx = Context();
         var mods = Engine.ModsForClass("Body Armour");
@@ -176,12 +179,45 @@ public class ClaimTests
             .Add(x => x.State, state)
             .Add(x => x.Scope, "body")
             .Add(x => x.Mods, mods));
-        cut.FindAll(".glyph-legend").Should().BeEmpty();
+
+        var legend = cut.Find(".glyph-legend");
+        legend.TextContent.Should().Contain("Add").And.Contain("Selected")
+            .And.Contain("Switch").And.Contain("Exclude").And.Contain("Excluded")
+            .And.Contain("Better").And.Contain("covered by an existing pick");
+        legend.QuerySelectorAll(".legend-add").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-picked").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-switch").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-exclude").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-excluded").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-better").Should().ContainSingle();
+        legend.QuerySelectorAll(".legend-covered").Should().ContainSingle();
+
         cut.Find($"[id='pick-inc-{life.Anchor.Id}']").Click();
-        var legend = cut.Find(".glyph-legend").TextContent;
-        legend.Should().Contain("Add").And.Contain("Selected").And.Contain("Switch")
-            .And.Contain("Exclude").And.Contain("Excluded").And.Contain("Better")
-            .And.Contain("covered");
+        cut.Find(".glyph-legend").TextContent.Should().Contain("covered by an existing pick");
+    }
+
+    [Fact]
+    public void Picker_ScopeLine_StaysVisibleAndShowsMatches()
+    {
+        using var ctx = Context();
+        var mods = Engine.ModsForClass("Body Armour");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, mods));
+
+        cut.Find(".mod-scope").TextContent.Should().Contain("Common picks");
+        cut.FindAll("#mod-show-all").Should().ContainSingle();
+        cut.Find("#mod-search").Input("life");
+        cut.Find(".mod-scope").TextContent.Should().Contain("match");
+        cut.FindAll("#mod-show-all").Should().BeEmpty(
+            "the common/all toggle does not apply while filtering");
+        cut.Find(".help-btn").Should().NotBeNull(
+            "the help stays reachable while filtering");
     }
 
     [Fact]

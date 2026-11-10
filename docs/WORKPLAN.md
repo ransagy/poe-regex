@@ -38,14 +38,15 @@ Current planned and parked work. Behavior is documented in
   remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
   row with the same query as the active selection stays visible as `covered`;
-  its `⇄` button switches the selection instead of adding a second chip. A
-  conditional glyph legend (`+` Add, `✓` Selected, `⇄` Switch, `−` Exclude,
-  `⊘` Excluded, `≥` Better, `covered` Same search) sits beside the common/all
-  switch; the `(?)` there explains multi-effect searches, covered rows,
-  duplicate merging, and exclusions. Includes and exclusions are mutually
-  exclusive per search;
+  its `⇄` button switches the selection instead of adding a second chip. An
+  always-visible color-coded glyph legend under the scope line (`+` Add,
+  `✓` Selected, `⇄` Switch, `−` Exclude, `⊘` Excluded, `≥` Better, `covered`
+  by an existing pick) keeps the key fixed while typing; the always-present
+  scope line shows `Common picks`, `All N mods`, or `N matches`, and the `(?)`
+  there explains multi-effect searches, covered rows, duplicate merging, and
+  exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tests: 111 core, 398 web, 34 data-build; local suites green.
+- Tests: 111 core, 399 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -87,6 +88,14 @@ No active next items. Catalog coverage and platform work are parked below.
   (`#workbench-reset`) is easy to miss. Make it a clearly styled secondary
   button, or move it into the header/options area with a confirmation.
   Effort: **small** — one markup/CSS change plus placement/accessibility review.
+- **Picked rows survive filtering.** Active includes/excludes can disappear when
+  the search text, the common-only shortlist, or a scope switch stops matching
+  them. Keep claimed rows visible (with their picked tiers) and exempt from
+  `MaxShown`; unpicking restores normal filtering. Search/common-only version:
+  **medium** — `Refresh()`, tier mapping, counts, bulk add, and tests. Full
+  cross-scope version (imported picks or picks from another class not in
+  `RailMods`): **medium-high** — resolve claims against the catalog and render
+  a pinned section.
 
 ### Distribution and platform
 

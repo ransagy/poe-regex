@@ -28,34 +28,31 @@
         </div>
     </div>
 
-    @if (_search.Trim().Length == 0 && CommonCount > 0 && _allFamilies.Count > CommonCount)
-    {
-        <div class="mod-scope">
-            <span>@(_showAll ? $"All {_families.Count} mods" : $"Common picks · {CommonCount} shown")</span>
-            <span class="mod-scope-actions">
+    <div class="mod-scope">
+        <span>@ScopeSummary</span>
+        <span class="mod-scope-actions">
+            @if (ShowScopeToggle)
+            {
                 <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
                     @(_showAll ? "Show common only" : "Show all mods")
                 </button>
-                <HelpTip Title="Mod search and picker limitations" Class="help-fixed">
-                    <p>Some mods list several effects, but the game can search only one effect line at a time. The picker uses the best line, so a search can also match other mods that share that line.</p>
-                    <p>When two rows share a search, one is selected (✓). A covered row uses ⇄ to switch to that mod instead.</p>
-                    <p>Duplicate mods are merged: if the same effect already exists as a normal mod, the duplicate version from another source is omitted.</p>
-                </HelpTip>
-            </span>
-        </div>
-    }
-    @if (ShowLegend)
-    {
-        <div class="glyph-legend" aria-label="Picker symbol legend">
-            <span><b>+</b> Add</span>
-            <span><b>✓</b> Selected</span>
-            <span><b>⇄</b> Switch</span>
-            <span><b>−</b> Exclude</span>
-            <span><b>⊘</b> Excluded</span>
-            <span><b>≥</b> Better</span>
-            <span><b>covered</b> Same search</span>
-        </div>
-    }
+            }
+            <HelpTip Title="Mod search and picker limitations" Class="help-fixed">
+                <p>Some mods list several effects, but the game can search only one effect line at a time. The picker uses the best line, so a search can also match other mods that share that line.</p>
+                <p>When two rows share a search, one is selected (✓). A covered row uses ⇄ to switch to that mod instead.</p>
+                <p>Duplicate mods are merged: if the same effect already exists as a normal mod, the duplicate version from another source is omitted.</p>
+            </HelpTip>
+        </span>
+    </div>
+    <div class="glyph-legend" aria-label="Picker symbol legend">
+        <span class="legend-add"><b>+</b> Add</span>
+        <span class="legend-picked"><b>✓</b> Selected</span>
+        <span class="legend-switch" title="Switches a pick; red switches an exclusion"><b>⇄</b> Switch</span>
+        <span class="legend-exclude"><b>−</b> Exclude</span>
+        <span class="legend-excluded"><b>⊘</b> Excluded</span>
+        <span class="legend-better"><b>≥</b> Better</span>
+        <span class="legend-covered"><b>covered</b> by an existing pick</span>
+    </div>
     @if (_families.Count == 0)
     {
         <div class="more">@(_search.Trim().Length == 0
@@ -331,14 +328,24 @@
 
     private int CommonCount => _allFamilies.Count(ModFamilies.IsCommon);
 
-    private bool ShowLegend
+    private string ScopeSummary
     {
         get
         {
-            var crit = ScopeCriteria();
-            return _showAll || crit.Included.Count > 0 || crit.Excluded.Count > 0;
+            var filter = _search.Trim();
+            if (filter.Length > 0)
+                return _families.Count == 1 ? "1 match" : $"{_families.Count} matches";
+            if (CommonCount == 0 || _allFamilies.Count == CommonCount)
+                return _allFamilies.Count == 1 ? "1 mod" : $"{_allFamilies.Count} mods";
+            return _showAll
+                ? $"All {_allFamilies.Count} mods"
+                : $"Common picks · {CommonCount} shown";
         }
     }
+
+    private bool ShowScopeToggle =>
+        _search.Trim().Length == 0 &&
+        CommonCount > 0 && _allFamilies.Count > CommonCount;
 
     private void ToggleShowAll()
     {
