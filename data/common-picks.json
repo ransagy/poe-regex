@@ -1,0 +1,117 @@
+{
+  "picks": [
+    {
+      "family": "IncreasedLife",
+      "label": "+ to maximum Life"
+    },
+    {
+      "family": "IncreasedMana",
+      "label": "+ to maximum Mana"
+    },
+    {
+      "family": "LocalPhysicalDamagePercent",
+      "label": "% increased Physical Damage"
+    },
+    {
+      "family": "LocalFireDamage",
+      "label": "Adds Fire Damage"
+    },
+    {
+      "family": "LocalColdDamage",
+      "label": "Adds Cold Damage"
+    },
+    {
+      "family": "LocalLightningDamage",
+      "label": "Adds Lightning Damage"
+    },
+    {
+      "family": "LocalEnergyShield",
+      "label": "+ to maximum Energy Shield"
+    },
+    {
+      "family": "LocalPhysicalDamageReductionRating",
+      "label": "+ to Armour"
+    },
+    {
+      "family": "LocalEvasionRating",
+      "label": "+ to Evasion Rating"
+    },
+    {
+      "family": "BaseSpirit",
+      "label": "+ to Spirit"
+    },
+    {
+      "family": "FireResistance",
+      "label": "+% to Fire Resistance"
+    },
+    {
+      "family": "ColdResistance",
+      "label": "+% to Cold Resistance"
+    },
+    {
+      "family": "LightningResistance",
+      "label": "+% to Lightning Resistance"
+    },
+    {
+      "family": "ChaosResistance",
+      "label": "+% to Chaos Resistance"
+    },
+    {
+      "family": "Strength",
+      "label": "+ to Strength"
+    },
+    {
+      "family": "Dexterity",
+      "label": "+ to Dexterity"
+    },
+    {
+      "family": "Intelligence",
+      "label": "+ to Intelligence"
+    },
+    {
+      "family": "MovementVelocity",
+      "label": "% increased Movement Speed"
+    },
+    {
+      "family": "LocalIncreasedAttackSpeed",
+      "label": "% increased Attack Speed"
+    },
+    {
+      "family": "LocalBaseCriticalStrikeChance",
+      "label": "+% to Critical Hit Chance"
+    },
+    {
+      "family": "LocalAccuracyRating",
+      "label": "+ to Accuracy Rating"
+    },
+    {
+      "family": "ManaRegeneration",
+      "label": "% increased Mana Regeneration Rate"
+    },
+    {
+      "family": "GlobalIncreaseMinionSpellSkillGemLevel",
+      "label": "Minion skill levels",
+      "classes": ["Helmet"]
+    },
+    {
+      "label": "Added physical damage",
+      "match": "Adds to Physical Damage to Attacks",
+      "classes": ["Gloves"]
+    },
+    {
+      "label": "Added fire damage",
+      "match": "Adds to Fire damage to Attacks",
+      "classes": ["Gloves"]
+    },
+    {
+      "label": "Added cold damage",
+      "match": "Adds to Cold damage to Attacks",
+      "classes": ["Gloves"]
+    },
+    {
+      "label": "Added lightning damage",
+      "match": "Adds to Lightning damage to Attacks",
+      "classes": ["Gloves"]
+    }
+  ]
+}

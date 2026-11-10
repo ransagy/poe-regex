@@ -19,6 +19,7 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- probe --pattern "#% increased maximum Life" --fragment "fe$"
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
+///   dotnet run -- common-picks [--check]
 /// </summary>
 public static class Program
 {
@@ -51,6 +52,7 @@ public static class Program
                 "probe" => Probe(args[1..]),
                 "fetch" => Fetch(args[1..]),
                 "data-audit" => DataAudit.Run(args[1..]),
+                "common-picks" => CommonPicksAudit.Run(args[1..]),
                 _ => Usage(args[0]),
             };
         }
@@ -63,7 +65,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit | common-picks");
         return 2;
     }
 

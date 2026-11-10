@@ -246,28 +246,15 @@ public static class ModFamilies
     }
 
     /// <summary>
-    /// Families offered before the user types: the usual goals across gear
-    /// (defence, resistances, attributes, speed, damage). Scope-dependent —
-    /// keys missing from the current scope are simply skipped.
+    /// Families offered before the user types, loaded from
+    /// <c>data/common-picks.json</c>. This compatibility view exposes the
+    /// explicit family-key entries; visible-text entries are exposed through
+    /// <see cref="CommonPicks.MatchTexts"/>.
     /// </summary>
-    public static readonly IReadOnlySet<string> CommonKeys = new HashSet<string>(StringComparer.Ordinal)
-    {
-        // prefixes
-        "IncreasedLife", "IncreasedMana", "LocalPhysicalDamagePercent",
-        "LocalFireDamage", "LocalColdDamage", "LocalLightningDamage",
-        "LocalEnergyShield", "LocalPhysicalDamageReductionRating", "LocalEvasionRating",
-        "BaseSpirit",
-        // suffixes
-        "FireResistance", "ColdResistance", "LightningResistance", "ChaosResistance",
-        "Strength", "Dexterity", "Intelligence",
-        "MovementVelocity", "LocalIncreasedAttackSpeed", "LocalBaseCriticalStrikeChance",
-        "LocalAccuracyRating", "ManaRegeneration",
-    };
+    public static IReadOnlySet<string> CommonKeys => CommonPicks.FamilyKeys;
 
     /// <summary>True when the family is in the pre-typing shortlist.</summary>
-    public static bool IsCommon(ModFamily family) =>
-        CommonKeys.Contains(family.Key) ||
-        family.Members.Any(m => CommonKeys.Contains(KeyOf(m)));
+    public static bool IsCommon(ModFamily family) => CommonPicks.IsCommon(family);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();

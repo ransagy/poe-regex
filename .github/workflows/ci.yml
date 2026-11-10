@@ -30,6 +30,11 @@ jobs:
           dotnet run --project tools/PoeRegex.ImportCoverage --configuration Release --
           --no-json --out /tmp/import-coverage-smoke.md
 
+      - name: Verify common picks
+        run: >
+          dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
+          common-picks --check
+
       - name: Verify catalog provenance
         run: >
           dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
