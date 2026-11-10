@@ -100,6 +100,14 @@ No active next items. Catalog coverage and platform work are parked below.
   cross-scope version (imported picks or picks from another class not in
   `RailMods`): **medium-high** — resolve claims against the catalog and render
   a pinned section.
+- **Touch hover/focus after picker undo.** Tapping a family or tier action
+  leaves the button focused and in a sticky `:hover` state after the choice is
+  undone, so it still looks active. Scope the picker hover rules to
+  hover-capable pointers and blur the action after a touch `pointerup`; keep
+  the real `.active` state classes. Effort: **small** — CSS media scoping plus
+  a delegated touch handler, with keyboard focus unaffected. Verify on mobile
+  emulation that undo returns the button to its neutral background/border while
+  the selected state remains visible.
 
 ### Distribution and platform
 

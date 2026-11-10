@@ -429,7 +429,6 @@ input:disabled { opacity: 0.5; }
 
 .suggest-row { display: flex; gap: 0.25rem; align-items: center; }
 .suggest-row.fam-row { min-height: 2.15rem; padding: 0.1rem 0.15rem 0.1rem 0.35rem; border-bottom: 1px solid var(--line); }
-.suggest-row.fam-row:hover { background: var(--surface); }
 .suggest-row.fam-row.picked { background: var(--mod-soft); }
 .suggest-row.fam-row.covered { background: var(--surface); }
 .suggest-row.tier-row.covered { background: var(--surface); }
@@ -470,7 +469,6 @@ input:disabled { opacity: 0.5; }
     background: none; border: 0; padding: 0.25rem 0; cursor: pointer;
 }
 .fam-caret { flex: none; width: 0.8em; color: var(--faint); font-size: 0.7rem; }
-.fam-toggle:hover .fam-caret { color: var(--text); }
 .fam-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -486,7 +484,6 @@ input:disabled { opacity: 0.5; }
 
 .tier-list { list-style: none; margin: 0; padding: 0.15rem 0 0.35rem 1.35rem; border-bottom: 1px solid var(--line); }
 .suggest-row.tier-row { min-height: 1.8rem; padding-left: 0.25rem; border-radius: var(--r); }
-.suggest-row.tier-row:hover { background: var(--surface); }
 .suggest-row.tier-row.picked { background: var(--mod-soft); }
 .tier-row .tier-name {
     flex: 0 0 auto; width: auto; max-width: 38%;
@@ -501,11 +498,8 @@ input:disabled { opacity: 0.5; }
     background: transparent; border: 1px solid transparent; border-radius: var(--r);
     color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer;
 }
-.suggest-row:hover > button:not(.fam-toggle) { border-color: var(--line-strong); }
-.suggest-row > button:not(.fam-toggle):hover:not(:disabled) { color: var(--mod); background: var(--mod-soft); border-color: rgba(154, 166, 255, 0.5); }
 .suggest-row > button.active { color: var(--mod); background: var(--mod-soft); border-color: var(--mod); }
 .suggest-row > button.exc { color: var(--faint); }
-.suggest-row > button.exc:hover:not(:disabled) { color: var(--no); background: var(--no-soft); border-color: rgba(236, 122, 101, 0.5); }
 .suggest-row > button.exc.active { color: var(--no); background: var(--no-soft); border-color: var(--no); }
 .suggest-row > button.switch { color: var(--mod); font-weight: 700; border-color: var(--line-strong); }
 .suggest-row > button.exc.switch { color: var(--no); }
@@ -514,6 +508,23 @@ input:disabled { opacity: 0.5; }
 .suggest-row > button.btn:disabled { color: var(--faint); }
 .fam-status + button.inc,
 .tier-name + button.inc { margin-left: 0.25rem; }
+
+/* Touch browsers keep sticky :hover on the last tapped control; only enable
+   picker hover affordances for hover-capable pointers. */
+@media (hover: hover) {
+    .suggest-row.fam-row:hover { background: var(--surface); }
+    .suggest-row.tier-row:hover { background: var(--surface); }
+    .suggest-row:hover > button:not(.fam-toggle) { border-color: var(--line-strong); }
+    .suggest-row > button:not(.fam-toggle):hover:not(:disabled) {
+        color: var(--mod); background: var(--mod-soft);
+        border-color: rgba(154, 166, 255, 0.5);
+    }
+    .suggest-row > button.exc:hover:not(:disabled) {
+        color: var(--no); background: var(--no-soft);
+        border-color: rgba(236, 122, 101, 0.5);
+    }
+    .fam-toggle:hover .fam-caret { color: var(--text); }
+}
 
 /* ---------- Search string ---------- */
 

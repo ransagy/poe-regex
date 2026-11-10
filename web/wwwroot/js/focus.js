@@ -45,3 +45,19 @@ window.poeRegexRestoreFocus = function () {
     previous.focus();
   }
 };
+
+// Touch browsers keep focus and sticky hover on the last tapped control.
+// Release picker actions so an undone choice returns to its neutral look.
+document.addEventListener('pointerup', function (event) {
+  if (event.pointerType !== 'touch') return;
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest('.modpicker .suggest-row > button')) return;
+  window.setTimeout(function () {
+    const active = document.activeElement;
+    if (active instanceof Element &&
+        active.closest('.modpicker .suggest-row > button')) {
+      active.blur();
+    }
+  }, 50);
+}, { passive: true });
