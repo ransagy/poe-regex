@@ -13,7 +13,7 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`; the Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 1894/1894 scopes proven, not
+- Engine: exact PoE2 table/proof is current: 1737/1737 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
 - Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
   implicits, and corrupted enchantments. Implicits render in a dedicated
@@ -27,13 +27,22 @@ Current planned and parked work. Behavior is documented in
   legacy PoE1 `crafted` prefix/suffix records (Navali/Helena master crafts);
   they are excluded because they have no positive PoE2 base mapping. PoE2's
   actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
-  remain parked with jewel support. Basic tiered runes render in a dedicated
-  **Augments** section with a Rune source tag and an Armour / Martial Weapon /
-  Wand or Staff target tag; the export's target category controls which item
-  classes can carry each effect. Attribute runes (the `All Equipment` target),
-  special/transformative augments, Soul Cores, Idols, Abyssal Eyes, bonded
-  stats, and a socket model remain parked.
-- Tests: 111 core, 394 web, 34 data-build; local suites green.
+  remain parked with jewel support. Basic tiered runes use the same
+  unique-only policy as implicits/corrupted: a rune family is kept only where
+  at least one effect pattern is new, leaving 14 unique effect families
+  (55 target rows). They render in a dedicated **Augments** section with a
+  Rune source tag and an Armour / Martial Weapon / Wand or Staff target tag;
+  the export's target category controls which item classes can carry each
+  effect. Attribute runes (the `All Equipment` target), special/transformative
+  augments, Soul Cores, Idols, Abyssal Eyes, bonded stats, and a socket model
+  remain parked.
+- Picker: selection is claim-covered by the compiled positive query. A mod/tier
+  row with the same query as the active claim stays visible as `same search`;
+  selecting it switches the claim instead of adding a second chip. Families
+  carry `Simple`/`Hybrid` tags, and `Hybrid` rows state that the search uses
+  one stat line. Includes and exclusions are mutually exclusive per claim;
+  duplicate exclusion fragments collapse in the compiler.
+- Tests: 111 core, 397 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -85,7 +94,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 | Base implicits | 168 ids / 348 base entries | 85 (94 mods) | Medium | High | Done |
 | Corrupted mods | 108 records / 103 mapped | 43 (44 mods) | Medium | Medium | Done |
 | Jewels | 320 normal + 44 desecrated + 13 crafted | ~196 + 34 | High | High for jewel users | Parked |
-| Augments / Soul Cores | 313 released bases | 134 basic-rune target rows | Medium | High for socketed items | Basic runes done; specials parked |
+| Augments / Soul Cores | 313 released bases | 14 unique rune effect families / 55 target rows | Medium | High for socketed items | Unique basic runes done; specials parked |
 
 - **PoE1 crafted leftovers** are not PoE2 coverage. The nine `crafted`
   prefix/suffix records in the PoE2 export are verbatim PoE1 Navali/Helena
@@ -115,7 +124,8 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   item-class/slot work is justified.
 - **Augments / Soul Cores** are now sourced from RePoE `augments.json`, which
   maps each base to its target category and rendered effect lines. The first
-  pass covers the 63 basic tiered runes (134 target rows); they are treated as
+  pass covers the 63 basic tiered runes, filtered to 14 unique effect families
+  (55 target rows); they are treated as
   a separate non-affix source and do not need a socket system for search.
   Attribute runes (`All Equipment`), the 36 bonded-only category rows, special
   and transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded stats, and

@@ -153,7 +153,9 @@ public class QueryRoundTripTests
 
     private static WantedMod RandomPick(Random rng, string? classId)
     {
-        var mods = classId is null ? GlobalMods : Engine.ModsForClasses([classId]);
+        var mods = (classId is null ? GlobalMods : Engine.ModsForClasses([classId]))
+            .Where(m => m.Source != "augment")
+            .ToList();
         var families = ModFamilies.Group(mods)
             .Where(f => f.DisplayLines.Count > 0)
             .ToList();
@@ -177,11 +179,14 @@ public class QueryRoundTripTests
         return new WantedMod(chosen.Anchor.Id, Names: family.NamesFrom(chosen));
     }
 
-    private static List<string> RandomExcludes(Random rng, IReadOnlyList<ModEntry> mods, int count) =>
-        Enumerable.Range(0, count)
-            .Select(_ => mods[rng.Next(mods.Count)].Id)
+    private static List<string> RandomExcludes(Random rng, IReadOnlyList<ModEntry> mods, int count)
+    {
+        var candidates = mods.Where(m => m.Source != "augment").ToList();
+        return Enumerable.Range(0, count)
+            .Select(_ => candidates[rng.Next(candidates.Count)].Id)
             .Distinct(StringComparer.Ordinal)
             .ToList();
+    }
 
     private static List<string> RandomClasses(Random rng)
     {

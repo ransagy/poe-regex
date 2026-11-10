@@ -170,6 +170,7 @@ public sealed class PasteComposer
         }
 
         // Exclusions union globally: block negation cannot be scoped per slot.
+        var excludedTerms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var req in excluded.Distinct().ToList())
         {
             var mod = req.IsRegex ? null : _corpus.FindMod(req.Value);
@@ -178,6 +179,7 @@ public sealed class PasteComposer
                 : mod is not null
                     ? _compaction.SelectFragment(req, null) ?? req.Value
                     : Poe2Syntax.EscapeLiteral(req.Value);
+            if (!excludedTerms.Add(term)) continue;
             blocks.Add(Poe2Syntax.FormatExclusion(term));
         }
 

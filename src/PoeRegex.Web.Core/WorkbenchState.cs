@@ -180,6 +180,19 @@ public sealed class WorkbenchState
         }
     }
 
+    /// <summary>Suppresses notifications unless the mutation reports a change.</summary>
+    public void WithSuppressedNotifications(Func<bool> mutate)
+    {
+        var changed = false;
+        _suppressNotify++;
+        try { changed = mutate(); }
+        finally
+        {
+            _suppressNotify--;
+            if (_suppressNotify == 0 && changed) Notify();
+        }
+    }
+
     /// <summary>Criteria for a slot, or the global set when slot is null.</summary>
     public SlotCriteria CriteriaFor(string? slot) =>
         slot is null ? Global : Slots[slot];

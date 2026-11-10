@@ -109,7 +109,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   strings remain pattern-based. Range-specific strings need range-aware proof
   scopes.
 - Desecrated tier exclusions are family-wide for the same reason: excluding
-  one range excludes every range that shares its fragment.
+  one range excludes every range that shares its fragment. The compiler
+  canonicalizes identical exclusion fragments to one block; a source string
+  that still contains duplicate blocks is rejected as non-canonical rather
+  than replayed.
 - Basic-rune augment effects are modeled in the picker but import mapping is
   deferred; special/transformative augments, bonded modifiers, and jewel
   affixes are not modeled yet. The PoE2

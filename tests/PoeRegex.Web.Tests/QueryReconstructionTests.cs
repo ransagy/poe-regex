@@ -203,22 +203,18 @@ public class QueryReconstructionTests
     }
 
     [Fact]
-    public void DuplicateExclusions_RoundTripAndApply()
+    public void DuplicateExclusionSource_FailsClosedAfterCanonicalization()
     {
-        // Two distinct corrupted mods compile to the same `!"\) ch.*e$"`; both must survive.
+        // The compiler canonicalizes identical exclusion fragments to one
+        // block. A legacy source string that still contains both blocks is not
+        // canonical and is rejected rather than silently replayed.
         const string query =
             "\"ds.*d .+e$\" \"Antelope's|Buck's|Caribou's|Deer's|Moose's\" \"\\+.*bo\" !\"\\) ch.*e$\" !\"\\) ch.*e$\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
-        recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
-        recovered.Recompile(Engine).Should().Be(query);
-
-        var state = new WorkbenchState();
-        recovered.ApplyTo(state);
-        state.Mode.Should().Be("simple");
-        Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
-            .Query.Should().Be(query);
+        recovered.Ok.Should().BeFalse();
+        recovered.Diagnostics.Should().Contain(d => d.Contains("recompiled query differs"));
     }
 
     [Fact]

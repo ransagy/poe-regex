@@ -154,7 +154,7 @@ public static class CatalogBuilder
         // classes. Only the basic tiered runes are enabled here; special and
         // transformative socketables are deliberately left out until their
         // socket semantics are reviewed.
-        var augmentResult = AugmentCatalogBuilder.Build(rawDir);
+        var augmentResult = AugmentCatalogBuilder.Build(rawDir, classLines);
         var augmentById = new Dictionary<string, AugmentCatalogBuilder.AugmentBuild>(StringComparer.Ordinal);
         foreach (var augment in augmentResult.Mods)
         {
@@ -175,6 +175,7 @@ public static class CatalogBuilder
         {
             Console.WriteLine(
                 $"  augments: {augmentResult.Mods.Count} basic-rune target rows, " +
+                $"{augmentResult.RemovedDuplicateRows} duplicate target rows removed, " +
                 $"{augmentResult.SkippedCategories} categories deferred");
         }
 

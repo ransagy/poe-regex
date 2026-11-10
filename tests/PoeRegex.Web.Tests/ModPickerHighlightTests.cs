@@ -45,63 +45,6 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
-    public void Search_HidesSourcedDuplicatesWithTheSameFragment()
-    {
-        using var ctx = Context();
-        var engine = ctx.Services.GetRequiredService<EngineService>();
-        var mods = engine.ModsForClass("Body Armour");
-        var state = new WorkbenchState();
-        state.SetMode("advanced");
-        state.SelectSlot("body");
-        var cut = Render(ctx, state, mods, "body");
-
-        const string display = "% increased Mana Regeneration Rate";
-        var families = ModFamilies.Group(mods)
-            .Where(f => f.DisplayText == display)
-            .ToList();
-        var implicitFamily = families.Single(f => f.Source == "implicit");
-        var augmentFamily = families.Single(f => f.Source == "augment");
-
-        cut.Find("#mod-search").Input("mana regeneration rate");
-        cut.FindAll($"[id='pick-inc-{implicitFamily.Anchor.Id}']").Should().ContainSingle();
-        cut.FindAll($"[id='pick-inc-{augmentFamily.Anchor.Id}']").Should().BeEmpty(
-            "the rune and the implicit compile to the same fragment");
-        var texts = cut.FindAll(".fam-text").Select(e => e.TextContent.Trim()).ToList();
-        texts.Count(t => t.EndsWith(display, StringComparison.Ordinal)).Should().Be(1,
-            "the implicit family is collapsed to its tier line and the augment duplicate is hidden");
-
-        cut.Find("#mod-search").Input("inspiration");
-        cut.FindAll($"[id='pick-inc-{augmentFamily.Anchor.Id}']").Should().ContainSingle(
-            "a rune-name search must still find the augment when the implicit does not match");
-    }
-
-    [Fact]
-    public void GlobalManaRegeneration_SearchShowsOneNormalRow()
-    {
-        using var ctx = Context();
-        var engine = ctx.Services.GetRequiredService<EngineService>();
-        var mods = engine.PlayableMods();
-        var state = new WorkbenchState();
-        var cut = Render(ctx, state, mods);
-
-        cut.Find("#mod-search").Input("mana regeneration rate");
-
-        const string display = "% increased Mana Regeneration Rate";
-        var families = ModFamilies.Group(mods)
-            .Where(f => f.DisplayText == display)
-            .ToList();
-        var normal = families.Single(f => f.Source == "");
-        var duplicates = families
-            .Where(f => f.Source is "implicit" or "corrupted" or "desecrated" or "augment")
-            .ToList();
-
-        cut.FindAll($"[id='pick-inc-{normal.Anchor.Id}']").Should().ContainSingle();
-        foreach (var duplicate in duplicates)
-            cut.FindAll($"[id='pick-inc-{duplicate.Anchor.Id}']").Should().BeEmpty(
-                $"{duplicate.Source} duplicates the normal family's fragment");
-    }
-
-    [Fact]
     public void DesecratedFamily_ShowsPlainGreenSourceText()
     {
         using var ctx = Context();
@@ -581,7 +524,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void TierIncludedAndExcluded_ShowsBothStatesWithoutPills()
+    public void TierIncludeAndExcludeSameClaim_NormalizesToInclude()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -592,15 +535,15 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods, "helmet");
         Expand(cut, family);
 
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle();
+        crit.Excluded.Should().BeEmpty("include and exclude cannot share a claim");
+
         var row = TierRow(cut, tier);
         row.ClassList.Should().Contain("picked");
-        row.ClassList.Should().Contain("excluded");
-        row.QuerySelectorAll(".state-badge").Should().BeEmpty();
-        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").TextContent.Should().Be("⊘");
+        row.ClassList.Should().NotContain("excluded");
         var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
         exact.GetAttribute("aria-pressed").Should().Be("true");
-        exact.HasAttribute("disabled").Should().BeFalse();
         exact.TextContent.Should().Be("✓");
     }
 
@@ -765,7 +708,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void MixedFamilyStates_PreserveBothWithoutPills()
+    public void FamilyIncludeAndExcludeSameClaim_NormalizesToInclude()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -774,15 +717,14 @@ public class ModPickerHighlightTests
 
         var cut = Render(ctx, state, mods, "helmet");
 
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle();
+        crit.Excluded.Should().BeEmpty("include and exclude cannot share a claim");
         var row = FamilyRow(cut, family);
         row.ClassList.Should().Contain("picked");
-        row.ClassList.Should().Contain("excluded");
-        row.QuerySelectorAll(".state-badge").Should().BeEmpty(
-            "family rows have no Included/Excluded pills");
-        row.GetAttribute("style").Should().BeNullOrEmpty("excluded rows have no side-border style");
+        row.ClassList.Should().NotContain("excluded");
         cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
-        cut.Find($"#pick-exc-{family.Anchor.Id}").TextContent.Should().Be("⊘");
+        cut.Find($"#pick-exc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
     }
 
     [Fact]

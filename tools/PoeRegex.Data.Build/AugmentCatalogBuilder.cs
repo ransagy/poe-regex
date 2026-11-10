@@ -28,7 +28,8 @@ public static class AugmentCatalogBuilder
 
     public sealed record Result(
         IReadOnlyList<AugmentBuild> Mods,
-        int SkippedCategories);
+        int SkippedCategories,
+        int RemovedDuplicateRows);
 
     private static readonly string[] BasicRuneTags =
         ["rune_normal", "rune_lesser", "rune_greater", "rune_perfect"];
@@ -37,7 +38,9 @@ public static class AugmentCatalogBuilder
         @"[-+]?\d+(?:\.\d+)?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public static Result Build(string rawDir)
+    public static Result Build(
+        string rawDir,
+        IReadOnlyDictionary<string, HashSet<string>>? coveredByClass = null)
     {
         var augments = RePoEJson.LoadAugments(Path.Combine(rawDir, "augments.min.json"));
         var baseItems = RePoEJson.LoadBaseItems(Path.Combine(rawDir, "base_items.min.json"));
@@ -100,7 +103,43 @@ public static class AugmentCatalogBuilder
             }
         }
 
-        return new Result(mods, skipped);
+        var removedDuplicates = 0;
+        if (coveredByClass is not null)
+        {
+            // Match the implicit/corrupted policy: only keep a rune family on
+            // classes where at least one of its effect lines is not already
+            // represented by a normal, desecrated, implicit or corrupted
+            // family. Keep every tier of a kept family; filtering tier rows
+            // individually would leave a partial rune family.
+            var filtered = new List<AugmentBuild>();
+            foreach (var family in mods.GroupBy(m => m.Family, StringComparer.Ordinal))
+            {
+                var members = family.ToList();
+                var patterns = members
+                    .SelectMany(m => m.Lines)
+                    .Select(l => l.Pattern)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                var classes = members
+                    .SelectMany(m => m.Classes)
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(cls => patterns.Any(pattern =>
+                        !coveredByClass.TryGetValue(cls, out var covered) ||
+                        !covered.Contains(pattern)))
+                    .OrderBy(cls => cls, StringComparer.Ordinal)
+                    .ToList();
+                if (classes.Count == 0)
+                {
+                    removedDuplicates += members.Count;
+                    continue;
+                }
+                foreach (var member in members)
+                    filtered.Add(member with { Classes = classes });
+            }
+            mods = filtered;
+        }
+
+        return new Result(mods, skipped, removedDuplicates);
     }
 
     /// <summary>

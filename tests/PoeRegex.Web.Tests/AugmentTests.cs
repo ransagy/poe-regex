@@ -25,7 +25,7 @@ public class AugmentTests
             .Where(m => m.Source == "augment")
             .ToList();
 
-        augments.Should().HaveCount(134);
+        augments.Should().HaveCount(55);
         augments.Should().OnlyContain(m =>
             m.GenerationType == "augment" &&
             m.AugmentType == "Rune" &&
@@ -56,36 +56,43 @@ public class AugmentTests
             "basic runes are a separate source, not generic common picks");
         cut.Find(".mod-scope").TextContent.Should().Contain("Common picks");
 
-        cut.Find("#mod-search").Input("iron");
+        cut.Find("#mod-search").Input("stone");
         cut.FindAll(".mod-sec.augment-sec").Should().ContainSingle();
     }
 
     [Fact]
-    public void LesserDesertRune_HasCorrectTargetScopes()
+    public void AugmentUniqueFilter_RemovesCoveredFamiliesAndTrimsClasses()
     {
-        var armour = Engine.FindMod("augment:RuneFireLesser:armour")!;
-        armour.StatLines.Should().ContainSingle()
-            .Which.Line.Should().Be("+10% to Fire Resistance");
-        armour.Classes.Should().Contain(["Body Armour", "Helmet", "Gloves", "Boots", "Shield", "Buckler", "Focus"]);
-        armour.Classes.Should().NotContain("Bow");
+        Engine.FindMod("augment:RuneFireLesser:armour").Should().BeNull(
+            "normal fire resistance already covers the armour rune effect");
+        Engine.FindMod("augment:RuneEnhance:martial-weapon").Should().BeNull(
+            "normal increased physical damage covers the martial Iron Rune");
+        Engine.FindMod("augment:RuneFireLesser:wand-or-staff").Should().BeNull(
+            "normal extra fire damage covers the caster rune effect");
 
-        var martial = Engine.FindMod("augment:RuneFireLesser:martial-weapon")!;
-        martial.StatLines.Should().ContainSingle()
-            .Which.Line.Should().Be("Adds 4 to 6 Fire Damage");
-        martial.Classes.Should().Contain(["Bow", "Crossbow", "One Hand Mace", "Two Hand Mace", "Warstaff", "Spear", "Talisman"]);
-        martial.Classes.Should().NotContain(["Wand", "Staff"]);
+        var iron = Engine.FindMod("augment:RuneEnhance:armour")!;
+        iron.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("16% increased Armour, Evasion and Energy Shield");
+        iron.Classes.Should().BeEquivalentTo(["Buckler", "Focus", "Shield"]);
+        iron.Classes.Should().NotContain(["Body Armour", "Helmet", "Gloves", "Boots"]);
 
-        var caster = Engine.FindMod("augment:RuneFireLesser:wand-or-staff")!;
-        caster.StatLines.Should().ContainSingle()
-            .Which.Line.Should().Be("Gain 6% of Damage as Extra Fire Damage");
-        caster.Classes.Should().BeEquivalentTo(["Wand", "Staff"]);
+        var body = Engine.FindMod("augment:RuneLife:armour")!;
+        body.StatLines.Should().ContainSingle().Which.Line.Should().Be("+45 to maximum Life");
+        body.Classes.Should().Equal(["Focus"]);
+
+        Engine.FindMod("augment:RuneStun:armour")!.Classes
+            .Should().BeEquivalentTo(["Focus", "Gloves", "Helmet"]);
+        Engine.FindMod("augment:RuneStun:martial-weapon")!.Classes
+            .Should().BeEquivalentTo(["Bow", "Crossbow"]);
+        Engine.FindMod("augment:RuneManaRecovery:armour")!.Classes
+            .Should().BeEquivalentTo(["Boots", "Buckler", "Gloves", "Shield"]);
     }
 
     [Fact]
     public void AugmentFamily_IsItsOwnSourceAndGroupsRuneTiers()
     {
         var family = ModFamilies.Group(Engine.ModsForClass("Helmet"))
-            .Single(f => f.Key == "augment:rune:Iron Rune:armour");
+            .Single(f => f.Key == "augment:rune:Stone Rune:armour");
 
         family.IsAugment.Should().BeTrue();
         family.Source.Should().Be("augment");
@@ -94,7 +101,7 @@ public class AugmentTests
         family.SourceCssClass.Should().Be("source-augment");
         family.Tiers.Should().HaveCount(4);
         family.Tiers.Select(t => t.DisplayLabel).Should().Equal(
-            "Lesser Iron Rune", "Iron Rune", "Greater Iron Rune", "Perfect Iron Rune");
+            "Lesser Stone Rune", "Stone Rune", "Greater Stone Rune", "Perfect Stone Rune");
         family.Tiers.Select(t => t.RequiredLevel).Should().BeInAscendingOrder();
 
         var compiled = Engine.CompilePicks([family.Pick()], [], false, "Helmet");
@@ -120,14 +127,14 @@ public class AugmentTests
         state.SelectSlot("helmet");
         var mods = Engine.ModsForClass("Helmet");
         var family = ModFamilies.Group(mods)
-            .Single(f => f.Key == "augment:rune:Iron Rune:armour");
+            .Single(f => f.Key == "augment:rune:Stone Rune:armour");
 
         var cut = ctx.Render<ModPicker>(p => p
             .Add(x => x.State, state)
             .Add(x => x.Scope, "helmet")
             .Add(x => x.Mods, mods));
 
-        cut.Find("#mod-search").Input("iron");
+        cut.Find("#mod-search").Input("stone");
         cut.Find($"[id='fam-toggle-{family.Anchor.Id}']").Click();
         cut.FindAll($"[id='pick-tier-{family.Tiers[0].Anchor.Id}']").Should().BeEmpty(
             "basic-rune tiers are display-only; the family + selects the effect");

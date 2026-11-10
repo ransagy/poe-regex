@@ -307,56 +307,6 @@ public static class ModFamilies
         return union ? UnionFamilies(families) : families;
     }
 
-    /// <summary>
-    /// Hide a sourced family when a higher-priority family with the same
-    /// displayed shape compiles to the same fragment. The query is identical,
-    /// so the duplicate row only adds noise (for example a normal life prefix
-    /// and the Body Rune that grants the same stat). Normal explicit families
-    /// win over implicit, corrupted, desecrated and augment families; the
-    /// search-aware caller keeps a sourced row when the higher-priority family
-    /// is not in the filtered list, so a rune-name search still finds it.
-    /// </summary>
-    public static IReadOnlyList<ModFamily> DedupeSources(
-        IReadOnlyList<ModFamily> families,
-        Func<ModFamily, string?> fragmentOf)
-    {
-        var keep = new HashSet<ModFamily>(ReferenceEqualityComparer.Instance);
-        foreach (var textGroup in families.GroupBy(f => f.DisplayText, StringComparer.Ordinal))
-        {
-            // A lone family, or several families of the same source priority,
-            // cannot hide one another. Avoid compiling fragments for the
-            // common case (including the first-paint shortlist).
-            var textRank = textGroup.Min(SourceRank);
-            if (textGroup.All(f => SourceRank(f) == textRank))
-            {
-                foreach (var family in textGroup) keep.Add(family);
-                continue;
-            }
-            foreach (var fragmentGroup in textGroup.GroupBy(fragmentOf, StringComparer.Ordinal))
-            {
-                if (fragmentGroup.Key is null)
-                {
-                    foreach (var family in fragmentGroup) keep.Add(family);
-                    continue;
-                }
-                var bestRank = fragmentGroup.Min(SourceRank);
-                foreach (var family in fragmentGroup.Where(f => SourceRank(f) == bestRank))
-                    keep.Add(family);
-            }
-        }
-        return families.Where(keep.Contains).ToList();
-    }
-
-    private static int SourceRank(ModFamily family) => family.Source switch
-    {
-        "" => 0,
-        "implicit" => 1,
-        "corrupted" => 2,
-        "desecrated" => 3,
-        "augment" => 4,
-        _ => 5,
-    };
-
     private static List<ModFamily> BuildFamilies(IEnumerable<ModEntry> mods)
     {
         var families = new List<ModFamily>();

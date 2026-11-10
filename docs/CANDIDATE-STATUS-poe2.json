@@ -4,36 +4,36 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-09 17:59:31Z",
-  "matrixGenerated": "2026-11-09 17:57:47Z",
+  "generatedAt": "2026-11-10 01:21:25Z",
+  "matrixGenerated": "2026-11-10 01:19:48Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
-      "bytes": 1017955,
-      "sha256": "78ac5d8a9d0664a9502d10be87393839b2ec9da157f590d01ee9deb198e3a15f"
+      "bytes": 966383,
+      "sha256": "96ba9a3b501c4bf3fc6d59c9ee5bb4451041c1f2a7defdb2bd2b6e9e48054a0f"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 604998,
-      "sha256": "c9373acecbce80470740d4677856d45055cb18fe6c6488e11d442a49a61a5dbb"
+      "bytes": 573249,
+      "sha256": "2fa7e9346a2f073534b2e47d20b4da7f7b614bf0ad435ef87931ebde5bc381a5"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 619524,
-      "sha256": "144e660a6285026348bfb3db5801d186446e0c8308286d3f8ac9c2382ccc7660"
+      "bytes": 562568,
+      "sha256": "c5f5bc43a27d3383d905eade4d9bfb631fd4e9e838477593a7e309a8b33de3ba"
     }
   },
   "matrix": {
-    "families": 456,
-    "patterns": 519,
-    "scopes": 1360,
+    "families": 436,
+    "patterns": 499,
+    "scopes": 1288,
     "coverage": {
-      "class/strict": 518,
-      "global/strict": 519,
-      "per-class/strict": 323
+      "class/strict": 471,
+      "global/strict": 499,
+      "per-class/strict": 318
     },
     "bounds": {
-      "250": 1360
+      "250": 1288
     },
     "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
@@ -81,9 +81,9 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "c9373acecbce80470740d4677856d45055cb18fe6c6488e11d442a49a61a5dbb",
-      "checkedScopes": 1894,
-      "workScopes": 1894,
+      "matrixSha256": "2fa7e9346a2f073534b2e47d20b4da7f7b614bf0ad435ef87931ebde5bc381a5",
+      "checkedScopes": 1737,
+      "workScopes": 1737,
       "failed": 0,
       "proven": true
     }

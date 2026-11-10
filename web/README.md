@@ -160,12 +160,16 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   basic tiered runes with a Rune source tag and the export's Armour / Martial
   Weapon / Wand or Staff target tag; its tier rows show the rune name and
   value for reference, and the family `+` selects the effect across tiers;
-  augments are not in the default common shortlist and appear when searched
-  or after `Show all mods`; a sourced row whose stat shape and fragment match
-  a higher-priority row is collapsed (normal, then implicit, corrupted,
-  desecrated, augment), while a rune-name search still shows the augment row
-  when the normal family does not match; before typing, the curated common
-  shortlist shows under a `Common picks · N shown` line (the filter placeholder is `Search mods…`;
+  duplicate rune effects already covered by a normal, desecrated, implicit or
+  corrupted family are removed at data build, so Augments shows unique effects
+  only; augments are not in the default common shortlist and appear when
+  searched or after `Show all mods`; mods and tiers that compile to the same
+  positive query share one **claim**: selecting one leaves the others visible
+  as `same search` covered rows, and selecting a covered row switches the
+  claim instead of adding a second chip; family `Hybrid` tags mark multi-line
+  mods whose search uses one line, `Simple` marks single-line mods; before
+  typing, the curated common shortlist shows under a `Common picks · N shown`
+  line (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk
@@ -236,7 +240,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   advanced `roll(min-max)` forms. Desecrated item affixes and implicit-only
   base families and basic-rune augment effects are modeled; unique-only text,
   flavour, rare names, special/transformative augments, and bonded modifiers
-  remain unmodeled and are reported separately. The exact table has 1894
+  remain unmodeled and are reported separately. The exact table has 1737
   expanded scopes (381 global patterns, 21 classes, 1081 class fragments,
   0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
@@ -263,7 +267,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   Two slots of the same class still share one block, so all of falls back to
   any of there and the section says so. "None of" lists exclusions (each its
   own `!"…"` block; in advanced they apply to every slot, and `All gear`
-  exclusions carry over). Plain single-line picks with a number take a
+  exclusions carry over). Identical exclusion fragments collapse to one
+  block; a claim cannot be both included and excluded. Mods/tiers that
+  compile to the same query share one claim: the active one carries the chip,
+  the others stay visible as `same search` and selecting one switches the
+  claim instead of adding a duplicate chip. Plain single-line picks with a number take a
   `min` value (floors the first number, compiled by the engine's threshold
   fragment against the advanced `roll(min-max)` text, so it costs far more
   than the plain fragment; when the engine cannot carry the floor safely it

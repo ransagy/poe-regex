@@ -139,7 +139,8 @@ public class ReversibilityTests
     {
         var (corpus, compiler, explainer) = Create();
         var mods = corpus.InGameMods
-            .Where(m => m.Classes.Any(corpus.IsInGameClass) &&
+            .Where(m => m.Source != "augment" &&
+                        m.Classes.Any(corpus.IsInGameClass) &&
                         m.StatLines.Any(sl => sl.Pattern.Contains((char)SuffixIndex.DigitPlaceholder) && sl.MinValue > 0))
             .ToList();
         var step = Math.Max(1, mods.Count / 50);

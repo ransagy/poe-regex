@@ -49,6 +49,14 @@ per-base tree whose aggregate is already used.
 `SoulCoreStats.dat64`, and stat descriptions. It is the authoritative source
 for a rune's target category and rendered effect lines.
 
+The catalog applies the same unique-only policy as base implicits and
+corrupted enchantments: a basic-rune family is kept only on classes where at
+least one of its effect patterns is not already represented by a normal,
+desecrated, implicit or corrupted family. All tiers of a kept rune family are
+kept together. The filter is family-aware, not tier-row-by-tier-row. Of the 63
+basic tiered runes, 14 unique effect families (55 target rows) remain in the
+catalog; the vendor/safety corpus still carries every raw augment line.
+
 ## PoB files
 
 `ModRunes.min.json`, `ModItem.min.json`, `ModJewel.min.json`,
