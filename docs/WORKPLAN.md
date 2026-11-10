@@ -112,7 +112,7 @@ No active next items. Catalog coverage and platform work are parked below.
   `data/common-picks.json`; entries can use a visible `match` display text or an
   explicit `family` key. `classes` is both the runtime scope and the validation
   scope, so class-specific picks stay out of All gear. Remaining: a generated
-  contributor table and migrating any future hardcoded picks. Effort:
+  contributor table; future picks belong in the data file. Effort:
   **small-medium**.
 - **Common-picks CI validation.** `common-picks --check` resolves every entry
   against the catalog, verifies the family compiles for its classes, enforces

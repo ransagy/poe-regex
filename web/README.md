@@ -175,7 +175,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   there explains multi-effect searches, covered rows, and duplicate merging;
   before typing, the curated common
   shortlist shows under a `Common picks · N shown`
-  line (the filter placeholder is `Search mods…`;
+  line; it is data-driven from `data/common-picks.json` (see
+  `docs/COMMON-PICKS.md`), and class-scoped picks stay out of All gear
+  (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families
   collapsed, two-plus letters auto-expand at most 8 families, and the bulk

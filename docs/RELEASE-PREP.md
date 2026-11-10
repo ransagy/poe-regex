@@ -111,6 +111,8 @@ source of truth.
   ```
 
 - [ ] Confirm the counts in [`WORKPLAN.md`](WORKPLAN.md) match the run.
+- [ ] For common-shortlist changes, run `common-picks --check` and confirm
+  the `ci` workflow's **Verify common picks** step is green.
 - [ ] Confirm new regression tests fail on the base branch and pass on the
   change branch.
 - [ ] Confirm CI `test` and the Cloudflare Pages preview are green.
