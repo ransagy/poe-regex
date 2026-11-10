@@ -4,6 +4,10 @@ name: cleanup-preview
 # is closed (merged or not), so preview copies do not linger. Production is
 # never touched. Also runnable manually with a branch name, or callable from
 # preview-contrib for fork PR temp branches.
+#
+# Deployments that are still building are skipped: deleting one leaves its
+# GitHub check pending, so a quick close/reopen would otherwise point the PR at
+# a deployment that no longer exists. The periodic cleanup catches them later.
 
 on:
   pull_request:
@@ -66,10 +70,22 @@ jobs:
               | BRANCH="$BRANCH" python3 -c '
           import json, os, sys
           branch = os.environ["BRANCH"]
+
+          def in_progress(dep):
+              if dep.get("is_skipped"):
+                  return False
+              status = ((dep.get("latest_stage") or {}).get("status") or "").lower()
+              return status not in {"success", "failure", "canceled", "skipped"}
+
           for dep in json.load(sys.stdin).get("result") or []:
               meta = (dep.get("deployment_trigger") or {}).get("metadata") or {}
-              if dep.get("environment") == "preview" and meta.get("branch") == branch:
-                  print(dep["id"])
+              if dep.get("environment") != "preview" or meta.get("branch") != branch:
+                  continue
+              if in_progress(dep):
+                  dep_id = dep["id"]
+                  print(f"skipping in-progress preview deployment {dep_id}", file=sys.stderr)
+                  continue
+              print(dep["id"])
           ' | while read -r id; do
               curl -sS -X DELETE -H "Authorization: Bearer $CF_API_TOKEN" "$base/$id?force=true" >/dev/null
               echo "deleted preview deployment $id"
