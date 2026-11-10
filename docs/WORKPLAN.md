@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-07._
+_Last updated: 2026-11-11._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -10,8 +10,8 @@ Current planned and parked work. Behavior is documented in
 ## Current
 
 - Production: <https://renlys.tools>. The live commit is in
-  `/build-info.json`; the Pages project is the internal `renlys-recipes`
-  project.
+  `/build-info.json`; the current release is `c870666` (PR #76, 2026-11-11).
+  The Pages project is the internal `renlys-recipes` project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
 - Engine: exact PoE2 table/proof is current: 1737/1737 scopes proven, not
   stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
@@ -50,6 +50,11 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
+- Common picks: the pre-typing shortlist is data-driven from
+  `data/common-picks.json`. `classes` is a runtime scope, so Helmet minion
+  levels and Gloves attack-only added damage stay out of All gear while the
+  normal weapon-local physical/fire/cold/lightning variants remain global.
+  `common-picks --check` runs in CI.
 - Tests: 111 core, 410 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
@@ -76,12 +81,18 @@ Current planned and parked work. Behavior is documented in
 
 ## Next
 
-No active next items. Catalog coverage and platform work are parked below.
+### UI follow-up PR
 
-## Parked
+One PR covering the four next UI/contributor items:
 
-### UI follow-ups
-
+- **Picked rows survive filtering.** Active includes/excludes can disappear when
+  the search text, the common-only shortlist, or a scope switch stops matching
+  them. Keep claimed rows visible (with their picked tiers) and exempt from
+  `MaxShown`; unpicking restores normal filtering. Search/common-only version:
+  **medium** — `Refresh()`, tier mapping, counts, bulk add, and tests. Full
+  cross-scope version (imported picks or picks from another class not in
+  `RailMods`): **medium-high** — resolve claims against the catalog and render
+  a pinned section.
 - **Compact sticky search box.** Replace the fixed bottom `.out-dock`
   (length/copy only) with the main `SearchBar` hero made sticky at the top in
   compact/mobile modes. Effort: **small-medium** — layout/CSS only, no data or
@@ -92,32 +103,27 @@ No active next items. Catalog coverage and platform work are parked below.
   (`#workbench-reset`) is easy to miss. Make it a clearly styled secondary
   button, or move it into the header/options area with a confirmation.
   Effort: **small** — one markup/CSS change plus placement/accessibility review.
-- **Picked rows survive filtering.** Active includes/excludes can disappear when
-  the search text, the common-only shortlist, or a scope switch stops matching
-  them. Keep claimed rows visible (with their picked tiers) and exempt from
-  `MaxShown`; unpicking restores normal filtering. Search/common-only version:
-  **medium** — `Refresh()`, tier mapping, counts, bulk add, and tests. Full
-  cross-scope version (imported picks or picks from another class not in
-  `RailMods`): **medium-high** — resolve claims against the catalog and render
-  a pinned section.
-- **Touch hover/focus after picker undo.** Tapping a family or tier action
-  leaves the button focused and in a sticky `:hover` state after the choice is
-  undone, so it still looks active. Scope the picker hover rules to
-  hover-capable pointers and blur the action after a touch `pointerup`; keep
-  the real `.active` state classes. Effort: **small** — CSS media scoping plus
-  a delegated touch handler, with keyboard focus unaffected. Verify on mobile
-  emulation that undo returns the button to its neutral background/border while
-  the selected state remains visible.
-- **Contributor-friendly common picks.** The baseline lives in
-  `data/common-picks.json`; entries can use a visible `match` display text or an
-  explicit `family` key. `classes` is both the runtime scope and the validation
-  scope, so class-specific picks stay out of All gear. Remaining: a generated
-  contributor table; future picks belong in the data file. Effort:
-  **small-medium**.
-- **Common-picks CI validation.** `common-picks --check` resolves every entry
-  against the catalog, verifies the family compiles for its classes, enforces
-  the shortlist cap, and reports unknown/ambiguous matches. The `ci` workflow
-  runs it on every PR. Effort: **small** — command + workflow step + tests.
+- **Generated common-picks contributor table.** Generate a readable table from
+  `data/common-picks.json` (label, match/family, class scope, resolved family)
+  for docs/PR review, and keep `common-picks --check` as the gate. Effort:
+  **small-medium** — generator, docs page, and CI drift check.
+
+### After that: missing mod-type scope
+
+Scope every remaining missing mod type before implementation: jewels, attribute
+runes, special/transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded
+stats, and the socket model. This is a scoping pass first; the coverage table
+below remains the reference.
+
+## Recently completed
+
+- PR #76 merged and deployed at `c870666`: RePoE manifest/audit/snapshot,
+  basic rune augments, fail-closed exact solver timeout, claim-covered picker,
+  data-driven common picks, and common-picks CI validation.
+- Picker row metadata, touch hover/focus cleanup, and the common-picks
+  contributor flow documented.
+
+## Parked
 
 ### Distribution and platform
 
