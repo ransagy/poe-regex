@@ -41,9 +41,21 @@
             {
                 <div class="mod-scope">
                     <span>@(_showAll ? $"All {_families.Count} mods" : $"Common picks · {CommonCount} shown")</span>
-                    <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
-                        @(_showAll ? "Show common only" : "Show all mods")
-                    </button>
+                    <span class="mod-scope-actions">
+                        <button type="button" class="link" id="mod-show-all" @onclick="ToggleShowAll">
+                            @(_showAll ? "Show common only" : "Show all mods")
+                        </button>
+                        <HelpTip Title="Mod search and picker limitations" Class="help-right">
+                            <ul>
+                                <li><b>Simple</b> mods have one stat line; the search matches that line.</li>
+                                <li><b>Hybrid</b> mods have several stat lines. A single quoted search term can require only one line, so the picker searches the line that best distinguishes the mod; the other lines are not required.</li>
+                                <li><b>Same search</b> means different mods or tiers compile to the same query. They share one claim; selecting one leaves the others visible as covered, and selecting a covered row switches the claim.</li>
+                                <li><b>Overlap:</b> a line search can also match items that carry that line as part of another mod. Exact full-mod matching is not expressible with one quoted term.</li>
+                                <li>Include and exclude cannot share a claim; duplicate exclusion fragments collapse to one block.</li>
+                                <li>Augments list unique rune effects only; rune effects already covered by normal modifiers are omitted.</li>
+                            </ul>
+                        </HelpTip>
+                    </span>
                 </div>
             }
             @{
@@ -80,7 +92,6 @@
                                     FamilyExcludedClaim(fam, crit.Excluded);
                                 var excludedHere = crit.Excluded.Count > 0 &&
                                     FamilyExclusionTerms(fam, crit.Excluded).Count > 0;
-                                var isHybrid = fam.DisplayLines.Count > 1;
                                 var pickedTiers = fam.Tiers.Count(t =>
                                     crit.Included.Any(m => TierPicked(t, m)));
                                 var excludedTiers = fam.Tiers.Count(t =>
@@ -131,8 +142,6 @@
                                                 {
                                                     <span class="mod-source @fam.SourceCssClass">@displayTag</span>
                                                 }
-                                                <span class="mod-shape @(isHybrid ? "shape-hybrid" : "shape-simple")"
-                                                      title="@ShapeTitle(isHybrid)">@(isHybrid ? "Hybrid" : "Simple")</span>
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
                                                 @if (coveredClaim)
                                                 {
@@ -158,8 +167,6 @@
                                             {
                                                 <span class="mod-source @fam.SourceCssClass">@displayTag</span>
                                             }
-                                            <span class="mod-shape @(isHybrid ? "shape-hybrid" : "shape-simple")"
-                                                  title="@ShapeTitle(isHybrid)">@(isHybrid ? "Hybrid" : "Simple")</span>
                                             @if (coveredClaim)
                                             {
                                                 <span class="covered-note" title="@SameSearchTitle(coveredClaimLabel)">same search</span>
@@ -775,11 +782,6 @@
         pick.IsNamePick && pick.Names is { Count: > 0 }
             ? $"\"{pick.Names[0]}\""
             : SearchModel.FamilyText(_allFamilies, Mods, pick.ModId, Engine);
-
-    private static string ShapeTitle(bool hybrid) =>
-        hybrid
-            ? "Hybrid mod: the search uses one stat line; the other lines are not required."
-            : "Single-stat mod.";
 
     private static string SameSearchTitle(string? label) =>
         label is null

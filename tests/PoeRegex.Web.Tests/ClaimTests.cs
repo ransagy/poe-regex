@@ -135,12 +135,10 @@ public class ClaimTests
     }
 
     [Fact]
-    public void Picker_ShowsHybridAndSimpleShapeTags()
+    public void Picker_HelpTip_ExplainsModTypesAndClaims()
     {
         using var ctx = Context();
         var mods = Engine.ModsForClass("Body Armour");
-        var simple = Family(mods, "IncreasedLife");
-        var hybrid = Family(mods, "LocalIncreasedArmourAndLife");
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.SelectSlot("body");
@@ -149,13 +147,12 @@ public class ClaimTests
             .Add(x => x.State, state)
             .Add(x => x.Scope, "body")
             .Add(x => x.Mods, mods));
-        cut.Find("#mod-search").Input("life");
 
-        var simpleRow = cut.Find($"[id='pick-inc-{simple.Anchor.Id}']").ParentElement!;
-        simpleRow.QuerySelector(".mod-shape")!.TextContent.Should().Be("Simple");
-        var hybridRow = cut.Find($"[id='pick-inc-{hybrid.Anchor.Id}']").ParentElement!;
-        hybridRow.QuerySelector(".mod-shape")!.TextContent.Should().Be("Hybrid");
-        hybridRow.QuerySelector(".mod-shape")!.GetAttribute("title")!.Should().Contain("other lines are not required");
+        cut.FindAll(".mod-shape").Should().BeEmpty();
+        cut.Find(".help-btn").Click();
+        var help = cut.Find(".help-pop").TextContent;
+        help.Should().Contain("Simple").And.Contain("Hybrid")
+            .And.Contain("Same search").And.Contain("Overlap").And.Contain("Augments");
     }
 
     [Fact]

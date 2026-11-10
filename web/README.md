@@ -166,9 +166,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   searched or after `Show all mods`; mods and tiers that compile to the same
   positive query share one **claim**: selecting one leaves the others visible
   as `same search` covered rows, and selecting a covered row switches the
-  claim instead of adding a second chip; family `Hybrid` tags mark multi-line
-  mods whose search uses one line, `Simple` marks single-line mods; before
-  typing, the curated common shortlist shows under a `Common picks · N shown`
+  claim instead of adding a second chip; a `(?)` help beside `Show all mods`
+  explains Simple vs Hybrid mods, same-search claims, line-search overlap,
+  and the unique-only augment filter; before typing, the curated common
+  shortlist shows under a `Common picks · N shown`
   line (the filter placeholder is `Search mods…`;
   typing searches every family; classes with no curated picks list
   everything); a one-letter filter keeps matching families

@@ -38,9 +38,10 @@ Current planned and parked work. Behavior is documented in
   remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
   row with the same query as the active claim stays visible as `same search`;
-  selecting it switches the claim instead of adding a second chip. Families
-  carry `Simple`/`Hybrid` tags, and `Hybrid` rows state that the search uses
-  one stat line. Includes and exclusions are mutually exclusive per claim;
+  selecting it switches the claim instead of adding a second chip. A `(?)`
+  help beside the common/all switch explains Simple vs Hybrid mods,
+  same-search claims, line-search overlap, and the unique-only augment
+  filter. Includes and exclusions are mutually exclusive per claim;
   duplicate exclusion fragments collapse in the compiler.
 - Tests: 111 core, 397 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
