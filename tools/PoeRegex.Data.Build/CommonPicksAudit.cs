@@ -22,7 +22,7 @@ internal static class CommonPicksAudit
         {
             var engine = new EngineService();
             var playable = ModFamilies.Group(engine.PlayableMods());
-            var playableCommon = playable.Count(ModFamilies.IsCommon);
+            var playableCommon = playable.Count(f => ModFamilies.IsCommon(f));
             if (playableCommon >= MaxCommonFamilies)
             {
                 errors.Add(
@@ -95,7 +95,7 @@ internal static class CommonPicksAudit
             foreach (var cls in engine.PlayableClasses().Select(c => c.Id))
             {
                 var count = ModFamilies.Group(engine.ModsForClass(cls))
-                    .Count(ModFamilies.IsCommon);
+                    .Count(f => ModFamilies.IsCommon(f, cls));
                 if (count >= MaxCommonFamilies)
                 {
                     errors.Add(
@@ -155,7 +155,7 @@ internal static class CommonPicksAudit
         EngineService engine, CommonPick entry, ModFamily family, string? cls,
         string label, List<string> errors)
     {
-        if (!ModFamilies.IsCommon(family))
+        if (!ModFamilies.IsCommon(family, cls))
         {
             errors.Add($"{label}: resolved family '{family.Key}' is not common at runtime.");
         }

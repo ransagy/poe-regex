@@ -5,7 +5,7 @@ namespace PoeRegex.Web.Core;
 /// <summary>
 /// One curated pre-typing pick. <see cref="Family"/> is the explicit RePoE
 /// family key; <see cref="Match"/> is the visible family display text. A
-/// contributor can use either, and may scope validation/documentation with
+/// contributor can use either, and may scope the pick to class views with
 /// <see cref="Classes"/>.
 /// </summary>
 public sealed class CommonPick
@@ -30,6 +30,13 @@ public static class CommonPicks
     public static IReadOnlyList<CommonPick> Entries { get; }
     public static IReadOnlySet<string> FamilyKeys { get; }
     public static IReadOnlySet<string> MatchTexts { get; }
+
+    private static readonly IReadOnlySet<string> GlobalFamilyKeys;
+    private static readonly IReadOnlySet<string> GlobalMatchTexts;
+    private static readonly IReadOnlyDictionary<string, ScopeSets> ByClass;
+
+    private sealed record ScopeSets(
+        IReadOnlySet<string> FamilyKeys, IReadOnlySet<string> MatchTexts);
 
     static CommonPicks()
     {
@@ -83,20 +90,65 @@ public static class CommonPicks
                     "Every common pick needs a label and a family key or visible match.");
             }
         }
-        FamilyKeys = Entries
-            .Select(e => e.Family?.Trim())
-            .Where(k => !string.IsNullOrEmpty(k))
-            .Select(k => k!)
-            .ToHashSet(StringComparer.Ordinal);
-        MatchTexts = Entries
-            .Select(e => e.Match?.Trim())
-            .Where(m => !string.IsNullOrEmpty(m))
-            .Select(m => m!)
-            .ToHashSet(StringComparer.Ordinal);
+        var allFamilyKeys = new HashSet<string>(StringComparer.Ordinal);
+        var allMatchTexts = new HashSet<string>(StringComparer.Ordinal);
+        var globalFamilyKeys = new HashSet<string>(StringComparer.Ordinal);
+        var globalMatchTexts = new HashSet<string>(StringComparer.Ordinal);
+        var byClass = new Dictionary<string, (HashSet<string> Families, HashSet<string> Matches)>(
+            StringComparer.Ordinal);
+
+        foreach (var entry in Entries)
+        {
+            var family = entry.Family?.Trim();
+            var match = entry.Match?.Trim();
+            if (!string.IsNullOrEmpty(family)) allFamilyKeys.Add(family);
+            if (!string.IsNullOrEmpty(match)) allMatchTexts.Add(match);
+
+            if (entry.Classes.Count == 0)
+            {
+                if (!string.IsNullOrEmpty(family)) globalFamilyKeys.Add(family);
+                if (!string.IsNullOrEmpty(match)) globalMatchTexts.Add(match);
+                continue;
+            }
+
+            foreach (var cls in entry.Classes.Distinct(StringComparer.Ordinal))
+            {
+                if (!byClass.TryGetValue(cls, out var sets))
+                {
+                    sets = (new HashSet<string>(StringComparer.Ordinal),
+                        new HashSet<string>(StringComparer.Ordinal));
+                    byClass[cls] = sets;
+                }
+                if (!string.IsNullOrEmpty(family)) sets.Families.Add(family);
+                if (!string.IsNullOrEmpty(match)) sets.Matches.Add(match);
+            }
+        }
+
+        FamilyKeys = allFamilyKeys;
+        MatchTexts = allMatchTexts;
+        GlobalFamilyKeys = globalFamilyKeys;
+        GlobalMatchTexts = globalMatchTexts;
+        ByClass = byClass.ToDictionary(
+            kv => kv.Key,
+            kv => new ScopeSets(kv.Value.Families, kv.Value.Matches),
+            StringComparer.Ordinal);
     }
 
-    public static bool IsCommon(ModFamily family) =>
-        FamilyKeys.Contains(family.Key) ||
-        family.Members.Any(m => FamilyKeys.Contains(ModFamilies.KeyOf(m))) ||
-        MatchTexts.Contains(family.DisplayText);
+    /// <summary>
+    /// True when the family is in the common shortlist. A null
+    /// <paramref name="classId"/> is the All-gear/global view; entries with a
+    /// class scope are omitted there and only apply in their class views.
+    /// </summary>
+    public static bool IsCommon(ModFamily family, string? classId = null)
+    {
+        if (Matches(family, GlobalFamilyKeys, GlobalMatchTexts)) return true;
+        if (classId is null || !ByClass.TryGetValue(classId, out var scoped)) return false;
+        return Matches(family, scoped.FamilyKeys, scoped.MatchTexts);
+    }
+
+    private static bool Matches(
+        ModFamily family, IReadOnlySet<string> familyKeys, IReadOnlySet<string> matchTexts) =>
+        familyKeys.Contains(family.Key) ||
+        family.Members.Any(m => familyKeys.Contains(ModFamilies.KeyOf(m))) ||
+        matchTexts.Contains(family.DisplayText);
 }

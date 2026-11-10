@@ -50,7 +50,7 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tests: 111 core, 409 web, 34 data-build; local suites green.
+- Tests: 111 core, 410 web, 34 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -108,12 +108,12 @@ No active next items. Catalog coverage and platform work are parked below.
   a delegated touch handler, with keyboard focus unaffected. Verify on mobile
   emulation that undo returns the button to its neutral background/border while
   the selected state remains visible.
-- **Contributor-friendly common picks.** The baseline now lives in
+- **Contributor-friendly common picks.** The baseline lives in
   `data/common-picks.json`; entries can use a visible `match` display text or an
-  explicit `family` key, with optional `classes` for validation. Remaining:
-  class/slot scoping at runtime (the list still applies wherever the family
-  exists), a generated contributor table, and migrating any future hardcoded
-  picks. Effort: **small-medium**.
+  explicit `family` key. `classes` is both the runtime scope and the validation
+  scope, so class-specific picks stay out of All gear. Remaining: a generated
+  contributor table and migrating any future hardcoded picks. Effort:
+  **small-medium**.
 - **Common-picks CI validation.** `common-picks --check` resolves every entry
   against the catalog, verifies the family compiles for its classes, enforces
   the shortlist cap, and reports unknown/ambiguous matches. The `ci` workflow

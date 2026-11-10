@@ -24,7 +24,7 @@ public class FamilyPickTests
         var keys = families.Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var key in ModFamilies.CommonKeys)
             keys.Should().Contain(key, $"curated family '{key}' must exist in the catalog");
-        var common = families.Where(ModFamilies.IsCommon).ToList();
+        var common = families.Where(f => ModFamilies.IsCommon(f)).ToList();
         common.Should().Contain(f => f.IsPrefix);
         common.Should().Contain(f => !f.IsPrefix);
         common.Should().HaveCountLessThan(30, "the pre-typing list stays a shortlist");

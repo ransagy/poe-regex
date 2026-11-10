@@ -253,8 +253,13 @@ public static class ModFamilies
     /// </summary>
     public static IReadOnlySet<string> CommonKeys => CommonPicks.FamilyKeys;
 
-    /// <summary>True when the family is in the pre-typing shortlist.</summary>
-    public static bool IsCommon(ModFamily family) => CommonPicks.IsCommon(family);
+    /// <summary>
+    /// True when the family is in the pre-typing shortlist. A null
+    /// <paramref name="classId"/> is the All-gear/global view; class-scoped
+    /// entries apply only to their class views.
+    /// </summary>
+    public static bool IsCommon(ModFamily family, string? classId = null) =>
+        CommonPicks.IsCommon(family, classId);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();

@@ -337,7 +337,7 @@
     private string _placeholder = "Search mods…";
     private bool _showAll;
 
-    private int CommonCount => _allFamilies.Count(ModFamilies.IsCommon);
+    private int CommonCount => _allFamilies.Count(f => ModFamilies.IsCommon(f, ScopeClassId));
 
     private string ScopeSummary
     {
@@ -419,7 +419,7 @@
         _families = filter.Length == 0
             ? _showAll || CommonCount == 0
                 ? _allFamilies
-                : _allFamilies.Where(ModFamilies.IsCommon).ToList()
+                : _allFamilies.Where(f => ModFamilies.IsCommon(f, ScopeClassId)).ToList()
             : _allFamilies
                 .Select(f =>
                 {
