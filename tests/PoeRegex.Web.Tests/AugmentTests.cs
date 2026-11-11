@@ -286,6 +286,37 @@ public class AugmentTests
     }
 
     [Fact]
+    public void SingleTierSoulCore_IsCollapsedAndKeepsItsNameInTheSourceTag()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddSingleton(Engine);
+        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        var state = new WorkbenchState();
+        var family = ModFamilies.Group(Engine.ModsForClass("Helmet"))
+            .Single(f => f.Key == "augment:soulcore:Soul Core of Atmohua:armour");
+        family.Tiers.Should().HaveCount(1);
+        family.SourceTag.Should().Be("Soul Core of Atmohua · Armour");
+
+        var eye = ModFamilies.Group(Engine.ModsForClass("Helmet"))
+            .Single(f => f.Key == "augment:abyssaleye:Amanamu's Gaze:helmets");
+        eye.SourceTag.Should().Be("Abyssal Eye · Amanamu's Gaze · Helmets");
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Mods, Engine.ModsForClass("Helmet")));
+        cut.Find("#mod-search").Input("Atmohua");
+
+        var row = cut.Find($"[id='pick-inc-{family.Anchor.Id}']").ParentElement!;
+        row.QuerySelector(".fam-caret").Should().BeNull(
+            "a single-tier core has no tier list to expand");
+        row.QuerySelector(".tier-count").Should().BeNull();
+        row.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Soul Core of Atmohua · Armour");
+    }
+
+    [Fact]
     public void AugmentTierRows_HaveNoExactTierControls()
     {
         using var ctx = new BunitContext();

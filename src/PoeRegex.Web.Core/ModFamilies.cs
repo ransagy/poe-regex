@@ -161,14 +161,35 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
-        "augment" => string.Join(" · ",
-            new[] { Anchor.AugmentType, Anchor.AugmentTarget }
-                .Where(x => !string.IsNullOrWhiteSpace(x))),
-        "bonded" => string.Join(" · ",
-            new[] { "Bonded", Anchor.AugmentType, Anchor.AugmentTarget }
-                .Where(x => !string.IsNullOrWhiteSpace(x))),
+        "augment" or "bonded" => AugmentSourceTag(),
         _ => null,
     };
+
+    /// <summary>
+    /// Source tag for an augment row. Single-tier cores/eyes are collapsed in
+    /// the picker, so their tag carries the augment name to keep the identity
+    /// visible; multi-tier runes keep the type + target tag.
+    /// </summary>
+    private string? AugmentSourceTag()
+    {
+        var parts = new List<string>();
+        if (IsBonded) parts.Add("Bonded");
+        var type = Anchor.AugmentType;
+        if (Tiers.Count == 1 && Anchor.Name is { Length: > 0 } name)
+        {
+            if (!string.IsNullOrWhiteSpace(type) &&
+                !name.Contains(type, StringComparison.OrdinalIgnoreCase))
+                parts.Add(type);
+            parts.Add(name.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(type))
+        {
+            parts.Add(type);
+        }
+        if (!string.IsNullOrWhiteSpace(Anchor.AugmentTarget))
+            parts.Add(Anchor.AugmentTarget);
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
 
     /// <summary>Normalize `of Amanamu` / `Amanamu's` to `Amanamu`.</summary>
     public static string FactionName(string? name)

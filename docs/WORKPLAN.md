@@ -104,6 +104,13 @@ the reference.
 
 ## Parked
 
+### UI follow-ups
+
+- **Reset workbench scope.** `#workbench-reset` clears persisted work and
+  `State` (mode, slots, picks, test items) but not UI-local state such as the
+  ModPicker search filter, show-all/expanded families, or open panels. Decide
+  whether Reset should clear those too or be renamed/scoped.
+
 ### Distribution and platform
 
 - Browser AOT / smaller publish size (currently the unoptimized interpreter

@@ -105,7 +105,11 @@
                                 var excludedTiers = fam.Tiers.Count(t =>
                                     TierExcluded(fam, t, crit.Excluded));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
-                                var collapsed = CanCollapse(fam) && !HasTierLevelState(fam, crit);
+                                // Soul Cores and Abyssal Eyes are one-row augments: a
+                                // caret/"1 tier" control adds noise and no information.
+                                var singleTierAugment = fam.IsAugmentLike && fam.Tiers.Count == 1;
+                                var collapsed = singleTierAugment ||
+                                    (CanCollapse(fam) && !HasTierLevelState(fam, crit));
                                 var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
                                 var displayTag = fam.SourceTag;
                                 <li class="fam-block">
