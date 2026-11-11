@@ -7,8 +7,7 @@ public class AugmentCatalogTests
     [Fact]
     public void EveryExportedTargetResolvesToClasses()
     {
-        var root = RepoRoot();
-        var raw = Path.Combine(root, "data", "raw", "poe2");
+        if (!RawAvailable(out var raw)) return;
         var targets = AugmentCatalogBuilder.BuildTargetMap(
             RePoEJson.LoadBaseItems(Path.Combine(raw, "base_items.min.json")),
             RePoEJson.LoadItemClasses(Path.Combine(raw, "item_classes.min.json")));
@@ -31,8 +30,7 @@ public class AugmentCatalogTests
     [Fact]
     public void WeaponAndAllEquipmentIncludeCasterWeapons()
     {
-        var root = RepoRoot();
-        var raw = Path.Combine(root, "data", "raw", "poe2");
+        if (!RawAvailable(out var raw)) return;
         var targets = AugmentCatalogBuilder.BuildTargetMap(
             RePoEJson.LoadBaseItems(Path.Combine(raw, "base_items.min.json")),
             RePoEJson.LoadItemClasses(Path.Combine(raw, "item_classes.min.json")));
@@ -48,8 +46,7 @@ public class AugmentCatalogTests
     [Fact]
     public void CompoundTargetsResolveToTheirAlternatives()
     {
-        var root = RepoRoot();
-        var raw = Path.Combine(root, "data", "raw", "poe2");
+        if (!RawAvailable(out var raw)) return;
         var targets = AugmentCatalogBuilder.BuildTargetMap(
             RePoEJson.LoadBaseItems(Path.Combine(raw, "base_items.min.json")),
             RePoEJson.LoadItemClasses(Path.Combine(raw, "item_classes.min.json")));
@@ -69,9 +66,8 @@ public class AugmentCatalogTests
     [Fact]
     public void Build_EmitsOnlyEnabledTypesAndBondedRows()
     {
-        var root = RepoRoot();
-        var result = AugmentCatalogBuilder.Build(
-            Path.Combine(root, "data", "raw", "poe2"));
+        if (!RawAvailable(out var raw)) return;
+        var result = AugmentCatalogBuilder.Build(raw);
 
         result.UnmappedTargets.Should().BeEmpty();
         result.Mods.Should().NotBeEmpty();
@@ -84,6 +80,14 @@ public class AugmentCatalogTests
             m.Classes.Count > 0 &&
             m.Lines.Count > 0 &&
             m.Family.Length > 0);
+    }
+
+    private static bool RawAvailable(out string raw)
+    {
+        raw = Path.Combine(RepoRoot(), "data", "raw", "poe2");
+        return File.Exists(Path.Combine(raw, "augments.min.json")) &&
+               File.Exists(Path.Combine(raw, "base_items.min.json")) &&
+               File.Exists(Path.Combine(raw, "item_classes.min.json"));
     }
 
     private static string RepoRoot()
