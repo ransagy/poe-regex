@@ -15,7 +15,9 @@ function syncLayout() {
   const scale = currentScale();
   const w = window.innerWidth / scale;
   const h = window.innerHeight / scale;
-  document.body.classList.toggle("compact", w < 1100 || h < 640);
+  const compact = w < 1100 || h < 640;
+  document.body.classList.toggle("compact", compact);
+  document.documentElement.classList.toggle("compact", compact);
 }
 
 window.poeRegexScale = {

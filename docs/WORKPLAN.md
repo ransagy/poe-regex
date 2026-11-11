@@ -54,8 +54,9 @@ Current planned and parked work. Behavior is documented in
   `data/common-picks.json`. `classes` is a runtime scope, so Helmet minion
   levels and Gloves attack-only added damage stay out of All gear while the
   normal weapon-local physical/fire/cold/lightning variants remain global.
-  `common-picks --check` runs in CI.
-- Tests: 111 core, 410 web, 34 data-build; local suites green.
+  `common-picks --check` validates the entries and the generated contributor
+  table, and runs in CI.
+- Tests: 111 core, 415 web, 39 data-build; local suites green.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -81,34 +82,7 @@ Current planned and parked work. Behavior is documented in
 
 ## Next
 
-### UI follow-up PR
-
-One PR covering the four next UI/contributor items:
-
-- **Picked rows survive filtering.** Active includes/excludes can disappear when
-  the search text, the common-only shortlist, or a scope switch stops matching
-  them. Keep claimed rows visible (with their picked tiers) and exempt from
-  `MaxShown`; unpicking restores normal filtering. Search/common-only version:
-  **medium** — `Refresh()`, tier mapping, counts, bulk add, and tests. Full
-  cross-scope version (imported picks or picks from another class not in
-  `RailMods`): **medium-high** — resolve claims against the catalog and render
-  a pinned section.
-- **Compact sticky search box.** Replace the fixed bottom `.out-dock`
-  (length/copy only) with the main `SearchBar` hero made sticky at the top in
-  compact/mobile modes. Effort: **small-medium** — layout/CSS only, no data or
-  solver work, but it needs shell-header stacking, safe-area and keyboard
-  checks, ruler/copy behavior, and removal of the `.shell` bottom padding.
-  Main risks are the mobile viewport and the scaled compact layout.
-- **Reset workbench visibility.** The current footer text link
-  (`#workbench-reset`) is easy to miss. Make it a clearly styled secondary
-  button, or move it into the header/options area with a confirmation.
-  Effort: **small** — one markup/CSS change plus placement/accessibility review.
-- **Generated common-picks contributor table.** Generate a readable table from
-  `data/common-picks.json` (label, match/family, class scope, resolved family)
-  for docs/PR review, and keep `common-picks --check` as the gate. Effort:
-  **small-medium** — generator, docs page, and CI drift check.
-
-### After that: missing mod-type scope
+### Missing mod-type scope
 
 Scope every remaining missing mod type before implementation: jewels, attribute
 runes, special/transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded
@@ -117,6 +91,10 @@ below remains the reference.
 
 ## Recently completed
 
+- UI follow-up PR: picked/excluded rows stay visible under search, common-only,
+  and scope filters; the compact layout pins the search header/query/ruler while
+  the tools scroll; Reset workbench is a visible danger button; and
+  `common-picks --table` generates the contributor table with a CI drift gate.
 - PR #76 merged and deployed at `c870666`: RePoE manifest/audit/snapshot,
   basic rune augments, fail-closed exact solver timeout, claim-covered picker,
   data-driven common picks, and common-picks CI validation.

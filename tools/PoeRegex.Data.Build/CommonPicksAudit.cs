@@ -15,8 +15,10 @@ internal static class CommonPicksAudit
     public static int Run(string[] args)
     {
         var check = args.Contains("--check", StringComparer.Ordinal);
+        var table = args.Contains("--table", StringComparer.Ordinal);
         var errors = new List<string>();
         var warnings = new List<string>();
+        string? generated = null;
 
         try
         {
@@ -111,11 +113,25 @@ internal static class CommonPicksAudit
             Console.WriteLine(
                 $"PlayableMods: {playableCommon} common families " +
                 $"(cap < {MaxCommonFamilies}).");
+
+            generated = CommonPicksTable.Render(engine);
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"common-picks: {Unwrap(ex).Message}");
             return 1;
+        }
+
+        if (generated is not null)
+        {
+            if (table)
+            {
+                if (errors.Count == 0) UpdateTable(generated, errors);
+            }
+            else if (check)
+            {
+                CheckTable(generated, errors);
+            }
         }
 
         foreach (var warning in warnings)
@@ -125,13 +141,13 @@ internal static class CommonPicksAudit
 
         if (errors.Count > 0)
         {
-            if (check) return 1;
+            if (check || table) return 1;
             Console.WriteLine("Run with --check to fail on these errors.");
         }
         return 0;
     }
 
-    private static List<ModFamily> Resolve(
+    internal static List<ModFamily> Resolve(
         EngineService engine, CommonPick entry, string? cls)
     {
         var mods = cls is null ? engine.PlayableMods() : engine.ModsForClass(cls);
@@ -164,6 +180,46 @@ internal static class CommonPicksAudit
         {
             var scope = cls is null ? "the global scope" : $"class '{cls}'";
             errors.Add($"{label}: family '{family.Key}' compiles no fragment for {scope}.");
+        }
+    }
+
+    private static void CheckTable(string generated, List<string> errors)
+    {
+        try
+        {
+            var path = CommonPicksTable.RelativePath;
+            var document = File.ReadAllText(path);
+            if (!string.Equals(
+                    CommonPicksTable.ExtractBlock(document), generated, StringComparison.Ordinal))
+            {
+                errors.Add(
+                    $"{path} is out of date; run `common-picks --table` and commit the result.");
+            }
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"{CommonPicksTable.RelativePath}: {Unwrap(ex).Message}");
+        }
+    }
+
+    private static void UpdateTable(string generated, List<string> errors)
+    {
+        try
+        {
+            var path = CommonPicksTable.RelativePath;
+            var document = File.ReadAllText(path);
+            var updated = CommonPicksTable.ReplaceBlock(document, generated);
+            if (string.Equals(updated, document, StringComparison.Ordinal))
+            {
+                Console.WriteLine($"Common picks table is up to date: {path}");
+                return;
+            }
+            File.WriteAllText(path, updated);
+            Console.WriteLine($"Updated common picks table: {path}");
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"cannot update {CommonPicksTable.RelativePath}: {Unwrap(ex).Message}");
         }
     }
 

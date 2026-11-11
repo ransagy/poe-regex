@@ -21,6 +21,21 @@ public class WebComponentTests
         return ctx;
     }
 
+    private static BunitContext HomeContext(out EngineService engine, out WorkbenchState state)
+    {
+        var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        engine = new EngineService();
+        state = new WorkbenchState();
+        var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
+        ctx.Services.AddSingleton(engine);
+        ctx.Services.AddSingleton(state);
+        ctx.Services.AddSingleton(persistence);
+        ctx.Services.AddSingleton(new IntroState(persistence));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        return ctx;
+    }
+
     private static (EngineService Engine, WorkbenchState State, SearchModel Model) Picked()
     {
         var engine = new EngineService();
@@ -43,6 +58,48 @@ public class WebComponentTests
         model.Query.Should().NotBeEmpty();
         model.Blocks.Should().Contain(b => b.Role == "inc");
         model.PickBlock(null, state.Global.Included[0]).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public void Home_AdvancedPicker_ShowsPickedModFromAnotherClass()
+    {
+        using var ctx = HomeContext(out var engine, out var state);
+
+        var helmetFamilies = ModFamilies.Group(engine.ModsForClass("Helmet"))
+            .Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
+        var foreign = engine.ModsForClass("Body Armour")
+            .First(m => m.Source.Length == 0 &&
+                        !helmetFamilies.Contains(ModFamilies.KeyOf(m)));
+        state.SetMode("advanced");
+        state.SelectSlot("helmet");
+        state.SetSlotClass("helmet", "Helmet");
+        state.AddInclude("helmet", new WantedMod(foreign.Id));
+
+        var cut = ctx.Render<Home>();
+        cut.WaitForElement("#mod-search");
+        cut.Find("#mod-search").Input("zzzz-no-match");
+
+        var family = ModFamilies.Group([foreign]).Single();
+        var row = cut.Find($"#pick-inc-{family.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("picked");
+    }
+
+    [Fact]
+    public void Home_ResetWorkbench_IsAVisibleButton()
+    {
+        using var ctx = HomeContext(out var engine, out var state);
+        state.AddInclude(null, new WantedMod(engine.PlayableMods().First(m => m.Source.Length == 0).Id));
+
+        var cut = ctx.Render<Home>();
+        cut.WaitForElement("#mod-search");
+
+        var reset = cut.Find("#workbench-reset");
+        reset.ClassList.Should().Contain("btn");
+        reset.ClassList.Should().Contain("btn-danger", "reset is a destructive action");
+        reset.TextContent.Trim().Should().Be("Reset workbench");
+
+        reset.Click();
+        state.Global.Included.Should().BeEmpty();
     }
 
     [Fact]

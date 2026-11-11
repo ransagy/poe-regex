@@ -19,7 +19,7 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- probe --pattern "#% increased maximum Life" --fragment "fe$"
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
-///   dotnet run -- common-picks [--check]
+///   dotnet run -- common-picks [--check] [--table]
 /// </summary>
 public static class Program
 {
