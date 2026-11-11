@@ -10,11 +10,11 @@ Current planned and parked work. Behavior is documented in
 ## Current
 
 - Production: <https://renlys.tools>. The live commit is in
-  `/build-info.json`; the current release is `c870666` (PR #76, 2026-11-11).
-  The Pages project is the internal `renlys-recipes` project.
+  `/build-info.json`. The Pages project is the internal `renlys-recipes`
+  project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-- Engine: exact PoE2 table/proof is current: 1737/1737 scopes proven, not
-  stale ([`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json)).
+- Engine: exact PoE2 table/proof status is tracked in
+  [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json).
 - Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
   implicits, and corrupted enchantments. Implicits render in a dedicated
   **Implicits** section above the normal Prefixes/Suffixes columns with a
@@ -56,7 +56,7 @@ Current planned and parked work. Behavior is documented in
   normal weapon-local physical/fire/cold/lightning variants remain global.
   `common-picks --check` validates the entries and the generated contributor
   table, and runs in CI.
-- Tests: 111 core, 415 web, 39 data-build; local suites green.
+- Tests: the full Release suite and CI are the release gate.
 - Deployment: Cloudflare Pages with branded previews, a Pages-host guard, and
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
@@ -72,10 +72,9 @@ Current planned and parked work. Behavior is documented in
   with a dark edge. Compact layout reviewed at 390×844 and 768×1024;
   color-vision simulation passed with text/icon labels preserved.
 - Data sync: `data/repoe.manifest.json` maps the public RePoE and PoB exports;
-  `data-audit --check` fails on new/unmapped files. `fetch` is manifest-driven,
-  writes `data/repoe.snapshot.json` (313 SoulCore bases, 16,911 mods,
-  `dataVersion` 2026-11-08), and the manual **data-audit** workflow checks the
-  published inventory weekly.
+  `data-audit --check` fails on new/unmapped files. `fetch` is manifest-driven
+  and writes `data/repoe.snapshot.json`; the manual **data-audit** workflow
+  checks the published inventory weekly.
 - Perf: a manual `web-perf` workflow builds the app, runs the 1920×1080
   harness, publishes the JSON/log artifact, and writes a step summary. It is
   observational; the local release-prep run remains the blocking gate.
@@ -95,7 +94,7 @@ below remains the reference.
   and scope filters; the compact layout pins the search header/query/ruler while
   the tools scroll; Reset workbench is a visible danger button; and
   `common-picks --table` generates the contributor table with a CI drift gate.
-- PR #76 merged and deployed at `c870666`: RePoE manifest/audit/snapshot,
+- PR #76: RePoE manifest/audit/snapshot,
   basic rune augments, fail-closed exact solver timeout, claim-covered picker,
   data-driven common picks, and common-picks CI validation.
 - Picker row metadata, touch hover/focus cleanup, and the common-picks
