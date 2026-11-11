@@ -534,6 +534,9 @@ input:disabled { opacity: 0.5; }
     background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px;
     box-shadow: inset 0 2px 0 var(--panel-accent);
 }
+/* Desktop keeps the original grid; compact mode gives this block its own
+   background so it can stick while the page scrolls. */
+.hero-pinned { display: contents; }
 .hero-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .hero-title { font-size: 1.05rem; font-weight: 600; }
 .hero-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
@@ -684,8 +687,6 @@ input:disabled { opacity: 0.5; }
     background: none; color: var(--faint); font-size: 1rem; line-height: 1; cursor: pointer;
 }
 .bd-x:hover { color: var(--no); background: var(--no-soft); }
-
-.out-dock { display: none; }
 
 .intro-card {
     margin-bottom: 0.9rem; padding: 0.85rem 1rem;
@@ -918,8 +919,7 @@ input:disabled { opacity: 0.5; }
     color: var(--foot-ink); font-size: 0.78rem;
 }
 .shell-foot .hint { font-size: 0.78rem; color: var(--foot-ink); font-style: normal; }
-.foot-reset { margin-left: auto; font-size: 0.78rem; color: var(--foot-ink); }
-.foot-reset:hover { color: var(--no); text-decoration-color: var(--no); }
+.foot-reset { margin-left: auto; height: 1.9rem; padding: 0 0.8rem; font-size: 0.8rem; }
 .legal-links { display: flex; gap: 0.75rem; }
 .legal-links a { color: var(--foot-link); }
 .legal-links a:hover { color: var(--foot-ink); }
@@ -951,7 +951,10 @@ input:disabled { opacity: 0.5; }
 /* ---------- Responsive ---------- */
 
 /* Set by uiscale.js when the scaled bench no longer fits: the page scrolls and columns take natural height. */
-body.compact { overflow-y: auto; }
+/* The page scrolls on html; body must not be a scroll container, otherwise
+   sticky positioning resolves against body.scrollTop (always 0). */
+body.compact { height: auto; min-height: 100%; overflow: visible; }
+html.compact { overflow-x: hidden; scroll-padding-top: 10rem; }
 body.compact #app, body.compact .shell { height: auto; min-height: 100%; }
 body.compact .bench { flex: none; overflow: visible; padding-bottom: 0.5rem; }
 body.compact .bench-main { grid-template-columns: minmax(0, 1fr); contain: none; flex: none; }
@@ -962,12 +965,23 @@ body.compact .intro-top { display: block; }
 body.compact .intro-side { display: none; }
 body.compact .mod-list { flex: 0 0 auto; max-height: 60vh; }
 body.compact .pack-wrap { max-height: none; }
-body.compact .shell { padding-bottom: 3.75rem; }
-body.compact .out-dock {
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
-    padding: 0.6rem 1.25rem calc(0.6rem + env(safe-area-inset-bottom));
-    background: var(--surface); border-top: 1px solid var(--line-strong);
+
+/* Sticky search in compact/mobile. The hero itself becomes a transparent
+   wrapper so the pinned block's containing block is the full-height bench;
+   otherwise sticky would stop at the end of the hero card. */
+body.compact .hero { display: contents; }
+body.compact .hero-pinned {
+    position: sticky; top: env(safe-area-inset-top, 0px);
+    z-index: 40; display: grid; gap: 0.5rem;
+    padding: 0.55rem 0.75rem 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--line-strong); border-radius: 9px;
+    box-shadow: inset 0 2px 0 var(--panel-accent), 0 10px 22px rgba(0, 0, 0, 0.35);
+}
+body.compact .hero + .drawer {
+    margin-top: 0;
+    border-top-color: var(--line-strong);
+    border-top-left-radius: 9px; border-top-right-radius: 9px;
 }
 
 @media (max-width: 430px) {
@@ -994,8 +1008,7 @@ body.compact .out-dock {
     .hero-main { grid-template-columns: minmax(0, 1fr); }
     .hero-side { flex-direction: row; align-items: center; justify-content: space-between; }
     .hero-copy { height: 2.5rem; }
-    .shell-foot { padding: 0.5rem 0.75rem 4.5rem; }
-    .foot-reset { margin-left: 0; }
+    .shell-foot { padding: 0.5rem 0.75rem; }
     .dlg, .dlg-builder { width: 100%; max-height: none; }
     .dlg.dlg-import {
         height: min(78vh, 34rem);

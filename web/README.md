@@ -113,7 +113,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   it opens (test items, what it matches); the mode switch (`All gear` =
   simple, `Per slot` = advanced); three columns: doll (advanced only) | mod
   picker | your picks; a one-line footer with the engine and data stamp,
-  build, legal links, and `Reset workbench`. Advanced starts unfocused
+  build, legal links, and a danger-styled `Reset workbench` button. In
+  compact/mobile layouts the search header, query, and ruler stick to the top
+  of the page while the tools and workbench scroll underneath. Advanced starts unfocused
   ("Choose a gear slot to see the mods it can roll"); the focused slot's name
   heads the picker, and weapon/offhand put their base-class select there.
 - `Components/` — `PaperDoll` (advanced only: 10 gear slots; click a slot to
@@ -151,7 +153,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   headers (two columns when the editor is wide, stacked when narrow; no
   per-row tags) and the family tooltip names the content (`Show 6 tiers of
   % increased Movement Speed`); a picked family tints and its `+` becomes `✓`,
-  and a family with a tier picked keeps its picked count and tint; with a filter typed, an
+  and a family with a tier picked keeps its picked count and tint; active
+  includes and exclusions stay pinned in the list when the search text,
+  common-only view, or scope class would otherwise hide them (unpicking
+  restores normal filtering); with a filter typed, an
   `Add all N` button beside the search box adds every matching family in one
   batch (disabled, with the prospective k/N in its tooltip, when that would
   exceed the game's 250-character limit; the preview handles up to 64 matches

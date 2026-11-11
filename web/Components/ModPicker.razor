@@ -105,7 +105,7 @@
                                 var excludedTiers = fam.Tiers.Count(t =>
                                     TierExcluded(fam, t, crit.Excluded));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
-                                var collapsed = CanCollapse(fam);
+                                var collapsed = CanCollapse(fam) && !HasTierLevelState(fam, crit);
                                 var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
                                 var displayTag = fam.SourceTag;
                                 <li class="fam-block">
@@ -286,9 +286,9 @@
                     </section>
                 }
             </div>
-            @if (_search.Trim().Length > 0 && _families.Count > MaxShown)
+            @if (_search.Trim().Length > 0 && _families.Count > _shownCount)
             {
-                <div class="more">@(_families.Count - MaxShown) more. Keep typing to narrow the list.</div>
+                <div class="more">@(_families.Count - _shownCount) more. Keep typing to narrow the list.</div>
             }
         </div>
     }
@@ -321,6 +321,9 @@
     private string? _claimScope;
     private string? _claimClass;
     private IReadOnlyList<ModFamily> _families = [];
+    private IReadOnlyList<ModFamily> _matchFamilies = [];
+    private int _matchCount;
+    private int _shownCount;
     private IReadOnlyList<ModFamily> _augments = [];
     private IReadOnlyList<ModFamily> _implicits = [];
     private IReadOnlyList<ModFamily> _corrupted = [];
@@ -345,7 +348,11 @@
         {
             var filter = _search.Trim();
             if (filter.Length > 0)
-                return _families.Count == 1 ? "1 match" : $"{_families.Count} matches";
+            {
+                var text = _matchCount == 1 ? "1 match" : $"{_matchCount} matches";
+                var active = _families.Count - _matchCount;
+                return active > 0 ? $"{text} · {active} active" : text;
+            }
             if (CommonCount == 0 || _allFamilies.Count == CommonCount)
                 return _allFamilies.Count == 1 ? "1 mod" : $"{_allFamilies.Count} mods";
             return _showAll
@@ -416,7 +423,7 @@
             _allFamilies = ModFamilies.CachedGroup(Mods, union: true);
             _unionActive = true;
         }
-        _families = filter.Length == 0
+        var filtered = filter.Length == 0
             ? _showAll || CommonCount == 0
                 ? _allFamilies
                 : _allFamilies.Where(f => ModFamilies.IsCommon(f, ScopeClassId)).ToList()
@@ -434,7 +441,44 @@
                 .Where(f => f is not null)
                 .Select(f => f!)
                 .ToList();
-        var shown = filter.Length == 0 ? _families : _families.Take(MaxShown).ToList();
+        _matchFamilies = filtered;
+        _matchCount = filtered.Count;
+
+        // Active includes/excludes stay visible even when the search text or
+        // common-only view does not match them. Home also adds the current
+        // scope's picks from other classes to the source list, so imported
+        // selections and cross-class picks can be pinned here too.
+        var crit = ScopeCriteria();
+        var byKey = filtered.ToDictionary(f => f.Key, f => f, StringComparer.Ordinal);
+        var pinnedKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var fam in _allFamilies)
+        {
+            if (!FamilyHasActiveState(fam, crit)) continue;
+            pinnedKeys.Add(fam.Key);
+            var pinnedTiers = PinnedTiers(fam, crit);
+            if (byKey.TryGetValue(fam.Key, out var existing))
+            {
+                var tierIds = existing.Tiers.Select(t => t.Anchor.Id)
+                    .Concat(pinnedTiers.Select(t => t.Anchor.Id))
+                    .ToHashSet(StringComparer.Ordinal);
+                byKey[fam.Key] = fam.WithTiers(
+                    fam.Tiers.Where(t => tierIds.Contains(t.Anchor.Id)).ToList());
+            }
+            else
+            {
+                byKey[fam.Key] = fam.WithTiers(pinnedTiers);
+            }
+        }
+        _families = _allFamilies
+            .Where(f => byKey.ContainsKey(f.Key))
+            .Select(f => byKey[f.Key])
+            .ToList();
+        var shown = filter.Length == 0
+            ? _families
+            : _families.Take(MaxShown)
+                .Concat(_families.Skip(MaxShown).Where(f => pinnedKeys.Contains(f.Key)))
+                .ToList();
+        _shownCount = shown.Count;
         _augments = shown.Where(f => f.IsAugment).ToList();
         _implicits = shown.Where(f => f.IsImplicit).ToList();
         _corrupted = shown.Where(f => f.IsCorrupted).ToList();
@@ -460,9 +504,9 @@
         _bulkOverflow = false;
         _bulkTooMany = false;
         _bulkNew = 0;
-        if (_search.Trim().Length == 0 || _families.Count == 0) return;
+        if (_search.Trim().Length == 0 || _matchFamilies.Count == 0) return;
         var crit = ScopeCriteria();
-        var picks = _families.Select(f => f.Pick()).ToList();
+        var picks = _matchFamilies.Select(f => f.Pick()).ToList();
         _bulkNew = picks.Count(p => !crit.Included.Any(m => m.SamePick(p)));
         if (_bulkNew < 2) return; // one match: the row's own + is the action
         // Broad filters can match most of the catalog; compiling a preview for
@@ -486,7 +530,7 @@
 
     private string BulkTitle()
     {
-        var already = _families.Count - _bulkNew;
+        var already = _matchFamilies.Count - _bulkNew;
         var what = already > 0
             ? $"Add all {_bulkNew} matching mods ({already} already added)"
             : $"Add all {_bulkNew} matching mods";
@@ -514,6 +558,48 @@
         if (included.Count == 0) return false;
         var memberIds = fam.MemberIds;
         return included.Any(pick => PickTouchesFamily(fam, pick, memberIds));
+    }
+
+    /// <summary>Any active include or exclusion keeps this family visible.</summary>
+    private bool FamilyHasActiveState(ModFamily fam, SlotCriteria crit)
+    {
+        if (FamilyPicked(fam, crit.Included)) return true;
+        if (crit.Excluded.Count == 0) return false;
+        if (FamilyExcludedClaim(fam, crit.Excluded)) return true;
+        return fam.Tiers.Any(t => TierExcluded(fam, t, crit.Excluded));
+    }
+
+    /// <summary>
+    /// True when a tier-level action needs its tier rows visible. A
+    /// family-level exclusion already reads on the family row, so it must not
+    /// uncollapse a single-tier family.
+    /// </summary>
+    private bool HasTierLevelState(ModFamily fam, SlotCriteria crit)
+    {
+        var familyExcludes = FamilyExclusionTerms(fam, crit.Excluded);
+        return fam.Tiers.Any(t =>
+            TierExplicitPicks(fam, t, crit.Included).Count > 0 ||
+            TierUpPicks(fam, t, crit.Included).Count > 0 ||
+            UpCoveringTier(fam, t, crit.Included) is not null ||
+            TierExclusionTerms(fam, t, crit.Excluded)
+                .Except(familyExcludes, StringComparer.Ordinal)
+                .Any());
+    }
+
+    /// <summary>Tiers that must stay visible for an active family.</summary>
+    private List<ModTier> PinnedTiers(ModFamily fam, SlotCriteria crit)
+    {
+        if (FamilyPicks(fam, crit.Included).Count > 0 ||
+            FamilyExcludedClaim(fam, crit.Excluded))
+        {
+            return fam.Tiers.ToList();
+        }
+        var tiers = fam.Tiers.Where(t =>
+            TierExplicitPicks(fam, t, crit.Included).Count > 0 ||
+            TierUpPicks(fam, t, crit.Included).Count > 0 ||
+            UpCoveringTier(fam, t, crit.Included) is not null ||
+            TierExcluded(fam, t, crit.Excluded)).ToList();
+        return tiers.Count > 0 ? tiers : fam.Tiers.ToList();
     }
 
     private bool PickTouchesFamily(ModFamily fam, WantedMod pick, IReadOnlySet<string> memberIds)
@@ -1090,7 +1176,7 @@
             .Where(k => k is not null)
             .ToHashSet(StringComparer.Ordinal);
         var picks = new List<WantedMod>();
-        foreach (var family in _families)
+        foreach (var family in _matchFamilies)
         {
             var pick = family.Pick();
             var key = FamilyClaimKey(family);

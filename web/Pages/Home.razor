@@ -193,7 +193,7 @@
         <a href="notice.txt" target="_blank" rel="noopener noreferrer">Notice</a>
         <a href="provenance.md" target="_blank" rel="noopener noreferrer">Data provenance</a>
     </span>
-    <button id="workbench-reset" class="link foot-reset" title="Clears every slot's class and mods, and the test items"
+    <button id="workbench-reset" class="btn btn-danger foot-reset" title="Clears every slot's class and mods, and the test items"
             @onclick="ResetWorkbench">Reset workbench</button>
 </footer>
 
@@ -259,6 +259,8 @@
     private readonly HashSet<string> _warmedValueKeys = new(StringComparer.Ordinal);
     private bool _warmScheduled;
     private int _warmVersion;
+    private IReadOnlyList<ModEntry>? _railMods;
+    private string _railModsKey = "";
 
     protected override void OnInitialized()
     {
@@ -602,13 +604,61 @@
             .Select(g => g.First())
             .ToList();
 
-    /// <summary>Mods for the picker scope (empty while advanced is unfocused).</summary>
-    private IReadOnlyList<ModEntry> RailMods =>
-        State.Mode == "simple"
+    /// <summary>
+    /// Mods for the picker scope, plus the current scope's picked/excluded
+    /// mods so an active selection stays visible when its class is not the
+    /// focused one. The list is cached by pick ids because the picker caches
+    /// its grouping by list reference.
+    /// </summary>
+    private IReadOnlyList<ModEntry> RailMods => BuildRailMods();
+
+    private IReadOnlyList<ModEntry> BuildRailMods()
+    {
+        var baseMods = State.Mode == "simple"
             ? Engine.PlayableMods()
             : State.FocusedSlot is { } focus
                 ? Engine.ModsForClass(State.SlotClassOrDefault(focus))
                 : [];
+        if (baseMods.Count == 0) return baseMods;
+
+        var ids = new SortedSet<string>(StringComparer.Ordinal);
+        void AddPick(WantedMod pick)
+        {
+            ids.Add(pick.ModId);
+            if (pick.VariantModIds is { Count: > 0 } variants)
+                foreach (var id in variants) ids.Add(id);
+        }
+        var criteria = State.Mode == "simple"
+            ? State.Global
+            : State.FocusedSlot is { } activeSlot
+                ? State.CriteriaFor(activeSlot)
+                : null;
+        if (criteria is null) return baseMods;
+        foreach (var pick in criteria.Included) AddPick(pick);
+        foreach (var excluded in criteria.Excluded) ids.Add(excluded);
+        if (ids.Count == 0)
+        {
+            _railModsKey = "";
+            _railMods = null;
+            return baseMods;
+        }
+
+        var scopeClass = State.FocusedSlot is { } focused
+            ? State.SlotClassOrDefault(focused)
+            : "";
+        var key = $"{State.Mode}\u0001{State.FocusedSlot}\u0001{scopeClass}\u0001{string.Join("\u0001", ids)}";
+        if (_railModsKey == key && _railMods is not null) return _railMods;
+
+        var baseIds = baseMods.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        var extras = ids
+            .Select(Engine.FindMod)
+            .Where(m => m is not null && !baseIds.Contains(m.Id))
+            .Select(m => m!)
+            .ToList();
+        _railMods = extras.Count == 0 ? baseMods : baseMods.Concat(extras).ToList();
+        _railModsKey = key;
+        return _railMods;
+    }
 
     private string ClassName(string classId) =>
         Engine.Classes.FirstOrDefault(c => c.Id == classId)?.Name ?? classId;

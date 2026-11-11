@@ -6,78 +6,74 @@
 @implements IDisposable
 
 <section class="hero" id="result-strip" aria-label="Search string">
-    <div class="hero-head">
-        <h2 class="hero-title">Search string</h2>
-        <span class="out-len @(Model.Over ? "over" : "")" title="@LengthTitle()" aria-live="polite">
-            <b>@Model.Length</b> / @Model.Limit
+    @* In compact/mobile this block sticks to the top of the page while the
+       tools and the workbench scroll underneath. *@
+    <div class="hero-pinned">
+        <div class="hero-head">
+            <h2 class="hero-title">Search string</h2>
+            <span class="out-len @(Model.Over ? "over" : "")" title="@LengthTitle()" aria-live="polite">
+                <b>@Model.Length</b> / @Model.Limit
+                @if (Model.Over)
+                {
+                    <span class="out-over">, @(Model.Length - Model.Limit) over the game's limit</span>
+                }
+            </span>
+        </div>
+        <div class="hero-main">
+            <div class="qbox @(Model.Over ? "over" : "") @(Model.Query.Length == 0 ? "empty" : "")" id="slot-query-@CardId">
+                @if (Model.Query.Length == 0)
+                {
+                    <span class="qbox-empty">@EmptyText()</span>
+                }
+                else
+                {
+                    <code class="qtext">
+                        @if (Model.Blocks.Count == 0)
+                        {
+                            @Model.Query
+                        }
+                        else
+                        {
+                            for (var i = 0; i < Model.Blocks.Count; i++)
+                            {
+                                var b = Model.Blocks[i];
+                                <span class="qb qb-@b.Role @(Model.IsHot(b.Index) ? "hot" : "")"
+                                      @onmouseenter="() => Model.Hot(b.Index)" @onmouseleave="Model.Cool">@b.Text</span>@(i < Model.Blocks.Count - 1 ? " " : "")
+                            }
+                        }
+                    </code>
+                }
+            </div>
+            <div class="hero-side">
+                <button type="button" class="btn btn-primary hero-copy" id="slot-copy-@CardId"
+                        disabled="@(Model.Query.Length == 0)" @onclick="Copy">
+                    @(_copyState ?? "Copy")
+                </button>
+            </div>
+        </div>
+        @* Always rendered so the page does not jump when the query (or the mode)
+           changes; an empty query shows just the faint track. *@
+        <div class="ruler @(Model.Query.Length == 0 ? "empty" : "")" aria-hidden="true">
+            @foreach (var s in Model.RulerSegments)
+            {
+                <span class="ruler-seg seg-@s.Role @(Model.IsSegmentHot(s.Index) ? "hot" : "")"
+                      style="width:@Pct(s.Cost)%" title="@($"{s.Label}: {s.Cost} characters")"
+                      @onmouseenter="() => Model.HotSegment(s.Index)" @onmouseleave="Model.Cool"></span>
+            }
             @if (Model.Over)
             {
-                <span class="out-over">, @(Model.Length - Model.Limit) over the game's limit</span>
-            }
-        </span>
-    </div>
-    <div class="hero-main">
-        <div class="qbox @(Model.Over ? "over" : "") @(Model.Query.Length == 0 ? "empty" : "")" id="slot-query-@CardId">
-            @if (Model.Query.Length == 0)
-            {
-                <span class="qbox-empty">@EmptyText()</span>
-            }
-            else
-            {
-                <code class="qtext">
-                    @if (Model.Blocks.Count == 0)
-                    {
-                        @Model.Query
-                    }
-                    else
-                    {
-                        for (var i = 0; i < Model.Blocks.Count; i++)
-                        {
-                            var b = Model.Blocks[i];
-                            <span class="qb qb-@b.Role @(Model.IsHot(b.Index) ? "hot" : "")"
-                                  @onmouseenter="() => Model.Hot(b.Index)" @onmouseleave="Model.Cool">@b.Text</span>@(i < Model.Blocks.Count - 1 ? " " : "")
-                        }
-                    }
-                </code>
+                <span class="ruler-limit" style="left:@Pct(Model.Limit)%"></span>
             }
         </div>
-        <div class="hero-side">
-            <button type="button" class="btn btn-primary hero-copy" id="slot-copy-@CardId"
-                    disabled="@(Model.Query.Length == 0)" @onclick="Copy">
-                @(_copyState ?? "Copy")
-            </button>
-        </div>
-    </div>
-    @* Always rendered so the page does not jump when the query (or the mode)
-       changes; an empty query shows just the faint track. *@
-    <div class="ruler @(Model.Query.Length == 0 ? "empty" : "")" aria-hidden="true">
-        @foreach (var s in Model.RulerSegments)
+        @if (Unresolved.Count > 0)
         {
-            <span class="ruler-seg seg-@s.Role @(Model.IsSegmentHot(s.Index) ? "hot" : "")"
-                  style="width:@Pct(s.Cost)%" title="@($"{s.Label}: {s.Cost} characters")"
-                  @onmouseenter="() => Model.HotSegment(s.Index)" @onmouseleave="Model.Cool"></span>
-        }
-        @if (Model.Over)
-        {
-            <span class="ruler-limit" style="left:@Pct(Model.Limit)%"></span>
+            <p class="out-warn" id="rb-unresolved" title="@string.Join("\n", Unresolved.Select(d => d.Message))">
+                @(Unresolved.Count == 1 ? "1 pick has" : $"{Unresolved.Count} picks have") no fragment and @(Unresolved.Count == 1 ? "is" : "are") left out.
+            </p>
         }
     </div>
-    @if (Unresolved.Count > 0)
-    {
-        <p class="out-warn" id="rb-unresolved" title="@string.Join("\n", Unresolved.Select(d => d.Message))">
-            @(Unresolved.Count == 1 ? "1 pick has" : $"{Unresolved.Count} picks have") no fragment and @(Unresolved.Count == 1 ? "is" : "are") left out.
-        </p>
-    }
     <div class="hero-tools">
         @Tools
-    </div>
-
-    @* Kept in the layout when empty (disabled, zero meter) so the fixed compact
-       dock does not appear/disappear as picks change. *@
-    <div class="out-dock @(Model.Query.Length == 0 ? "empty" : "")">
-        <span class="out-len @(Model.Over ? "over" : "")" title="@LengthTitle()"><b>@Model.Length</b> / @Model.Limit</span>
-        <button type="button" class="btn btn-primary" id="dock-copy"
-                disabled="@(Model.Query.Length == 0)" @onclick="Copy">@(_copyState ?? "Copy search string")</button>
     </div>
 </section>
 

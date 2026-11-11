@@ -714,6 +714,66 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void PickedFamily_SurvivesNonMatchingSearch_AndReturnsToFilterWhenUnpicked()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        state.AddInclude("helmet", family.Pick());
+
+        var cut = Render(ctx, state, mods, "helmet");
+        cut.Find("#mod-search").Input("zzzz-no-match");
+
+        var row = FamilyRow(cut, family);
+        row.ClassList.Should().Contain("picked");
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.TextContent.Should().Be("✓");
+
+        include.Click();
+        cut.FindAll($"#pick-inc-{family.Anchor.Id}").Should().BeEmpty(
+            "an unpicked row returns to normal search filtering");
+    }
+
+    [Fact]
+    public void PickedTier_SurvivesNonMatchingSearch()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[2];
+        state.AddInclude("helmet", new WantedMod(tier.Anchor.Id, [tier.Name]));
+
+        var cut = Render(ctx, state, mods, "helmet");
+        cut.Find("#mod-search").Input("zzzz-no-match");
+        var row = cut.Find($"#pick-inc-{tier.Anchor.Id}").ParentElement!;
+        row.ClassList.Should().Contain("picked");
+        if (cut.Find($"#fam-toggle-{tier.Anchor.Id}").GetAttribute("aria-expanded") != "true")
+            cut.Find($"#fam-toggle-{tier.Anchor.Id}").Click();
+        TierRow(cut, tier).ClassList.Should().Contain("picked");
+
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").Click();
+        cut.FindAll($"#pick-tier-{tier.Anchor.Id}").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ExcludedFamily_SurvivesNonMatchingSearch()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        state.AddExclude("helmet", family.Anchor.Id);
+
+        var cut = Render(ctx, state, mods, "helmet");
+        cut.Find("#mod-search").Input("zzzz-no-match");
+
+        var row = FamilyRow(cut, family);
+        row.ClassList.Should().Contain("excluded");
+        var exclude = cut.Find($"#pick-exc-{family.Anchor.Id}");
+        exclude.TextContent.Should().Be("⊘");
+
+        exclude.Click();
+        cut.FindAll($"#pick-exc-{family.Anchor.Id}").Should().BeEmpty(
+            "an unexcluded row returns to normal search filtering");
+    }
+
+    [Fact]
     public void TierUp_ClearsHigherTierIncludesAndExclusions()
     {
         using var ctx = Context();

@@ -72,7 +72,7 @@ public class PickerPolishTests
     }
 
     [Fact]
-    public void SearchBar_KeepsRulerAndDockWhenQueryIsEmpty()
+    public void SearchBar_KeepsRulerAndPinnedBlockWhenQueryIsEmpty()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -84,11 +84,12 @@ public class PickerPolishTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
+        cut.Find(".hero-pinned").Should().NotBeNull("the compact layout pins this block");
+        cut.Find(".hero-tools").Should().NotBeNull("the tools stay below the pinned block");
         cut.Find(".ruler").Should().NotBeNull("the track reserves its height while empty");
         cut.Find(".ruler.empty").Should().NotBeNull();
         cut.FindAll(".ruler-seg").Should().BeEmpty();
-        cut.Find(".out-dock").Should().NotBeNull("the dock keeps its slot in compact layouts");
-        cut.Find("#dock-copy").HasAttribute("disabled").Should().BeTrue();
+        cut.Find("#slot-copy-simple").HasAttribute("disabled").Should().BeTrue();
 
         state.AddInclude(null, new WantedMod("IncreasedLife6"));
         model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
@@ -97,7 +98,7 @@ public class PickerPolishTests
         cut.Find(".ruler").Should().NotBeNull();
         cut.FindAll(".ruler-seg").Should().NotBeEmpty();
         cut.FindAll(".ruler.empty").Should().BeEmpty();
-        cut.Find("#dock-copy").HasAttribute("disabled").Should().BeFalse();
+        cut.Find("#slot-copy-simple").HasAttribute("disabled").Should().BeFalse();
     }
 
     [Fact]
