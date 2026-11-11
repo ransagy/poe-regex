@@ -477,11 +477,11 @@
         if (mods.Any(m => m.Source == "corrupted")) return ("Corrupted", "source-corrupted");
         if (mods.Any(m => m.Source is "augment" or "bonded"))
         {
-            var mod = mods.First(m => m.Source is "augment" or "bonded");
-            var text = string.Join(" · ",
-                new[] { mod.Source == "bonded" ? "Bonded" : null, mod.AugmentType, mod.AugmentTarget }
-                    .Where(x => !string.IsNullOrWhiteSpace(x)));
-            return (text, mod.Source == "bonded" ? "source-bonded" : "source-augment");
+            var text = ModFamilies.AugmentSourceTag(mods);
+            if (text is not null)
+                return (text, mods.Any(m => m.Source == "bonded")
+                    ? "source-bonded"
+                    : "source-augment");
         }
         var factions = mods
             .Where(m => m.Source == "desecrated")

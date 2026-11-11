@@ -168,9 +168,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   augment name and value for reference, and the family `+` selects the effect
   across tiers; duplicate augment effects already covered by a normal,
   desecrated, implicit or corrupted family are removed at data build, so
-  Augments shows unique effects only; the All-gear union additionally omits an
-  augment family when one non-augment family covers all of its patterns, while
-  per-slot views keep the augment where it is the only source; augments are
+  Augments shows unique effects only; the All-gear union merges the same
+  augment effect across targets and lists the target labels in the source tag,
+  while per-slot views keep the single target; it additionally omits an
+  augment family when one non-augment family covers all of its patterns; augments are
   not in the default common shortlist and appear when searched or after
   `Show all mods`; mods and tiers
   that compile to the same
