@@ -193,7 +193,7 @@
         // prefixes/suffixes; keep them out of the assembler until the socket
         // model exists.
         var all = ModFamilies.CachedGroup(Engine.ModsForClass(_classId))
-            .Where(f => !f.IsAugment)
+            .Where(f => !f.IsAugmentLike)
             .ToList();
         var filter = _search.Trim();
         _families = filter.Length == 0

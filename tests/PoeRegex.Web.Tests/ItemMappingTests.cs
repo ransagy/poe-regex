@@ -223,7 +223,7 @@ public class ItemMappingTests
         var failures = new List<string>();
         var checkedCount = 0;
         var mods = Engine.PlayableMods()
-            .Where(m => m.Source != "augment")
+            .Where(m => m.Source is not ("augment" or "bonded"))
             .GroupBy(m => m.Id, StringComparer.Ordinal)
             .Select(g => g.First());
 

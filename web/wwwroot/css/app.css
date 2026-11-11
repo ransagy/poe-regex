@@ -34,6 +34,8 @@
     --corrupted: #c56b5c;
     /* Socketable augment/rune source tag. */
     --augment: #c9a35a;
+    /* Shaman bonded-effect source tag. */
+    --bonded: #a58bd8;
     /* Surfaces that used to be hardcoded so every theme can restyle them. */
     --btn-hover: #1c2024;
     --btn-hover-line: #394047;
@@ -106,6 +108,7 @@
     --implicit: #35658f;
     --corrupted: #8a3528;
     --augment: #6f4e12;
+    --bonded: #5b3f8f;
     --btn-hover: #e9dcc6;
     --btn-hover-line: #a8916d;
     --anchor: #b09a77;
@@ -477,6 +480,7 @@ input:disabled { opacity: 0.5; }
 .mod-source.source-implicit { color: var(--implicit); }
 .mod-source.source-corrupted { color: var(--corrupted); }
 .mod-source.source-augment { color: var(--augment); }
+.mod-source.source-bonded { color: var(--bonded); }
 .bd-label .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .iprev-annot + .mod-source { margin-left: 0.3rem; margin-right: 0; }
 .tier-count { flex: none; font-size: 0.76rem; color: var(--faint); font-variant-numeric: tabular-nums; }

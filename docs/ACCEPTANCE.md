@@ -1,6 +1,6 @@
 # Acceptance
 
-_Last measured: 2026-11-04._
+_Last measured: 2026-11-11._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
@@ -15,29 +15,34 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 938 ms | 960 ms | < 2500 ms |
-| bulk add `++` | 60 ms | 60 ms | < 50 ms |
-| mode: advanced | 47 ms | 51 ms | < 50 ms |
-| builder open | 43 ms | 46 ms | < 50 ms |
-| 10-slot paste update | 46 ms | 46 ms | < 50 ms |
-| explain cold | 94 ms | 94 ms | < 500 ms |
-| import parse 5 items | 62 ms | 66 ms | < 100 ms |
+| boot to interactive | 1537 ms | 1639 ms | < 2500 ms |
+| bulk add `++` | 68 ms | 73 ms | < 50 ms |
+| mode: advanced | 56 ms | 170 ms | < 50 ms |
+| builder open | 57 ms | 61 ms | < 50 ms |
+| 10-slot paste update | 74 ms | 85 ms | < 50 ms |
+| explain cold | 105 ms | 127 ms | < 500 ms |
+| import parse 5 items | 51 ms | 54 ms | < 100 ms |
 
-Advanced per-slot picks: **51–65 ms**. Long tasks: **6 over 50 ms, 0 over
-200 ms, max 87 ms**.
+Advanced per-slot picks: **57–83 ms**. Long tasks: **42 over 50 ms, 0 over
+200 ms, max 158 ms**.
 
-Bulk add and advanced picks are slightly over the 50 ms target; they do not
-produce long-task spikes. The budget is a target, not a hard failure.
+The larger augment catalog and exact table raised boot to about 1.5 s, still
+under the 2.5 s budget. Bulk add, advanced mode, and the 10-slot paste update
+are slightly over the 50 ms target; they do not produce long tasks over
+200 ms. The budget is a target, not a hard failure.
 
 ### Narrow and low-end
 
 ```text
-900×1200: boot 950 ms · bulk add 59 ms · advanced picks 53–65 ms
-          explain 94 ms · import 64 ms · max long task 87 ms
+900×1200: boot 1761 ms · bulk add 75 ms · advanced picks 85 ms
+          explain 115 ms · import 49 ms · max long task 155 ms
 
-4× CPU:   boot 3.96 s · bulk add 267 ms · advanced picks 108–228 ms
-          explain 389 ms · import 273 ms · max long task 355 ms
+4× CPU:   boot 8.2–9.6 s · bulk add 375–440 ms · advanced picks 428–508 ms
+          explain 480–697 ms · import 247–314 ms · max long task 1.45–1.51 s
 ```
+
+The 4× CPU sample ran on a loaded host and is informational; rerun it on a
+quiet host before treating it as a regression signal.
 
 ## Accessibility
 
@@ -89,13 +94,13 @@ node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
 ## Out of scope
 
 The exact-table proof is complete for the modeled corpus plus the captured
-safety fixtures. Desecrated item affixes, implicit-only base families, and
-corrupted enchantments are modeled; PoE1 `crafted` leftovers are excluded, and
-PoE2's actual crafted jewel mods are not modeled. Unmodeled unique/rare names, unique-only text,
-flavour, special/transformative augment text, bonded text, and some
-socketable/base text can still make an item highlight. Basic tiered rune
-effects are modeled in the picker. This is accepted and out of scope; therefore there are **no
-manual in-game acceptance checks**.
+safety fixtures. Desecrated item affixes, implicit-only base families,
+corrupted enchantments, basic runes, Soul Cores, Abyssal Eyes, and bonded
+effects are modeled; PoE1 `crafted` leftovers are excluded, and PoE2's actual
+crafted jewel mods are not modeled. Unmodeled unique/rare names, unique-only
+text, flavour, special/transformative rune text, idol and jewel text, and some
+socketable/base text can still make an item highlight. This is accepted and
+out of scope; therefore there are **no manual in-game acceptance checks**.
 
 ## Accepted limitations
 

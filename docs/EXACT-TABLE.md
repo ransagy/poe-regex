@@ -41,29 +41,29 @@ safe for both.
 ## Artifact coverage
 
 ```text
-436 families · 499 patterns · 1288 expanded scopes · 0 unresolved
+534 families · 616 patterns · 1633 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 499 |
-| Class | 471 |
-| Per-class | 318 |
+| Global | 616 |
+| Class | 630 |
+| Per-class | 387 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-381 global patterns · 21 classes · 1081 class fragments · 0 unresolved
+444 global patterns · 21 classes · 1521 class fragments · 0 unresolved
 ```
 
 Examples:
 
 | Pattern | Scope | Exact form |
 |---|---|---|
-| `#% increased maximum Life` | global | `^\d.+d m.*fe$` |
+| `#% increased maximum Life` | global | `^\d.*d max.+e$` |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` |
 | `Gain #% of Damage as Extra Fire Damage` | global | `^g.*f d.+f.+e$` |
 | `Gain #% of Damage as Extra Cold Damage` | global | `^g.*f d.*co.+e$` |
@@ -91,7 +91,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-1737 / 1737 expanded scopes checked
+2309 / 2309 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -99,31 +99,31 @@ shortestProven: true
 The proof is relative to the current grammar and safety corpus. It is not a
 claim about arbitrary regexes outside that grammar.
 
-## From-scratch reproducibility
+## Reproducibility and stability pass
 
-The post-patch independence run used the exact solver with no table seed:
+The shipped table is a stability pass over the previous table:
 
 ```bash
-dotnet ... matrix-solve --from-scratch --jobs 2 --timeout 60
+dotnet ... matrix-solve --prefer <previous-fragments> --jobs 2 --timeout 60
 ```
 
 ```text
-runtime: local from-scratch run
-matrix:  436 families · 499 patterns · 1288 expanded scopes
-table:   381 global · 21 classes · 1081 class fragments
-proof:   1737 / 1737 · 0 failures
+runtime: local stability pass
+matrix:  534 families · 616 patterns · 1633 expanded scopes
+table:   444 global · 21 classes · 1521 class fragments
+proof:   2309 / 2309 · 0 failures
 ```
 
-This from-scratch run is the basis for the shipped table. The shipped table
-also applies a stability pass: an existing fragment is kept when it still
-passes the exact oracle and matches the new shortest length, so equal-length
-tie churn does not retire working strings. The diff report therefore lists
-only forced and new fragments. Use `matrix-solve --prefer <old-fragments>` to
-reproduce that stability pass.
+The pass keeps every current fragment that still passes the exact oracle and
+solves only new or changed scopes, so equal-length tie churn does not retire
+working strings. A from-scratch run (`--from-scratch`) remains the authority
+when the solver, grammar, or corpus changes, and is not used for an ordinary
+catalog refresh: multi-line patterns can otherwise produce a line-crossing
+fragment that the query shape validator rejects.
 
-- Expanded scopes: 1737 / 1737, all proven.
+- Expanded scopes: 2309 / 2309, all proven.
 - Chosen length: proven on every scope.
-- Table: 381 global patterns, 21 classes, 1081 class fragments, 0 unresolved.
+- Table: 444 global patterns, 21 classes, 1521 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -133,7 +133,8 @@ authority when the cache is stale.
 ## Fragment-change review
 
 Any change that adds catalog lines, changes the vendor/safety corpus, or changes
-the solver must regenerate the table from scratch and review a before/after
+the solver must regenerate the table with the stability pass (or from scratch
+when the solver, grammar, or corpus itself changes) and review a before/after
 fragment report before merge. The report states the change reason and covers
 every changed existing scope with its old/new fragment, both lengths, and the
 length delta, plus every added/removed scope. Keep the report outside the repository;
@@ -157,7 +158,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 
 | Pattern | Scope | Form | Inner |
 |---|---|---|---:|
-| `#% increased maximum Life` | global | `^\d.+d m.*fe$` | 13 |
+| `#% increased maximum Life` | global | `^\d.*d max.+e$` | 14 |
 | `#% increased maximum Life` | Amulet | `d.*m l` | 6 |
 | `#% increased Movement Speed` | global | `^\d.+ov.+e.$` | 12 |
 | `#% increased Critical Damage Bonus` | global | `^\d.*al d.+u.$` | 14 |
@@ -168,7 +169,7 @@ Quoted length includes the two block quotes; inner length excludes them.
 | `#% increased Armour, Evasion and Energy Shield` | global | `d a.+v.+y shield$` | 17 |
 | `#% increased Armour` | global | `^\d.*d Armour$` | 14 |
 | `#% increased Energy Shield` | global | `ed en.+d$` | 9 |
-| `+# to maximum Energy Shield` | global | `^\+.*gy` | 7 |
+| `+# to maximum Energy Shield` | global | `o m.+ld$` | 8 |
 | `#% increased Evasion Rating` | Amulet | ` e.+g$` | 6 |
 | `#% increased Armour` | Amulet | `d..rmour$` | 9 |
 | `+#% to Critical Damage Bonus` | Bow | `nus$` | 4 |

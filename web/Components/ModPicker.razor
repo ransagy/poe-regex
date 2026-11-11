@@ -105,7 +105,11 @@
                                 var excludedTiers = fam.Tiers.Count(t =>
                                     TierExcluded(fam, t, crit.Excluded));
                                 var expanded = _expanded.Contains(fam.Key) || _autoExpanded.Contains(fam.Key);
-                                var collapsed = CanCollapse(fam) && !HasTierLevelState(fam, crit);
+                                // Soul Cores and Abyssal Eyes are one-row augments: a
+                                // caret/"1 tier" control adds noise and no information.
+                                var singleTierAugment = fam.IsAugmentLike && fam.Tiers.Count == 1;
+                                var collapsed = singleTierAugment ||
+                                    (CanCollapse(fam) && !HasTierLevelState(fam, crit));
                                 var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
                                 var displayTag = fam.SourceTag;
                                 <li class="fam-block">
@@ -220,10 +224,10 @@
                                                 var excludedTier = tierExcludedHere || tierExcludedClaim;
                                                 var tierExcludedCovered = excludedTier && !tierExcludedHere;
                                                 var tierLines = TierLines(fam, tier);
-                                                // Rune tiers are informational: the family row carries
+                                                // Augment tiers are informational: the family row carries
                                                 // the selection and these rows have no actions.
                                                 var tierStateClass = "";
-                                                if (!fam.IsAugment)
+                                                if (!fam.IsAugmentLike)
                                                 {
                                                     if (includedTier) tierStateClass += "picked ";
                                                     if (coveredByUp) tierStateClass += "covered up-covered ";
@@ -237,7 +241,7 @@
                                                             <span class="mod-line">@l</span>
                                                         }
                                                     </span>
-                                                    @if (!fam.IsAugment)
+                                                    @if (!fam.IsAugmentLike)
                                                     {
                                                         @if (tierCoveredClaim)
                                                         {
@@ -249,7 +253,7 @@
                                                         }
                                                     }
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
-                                                    @if (!fam.IsAugment)
+                                                    @if (!fam.IsAugmentLike)
                                                     {
                                                         <button id="pick-tier-@tier.Anchor.Id" class="inc @(tierClaimedHere ? "active" : "") @(tierCoveredClaim ? "switch" : "")"
                                                                 disabled="@coveredByUp"
@@ -479,7 +483,7 @@
                 .Concat(_families.Skip(MaxShown).Where(f => pinnedKeys.Contains(f.Key)))
                 .ToList();
         _shownCount = shown.Count;
-        _augments = shown.Where(f => f.IsAugment).ToList();
+        _augments = shown.Where(f => f.IsAugmentLike).ToList();
         _implicits = shown.Where(f => f.IsImplicit).ToList();
         _corrupted = shown.Where(f => f.IsCorrupted).ToList();
         _prefixes = shown.Where(f => f.Kind == "prefix").ToList();
@@ -758,13 +762,13 @@
             : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
 
     private static WantedMod TierPick(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugment || tier.Name.Length == 0
+        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugmentLike || tier.Name.Length == 0
             ? new WantedMod(tier.Anchor.Id)
             : new WantedMod(tier.Anchor.Id, [tier.Name]);
 
     private bool CanCollapse(ModFamily fam)
     {
-        if (fam.IsAugment) return false;
+        if (fam.IsAugmentLike) return false;
         if (fam.Tiers.Count != 1) return false;
         var tier = fam.Tiers[0];
         var familyFragment = Engine.PickFragment(fam.Pick(), ScopeClassId);
@@ -1039,7 +1043,7 @@
     }
 
     private static string TierExclusionTerm(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugment ||
+        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugmentLike ||
         tier.Name.Length == 0
             ? tier.Anchor.Id
             : tier.Name;

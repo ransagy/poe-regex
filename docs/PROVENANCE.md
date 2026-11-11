@@ -41,8 +41,9 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    source (`desecrated`, `implicit`, `corrupted`, `augment`, or empty for normal
    explicit affixes), augment type/target, family, required level,
    class/group membership, rendered stat text, and precomputed catalog
-   fingerprints. The first augment pass covers the basic tiered runes; special
-   and bonded socketables remain deferred. PoE1 `crafted` prefix/suffix leftovers
+   fingerprints. The augment pass covers basic runes, Soul Cores, Abyssal
+   Eyes, and bonded effects; special/transformative runes, idols, jewels, and
+   the socket model remain deferred. PoE1 `crafted` prefix/suffix leftovers
    are excluded; PoE2's actual crafted mods are jewel-only in domain `misc`.
    Corrupted enchantments are modeled as a separate source; five raw records
    without a positive base/spawn reference are excluded.
@@ -52,7 +53,7 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    the same raw exports. It adds the searchable line text that the selectable
    catalog omits (regular, corrupted, essence, and implicit item mods; base
    item names, properties, requirements, implicits, and granted skills;
-   regular affix captions/tags; basic-rune augment effect lines; and
+   regular affix captions/tags; augment effect lines including bonded lines; and
    universal usage). Modeled desecrated lines, implicit-only base lines, and
    corrupted enchantment lines are also included. PoE1 `crafted`
    leftovers are excluded; PoE2 crafted jewel lines are not modeled yet.

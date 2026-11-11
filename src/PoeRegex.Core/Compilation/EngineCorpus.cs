@@ -606,10 +606,6 @@ public sealed class EngineCorpus
             if ((i & 0x7FF) == 0) await Task.Delay(1).ConfigureAwait(false);
         }
 
-        var vendorPatterns = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var line in inGame)
-            if (!string.IsNullOrWhiteSpace(line.Pattern)) vendorPatterns.Add(line.Pattern!);
-
         var seen = new HashSet<(string Pattern, string Real)>();
         var result = new List<(string Pattern, string Real)>(inGame.Count + _inGameMods.Count);
         void Add(string pattern, string real)
@@ -617,12 +613,12 @@ public sealed class EngineCorpus
             if (seen.Add((pattern, real))) result.Add((pattern, real));
         }
 
+        // Keep this in lockstep with BuildGlobalLines: vendor/range lines can
+        // omit the plain form, and a fragment that only matches the ranged
+        // form would fail on ordinary pastes and in the test lab.
         foreach (var mod in _inGameMods)
             foreach (var sl in mod.StatLines)
-            {
-                if (vendorPatterns.Contains(sl.Pattern)) continue;
                 foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
-            }
         foreach (var line in UniversalLines)
             Add(CatalogLineNormalizer.Normalize(line), line);
         foreach (var cls in _inGameCatalogClasses)
@@ -684,9 +680,6 @@ public sealed class EngineCorpus
     private IReadOnlyList<(string Pattern, string Real)> BuildGlobalLines()
     {
         var vendor = InGameVendorLines().ToList();
-        var vendorPatterns = new HashSet<string>(
-            vendor.Where(l => !string.IsNullOrWhiteSpace(l.Pattern)).Select(l => l.Pattern!),
-            StringComparer.Ordinal);
         var seen = new HashSet<(string Pattern, string Real)>();
         var result = new List<(string Pattern, string Real)>(vendor.Count + _inGameMods.Count);
         void Add(string pattern, string real)
@@ -694,12 +687,13 @@ public sealed class EngineCorpus
             if (seen.Add((pattern, real))) result.Add((pattern, real));
         }
 
+        // Always include both the plain and advanced forms of every catalog
+        // line. Vendor/range lines alone can be missing the plain form, and a
+        // fragment that matches only the ranged form would fail on ordinary
+        // pastes and in the test lab.
         foreach (var mod in _inGameMods)
             foreach (var sl in mod.StatLines)
-            {
-                if (vendorPatterns.Contains(sl.Pattern)) continue;
                 foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
-            }
         foreach (var line in UniversalLines)
             Add(CatalogLineNormalizer.Normalize(line), line);
         foreach (var cls in _inGameCatalogClasses)

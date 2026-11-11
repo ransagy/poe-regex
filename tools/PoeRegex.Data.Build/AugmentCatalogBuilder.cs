@@ -7,11 +7,11 @@ using PoeRegex.Data.Build.Rendering;
 namespace PoeRegex.Data.Build;
 
 /// <summary>
-/// Builds selectable augment families from RePoE's augments.json. Only the
-/// basic tiered runes are enabled in this pass: their effect is conditional on
-/// the socketed item's target category, which the export supplies as a
-/// separate category record. Special/transformative runes and bonded stats are
-/// deliberately deferred until their socket/target semantics are reviewed.
+/// Builds selectable augment families from RePoE's augments.json. Augment
+/// effects are conditional on the socketed item's target category, which the
+/// export supplies as a separate category record. This pass enables the basic
+/// runes, Soul Cores and Abyssal Eyes; special runes, idols, jewels and the
+/// socket model stay in their own phases.
 /// </summary>
 public static class AugmentCatalogBuilder
 {
@@ -24,15 +24,19 @@ public static class AugmentCatalogBuilder
         string TypeName,
         int RequiredLevel,
         IReadOnlyList<string> Classes,
-        IReadOnlyList<StatTextRenderer.RenderedLine> Lines);
+        IReadOnlyList<StatTextRenderer.RenderedLine> Lines,
+        bool Bonded = false);
 
     public sealed record Result(
         IReadOnlyList<AugmentBuild> Mods,
         int SkippedCategories,
-        int RemovedDuplicateRows);
+        int RemovedDuplicateRows,
+        IReadOnlyList<string> UnmappedTargets);
 
     private static readonly string[] BasicRuneTags =
         ["rune_normal", "rune_lesser", "rune_greater", "rune_perfect"];
+
+    private static readonly string[] EnabledTypes = ["Rune", "SoulCore", "AbyssalEye"];
 
     private static readonly Regex NumberRe = new(
         @"[-+]?\d+(?:\.\d+)?",
@@ -47,118 +51,181 @@ public static class AugmentCatalogBuilder
         var itemClasses = RePoEJson.LoadItemClasses(Path.Combine(rawDir, "item_classes.min.json"));
         var targets = BuildTargetMap(baseItems, itemClasses);
 
-        var mods = new List<AugmentBuild>();
+        var candidates = new List<Candidate>();
         var skipped = 0;
+        var unmapped = new SortedSet<string>(StringComparer.Ordinal);
+
         foreach (var (path, augment) in augments
                      .OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
-            if (!string.Equals(augment.TypeId, "Rune", StringComparison.Ordinal))
+            if (!EnabledTypes.Contains(augment.TypeId, StringComparer.Ordinal))
                 continue;
             if (!baseItems.TryGetValue(path, out var baseItem)) continue;
             if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.OrdinalIgnoreCase))
                 continue;
-            if (!BasicRuneTags.Any(tag => baseItem.Tags?.Contains(tag, StringComparer.Ordinal) == true))
+            if (augment.TypeId == "Rune" &&
+                !BasicRuneTags.Any(tag => baseItem.Tags?.Contains(tag, StringComparer.Ordinal) == true))
                 continue;
             if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
 
-            var familyName = NormalizeRuneFamily(baseItem.Name);
+            var familyName = NormalizeFamilyName(baseItem.Name);
             var typeName = Clean(augment.TypeName);
-            if (typeName.Length == 0) typeName = "Augment";
+            if (typeName.Length == 0) typeName = augment.TypeId ?? "Augment";
+            var requiredLevel = augment.RequiredLevel > 0 ? augment.RequiredLevel : 0;
 
             foreach (var (_, category) in augment.Categories.OrderBy(kv => kv.Key, StringComparer.Ordinal))
             {
                 var target = TargetText(category.Target);
-                if (target.Length == 0 ||
-                    !targets.TryGetValue(target, out var classes) ||
-                    classes.Count == 0 ||
-                    category.StatText is not { Count: > 0 })
+                if (target.Length == 0)
                 {
                     skipped++;
                     continue;
                 }
+                HashSet<string> classes;
+                try
+                {
+                    classes = ResolveTarget(targets, target);
+                }
+                catch (InvalidOperationException)
+                {
+                    unmapped.Add(target);
+                    skipped++;
+                    continue;
+                }
+                if (classes.Count == 0)
+                {
+                    unmapped.Add(target);
+                    skipped++;
+                    continue;
+                }
 
-                var lines = category.StatText
-                    .SelectMany(SplitLines)
-                    .Select(ToRenderedLine)
-                    .Where(line => line is not null)
-                    .Select(line => line!)
-                    .ToList();
-                if (lines.Count == 0)
+                var normalLines = RenderLines(category.StatText);
+                var bondedLines = RenderLines(category.BondedStatText);
+                if (normalLines.Count == 0 && bondedLines.Count == 0)
                 {
                     skipped++;
                     continue;
                 }
 
                 var targetKey = TargetKey(target);
-                mods.Add(new AugmentBuild(
-                    $"augment:{Leaf(path)}:{targetKey}",
-                    baseItem.Name.Trim(),
-                    $"rune:{familyName}:{targetKey}",
-                    targetKey,
-                    target,
-                    typeName,
-                    augment.RequiredLevel > 0 ? augment.RequiredLevel : 0,
-                    classes.OrderBy(c => c, StringComparer.Ordinal).ToList(),
-                    lines));
+                var orderedClasses = classes.OrderBy(c => c, StringComparer.Ordinal).ToList();
+                if (normalLines.Count > 0)
+                {
+                    candidates.Add(new Candidate(
+                        false, augment.TypeId!, baseItem.Name.Trim(), familyName, targetKey,
+                        target, typeName, requiredLevel, orderedClasses, normalLines, Leaf(path)));
+                }
+                if (bondedLines.Count > 0)
+                {
+                    candidates.Add(new Candidate(
+                        true, augment.TypeId!, baseItem.Name.Trim(), familyName, targetKey,
+                        target, typeName, requiredLevel, orderedClasses, bondedLines, Leaf(path)));
+                }
             }
         }
 
-        var removedDuplicates = 0;
-        if (coveredByClass is not null)
-        {
-            // Match the implicit/corrupted policy: only keep a rune family on
-            // classes where at least one of its effect lines is not already
-            // represented by a normal, desecrated, implicit or corrupted
-            // family. Keep every tier of a kept family; filtering tier rows
-            // individually would leave a partial rune family.
-            var filtered = new List<AugmentBuild>();
-            foreach (var family in mods.GroupBy(m => m.Family, StringComparer.Ordinal))
-            {
-                var members = family.ToList();
-                var patterns = members
-                    .SelectMany(m => m.Lines)
+        // Group tiers/qualities by their normalized family and target. The
+        // same effect under two different augment names is rejected by the
+        // sequential coverage pass below, so the catalog never carries two
+        // families that search for exactly the same class lines.
+        var families = candidates
+            .GroupBy(c => (c.Bonded, c.TypeId, c.FamilyName, c.TargetKey))
+            .Select(g => new FamilyGroup(
+                g.Key.Bonded,
+                g.Key.TypeId,
+                g.Key.FamilyName,
+                g.Key.TargetKey,
+                g.First().TargetDisplay,
+                g.First().TypeName,
+                g.SelectMany(c => c.Lines)
                     .Select(l => l.Pattern)
                     .Distinct(StringComparer.Ordinal)
-                    .ToList();
-                var classes = members
-                    .SelectMany(m => m.Classes)
+                    .ToList(),
+                g.SelectMany(c => c.Classes)
                     .Distinct(StringComparer.Ordinal)
-                    .Where(cls => patterns.Any(pattern =>
-                        !coveredByClass.TryGetValue(cls, out var covered) ||
-                        !covered.Contains(pattern)))
-                    .OrderBy(cls => cls, StringComparer.Ordinal)
-                    .ToList();
-                if (classes.Count == 0)
-                {
-                    removedDuplicates += members.Count;
-                    continue;
-                }
-                foreach (var member in members)
-                    filtered.Add(member with { Classes = classes });
+                    .OrderBy(c => c, StringComparer.Ordinal)
+                    .ToList(),
+                g.OrderBy(c => c.RequiredLevel)
+                    .ThenBy(c => c.Name, StringComparer.Ordinal)
+                    .ToList()))
+            .OrderBy(f => f.Bonded)
+            .ThenBy(f => TypeOrder(f.TypeId))
+            .ThenBy(f => f.TargetKey, StringComparer.Ordinal)
+            .ThenBy(f => f.FamilyName, StringComparer.Ordinal)
+            .ToList();
+
+        var covered = coveredByClass is null
+            ? new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+            : coveredByClass.ToDictionary(
+                kv => kv.Key,
+                kv => new HashSet<string>(kv.Value, StringComparer.Ordinal),
+                StringComparer.Ordinal);
+        var selected = new List<AugmentBuild>();
+        var removed = 0;
+
+        foreach (var family in families)
+        {
+            var classes = family.Classes
+                .Where(cls => family.Patterns.Any(pattern =>
+                    !covered.TryGetValue(cls, out var set) || !set.Contains(pattern)))
+                .ToList();
+            if (classes.Count == 0)
+            {
+                removed += family.Rows.Count;
+                continue;
             }
-            mods = filtered;
+
+            foreach (var row in family.Rows)
+            {
+                selected.Add(new AugmentBuild(
+                    row.Bonded
+                        ? $"bonded:{row.Leaf}:{row.TargetKey}"
+                        : $"augment:{row.Leaf}:{row.TargetKey}",
+                    row.Name,
+                    $"{TypeSlug(row.TypeId)}:{row.FamilyName}:{row.TargetKey}",
+                    row.TargetKey,
+                    row.TargetDisplay,
+                    row.TypeName,
+                    row.RequiredLevel,
+                    classes,
+                    row.Lines,
+                    row.Bonded));
+            }
+
+            foreach (var cls in classes)
+            {
+                if (!covered.TryGetValue(cls, out var set))
+                {
+                    set = new HashSet<string>(StringComparer.Ordinal);
+                    covered[cls] = set;
+                }
+                foreach (var pattern in family.Patterns) set.Add(pattern);
+            }
         }
 
-        return new Result(mods, skipped, removedDuplicates);
+        return new Result(selected, skipped, removed, unmapped.ToList());
     }
 
     /// <summary>
-    /// Maps the display target categories used by basic runes to concrete
-    /// in-game item classes. The mapping is derived from released base-item
-    /// tags, not from rune names.
+    /// Maps every display target category in augments.json to concrete
+    /// in-game item classes and augment-eligible equipment sets. The mapping
+    /// is derived from released base-item tags and item-class names, not from
+    /// augment names.
     /// </summary>
     internal static Dictionary<string, HashSet<string>> BuildTargetMap(
         IReadOnlyDictionary<string, RePoESchema.BaseItem> baseItems,
         IReadOnlyDictionary<string, RePoESchema.ItemClass> itemClasses)
     {
         var classTags = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var (path, item) in baseItems)
+        var released = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (_, item) in baseItems)
         {
             if (!string.Equals(item.ReleaseState, "released", StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrWhiteSpace(item.ItemClass)) continue;
             if (!itemClasses.ContainsKey(item.ItemClass)) continue;
             if (!GameItemClasses.IsInGame(item.ItemClass)) continue;
+            released.Add(item.ItemClass);
             if (!classTags.TryGetValue(item.ItemClass, out var tags))
             {
                 tags = new HashSet<string>(StringComparer.Ordinal);
@@ -171,43 +238,75 @@ public static class AugmentCatalogBuilder
             .Where(kv => kv.Value.Contains("armour"))
             .Select(kv => kv.Key)
             .ToHashSet(StringComparer.Ordinal);
-
-        // A martial weapon is a weapon that is not a wand, staff or sceptre.
-        // Talisman carries the weapon tag in the export and is kept here only
-        // when that holds; special cases are handled by their own targets.
-        var martial = classTags
-            .Where(kv => kv.Value.Contains("weapon") &&
-                         !kv.Value.Contains("wand") &&
-                         !kv.Value.Contains("staff") &&
-                         !kv.Value.Contains("sceptre"))
+        // Wand/staff/sceptre bases carry their own tags instead of `weapon`,
+        // so the weapon set must include both groups.
+        var caster = classTags
+            .Where(kv => kv.Value.Overlaps(["wand", "staff", "sceptre"]))
             .Select(kv => kv.Key)
             .ToHashSet(StringComparer.Ordinal);
+        var weapons = classTags
+            .Where(kv => kv.Value.Contains("weapon"))
+            .Select(kv => kv.Key)
+            .Concat(caster)
+            .ToHashSet(StringComparer.Ordinal);
+        var wandOrStaff = new HashSet<string>(["Wand", "Staff"], StringComparer.Ordinal);
+        var martial = weapons
+            .Where(cls => !caster.Contains(cls))
+            .ToHashSet(StringComparer.Ordinal);
 
-        return new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        var map = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
         {
             ["Armour"] = armour,
             ["Martial Weapon"] = martial,
-            ["Wand or Staff"] = classTags
-                .Where(kv => kv.Key is "Wand" or "Staff")
-                .Select(kv => kv.Key)
-                .ToHashSet(StringComparer.Ordinal),
+            ["Wand or Staff"] = wandOrStaff,
+            ["Weapon"] = weapons,
+            ["All Equipment"] = weapons.Concat(armour).ToHashSet(StringComparer.Ordinal),
+            ["Shields"] = new HashSet<string>(["Shield"], StringComparer.Ordinal),
+            ["Shields and Bucklers"] = new HashSet<string>(["Shield", "Buckler"], StringComparer.Ordinal),
+            ["Caster Weapon"] = caster,
         };
+
+        foreach (var (id, cls) in itemClasses)
+        {
+            if (!released.Contains(id)) continue;
+            var set = new HashSet<string>([id], StringComparer.Ordinal);
+            if (!string.IsNullOrWhiteSpace(cls.Name)) map[cls.Name] = set;
+            map[id] = set;
+        }
+
+        map["Quarterstaff"] = new HashSet<string>(["Warstaff"], StringComparer.Ordinal);
+        return map;
     }
 
-    private static string TargetText(System.Text.Json.JsonElement target) =>
-        target.ValueKind switch
+    /// <summary>Resolve a target string, including comma/or compounds.</summary>
+    internal static HashSet<string> ResolveTarget(
+        IReadOnlyDictionary<string, HashSet<string>> targets, string target)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var chunk in target.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            System.Text.Json.JsonValueKind.String => Clean(target.GetString()),
-            System.Text.Json.JsonValueKind.Array => string.Join(", ",
-                target.EnumerateArray()
-                    .Where(x => x.ValueKind == System.Text.Json.JsonValueKind.String)
-                    .Select(x => Clean(x.GetString()))
-                    .Where(x => x.Length > 0)),
-            _ => "",
-        };
+            foreach (var part in chunk.Split(" or ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!targets.TryGetValue(part, out var classes) || classes.Count == 0)
+                    throw new InvalidOperationException($"Unmapped augment target '{part}'.");
+                result.UnionWith(classes);
+            }
+        }
+        return result;
+    }
 
     private static IEnumerable<string> SplitLines(string text) =>
         text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static List<StatTextRenderer.RenderedLine> RenderLines(IReadOnlyList<string>? text) =>
+        text is null
+            ? []
+            : text
+                .SelectMany(SplitLines)
+                .Select(ToRenderedLine)
+                .Where(line => line is not null)
+                .Select(line => line!)
+                .ToList();
 
     private static StatTextRenderer.RenderedLine? ToRenderedLine(string text)
     {
@@ -224,9 +323,9 @@ public static class AugmentCatalogBuilder
         var min = numbers.Count > 0 ? numbers.Min() : 0;
         var max = numbers.Count > 0 ? numbers.Max() : 0;
         // Augment tiers are display-only in this pass. Compile the
-        // value-agnostic effect shape, so a rune line shares the normal stat
-        // family instead of becoming foreign text for it. The tier rows still
-        // show the concrete rune name and value.
+        // value-agnostic effect shape, so an augment line shares the normal
+        // stat family instead of becoming foreign text for it. The tier rows
+        // still show the concrete name and value.
         return new StatTextRenderer.RenderedLine(
             clean, clean, StatTextRenderer.NormalizeDigits(clean), min, max);
     }
@@ -236,7 +335,7 @@ public static class AugmentCatalogBuilder
             ? ""
             : StatTextRenderer.StripBracketMarkup(text).Trim();
 
-    private static string NormalizeRuneFamily(string name)
+    private static string NormalizeFamilyName(string name)
     {
         var value = name.Trim();
         foreach (var prefix in new[] { "Lesser ", "Greater ", "Perfect " })
@@ -250,6 +349,33 @@ public static class AugmentCatalogBuilder
         return value;
     }
 
+    private static string TypeSlug(string typeId) => typeId switch
+    {
+        "SoulCore" => "soulcore",
+        "AbyssalEye" => "abyssaleye",
+        _ => "rune",
+    };
+
+    private static int TypeOrder(string typeId) => typeId switch
+    {
+        "Rune" => 0,
+        "SoulCore" => 1,
+        "AbyssalEye" => 2,
+        _ => 3,
+    };
+
+    internal static string TargetText(System.Text.Json.JsonElement target) =>
+        target.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.String => Clean(target.GetString()),
+            System.Text.Json.JsonValueKind.Array => string.Join(", ",
+                target.EnumerateArray()
+                    .Where(x => x.ValueKind == System.Text.Json.JsonValueKind.String)
+                    .Select(x => Clean(x.GetString()))
+                    .Where(x => x.Length > 0)),
+            _ => "",
+        };
+
     private static string TargetKey(string target) =>
         target.Trim().ToLowerInvariant()
             .Replace(" / ", "-", StringComparison.Ordinal)
@@ -260,4 +386,28 @@ public static class AugmentCatalogBuilder
         var slash = path.LastIndexOf('/');
         return slash >= 0 ? path[(slash + 1)..] : path;
     }
+
+    private sealed record Candidate(
+        bool Bonded,
+        string TypeId,
+        string Name,
+        string FamilyName,
+        string TargetKey,
+        string TargetDisplay,
+        string TypeName,
+        int RequiredLevel,
+        IReadOnlyList<string> Classes,
+        IReadOnlyList<StatTextRenderer.RenderedLine> Lines,
+        string Leaf);
+
+    private sealed record FamilyGroup(
+        bool Bonded,
+        string TypeId,
+        string FamilyName,
+        string TargetKey,
+        string TargetDisplay,
+        string TypeName,
+        IReadOnlyList<string> Patterns,
+        IReadOnlyList<string> Classes,
+        IReadOnlyList<Candidate> Rows);
 }

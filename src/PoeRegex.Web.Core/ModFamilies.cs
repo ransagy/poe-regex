@@ -109,6 +109,12 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsAugment => Source == "augment";
 
+    /// <summary>A Shaman bonded effect attached to a rune or idol.</summary>
+    public bool IsBonded => Source == "bonded";
+
+    /// <summary>Augment and bonded families share the socketable picker section.</summary>
+    public bool IsAugmentLike => IsAugment || IsBonded;
+
     /// <summary>CSS class for the source tag; empty for normal families.</summary>
     public string SourceCssClass => Source switch
     {
@@ -116,6 +122,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "implicit" => "source-implicit",
         "corrupted" => "source-corrupted",
         "augment" => "source-augment",
+        "bonded" => "source-bonded",
         _ => "",
     };
 
@@ -154,9 +161,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
-        "augment" => string.Join(" · ",
-            new[] { Anchor.AugmentType, Anchor.AugmentTarget }
-                .Where(x => !string.IsNullOrWhiteSpace(x))),
+        "augment" or "bonded" => ModFamilies.AugmentSourceTag(Members),
         _ => null,
     };
 
@@ -241,6 +246,7 @@ public static class ModFamilies
         {
             "desecrated" => "desecrated:" + key,
             "augment" => "augment:" + key,
+            "bonded" => "bonded:" + key,
             _ => key,
         };
     }
@@ -360,7 +366,7 @@ public static class ModFamilies
         // query remains selectable. Per-slot views still show the rune where
         // it is the only source.
         var nonAugmentPatterns = families
-            .Where(f => !f.IsAugment)
+            .Where(f => !f.IsAugmentLike)
             .Select(f => f.Members
                 .SelectMany(m => m.StatLines)
                 .Select(sl => sl.Pattern)
@@ -410,7 +416,7 @@ public static class ModFamilies
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
             };
-            if (union.IsAugment)
+            if (union.IsAugmentLike)
             {
                 var patterns = union.Members
                     .SelectMany(m => m.StatLines)
@@ -427,17 +433,77 @@ public static class ModFamilies
 
     private static string UnionKeyOf(ModFamily family)
     {
-        // Augment families are already keyed by rune family + target. Merging
-        // them across the All-gear union would collapse different runes or
-        // target categories that happen to share a stat pattern.
-        if (family.IsAugment) return "union:augment:" + family.Key;
         var patterns = family.Members
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal);
+        // Augments are effect-first: the All-gear union merges the same effect
+        // across targets/types, while normal and bonded variants stay apart.
+        if (family.IsAugmentLike)
+            return "union:augment:" + family.Source + ":" + string.Join("\u0001", patterns);
         return "union:" + family.Source + ":" + family.Kind +
                ":" + string.Join("\u0001", patterns);
+    }
+
+    /// <summary>
+    /// Display tag for augment/bonded rows. Per-slot rows keep their single
+    /// target; All-gear rows list every target when the same effect was merged.
+    /// </summary>
+    public static string? AugmentSourceTag(IReadOnlyList<ModEntry> mods)
+    {
+        var augmentMods = mods
+            .Where(m => m.Source is "augment" or "bonded")
+            .ToList();
+        if (augmentMods.Count == 0) return null;
+
+        var parts = new List<string>();
+        if (augmentMods.Any(m => m.Source == "bonded")) parts.Add("Bonded");
+        var types = augmentMods
+            .Select(m => m.AugmentType)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+        var names = augmentMods
+            .Select(AugmentFamilyName)
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+        var type = types.Count == 1 ? types[0] : null;
+        if (names.Count == 1 && type is not null)
+        {
+            var name = names[0];
+            if (!name.Contains(type, StringComparison.OrdinalIgnoreCase))
+                parts.Add(type);
+            parts.Add(name);
+        }
+        else if (type is not null)
+        {
+            parts.Add(type);
+        }
+        else if (types.Count > 0)
+        {
+            parts.Add(string.Join(" / ", types));
+        }
+
+        var targets = augmentMods
+            .Select(m => m.AugmentTarget)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (targets.Count > 0) parts.Add(string.Join(", ", targets));
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    private static string AugmentFamilyName(ModEntry mod)
+    {
+        var parts = mod.Family.Split(':', 3);
+        return parts.Length >= 2 && parts[0] is "rune" or "soulcore" or "abyssaleye"
+            ? parts[1].Trim()
+            : (mod.Name ?? "").Trim();
     }
 
     internal static string? CompactAlternatives(IReadOnlyList<string> lines)
