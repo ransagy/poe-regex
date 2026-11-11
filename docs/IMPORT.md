@@ -113,9 +113,9 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   canonicalizes identical exclusion fragments to one block; a source string
   that still contains duplicate blocks is rejected as non-canonical rather
   than replayed.
-- Basic-rune augment effects are modeled in the picker but import mapping is
-  deferred; special/transformative augments, bonded modifiers, and jewel
-  affixes are not modeled yet. The PoE2
+- Basic runes, Soul Cores, Abyssal Eyes, and bonded effects are modeled in the
+  picker but import mapping is deferred; special/transformative runes, idols,
+  jewel affixes, and the socket model are not modeled yet. The PoE2
   export's `crafted` prefix/suffix records are PoE1 master-craft leftovers
   (no positive PoE2 base mapping) and are excluded; crafted stat lines can
   still map to a normal affix with the same text. Actual PoE2 crafted mods are

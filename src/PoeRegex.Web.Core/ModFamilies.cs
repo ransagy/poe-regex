@@ -109,6 +109,12 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     public bool IsAugment => Source == "augment";
 
+    /// <summary>A Shaman bonded effect attached to a rune or idol.</summary>
+    public bool IsBonded => Source == "bonded";
+
+    /// <summary>Augment and bonded families share the socketable picker section.</summary>
+    public bool IsAugmentLike => IsAugment || IsBonded;
+
     /// <summary>CSS class for the source tag; empty for normal families.</summary>
     public string SourceCssClass => Source switch
     {
@@ -116,6 +122,7 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "implicit" => "source-implicit",
         "corrupted" => "source-corrupted",
         "augment" => "source-augment",
+        "bonded" => "source-bonded",
         _ => "",
     };
 
@@ -156,6 +163,9 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "corrupted" => "Corrupted",
         "augment" => string.Join(" · ",
             new[] { Anchor.AugmentType, Anchor.AugmentTarget }
+                .Where(x => !string.IsNullOrWhiteSpace(x))),
+        "bonded" => string.Join(" · ",
+            new[] { "Bonded", Anchor.AugmentType, Anchor.AugmentTarget }
                 .Where(x => !string.IsNullOrWhiteSpace(x))),
         _ => null,
     };
@@ -241,6 +251,7 @@ public static class ModFamilies
         {
             "desecrated" => "desecrated:" + key,
             "augment" => "augment:" + key,
+            "bonded" => "bonded:" + key,
             _ => key,
         };
     }
@@ -360,7 +371,7 @@ public static class ModFamilies
         // query remains selectable. Per-slot views still show the rune where
         // it is the only source.
         var nonAugmentPatterns = families
-            .Where(f => !f.IsAugment)
+            .Where(f => !f.IsAugmentLike)
             .Select(f => f.Members
                 .SelectMany(m => m.StatLines)
                 .Select(sl => sl.Pattern)
@@ -410,7 +421,7 @@ public static class ModFamilies
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
             };
-            if (union.IsAugment)
+            if (union.IsAugmentLike)
             {
                 var patterns = union.Members
                     .SelectMany(m => m.StatLines)
@@ -427,10 +438,10 @@ public static class ModFamilies
 
     private static string UnionKeyOf(ModFamily family)
     {
-        // Augment families are already keyed by rune family + target. Merging
+        // Augment families are already keyed by type + family + target. Merging
         // them across the All-gear union would collapse different runes or
         // target categories that happen to share a stat pattern.
-        if (family.IsAugment) return "union:augment:" + family.Key;
+        if (family.IsAugmentLike) return "union:augment:" + family.Key;
         var patterns = family.Members
             .SelectMany(m => m.StatLines)
             .Select(sl => sl.Pattern)

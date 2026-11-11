@@ -50,16 +50,24 @@ per-base tree whose aggregate is already used.
 for a rune's target category and rendered effect lines.
 
 The catalog applies the same unique-only policy as base implicits and
-corrupted enchantments: a basic-rune family is kept only on classes where at
+corrupted enchantments: an augment family is kept only on classes where at
 least one of its effect patterns is not already represented by a normal,
-desecrated, implicit or corrupted family. All tiers of a kept rune family are
-kept together. The filter is family-aware, not tier-row-by-tier-row. Of the 63
-basic tiered runes, 14 unique effect families (55 target rows) remain in the
-catalog; the vendor/safety corpus still carries every raw augment line. The
-All-gear union applies the same rule across classes: a rune family is omitted
-when one non-augment family covers every one of its patterns. Per-slot views
-still show the rune where it is the only source, so the union keeps only the
-two globally unique effects.
+desecrated, implicit or corrupted family. All tiers of a kept family are kept
+together. The filter is family-aware, not tier-row-by-tier-row, and also
+deduplicates effects across augment families and types.
+
+This pass covers the 63 basic tiered runes, 52 Soul Cores, and 4 Abyssal Eyes.
+Target mapping covers every exported target string, including `All Equipment`,
+`Weapon`, shields/bucklers/foci, specific slots, and compound targets such as
+`One Hand Mace or Quarterstaff`. After target mapping and duplicate removal,
+234 target rows across 118 families remain; the vendor/safety corpus still
+carries every raw augment line.
+
+Bonded effects are a separate `bonded` source with a Bonded tag. They are
+Shaman-only in game, but the copied item text can contain `Bonded: … (rune)`,
+so the picker can search them. The All-gear union applies the same dedup rule
+across classes. Special/transformative runes, idols, jewels, Congealed Mist,
+and the socket model remain parked for later passes.
 
 ## PoB files
 

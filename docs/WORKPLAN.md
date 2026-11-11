@@ -27,19 +27,17 @@ Current planned and parked work. Behavior is documented in
   legacy PoE1 `crafted` prefix/suffix records (Navali/Helena master crafts);
   they are excluded because they have no positive PoE2 base mapping. PoE2's
   actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
-  remain parked with jewel support. Basic tiered runes use the same
-  unique-only policy as implicits/corrupted: a rune family is kept only where
-  at least one effect pattern is new, leaving 14 unique effect families
-  (55 target rows). They render in a dedicated **Augments** section with a
-  Rune source tag and an Armour / Martial Weapon / Wand or Staff target tag;
-  the export's target category controls which item classes can carry each
-  effect. In the All-gear union, a rune family is omitted when one
-  non-augment family covers every one of its effect patterns; per-slot views
-  keep it where it is the only source, so the union shows only the two
-  globally unique effects (Stone Rune Wand/Staff and Vision Rune Armour).
-  Attribute runes (the `All Equipment` target), special/transformative
-  augments, Soul Cores, Idols, Abyssal Eyes, bonded stats, and a socket model
-  remain parked.
+  remain parked with jewel support. Basic runes, Soul Cores, Abyssal Eyes, and
+  bonded effects use the same unique-only policy as implicits/corrupted: a
+  family is kept only where at least one effect pattern is new, leaving 234
+  target rows across 118 families after all target mapping. They render in a
+  dedicated **Augments** section with Rune / Soul Core / Abyssal Eye source
+  tags and the export's target tag; bonded effects carry a separate Bonded
+  tag. The export's target category controls which item classes can carry each
+  effect. In the All-gear union, a family is omitted when one non-augment
+  family covers every one of its effect patterns; per-slot views keep it where
+  it is the only source. Special/transformative runes, Idols, Congealed Mist,
+  jewels, and a socket model remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
   row with the same query as the active selection stays visible as `covered`;
   its `⇄` button switches the selection instead of adding a second chip. An
@@ -81,15 +79,19 @@ Current planned and parked work. Behavior is documented in
 
 ## Next
 
-### Missing mod-type scope
+### Remaining mod-type scope
 
-Scope every remaining missing mod type before implementation: jewels, attribute
-runes, special/transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded
-stats, and the socket model. This is a scoping pass first; the coverage table
-below remains the reference.
+P1 is shipped: all target strings are mapped, and basic runes, Soul Cores,
+Abyssal Eyes, and bonded effects are in the catalog. Remaining: special and
+transformative runes, Idols, Congealed Mist, jewels (data/simple mode, then
+advanced UX), and the socket/import/builder model. The coverage table below is
+the reference.
 
 ## Recently completed
 
+- P1 augment coverage: all augment target strings mapped; basic runes, Soul
+  Cores, Abyssal Eyes, and bonded effects added with cross-source dedup; the
+  exact table regenerated with a stability pass.
 - UI follow-up PR: picked/excluded rows stay visible under search, common-only,
   and scope filters; the compact layout pins the search header/query/ruler while
   the tools scroll; Reset workbench is a visible danger button; and
@@ -124,7 +126,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 | Base implicits | 168 ids / 348 base entries | 85 (94 mods) | Medium | High | Done |
 | Corrupted mods | 108 records / 103 mapped | 43 (44 mods) | Medium | Medium | Done |
 | Jewels | 320 normal + 44 desecrated + 13 crafted | ~196 + 34 | High | High for jewel users | Parked |
-| Augments / Soul Cores | 313 released bases | 14 unique rune effect families / 55 target rows | Medium | High for socketed items | Unique basic runes done; specials parked |
+| Augments / Soul Cores | 313 released bases | 234 target rows / 118 families | Medium | High for socketed items | Basic runes, Soul Cores, Abyssal Eyes, bonded done; specials/idols/sockets parked |
 
 - **PoE1 crafted leftovers** are not PoE2 coverage. The nine `crafted`
   prefix/suffix records in the PoE2 export are verbatim PoE1 Navali/Helena
@@ -152,15 +154,18 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   jewel mods, desecrated jewel mods, and the actual PoE2 crafted jewel mods
   are all outside the current normal-equipment scope. Parked until the
   item-class/slot work is justified.
-- **Augments / Soul Cores** are now sourced from RePoE `augments.json`, which
-  maps each base to its target category and rendered effect lines. The first
-  pass covers the 63 basic tiered runes, filtered to 14 unique effect families
-  (55 target rows); they are treated as
-  a separate non-affix source and do not need a socket system for search.
-  Attribute runes (`All Equipment`), the 36 bonded-only category rows, special
-  and transformative runes, Soul Cores, Idols, Abyssal Eyes, bonded stats, and
-  any socket-count model remain parked. The RePoE inventory and PoB
-  cross-check are documented in [`REPOE-DATA.md`](REPOE-DATA.md).
+- **Augments / Soul Cores** are sourced from RePoE `augments.json`, which maps
+  each base to its target category and rendered effect lines. This pass covers
+  the 63 basic tiered runes (normal and bonded), 52 Soul Cores, and 4 Abyssal
+  Eyes. All 29 target strings are mapped, including `All Equipment`, `Weapon`,
+  shields/foci, specific slots, and compound targets. After target mapping and
+  duplicate removal, 234 target rows across 118 families remain. Bonded
+  effects are a separate `bonded` source and are searchable when the copied
+  item contains `Bonded: … (rune)`; they are Shaman-only in game. Source tags
+  distinguish Rune, Soul Core, Abyssal Eye, and Bonded. Special/transformative
+  runes, Idols, Congealed Mist, jewels, and the socket-count model remain
+  parked. The RePoE inventory and PoB cross-check are documented in
+  [`REPOE-DATA.md`](REPOE-DATA.md).
 - **Unique-item mods** are out of normal-rarity scope. **Essence/veiled**
   records are placeholders with no usable rendered text in the current export.
 

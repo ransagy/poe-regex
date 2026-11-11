@@ -66,9 +66,13 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
 
   ```sh
   dotnet run --project tools/PoeRegex.Data.Build -- matrix-solve \
-    --from-scratch --prefer /tmp/opencode/poe2.fragments.main.json \
+    --prefer /tmp/opencode/poe2.fragments.main.json \
     --jobs 2 --timeout 60
   ```
+
+  Use `--from-scratch` only when the solver, grammar, or corpus changes, not
+  for an ordinary catalog refresh; multi-line patterns can otherwise produce
+  a line-crossing fragment that the query shape validator rejects.
 
 - [ ] Verify the proof/status:
 

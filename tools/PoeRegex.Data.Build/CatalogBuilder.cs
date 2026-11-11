@@ -155,6 +155,12 @@ public static class CatalogBuilder
         // transformative socketables are deliberately left out until their
         // socket semantics are reviewed.
         var augmentResult = AugmentCatalogBuilder.Build(rawDir, classLines);
+        if (augmentResult.UnmappedTargets.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Unmapped augment targets: " +
+                string.Join(", ", augmentResult.UnmappedTargets));
+        }
         var augmentById = new Dictionary<string, AugmentCatalogBuilder.AugmentBuild>(StringComparer.Ordinal);
         foreach (var augment in augmentResult.Mods)
         {
@@ -174,7 +180,7 @@ public static class CatalogBuilder
         if (augmentResult.Mods.Count > 0)
         {
             Console.WriteLine(
-                $"  augments: {augmentResult.Mods.Count} basic-rune target rows, " +
+                $"  augments: {augmentResult.Mods.Count} target rows, " +
                 $"{augmentResult.RemovedDuplicateRows} duplicate target rows removed, " +
                 $"{augmentResult.SkippedCategories} categories deferred");
         }
@@ -277,7 +283,7 @@ public static class CatalogBuilder
                     Id = modId,
                     Name = augment.Name,
                     GenerationType = "augment",
-                    Source = "augment",
+                    Source = augment.Bonded ? "bonded" : "augment",
                     AugmentType = augment.TypeName,
                     AugmentTarget = augment.TargetDisplay,
                     Family = augment.Family,

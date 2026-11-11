@@ -234,8 +234,7 @@ public class WebComponentTests
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var state = new WorkbenchState();
-        const string query =
-            "\"Blasting|Carbonising|Cremating|Flaming|Incinerating|Scorching|\\+.*ife|^\\+.*cc|o Int|o cr.*ha\"";
+        var query = TestQueries.MixedSuffixAndFragments(engine);
 
         var cut = ctx.Render<QueryImportPanel>(p => p
             .Add(x => x.State, state)
