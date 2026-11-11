@@ -325,7 +325,9 @@ public class QueryReconstructionTests
     {
         // A subset of a family suffix is not "or better"; keep the two names
         // as their own picks so the search is not broadened.
-        const string query = "\"Flaming|Scorching|\\+.*ife\"";
+        var lifeFragment = Engine.CompilePicks(
+            [new WantedMod("IncreasedLife6")], [], false, null).Query.Trim('"');
+        var query = $"\"Flaming|Scorching|{lifeFragment}\"";
 
         var recovered = Reconstruction.ReconstructWorkbench(query);
 

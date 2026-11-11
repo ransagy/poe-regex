@@ -319,6 +319,7 @@
     private IReadOnlyList<ModEntry>? _groupedMods;
     private bool _groupedGlobal;
     private bool _unionActive;
+    private int _unionWarmVersion;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private readonly Dictionary<string, string?> _familyClaimKeys = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _tierClaimKeys = new(StringComparer.Ordinal);
@@ -382,13 +383,19 @@
     {
         if (!firstRender || Scope is not null) return;
         // Warm the All-gear union after first paint. The common shortlist is
-        // identical raw and unionized, so this stays off the boot path.
+        // identical raw and unionized, so this stays off the boot path, and
+        // the warm-up yields between slices so it cannot block an interaction
+        // for the length of the whole union.
+        var version = ++_unionWarmVersion;
+        var mods = Mods;
         await Task.Delay(200);
-        if (Scope is null && !_unionActive)
-        {
-            _allFamilies = ModFamilies.CachedGroup(Mods, union: true);
-            _unionActive = true;
-        }
+        if (version != _unionWarmVersion || Scope is not null || _unionActive) return;
+        var union = await ModFamilies.WarmUnionAsync(mods);
+        if (version != _unionWarmVersion || Scope is not null || _unionActive ||
+            !ReferenceEquals(mods, Mods))
+            return;
+        _allFamilies = union;
+        _unionActive = true;
     }
 
     protected override void OnParametersSet()

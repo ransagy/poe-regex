@@ -162,9 +162,10 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   exceed the game's 250-character limit; the preview handles up to 64 matches
   and larger sets stay visible but disabled with the budget message; one
   match keeps the row's own `+`); a dedicated **Augments** section lists the
-  basic tiered runes, Soul Cores, and Abyssal Eyes with a source tag (Rune /
-  Soul Core / Abyssal Eye) and the export's target tag; bonded effects carry a
-  separate Bonded tag and are marked as Shaman-only; tier rows show the
+  all runes (including special/transformative and Legacy), Soul Cores, Idols,
+  and Abyssal Eyes with a source tag (Rune / Soul Core / Idol / Abyssal Eye)
+  and the export's target tag; bonded effects carry a separate Bonded tag and
+  are marked as Shaman-only; tier rows show the
   augment name and value for reference, and the family `+` selects the effect
   across tiers; duplicate augment effects already covered by a normal,
   desecrated, implicit or corrupted family are removed at data build, so
@@ -254,11 +255,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   vendor/stash corpus, and the table is strict: zero foreign modeled or
   captured-safety lines. The oracle corpus includes both plain copy text and
   advanced `roll(min-max)` forms. Desecrated item affixes, implicit-only base
-  families, basic runes, Soul Cores, Abyssal Eyes, and bonded effects are
-  modeled; unique-only text, flavour, rare names, special/transformative
-  runes, idols, jewels, and the socket model remain unmodeled and are reported
-  separately. The exact table has 2309 expanded scopes (444 global patterns,
-  21 classes, 1521 class fragments, 0 unresolved).
+  families, all runes (including special/transformative and Legacy), Soul
+  Cores, Idols, Abyssal Eyes, and bonded effects are modeled; unique-only text,
+  flavour, rare names, jewels, Congealed Mist, and the socket model remain
+  unmodeled and are reported separately. The exact table has 3734 expanded
+  scopes (724 global patterns, 21 classes, 2480 class fragments, 0 unresolved).
   Regenerate with `matrix-solve`; a version mismatch fails the audit. Examples:
   `#% increased maximum Life` → `^\d.+d m.*fe$` (13), `#% increased Critical
   Damage Bonus` → `^\d.*al d.+u.$` (14), `Gain #% of Damage as Extra Fire
@@ -399,9 +400,9 @@ Acceptance criteria and current measurements:
   normalized stat pattern and shows the merged tier's roll alternatives;
   per-slot rows keep the class's concrete roll. Desecrated tiers that share a
   pattern collapse into one row while range-specific strings are deferred.
-  Basic runes, Soul Cores, Abyssal Eyes, and bonded effects are modeled as a
-  separate Augments source; special/transformative runes, idols, jewel
-  affixes, and the socket model remain unmodeled. The export's `crafted`
+  Runes (including special/transformative and Legacy), Soul Cores, Idols,
+  Abyssal Eyes, and bonded effects are modeled as a separate Augments source;
+  jewel affixes, Congealed Mist, and the socket model remain unmodeled. The export's `crafted`
   prefix/suffix records are PoE1 leftovers and are excluded; actual PoE2
   crafted mods are jewel-only in domain `misc`. Imports resolve by bracket
   ranges and header names, so a line with neither (and no plain-text match)

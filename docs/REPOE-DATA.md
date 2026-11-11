@@ -56,19 +56,20 @@ desecrated, implicit or corrupted family. All tiers of a kept family are kept
 together. The filter is family-aware, not tier-row-by-tier-row, and also
 deduplicates effects across augment families and types.
 
-This pass covers the 63 basic tiered runes, 52 Soul Cores, and 4 Abyssal Eyes.
-Target mapping covers every exported target string, including `All Equipment`,
-`Weapon`, shields/bucklers/foci, specific slots, and compound targets such as
-`One Hand Mace or Quarterstaff`. After target mapping and duplicate removal,
-234 target rows across 118 families remain; the vendor/safety corpus still
-carries every raw augment line.
+This pass covers all runes (including special/transformative and Legacy), 52
+Soul Cores, 35 Idols, and 4 Abyssal Eyes. Target mapping covers every exported
+target string, including `All Equipment`, `Weapon`, shields/bucklers/foci,
+specific slots, and compound targets such as `One Hand Mace or Quarterstaff`.
+After target mapping and duplicate removal, 613 target rows across 497 families
+remain; the vendor/safety corpus still carries every raw augment line. DNT
+placeholder runes and Congealed Mist are excluded.
 
 Bonded effects are a separate `bonded` source with a Bonded tag. They are
 Shaman-only in game, but the copied item text can contain `Bonded: … (rune)`,
 so the picker can search them. The All-gear union merges the same effect
 across target categories and lists the targets; per-slot views keep the single
-target. It applies the same dedup rule across classes. Special/transformative runes, idols, jewels, Congealed Mist,
-and the socket model remain parked for later passes.
+target. It applies the same dedup rule across classes. Jewels and the socket
+model remain parked for later passes.
 
 ## PoB files
 

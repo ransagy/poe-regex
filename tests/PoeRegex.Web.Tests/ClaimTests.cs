@@ -91,7 +91,12 @@ public class ClaimTests
             matchAll: false,
             itemClass: "Gloves");
 
-        result.Query.Split("!\"g p\"", StringSplitOptions.None).Length.Should().Be(2,
+        var single = Engine.CompilePicks(
+            [],
+            ["HandWrapsImplicitLocalBaseEvasionAndEnergyShieldPerLevel"],
+            matchAll: false,
+            itemClass: "Gloves").Query;
+        single.Should().Be(result.Query,
             "both implicit exclusions resolve to one fragment");
     }
 
@@ -143,8 +148,8 @@ public class ClaimTests
     {
         using var ctx = Context();
         var mods = Engine.ModsForClass("Body Armour");
-        var evasion = Family(mods, "LocalEvasionRatingIncreasePercent");
-        var hybrid = Family(mods, "LocalIncreasedEvasionAndLife");
+        var evasion = Family(mods, "LocalEvasionRating");
+        var hybrid = Family(mods, "LocalIncreasedEvasionAndBase");
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.SelectSlot("body");
@@ -180,8 +185,8 @@ public class ClaimTests
     {
         using var ctx = Context();
         var mods = Engine.ModsForClass("Body Armour");
-        var evasion = Family(mods, "LocalEvasionRatingIncreasePercent");
-        var hybrid = Family(mods, "LocalIncreasedEvasionAndLife");
+        var evasion = Family(mods, "LocalEvasionRating");
+        var hybrid = Family(mods, "LocalIncreasedEvasionAndBase");
         var state = new WorkbenchState();
         state.SetMode("advanced");
         state.SelectSlot("body");

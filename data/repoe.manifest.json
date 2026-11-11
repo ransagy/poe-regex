@@ -1,6 +1,6 @@
 {
   "game": "poe2",
-  "lastAudited": "2026-11-09",
+  "lastAudited": "2026-11-11",
   "notes": "Inventory of RePoE hosts. used = fetched by tools/PoeRegex.Data.Build fetch. cross-check = development reference only, never shipped. known-unused/not-relevant must still be classified, not silently ignored.",
   "exports": [
     {
@@ -783,6 +783,13 @@
           "status": "known-unused",
           "consumer": "none",
           "notes": "Translation domain not currently consumed; retained in the map."
+        },
+        {
+          "path": "index.json",
+          "kind": "site-index",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "RePoE site navigation index; catalog data is fetched by the explicit paths below."
         }
       ]
     },

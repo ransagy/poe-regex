@@ -38,7 +38,7 @@ public class AugmentTests
         augments.Select(m => m.Source).Distinct(StringComparer.Ordinal)
             .Should().BeEquivalentTo(["augment", "bonded"]);
         augments.Select(m => m.AugmentType).Distinct(StringComparer.Ordinal)
-            .Should().Contain(["Rune", "Soul Core", "Abyssal Eye"]);
+            .Should().Contain(["Rune", "Soul Core", "Idol", "Abyssal Eye"]);
 
         var targets = augments.Select(m => m.AugmentTarget).Distinct(StringComparer.Ordinal).ToList();
         targets.Should().Contain([
@@ -54,6 +54,52 @@ public class AugmentTests
             .ToList();
         adept.Should().HaveCount(4, "the four Adept tiers add a non-duplicate pattern on Focus");
         adept.Should().OnlyContain(m => m.Classes.Contains("Focus", StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task WarmUnion_MatchesTheCachedUnionAndIsReused()
+    {
+        // A fresh list instance keeps the shared caches out of the warm path,
+        // so this exercises the sliced builder rather than a cache hit.
+        var mods = Engine.PlayableMods().ToList();
+        var warm = await ModFamilies.WarmUnionAsync(mods);
+
+        warm.Should().NotBeEmpty();
+        var cached = ModFamilies.CachedGroup(mods, union: true);
+        warm.Should().BeSameAs(cached);
+        warm.Select(f => f.Key).Should().Equal(
+            ModFamilies.Group(mods, union: true).Select(f => f.Key));
+    }
+
+    [Fact]
+    public void Catalog_HasSpecialRunesAndIdols()
+    {
+        var sceptre = Engine.ModsForClass("Sceptre");
+        var vitality = sceptre.Single(m =>
+            m.Name == "Rune of Vitality" && m.AugmentTarget == "Weapon" && m.Source == "augment");
+        vitality.AugmentType.Should().Be("Rune");
+        vitality.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("+80 to maximum Life");
+        sceptre.Should().Contain(m =>
+            m.Name == "Rune of Vitality" && m.Source == "bonded" &&
+            m.AugmentTarget == "Weapon");
+
+        var gloves = Engine.ModsForClass("Gloves");
+        var culmination = gloves.Single(m =>
+            m.Name == "Rune of Culmination" && m.AugmentTarget == "Gloves" &&
+            m.Source == "augment");
+        culmination.AugmentType.Should().Be("Rune");
+        culmination.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("50% chance to build an additional Combo on Hit");
+
+        var idol = gloves.Single(m =>
+            m.Name == "Idol of Kraityn" && m.AugmentTarget == "Gloves" &&
+            m.Source == "augment");
+        idol.AugmentType.Should().Be("Idol");
+        idol.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("15% chance when you gain a Frenzy Charge to gain an additional Frenzy Charge");
+
+        Engine.PlayableMods().Should().NotContain(m => m.AugmentType == "Congealed Mist");
     }
 
     [Fact]
@@ -187,7 +233,7 @@ public class AugmentTests
         {
             var patterns = PatternSet(augment);
             var covering = nonAugment
-                .Where(f => PatternSet(f).IsSupersetOf(patterns))
+                .Where(f => PatternSet(f).SetEquals(patterns))
                 .ToList();
             var unionAugment = union.FirstOrDefault(f => f.IsAugmentLike &&
                 f.Members.Any(m => m.Id == augment.Anchor.Id));
@@ -223,9 +269,11 @@ public class AugmentTests
         var opiloti = union.Single(f => f.IsAugmentLike &&
             f.Members.Any(m => m.Id == "augment:SoulCoreSpecial8:martial-weapon"));
         opiloti.Members.Select(m => m.Id)
-            .Should().Contain("augment:SoulCoreSpecial8:wand-or-staff");
+            .Should().Contain("augment:SoulCoreSpecial8:wand-or-staff")
+            .And.Contain("augment:IdolSpecial6:gloves");
         opiloti.SourceTag.Should()
-            .Be("Opiloti's Soul Core of Assault · Martial Weapon, Wand or Staff");
+            .Be("Idol / Soul Core · Gloves, Martial Weapon, Wand or Staff",
+                "the same charge effect is shared by Idol of Kraityn and Opiloti's core");
     }
 
     [Fact]

@@ -72,7 +72,7 @@ public class AugmentCatalogTests
         result.UnmappedTargets.Should().BeEmpty();
         result.Mods.Should().NotBeEmpty();
         result.Mods.Select(m => m.TypeName).Distinct(StringComparer.Ordinal)
-            .Should().BeEquivalentTo(["Rune", "Soul Core", "Abyssal Eye"]);
+            .Should().BeEquivalentTo(["Rune", "Soul Core", "Idol", "Abyssal Eye"]);
         result.Mods.Should().Contain(m => m.Bonded);
         result.Mods.Should().Contain(m => !m.Bonded);
         result.Mods.Select(m => m.Id).Should().OnlyHaveUniqueItems();

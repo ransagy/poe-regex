@@ -20,12 +20,12 @@ public class ExactSolverTests
         var life = ExactSearchSolver.Solve(
             scope, "\u0001% of Damage taken Recouped as Life", 3, 20);
         life.Should().NotBeNull();
-        life!.Length.Should().Be(12);
+        life!.Length.Should().Be(17);
 
         var armour = ExactSearchSolver.Solve(
             scope, "\u0001% increased Armour, Evasion and Energy Shield", 3, 20);
         armour.Should().NotBeNull();
-        armour!.Fragment.Should().Be("d a.+v.+y shield$");
+        armour!.Fragment.Should().Be("d a.+s.+y shield$");
         Regex.IsMatch(
                 "18% increased Armour, Evasion and Energy Shield from Equipped Shield",
                 armour.Fragment, RegexOptions.IgnoreCase)
