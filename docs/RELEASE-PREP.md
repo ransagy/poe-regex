@@ -99,8 +99,10 @@ source of truth.
     --out-json /tmp/opencode/fragment-diff.json
   ```
 
-- [ ] Review every changed scope. The report lists the old/new fragment,
-  old/new length, delta, and every added/removed pattern.
+- [ ] Review every changed scope. The report separates changed, new, and
+  removed patterns for global and class scopes. Changed rows list the old/new
+  fragment, both lengths, and the delta; new and removed rows list only the
+  side that exists.
 - [ ] Explain every changed or removed scope locally. No unexplained forced
   changes.
 - [ ] Keep the full report outside the repository and outside the PR. Do not
