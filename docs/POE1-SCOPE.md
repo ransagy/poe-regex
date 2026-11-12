@@ -41,6 +41,34 @@ and other league sources.
 currency, passive tree, trade-site queries, accounts, and exact base-type
 fidelity beyond the item class.
 
+### MVP boundary
+
+**Included**
+
+- 23 equipment classes: Helmet, Body Armour, Gloves, Boots, Belt, Amulet,
+  Ring, Shield, Quiver, Claw, Dagger, Wand, One Hand Sword, Thrusting One Hand
+  Sword, One Hand Axe, One Hand Mace, Sceptre, Bow, Staff, Two Hand Sword,
+  Two Hand Axe, Two Hand Mace, Warstaff
+- Normal/magic/rare prefix and suffix families: 2,795 mods and 718 normalized
+  affix texts after excluding unique-only, essence-only, and influence-tagged
+  affixes (4,366 / 1,013 before those filters)
+- Base implicits at class scope
+- Item-domain corrupted implicits (372 mods)
+- Ten equipment slots, All-gear union, per-slot pickers
+- Query compile, min values, exclusions, copy, explain, saved picks/share
+- Import of normal/magic/rare copied item text, including fractured headers
+  that carry normal affixes
+- Exact table/proof/status for those scopes
+
+**Not in the MVP**
+
+- Influenced mods (1,113 affixes)
+- Crafted/veiled mods, lab/bench enchantments
+- Flasks, jewels, cluster/abyss/timeless jewels
+- Synthesis, eldritch, scourge, crucible, tattoos, and other league sources
+- Unique-only text, gems, maps, currency
+- Exact base-type implicit fidelity beyond the item class
+
 ## 2. What is reusable
 
 The core is mostly game-agnostic:
@@ -231,33 +259,40 @@ PoE1 deployment if lazy loading is not clean.
 
 ## 8. Workstreams and sizing
 
-Rough engineering estimate, one developer, excluding upstream league churn:
+### Basis
 
-| Workstream | Estimate | Confidence |
-|---|---:|---|
-| P0 grammar/copy-text/data spikes | 3–5 days | Medium |
-| Profile foundation and game id plumbing | 3–5 days | High |
-| PoE1 manifest/fetch/audit + schema loaders | 5–8 days | Medium |
-| Normal catalog/corpus/class mapping | 10–15 days | Medium |
-| Grammar/import fixtures and parser | 5–8 days | Medium |
-| Exact table/proof/status | 5–8 days | High |
-| Web game switch, lazy data, slots/UI | 8–12 days | Medium |
-| Tests, docs, PWA, perf, release | 4–6 days | High |
-| **Normal-equipment MVP** | **~6–9 weeks** | Medium |
+The first draft used a top-down 6–9 week estimate. That was too conservative:
+it assumed a cold codebase, a full profile rewrite, and no reuse. It was not
+calibrated to this project's measured velocity.
 
-Phased coverage after the MVP:
+The repo has 436 commits; the main October–November run spans 31 days. The P2
+augment pass (catalog, 3,734-scope exact table, and picker/union work) landed
+in about two days. PoE1 normal equipment is smaller: 718 normalized affix
+texts for the MVP, versus 1,050 patterns in the PoE2 P2 table. It is also
+simpler to render because PoE1 mods already carry a `text` field. The real new
+cost is the profile/web refactor and the grammar/copy-text unknowns, not the
+stat volume.
 
-| Phase | Estimate |
+Estimates below are focused engineering days for one developer, not calendar
+time. Add review, release, and upstream league churn separately.
+
+| Workstream | Focused days |
 |---|---:|
-| Influenced mods | 3–5 days |
-| Crafted/veiled | 4–6 days |
-| Flasks | 3–4 days |
-| Jewels (normal/abyss/cluster) | 8–12 days |
-| Timeless/cluster special data | 5–10 days |
-| Synthesis, lab/bench enchant, eldritch, scourge, crucible, other leagues | 8–12 days |
+| P0 grammar/copy-text/data spikes | 2–4 |
+| Profile foundation and game id plumbing | 2–3 |
+| PoE1 manifest/fetch/audit + schema loaders | 2–4 |
+| Normal catalog/corpus/class mapping | 4–7 |
+| Grammar/import fixtures and parser | 2–4 |
+| Exact table/proof/status | 2–4 |
+| Web game switch, lazy data, slots/UI | 4–7 |
+| Tests, docs, PWA, perf, release | 2–4 |
+| **Normal-equipment MVP** | **15–23 (~3–5 weeks)** |
 
-Full normal-gear + crafts + flasks + jewels is realistically **10–14 weeks**;
-league-specific sources add more and should be treated as separate releases.
+Engine/data/table only, without the web switch: **10–15 days**. Add
+influences/crafts/veils/flasks: **+8–13 days**. Add normal/abyss/cluster
+jewels: **+10–15 days**. Full normal gear + crafts + flasks + jewels is
+realistically **6–9 weeks**; league-specific sources should be separate
+releases.
 
 ## 9. Suggested delivery phases
 
