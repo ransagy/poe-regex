@@ -145,7 +145,8 @@
     private RenderFragment PickList(string? slot, SlotCriteria crit, IReadOnlyList<ModEntry> mods) => __builder =>
     {
         var hasChips = crit.Included.Count > 0 || crit.Excluded.Count > 0;
-        var families = ModFamilies.CachedGroup(mods, union: slot is null && hasChips);
+        var union = slot is null && hasChips;
+        var families = ModFamilies.CachedGroup(mods, union: union);
         var cls = slot is null ? null : State.SlotClassOrDefault(slot);
         var scopeKey = slot ?? "global";
         var scopeBlocks = Model.ScopeBlocks(slot);
@@ -199,7 +200,7 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
-                    var source = SourceFor(inc);
+                    var source = SourceFor(inc, includeTargets: !union, currentClass: cls);
                     var minIgnored = inc.MinValue is not null && frag is not null
                         && frag == Model.PickFragment(inc with { MinValue = null }, cls);
                     var busy = _minBusy?.SamePick(inc) == true;
@@ -266,7 +267,7 @@
                     var frag = Model.ExcludeFragment(exc);
                     var block = Model.ExcludeBlock(exc);
                     var label = SearchModel.ExcludeLabel(exc, mods, union: slot is null);
-                    var source = SourceFor(exc);
+                    var source = SourceFor(exc, includeTargets: !union, currentClass: cls);
                     <li class="bd-row exc @(ReadOnly ? "ro" : "") @(block is not null && Model.IsHot(block.Index) ? "hot" : "")" id="chip-exc-@scopeKey-@exc"
                         @onmouseenter="() => { if (block is not null) Model.Hot(block.Index); }">
                         <span class="bd-what">
@@ -449,25 +450,28 @@
             ? tier.UnionLines
             : tier.DisplayLines;
 
-    private (string Text, string Css)? SourceFor(WantedMod pick)
+    private (string Text, string Css)? SourceFor(
+        WantedMod pick, bool includeTargets = true, string? currentClass = null)
     {
         var ids = pick.VariantModIds is { Count: > 0 } variants
             ? variants
             : (IReadOnlyList<string>)new[] { pick.ModId };
-        return SourceFor(ids);
+        return SourceFor(ids, includeTargets, currentClass);
     }
 
-    private (string Text, string Css)? SourceFor(string term)
+    private (string Text, string Css)? SourceFor(
+        string term, bool includeTargets = true, string? currentClass = null)
     {
         var mod = Engine.FindMod(term);
-        if (mod is not null) return SourceFor([mod.Id]);
+        if (mod is not null) return SourceFor([mod.Id], includeTargets, currentClass);
         var byName = Engine.PlayableMods()
             .Where(m => (m.Source is "desecrated" or "implicit" or "corrupted") && m.Name == term)
             .ToList();
-        return SourceFor(byName.Select(m => m.Id));
+        return SourceFor(byName.Select(m => m.Id), includeTargets, currentClass);
     }
 
-    private (string Text, string Css)? SourceFor(IEnumerable<string> ids)
+    private (string Text, string Css)? SourceFor(
+        IEnumerable<string> ids, bool includeTargets = true, string? currentClass = null)
     {
         var mods = ids.Select(Engine.FindMod)
             .Where(m => m is not null)
@@ -477,7 +481,8 @@
         if (mods.Any(m => m.Source == "corrupted")) return ("Corrupted", "source-corrupted");
         if (mods.Any(m => m.Source is "augment" or "bonded"))
         {
-            var text = ModFamilies.AugmentSourceTag(mods);
+            var text = ModFamilies.AugmentSourceTag(
+                mods, includeTargets, currentClass);
             if (text is not null)
                 return (text, mods.Any(m => m.Source == "bonded")
                     ? "source-bonded"

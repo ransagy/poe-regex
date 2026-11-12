@@ -55,7 +55,7 @@
                                                 }
                                             }
                                         </span>
-                                        @if (fam.SourceTag is { } sourceTag)
+                                        @if (fam.SourceTagFor(_classId) is { } sourceTag)
                                         {
                                             <span class="mod-source @fam.SourceCssClass">@sourceTag</span>
                                         }

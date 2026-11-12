@@ -156,13 +156,22 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
 
     /// <summary>Source tag for a non-normal row: the faction for desecrated
     /// mods, "Implicit" for base implicits; null when normal or no tag exists.</summary>
-    public string? SourceTag => Source switch
+    public string? SourceTag => SourceTagFor(null);
+
+    /// <summary>
+    /// Source tag for a row shown in a class scope. Per-slot augment/bonded
+    /// rows drop a target that only restates the current class (for example
+    /// "Body Armours" while on the Body Armour slot); broader targets such as
+    /// "Armour", "Weapon", or "All Equipment" still add information. The
+    /// All-gear union never shows targets.
+    /// </summary>
+    public string? SourceTagFor(string? currentClass) => Source switch
     {
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
         "augment" or "bonded" => ModFamilies.AugmentSourceTag(
-            Members, includeTargets: !IsUnion),
+            Members, includeTargets: !IsUnion, currentClass),
         _ => null,
     };
 
@@ -516,12 +525,13 @@ public static class ModFamilies
     }
 
     /// <summary>
-    /// Display tag for augment/bonded rows. Per-slot rows keep their single
-    /// target; the All-gear union omits targets because the same effect is
-    /// merged across them and the list is only noise in that view.
+    /// Display tag for augment/bonded rows. Per-slot rows keep their target
+    /// unless it only restates the current class; the All-gear union omits
+    /// targets because the same effect is merged across them.
     /// </summary>
     public static string? AugmentSourceTag(
-        IReadOnlyList<ModEntry> mods, bool includeTargets = true)
+        IReadOnlyList<ModEntry> mods, bool includeTargets = true,
+        string? currentClass = null)
     {
         var augmentMods = mods
             .Where(m => m.Source is "augment" or "bonded")
@@ -565,11 +575,30 @@ public static class ModFamilies
                 .Select(m => m.AugmentTarget)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.Ordinal)
+                .Where(target => !TargetRestatesClass(augmentMods, target, currentClass))
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (targets.Count > 0) parts.Add(string.Join(", ", targets));
         }
         return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    /// <summary>
+    /// True when a target's resolved class set is exactly the class being
+    /// edited, so the label repeats the slot ("Body Armours" on Body Armour,
+    /// "Foci" on Focus). Broader targets stay visible.
+    /// </summary>
+    private static bool TargetRestatesClass(
+        IReadOnlyList<ModEntry> mods, string target, string? currentClass)
+    {
+        if (string.IsNullOrWhiteSpace(currentClass)) return false;
+        var classes = mods
+            .Where(m => string.Equals(m.AugmentTarget, target, StringComparison.Ordinal))
+            .SelectMany(m => m.Classes)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return classes.Count == 1 &&
+               string.Equals(classes[0], currentClass, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string AugmentFamilyName(ModEntry mod)

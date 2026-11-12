@@ -164,8 +164,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   match keeps the row's own `+`); a dedicated **Augments** section lists all
   runes (including special/transformative and Legacy), Soul Cores, Idols, and
   Abyssal Eyes with a source tag (Rune / Soul Core / Idol / Abyssal Eye);
-  per-slot rows also show the export's target tag, while the All-gear union
-  omits it once effects merge; bonded effects carry a separate Bonded tag and
+  per-slot rows also show the export's target tag unless it only restates the
+  current slot (Body Armours on the Body Armour slot), while the All-gear
+  union omits targets once effects merge; bonded effects carry a separate Bonded tag and
   are marked as Shaman-only; tier rows show the
   augment name and value for reference, and the family `+` selects the effect
   across tiers; duplicate augment effects already covered by a normal,

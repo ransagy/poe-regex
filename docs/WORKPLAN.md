@@ -33,8 +33,9 @@ Current planned and parked work. Behavior is documented in
   family is kept only where at least one effect pattern is new, leaving 613
   target rows across 497 families after all target mapping. They render in a
   dedicated **Augments** section with Rune / Soul Core / Idol / Abyssal Eye
-  source tags; per-slot tags include the export's target, while All-gear tags
-  omit it to keep merged rows compact. Bonded effects carry a separate
+  source tags; per-slot tags include the export's target unless it only
+  restates the current slot, while All-gear tags omit it to keep merged rows
+  compact. Bonded effects carry a separate
   Bonded tag. The export's target category controls which item classes can carry each
   effect. In the All-gear union, a family is omitted when one non-augment
   family covers every one of its effect patterns; per-slot views keep it where

@@ -111,7 +111,7 @@
                                 var collapsed = singleTierAugment ||
                                     (CanCollapse(fam) && !HasTierLevelState(fam, crit));
                                 var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
-                                var displayTag = fam.SourceTag;
+                                var displayTag = fam.SourceTagFor(ScopeClassId);
                                 var hasStatus = coveredClaim || displayTag is not null ||
                                     (!collapsed && (pickedTiers > 0 || excludedTiers > 0));
                                 <li class="fam-block">

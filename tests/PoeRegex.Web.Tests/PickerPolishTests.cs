@@ -145,6 +145,24 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_AllGearAugmentTagOmitsTargets()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod("augment:SoulCoreMaxLife:body-armours"));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.Find(".bd-row.inc .mod-source").TextContent.Trim()
+            .Should().Be("Soul Core of Jiquani");
+    }
+
+    [Fact]
     public void PickBreakdown_GlobalNamePickShowsMergedRollAlternatives()
     {
         using var ctx = Context();

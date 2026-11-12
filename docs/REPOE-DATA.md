@@ -68,8 +68,9 @@ Bonded effects are a separate `bonded` source with a Bonded tag. They are
 Shaman-only in game, but the copied item text can contain `Bonded: … (rune)`,
 so the picker can search them. The All-gear union merges the same effect
 across target categories and omits the target label from its source tag;
-per-slot views keep the single target. It applies the same dedup rule across
-classes. Jewels and the socket model remain parked for later passes.
+per-slot views keep the target unless it only restates the current slot. It
+applies the same dedup rule across classes. Jewels and the socket model remain
+parked for later passes.
 
 ## PoB files
 

@@ -394,6 +394,53 @@ public class AugmentTests
     }
 
     [Fact]
+    public void PerSlotTag_DropsOnlyTheTargetThatRestatesTheClass()
+    {
+        var body = ModFamilies.Group(Engine.ModsForClass("Body Armour"))
+            .Single(f => f.Key == "augment:soulcore:Soul Core of Jiquani:body-armours");
+        body.SourceTag.Should().Be("Soul Core of Jiquani · Body Armours");
+        body.SourceTagFor("Body Armour").Should().Be("Soul Core of Jiquani");
+
+        var helmet = ModFamilies.Group(Engine.ModsForClass("Helmet"))
+            .Single(f => f.Key == "augment:rune:Stone Rune:armour");
+        helmet.SourceTagFor("Helmet").Should().Be("Stone Rune · Armour",
+            "the broader Armour target still covers other slots");
+
+        var union = ModFamilies.Group(Engine.PlayableMods(), union: true)
+            .Single(f => f.Members.Any(m => m.Id == "augment:SoulCoreStrength:armour"));
+        union.SourceTagFor("Body Armour").Should().Be("Soul Core of Atmohua",
+            "the All-gear union still omits every target");
+    }
+
+    [Fact]
+    public void PerSlotPicker_HidesOnlyTheRedundantTarget()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddSingleton(Engine);
+        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        var state = new WorkbenchState();
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, Engine.ModsForClass("Body Armour")));
+
+        cut.Find("#mod-search").Input("Jiquani");
+        var core = cut.FindAll(".fam-row").Single(r =>
+            r.TextContent.Contains("Soul Core of Jiquani", StringComparison.Ordinal));
+        core.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Soul Core of Jiquani");
+
+        cut.Find("#mod-search").Input("Mind Rune");
+        var mind = cut.FindAll(".fam-row").First(r =>
+            r.QuerySelector(".mod-source")?.TextContent.Contains("Mind Rune") == true);
+        mind.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Mind Rune · Armour");
+    }
+
+    [Fact]
     public void AugmentTierRows_HaveNoExactTierControls()
     {
         using var ctx = new BunitContext();
