@@ -147,7 +147,8 @@ outer loop. It runs at data-build time, never in the browser.
 
 ## 9. Future Profiles
 
-PoE1 is out of scope for now. If it returns, it is a separate grammar/query
-profile with its own catalog, table, proof, and status. The fragment solver
-stays game-agnostic; only the profile and query composer change. PoE1 does not
-reuse the old heuristic selector.
+PoE1 is scoped as a separate game profile with its own catalog, target model,
+corpus, table, proof, and status. It is not part of the current product; see
+[`POE1-SCOPE.md`](POE1-SCOPE.md). The fragment solver stays game-agnostic;
+only the profile and query composer change. PoE1 does not reuse the old
+heuristic selector.

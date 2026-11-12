@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-11._
+_Last updated: 2026-11-12._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -13,6 +13,8 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`. The Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
+  PoE2 is the only shipped game; PoE1 is scoped in
+  [`POE1-SCOPE.md`](POE1-SCOPE.md).
 - Engine: exact PoE2 table/proof status is tracked in
   [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json).
 - Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
@@ -38,8 +40,8 @@ Current planned and parked work. Behavior is documented in
   Bonded tag. The export's target category controls which item classes can carry each
   effect. In the All-gear union, a family is omitted when one non-augment
   family covers every one of its effect patterns; per-slot views keep it where
-  it is the only source. Special/transformative runes, Idols, Congealed Mist,
-  jewels, and a socket model remain parked.
+  it is the only source. Congealed Mist, jewels, and a socket/import/builder
+  model remain parked.
 - Picker: selection is claim-covered by the compiled positive query. A mod/tier
   row with the same query as the active selection stays visible as `covered`;
   its `⇄` button switches the selection instead of adding a second chip. An
@@ -83,18 +85,34 @@ Current planned and parked work. Behavior is documented in
 
 ### Remaining mod-type scope
 
-P2 coverage is complete: all target strings are mapped, and all runes (including
-special/transformative and Legacy), Soul Cores, Idols, Abyssal Eyes, and bonded
-effects are in the catalog. Remaining: jewels (data/simple mode, then advanced
-UX), Congealed Mist, and the socket/import/builder model. The coverage table
-below is the reference.
+P2 coverage is complete and live in production: all target strings are mapped,
+and all runes (including special/transformative and Legacy), Soul Cores, Idols,
+Abyssal Eyes, and bonded effects are in the catalog. Remaining: jewels
+(data/simple mode, then advanced UX), Congealed Mist, and the
+socket/import/builder model. The coverage table below is the reference.
+
+### PoE1 introduction
+
+Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md). PoE1 is a separate game profile,
+not a retrofit of the PoE2 catalog: its own manifest entries, catalog, target
+model, corpus, exact table, proof, class/slot model, and import rules. The
+recommended first release is normal equipment only, with jewels, influenced
+mods, crafts, and league mechanics phased afterward. PoE2 remains the default;
+PoE1 data loads lazily so the current app and PWA stay within size budgets.
 
 ## Recently completed
 
-- P2 augment coverage: all augment target strings mapped; all runes, Soul
-  Cores, Idols, Abyssal Eyes, and bonded effects added with cross-source
-  dedup; the exact table regenerated with a stability pass.
-- UI follow-up PR: picked/excluded rows stay visible under search, common-only,
+- P2 deployment: all augment target strings mapped; all runes, Soul Cores,
+  Idols, Abyssal Eyes, and bonded effects added with cross-source dedup; the
+  exact table regenerated with a stability pass. Production serves the merged
+  P2 build.
+- UI follow-ups: the Options popover sits above the compact result block,
+  narrow family rows get a readable two-line layout, and augment targets are
+  hidden from source tags while remaining in the data for filtering.
+- RePoE audit refresh: the upstream PoB PoE2 tree gained PoE1-only files and
+  dropped minified duplicates; the manifest now classifies the new entries and
+  the audit passes again.
+- Earlier UI follow-up PR: picked/excluded rows stay visible under search, common-only,
   and scope filters; the compact layout pins the search header/query/ruler while
   the tools scroll; Reset workbench is a visible danger button; and
   `common-picks --table` generates the contributor table with a CI drift gate.
@@ -196,8 +214,8 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   permissions, a Worker service token, and a custom-domain bypass app. The
   middleware also provides the `pages.dev` → apex redirect, which Access does
   not.
-- Remove the legacy `poe-regex.recipes.v1` saved-picks key after the next
-  release.
+- Remove the legacy `poe-regex.recipes.v1` saved-picks key now that the P2
+  release is live.
 
 ## Acceptance gates
 
