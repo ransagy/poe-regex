@@ -1,6 +1,6 @@
 # PoE1 introduction — scope and sizing
 
-_Status: scoped, not started. Last updated 2026-11-12._
+_Status: scoped; offline spike complete, live validation pending. Last updated 2026-11-12._
 
 This document sizes the introduction of Path of Exile 1 as a second game
 profile. It is an engineering scope, not a delivery promise; the estimates
@@ -49,9 +49,9 @@ fidelity beyond the item class.
   Ring, Shield, Quiver, Claw, Dagger, Wand, One Hand Sword, Thrusting One Hand
   Sword, One Hand Axe, One Hand Mace, Sceptre, Bow, Staff, Two Hand Sword,
   Two Hand Axe, Two Hand Mace, Warstaff
-- Normal/magic/rare prefix and suffix families: 2,795 mods and 718 normalized
-  affix texts after excluding unique-only, essence-only, and influence-tagged
-  affixes (4,366 / 1,013 before those filters)
+- Normal/magic/rare prefix and suffix families: **1,204 mods, 182 families,
+  and 136 normalized patterns** that map through the current PoE1
+  `mods_by_base` equipment pools
 - Base implicits at class scope
 - Item-domain corrupted implicits (372 mods)
 - Ten equipment slots, All-gear union, per-slot pickers
@@ -110,8 +110,10 @@ Live export survey (2026-11-12):
 | Unique-only mods | 15,886 |
 | Item prefix/suffix mods | 4,366 |
 | Distinct normalized affix texts | 1,013 |
+| Mapped normal equipment mods | 1,204 |
+| Mapped normal patterns | 136 |
 | Essence-only affixes | 458 |
-| Influence-tagged affixes | 1,113 |
+| Influence-tagged affixes | 1,933 |
 | Crafted mods | 1,637 |
 | Unveiled mods | 258 |
 | Flask mods | 439 |
@@ -267,31 +269,32 @@ calibrated to this project's measured velocity.
 
 The repo has 436 commits; the main October–November run spans 31 days. The P2
 augment pass (catalog, 3,734-scope exact table, and picker/union work) landed
-in about two days. PoE1 normal equipment is smaller: 718 normalized affix
-texts for the MVP, versus 1,050 patterns in the PoE2 P2 table. It is also
-simpler to render because PoE1 mods already carry a `text` field. The real new
-cost is the profile/web refactor and the grammar/copy-text unknowns, not the
-stat volume.
+in about two days. The offline PoE1 spike mapped the normal-equipment surface
+to **1,204 mods / 136 patterns / 764 class-pattern rows**, versus 1,050
+patterns / 2,480 class rows for the PoE2 P2 table. PoE1 is smaller and simpler
+to render because its mods already carry a `text` field. The real new cost is
+the profile/web refactor and the grammar/copy-text unknowns, not the stat
+volume.
 
 Estimates below are focused engineering days for one developer, not calendar
 time. Add review, release, and upstream league churn separately.
 
 | Workstream | Focused days |
 |---|---:|
-| P0 grammar/copy-text/data spikes | 2–4 |
-| Profile foundation and game id plumbing | 2–3 |
-| PoE1 manifest/fetch/audit + schema loaders | 2–4 |
-| Normal catalog/corpus/class mapping | 4–7 |
-| Grammar/import fixtures and parser | 2–4 |
-| Exact table/proof/status | 2–4 |
-| Web game switch, lazy data, slots/UI | 4–7 |
-| Tests, docs, PWA, perf, release | 2–4 |
-| **Normal-equipment MVP** | **15–23 (~3–5 weeks)** |
+| P0 live grammar/copy-text validation | 0.5–1 |
+| Profile foundation and game id plumbing | 1–2 |
+| PoE1 manifest/fetch/audit + catalog builder | 1–2 |
+| Corpus/class anchors/exact table/proof | 1–3 |
+| Import fixtures and parser | 0.5–1 |
+| Web game switch, lazy data, slots/UI | 2–3 |
+| Tests, docs, PWA, perf, release | 1–2 |
+| **Normal-equipment MVP** | **7–14 (~1.5–2.5 focused weeks)** |
 
-Engine/data/table only, without the web switch: **10–15 days**. Add
-influences/crafts/veils/flasks: **+8–13 days**. Add normal/abyss/cluster
-jewels: **+10–15 days**. Full normal gear + crafts + flasks + jewels is
-realistically **6–9 weeks**; league-specific sources should be separate
+The offline spike (1,204 mods / 136 patterns) is already complete. Engine/data/
+table only, without the web switch, is **4–7 focused days**. Add
+influences/crafts/veils/flasks: **+5–9 days**. Add normal/abyss/cluster
+jewels: **+8–12 days**. Full normal gear + crafts + flasks + jewels is
+realistically **4–6 focused weeks**; league-specific sources remain separate
 releases.
 
 ## 9. Suggested delivery phases
