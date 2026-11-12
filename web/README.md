@@ -161,17 +161,18 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   batch (disabled, with the prospective k/N in its tooltip, when that would
   exceed the game's 250-character limit; the preview handles up to 64 matches
   and larger sets stay visible but disabled with the budget message; one
-  match keeps the row's own `+`); a dedicated **Augments** section lists the
-  all runes (including special/transformative and Legacy), Soul Cores, Idols,
-  and Abyssal Eyes with a source tag (Rune / Soul Core / Idol / Abyssal Eye)
-  and the export's target tag; bonded effects carry a separate Bonded tag and
+  match keeps the row's own `+`); a dedicated **Augments** section lists all
+  runes (including special/transformative and Legacy), Soul Cores, Idols, and
+  Abyssal Eyes with a source tag (Rune / Soul Core / Idol / Abyssal Eye);
+  per-slot rows also show the export's target tag, while the All-gear union
+  omits it once effects merge; bonded effects carry a separate Bonded tag and
   are marked as Shaman-only; tier rows show the
   augment name and value for reference, and the family `+` selects the effect
   across tiers; duplicate augment effects already covered by a normal,
   desecrated, implicit or corrupted family are removed at data build, so
   Augments shows unique effects only; the All-gear union merges the same
-  augment effect across targets and lists the target labels in the source tag,
-  while per-slot views keep the single target; it additionally omits an
+  augment effect across targets and omits the target label from that row's
+  source tag, while per-slot views keep the single target; it additionally omits an
   augment family when one non-augment family covers all of its patterns; augments are
   not in the default common shortlist and appear when searched or after
   `Show all mods`; mods and tiers

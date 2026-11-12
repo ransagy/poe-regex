@@ -161,7 +161,8 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
         "implicit" => "Implicit",
         "corrupted" => "Corrupted",
-        "augment" or "bonded" => ModFamilies.AugmentSourceTag(Members),
+        "augment" or "bonded" => ModFamilies.AugmentSourceTag(
+            Members, includeTargets: !IsUnion),
         _ => null,
     };
 
@@ -376,16 +377,20 @@ public static class ModFamilies
     /// the user searches or shows every mod, so a large catalog can warm it in
     /// small steps instead of blocking the UI thread with one long task.
     /// </summary>
-    public static async Task<IReadOnlyList<ModFamily>> WarmUnionAsync(object mods)
+    public static async Task<IReadOnlyList<ModFamily>> WarmUnionAsync(
+        object mods, Func<bool>? cancelled = null)
     {
         if (UnionGroupCache.TryGetValue(mods, out var cached)) return cached;
         var raw = CachedGroup(mods);
         var builder = UnionBuildCache.GetValue(mods, _ => new UnionBuilder(raw));
         // ~32 groups is a few milliseconds even on the WASM runtime; the
         // delay returns to the browser event loop so a click during the
-        // warm-up waits for one slice, not the whole build.
+        // warm-up waits for one slice, not the whole build. A scope change
+        // cancels the remaining slices so they cannot compete with the new
+        // view; the builder stays cached for a later search to finish.
         while (!builder.Done)
         {
+            if (cancelled?.Invoke() == true) return [];
             builder.Step(32);
             if (!builder.Done) await Task.Delay(16);
         }
@@ -512,9 +517,11 @@ public static class ModFamilies
 
     /// <summary>
     /// Display tag for augment/bonded rows. Per-slot rows keep their single
-    /// target; All-gear rows list every target when the same effect was merged.
+    /// target; the All-gear union omits targets because the same effect is
+    /// merged across them and the list is only noise in that view.
     /// </summary>
-    public static string? AugmentSourceTag(IReadOnlyList<ModEntry> mods)
+    public static string? AugmentSourceTag(
+        IReadOnlyList<ModEntry> mods, bool includeTargets = true)
     {
         var augmentMods = mods
             .Where(m => m.Source is "augment" or "bonded")
@@ -552,13 +559,16 @@ public static class ModFamilies
             parts.Add(string.Join(" / ", types));
         }
 
-        var targets = augmentMods
-            .Select(m => m.AugmentTarget)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (targets.Count > 0) parts.Add(string.Join(", ", targets));
+        if (includeTargets)
+        {
+            var targets = augmentMods
+                .Select(m => m.AugmentTarget)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (targets.Count > 0) parts.Add(string.Join(", ", targets));
+        }
         return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 

@@ -112,8 +112,10 @@
                                     (CanCollapse(fam) && !HasTierLevelState(fam, crit));
                                 var displayLines = collapsed ? TierLines(fam, fam.Tiers[0]) : fam.DisplayLines;
                                 var displayTag = fam.SourceTag;
+                                var hasStatus = coveredClaim || displayTag is not null ||
+                                    (!collapsed && (pickedTiers > 0 || excludedTiers > 0));
                                 <li class="fam-block">
-                                    <div class="suggest-row fam-row @(familyRowPicked ? "picked" : "") @(coveredClaim ? "covered" : "") @(excludedFamily ? "excluded" : "")">
+                                    <div class="suggest-row fam-row @(familyRowPicked ? "picked" : "") @(coveredClaim ? "covered" : "") @(excludedFamily ? "excluded" : "") @(hasStatus ? "has-status" : "")">
                                         @if (collapsed)
                                         {
                                             <span class="suggest-line fam-text @(displayLines.Count > 1 ? "multi" : "")">
@@ -153,8 +155,7 @@
                                                 <span class="tier-count">@fam.Tiers.Count tiers</span>
                                             </button>
                                         }
-                                        @if (coveredClaim || displayTag is not null ||
-                                             (!collapsed && (pickedTiers > 0 || excludedTiers > 0)))
+                                        @if (hasStatus)
                                         {
                                             <span class="fam-status">
                                                 @if (coveredClaim)
@@ -390,7 +391,8 @@
         var mods = Mods;
         await Task.Delay(200);
         if (version != _unionWarmVersion || Scope is not null || _unionActive) return;
-        var union = await ModFamilies.WarmUnionAsync(mods);
+        var union = await ModFamilies.WarmUnionAsync(
+            mods, () => version != _unionWarmVersion || Scope is not null);
         if (version != _unionWarmVersion || Scope is not null || _unionActive ||
             !ReferenceEquals(mods, Mods))
             return;
@@ -412,6 +414,7 @@
             _groupedGlobal = global;
             _claimScope = Scope;
             _claimClass = classId;
+            _unionWarmVersion++;
             _unionActive = false;
             _allFamilies = ModFamilies.CachedGroup(Mods);
             _familyClaimKeys.Clear();

@@ -69,6 +69,13 @@ public class AugmentTests
         warm.Should().BeSameAs(cached);
         warm.Select(f => f.Key).Should().Equal(
             ModFamilies.Group(mods, union: true).Select(f => f.Key));
+
+        // A scope change cancels the slices; the partial builder must remain
+        // usable so the next search can finish it synchronously.
+        var cancelledMods = Engine.PlayableMods().ToList();
+        var cancelled = await ModFamilies.WarmUnionAsync(cancelledMods, () => true);
+        cancelled.Should().BeEmpty();
+        ModFamilies.CachedGroup(cancelledMods, union: true).Should().NotBeEmpty();
     }
 
     [Fact]
@@ -264,7 +271,8 @@ public class AugmentTests
         atmohua.Members.Select(m => m.Id)
             .Should().Contain("augment:SoulCoreStrength:martial-weapon",
                 "the same core effect is shared by Armour and Martial Weapon");
-        atmohua.SourceTag.Should().Be("Soul Core of Atmohua · Armour, Martial Weapon");
+        atmohua.SourceTag.Should().Be("Soul Core of Atmohua",
+            "the All-gear row omits the merged targets");
 
         var opiloti = union.Single(f => f.IsAugmentLike &&
             f.Members.Any(m => m.Id == "augment:SoulCoreSpecial8:martial-weapon"));
@@ -272,7 +280,7 @@ public class AugmentTests
             .Should().Contain("augment:SoulCoreSpecial8:wand-or-staff")
             .And.Contain("augment:IdolSpecial6:gloves");
         opiloti.SourceTag.Should()
-            .Be("Idol / Soul Core · Gloves, Martial Weapon, Wand or Staff",
+            .Be("Idol / Soul Core",
                 "the same charge effect is shared by Idol of Kraityn and Opiloti's core");
     }
 
@@ -321,8 +329,8 @@ public class AugmentTests
         var vision = cut.FindAll(".fam-row").Single(r =>
             r.QuerySelector(".fam-text")?.TextContent.Trim() ==
             "% increased Life and Mana Recovery from Flasks");
-        vision.QuerySelector(".mod-source")?.TextContent.Trim().Should().Be("Vision Rune · Armour",
-            "the Vision Rune effect has no normal-family equivalent");
+        vision.QuerySelector(".mod-source")?.TextContent.Trim().Should().Be("Vision Rune",
+            "the All-gear row names the rune without repeating its target");
     }
 
     private static HashSet<string> PatternSet(ModFamily family) =>
@@ -350,7 +358,7 @@ public class AugmentTests
         var bonded = cut.FindAll(".mod-source.source-bonded");
         bonded.Should().NotBeEmpty();
         bonded.Select(x => x.TextContent.Trim())
-            .Should().Contain("Bonded · Ward Rune · Armour");
+            .Should().Contain("Bonded · Ward Rune");
     }
 
     [Fact]
@@ -381,7 +389,8 @@ public class AugmentTests
             "a single-tier core has no tier list to expand");
         row.QuerySelector(".tier-count").Should().BeNull();
         row.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().Be("Soul Core of Atmohua · Armour");
+            .Should().Be("Soul Core of Atmohua",
+                "All-gear rows omit the merged target label");
     }
 
     [Fact]
