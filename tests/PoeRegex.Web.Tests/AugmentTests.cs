@@ -140,7 +140,7 @@ public class AugmentTests
         family.IsBonded.Should().BeTrue();
         family.IsAugment.Should().BeFalse();
         family.IsAugmentLike.Should().BeTrue();
-        family.SourceTag.Should().Be("Bonded · Ward Rune · Armour");
+        family.SourceTag.Should().Be("Bonded · Ward Rune");
         family.SourceCssClass.Should().Be("source-bonded");
         family.Tiers.Should().HaveCount(4);
         Engine.CompilePicks([family.Pick()], [], false, "Helmet").Query
@@ -207,7 +207,7 @@ public class AugmentTests
         family.IsAugment.Should().BeTrue();
         family.Source.Should().Be("augment");
         family.Kind.Should().Be("augment");
-        family.SourceTag.Should().Be("Stone Rune · Armour");
+        family.SourceTag.Should().Be("Stone Rune");
         family.SourceCssClass.Should().Be("source-augment");
         family.Tiers.Should().HaveCount(4);
         family.Tiers.Select(t => t.DisplayLabel).Should().Equal(
@@ -373,11 +373,11 @@ public class AugmentTests
         var family = ModFamilies.Group(Engine.ModsForClass("Helmet"))
             .Single(f => f.Key == "augment:soulcore:Soul Core of Atmohua:armour");
         family.Tiers.Should().HaveCount(1);
-        family.SourceTag.Should().Be("Soul Core of Atmohua · Armour");
+        family.SourceTag.Should().Be("Soul Core of Atmohua");
 
         var eye = ModFamilies.Group(Engine.ModsForClass("Helmet"))
             .Single(f => f.Key == "augment:abyssaleye:Amanamu's Gaze:helmets");
-        eye.SourceTag.Should().Be("Abyssal Eye · Amanamu's Gaze · Helmets");
+        eye.SourceTag.Should().Be("Abyssal Eye · Amanamu's Gaze");
 
         var cut = ctx.Render<ModPicker>(p => p
             .Add(x => x.State, state)
@@ -394,26 +394,25 @@ public class AugmentTests
     }
 
     [Fact]
-    public void PerSlotTag_DropsOnlyTheTargetThatRestatesTheClass()
+    public void SourceTag_OmitsTargetsButKeepsThemForFiltering()
     {
         var body = ModFamilies.Group(Engine.ModsForClass("Body Armour"))
             .Single(f => f.Key == "augment:soulcore:Soul Core of Jiquani:body-armours");
-        body.SourceTag.Should().Be("Soul Core of Jiquani · Body Armours");
-        body.SourceTagFor("Body Armour").Should().Be("Soul Core of Jiquani");
+        body.SourceTag.Should().Be("Soul Core of Jiquani");
+        body.Members.Should().OnlyContain(m => m.AugmentTarget == "Body Armours");
 
         var helmet = ModFamilies.Group(Engine.ModsForClass("Helmet"))
             .Single(f => f.Key == "augment:rune:Stone Rune:armour");
-        helmet.SourceTagFor("Helmet").Should().Be("Stone Rune · Armour",
-            "the broader Armour target still covers other slots");
+        helmet.SourceTag.Should().Be("Stone Rune");
+        helmet.Members.Should().OnlyContain(m => m.AugmentTarget == "Armour");
 
         var union = ModFamilies.Group(Engine.PlayableMods(), union: true)
             .Single(f => f.Members.Any(m => m.Id == "augment:SoulCoreStrength:armour"));
-        union.SourceTagFor("Body Armour").Should().Be("Soul Core of Atmohua",
-            "the All-gear union still omits every target");
+        union.SourceTag.Should().Be("Soul Core of Atmohua");
     }
 
     [Fact]
-    public void PerSlotPicker_HidesOnlyTheRedundantTarget()
+    public void PerSlotPicker_ShowsNoTargetLabels()
     {
         using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -437,7 +436,7 @@ public class AugmentTests
         var mind = cut.FindAll(".fam-row").First(r =>
             r.QuerySelector(".mod-source")?.TextContent.Contains("Mind Rune") == true);
         mind.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().Be("Mind Rune · Armour");
+            .Should().Be("Mind Rune");
     }
 
     [Fact]
@@ -464,7 +463,7 @@ public class AugmentTests
         var row = cut.Find($"[id='pick-inc-{family.Anchor.Id}']").ParentElement!;
         var status = row.QuerySelector(".fam-status")!;
         status.LastElementChild!.ClassList.Should().Contain("mod-source");
-        status.LastElementChild!.TextContent.Trim().Should().Be("Stone Rune · Armour");
+        status.LastElementChild!.TextContent.Trim().Should().Be("Stone Rune");
         row.QuerySelector(".fam-toggle .mod-source").Should().BeNull(
             "the rune target tag belongs in the right-aligned metadata");
         row.QuerySelector(".fam-toggle .tier-count").Should().NotBeNull(
