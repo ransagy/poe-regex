@@ -256,6 +256,7 @@ a shorter legal form exists.
 
 ## 13. PoE1
 
-PoE1 is not part of the current product. If it returns, it will be a separate
-profile with its own catalog, table, proof, and query composer. The fragment
-solver is game-agnostic; the old heuristic selector is gone.
+PoE1 is not part of the current product. It is scoped as a separate profile
+with its own catalog, target model, corpus, table, proof, and query composer;
+see [`POE1-SCOPE.md`](POE1-SCOPE.md). The fragment solver is game-agnostic;
+the old heuristic selector is gone.
