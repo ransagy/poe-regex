@@ -69,9 +69,13 @@ public class StrictTableTests
             if (targets.Any(t => !regex.IsMatch(t)))
                 failures.Add($"{name}: misses target for '{fragment}'");
 
-            var foreign = lines.Where(x => x.Pattern != pattern)
-                .Select(x => x.Real)
-                .Concat(safety.Where(x => x.Pattern != pattern).Select(x => x.Raw));
+            // Multi-line mod text is matched line-by-line in game; a single
+            // quoted term cannot be strict against the whole text.
+            var foreign = pattern.Contains('\n')
+                ? []
+                : lines.Where(x => x.Pattern != pattern)
+                    .Select(x => x.Real)
+                    .Concat(safety.Where(x => x.Pattern != pattern).Select(x => x.Raw));
             foreach (var line in foreign)
             {
                 if (!regex.IsMatch(line)) continue;

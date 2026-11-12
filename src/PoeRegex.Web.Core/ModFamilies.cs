@@ -155,7 +155,8 @@ public sealed record ModFamily(string Key, bool IsPrefix, IReadOnlyList<ModTier>
         .ToList();
 
     /// <summary>Source tag for a non-normal row: the faction for desecrated
-    /// mods, "Implicit" for base implicits; null when normal or no tag exists.</summary>
+    /// mods, "Implicit" for base implicits; null when normal or no tag exists.
+    /// Augment targets are used for class filtering but never displayed.</summary>
     public string? SourceTag => Source switch
     {
         "desecrated" => Factions.Count == 0 ? null : string.Join(" / ", Factions),
@@ -269,6 +270,7 @@ public static class ModFamilies
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> GroupCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, IReadOnlyList<ModFamily>> UnionGroupCache = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, UnionBuilder> UnionBuildCache = new();
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IReadOnlyList<ModFamily>, IReadOnlyDictionary<string, ModFamily>> FamilyIndexCache = new();
 
     /// <summary>Mod id to family lookup for chip labels and highlighting.</summary>
@@ -294,9 +296,16 @@ public static class ModFamilies
         // the All-gear union; query import and per-slot views reuse them.
         var raw = GroupCache.GetValue(
             mods, key => BuildFamilies((IEnumerable<ModEntry>)key));
-        return union
-            ? UnionGroupCache.GetValue(mods, _ => UnionFamilies(raw))
-            : raw;
+        if (!union) return raw;
+        return UnionGroupCache.GetValue(mods, _ =>
+        {
+            // Finish a warm-up already in progress instead of starting the
+            // same union from scratch (first search can arrive mid-warm).
+            var builder = UnionBuildCache.GetValue(mods, _ => new UnionBuilder(raw));
+            builder.Step(int.MaxValue);
+            UnionBuildCache.Remove(mods);
+            return builder.Result;
+        });
     }
 
     public static IReadOnlyList<ModFamily> Group(IEnumerable<ModEntry> mods, bool union = false)
@@ -358,28 +367,91 @@ public static class ModFamilies
 
     private static List<ModFamily> UnionFamilies(IReadOnlyList<ModFamily> families)
     {
-        // The All-gear union combines every class, so a rune that was kept
-        // for one class can be redundant with a normal, implicit, corrupted
-        // or desecrated family from another class. A rune is safe to omit
-        // only when one non-augment family covers every one of its patterns;
-        // if the patterns are split across rows, keep it so its combined
-        // query remains selectable. Per-slot views still show the rune where
-        // it is the only source.
-        var nonAugmentPatterns = families
-            .Where(f => !f.IsAugmentLike)
-            .Select(f => f.Members
-                .SelectMany(m => m.StatLines)
-                .Select(sl => sl.Pattern)
-                .ToHashSet(StringComparer.Ordinal))
-            .Where(patterns => patterns.Count > 0)
-            .ToList();
+        var builder = new UnionBuilder(families);
+        builder.Step(int.MaxValue);
+        return builder.Result;
+    }
 
-        var result = new List<ModFamily>();
-        foreach (var group in families
-                     .GroupBy(UnionKeyOf)
-                     .OrderBy(g => KindOrder(g.First().Kind))
-                     .ThenBy(g => g.First().DisplayText, StringComparer.OrdinalIgnoreCase)
-                     .ThenBy(g => g.Key, StringComparer.Ordinal))
+    /// <summary>
+    /// Builds the All-gear union in slices. The full list is only needed once
+    /// the user searches or shows every mod, so a large catalog can warm it in
+    /// small steps instead of blocking the UI thread with one long task.
+    /// </summary>
+    public static async Task<IReadOnlyList<ModFamily>> WarmUnionAsync(
+        object mods, Func<bool>? cancelled = null)
+    {
+        if (UnionGroupCache.TryGetValue(mods, out var cached)) return cached;
+        var raw = CachedGroup(mods);
+        var builder = UnionBuildCache.GetValue(mods, _ => new UnionBuilder(raw));
+        // ~32 groups is a few milliseconds even on the WASM runtime; the
+        // delay returns to the browser event loop so a click during the
+        // warm-up waits for one slice, not the whole build. A scope change
+        // cancels the remaining slices so they cannot compete with the new
+        // view; the builder stays cached for a later search to finish.
+        while (!builder.Done)
+        {
+            if (cancelled?.Invoke() == true) return [];
+            builder.Step(32);
+            if (!builder.Done) await Task.Delay(16);
+        }
+        if (UnionGroupCache.TryGetValue(mods, out cached)) return cached;
+        UnionGroupCache.Add(mods, builder.Result);
+        UnionBuildCache.Remove(mods);
+        return builder.Result;
+    }
+
+    /// <summary>
+    /// One union pass, resumable so the warm-up path can spread it over
+    /// several frames. Grouping and the non-augment signature set are built once.
+    /// </summary>
+    private sealed class UnionBuilder
+    {
+        // The All-gear union combines every class, so a rune that was kept for
+        // one class can be redundant with a normal, implicit, corrupted or
+        // desecrated family from another class. A rune is safe to omit only
+        // when one non-augment family covers every one of its patterns; if the
+        // patterns are split across rows, keep it so its combined query remains
+        // selectable. Per-slot views still show the rune where it is the only
+        // source. The pattern signature is the exact set key, so this is a
+        // set lookup rather than a scan-and-compare over every normal family.
+        private readonly HashSet<string> _nonAugmentSignatures;
+        private readonly List<(string Key, List<ModFamily> Families)> _groups;
+        private int _index;
+
+        public UnionBuilder(IReadOnlyList<ModFamily> families)
+        {
+            _nonAugmentSignatures = families
+                .Where(f => !f.IsAugmentLike)
+                .Select(SignatureOf)
+                .Where(signature => signature.Length > 0)
+                .ToHashSet(StringComparer.Ordinal);
+
+            _groups = families
+                .GroupBy(UnionKeyOf)
+                .Select(g => (Key: g.Key, Families: g.ToList()))
+                .OrderBy(g => KindOrder(g.Families[0].Kind))
+                .ThenBy(g => g.Families[0].DisplayText, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(g => g.Key, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        public List<ModFamily> Result { get; } = [];
+
+        public bool Done => _index >= _groups.Count;
+
+        public void Step(int count)
+        {
+            var end = Math.Min(_groups.Count, _index + count);
+            for (; _index < end; _index++)
+            {
+                var (key, group) = _groups[_index];
+                var union = Build(key, group);
+                if (union is null) continue;
+                Result.Add(union);
+            }
+        }
+
+        private ModFamily? Build(string key, List<ModFamily> group)
         {
             var members = group.SelectMany(f => f.Members).ToList();
             var tiers = group
@@ -409,46 +481,44 @@ public static class ModFamilies
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
                 .ToList();
-            var union = new ModFamily(group.Key, group.First().IsPrefix, tiers)
+            var union = new ModFamily(key, group[0].IsPrefix, tiers)
             {
-                Source = group.First().Source,
-                Kind = group.First().Kind,
+                Source = group[0].Source,
+                Kind = group[0].Kind,
                 DisplayLines = FamilyLines(members),
                 IsUnion = true,
             };
-            if (union.IsAugmentLike)
-            {
-                var patterns = union.Members
-                    .SelectMany(m => m.StatLines)
-                    .Select(sl => sl.Pattern)
-                    .ToHashSet(StringComparer.Ordinal);
-                if (patterns.Count > 0 &&
-                    nonAugmentPatterns.Any(covered => patterns.IsSubsetOf(covered)))
-                    continue;
-            }
-            result.Add(union);
+            if (union.IsAugmentLike &&
+                _nonAugmentSignatures.Contains(SignatureOf(union)))
+                return null;
+            return union;
         }
-        return result;
     }
+
+    /// <summary>Exact set key for a family's stat patterns.</summary>
+    private static string SignatureOf(ModFamily family) =>
+        SignatureOf(family.Members.SelectMany(m => m.StatLines));
+
+    private static string SignatureOf(IEnumerable<StatLineEntry> lines) =>
+        string.Join('\u0001', lines
+            .Select(sl => sl.Pattern)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal));
 
     private static string UnionKeyOf(ModFamily family)
     {
-        var patterns = family.Members
-            .SelectMany(m => m.StatLines)
-            .Select(sl => sl.Pattern)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal);
+        var signature = SignatureOf(family);
         // Augments are effect-first: the All-gear union merges the same effect
         // across targets/types, while normal and bonded variants stay apart.
         if (family.IsAugmentLike)
-            return "union:augment:" + family.Source + ":" + string.Join("\u0001", patterns);
-        return "union:" + family.Source + ":" + family.Kind +
-               ":" + string.Join("\u0001", patterns);
+            return "union:augment:" + family.Source + ":" + signature;
+        return "union:" + family.Source + ":" + family.Kind + ":" + signature;
     }
 
     /// <summary>
-    /// Display tag for augment/bonded rows. Per-slot rows keep their single
-    /// target; All-gear rows list every target when the same effect was merged.
+    /// Display tag for augment/bonded rows. Targets stay in the catalog for
+    /// class filtering and dedup but are not shown: the picker is already
+    /// scoped to the current slot.
     /// </summary>
     public static string? AugmentSourceTag(IReadOnlyList<ModEntry> mods)
     {
@@ -488,13 +558,6 @@ public static class ModFamilies
             parts.Add(string.Join(" / ", types));
         }
 
-        var targets = augmentMods
-            .Select(m => m.AugmentTarget)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (targets.Count > 0) parts.Add(string.Join(", ", targets));
         return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 

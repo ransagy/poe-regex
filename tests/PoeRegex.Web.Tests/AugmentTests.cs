@@ -38,7 +38,7 @@ public class AugmentTests
         augments.Select(m => m.Source).Distinct(StringComparer.Ordinal)
             .Should().BeEquivalentTo(["augment", "bonded"]);
         augments.Select(m => m.AugmentType).Distinct(StringComparer.Ordinal)
-            .Should().Contain(["Rune", "Soul Core", "Abyssal Eye"]);
+            .Should().Contain(["Rune", "Soul Core", "Idol", "Abyssal Eye"]);
 
         var targets = augments.Select(m => m.AugmentTarget).Distinct(StringComparer.Ordinal).ToList();
         targets.Should().Contain([
@@ -54,6 +54,59 @@ public class AugmentTests
             .ToList();
         adept.Should().HaveCount(4, "the four Adept tiers add a non-duplicate pattern on Focus");
         adept.Should().OnlyContain(m => m.Classes.Contains("Focus", StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task WarmUnion_MatchesTheCachedUnionAndIsReused()
+    {
+        // A fresh list instance keeps the shared caches out of the warm path,
+        // so this exercises the sliced builder rather than a cache hit.
+        var mods = Engine.PlayableMods().ToList();
+        var warm = await ModFamilies.WarmUnionAsync(mods);
+
+        warm.Should().NotBeEmpty();
+        var cached = ModFamilies.CachedGroup(mods, union: true);
+        warm.Should().BeSameAs(cached);
+        warm.Select(f => f.Key).Should().Equal(
+            ModFamilies.Group(mods, union: true).Select(f => f.Key));
+
+        // A scope change cancels the slices; the partial builder must remain
+        // usable so the next search can finish it synchronously.
+        var cancelledMods = Engine.PlayableMods().ToList();
+        var cancelled = await ModFamilies.WarmUnionAsync(cancelledMods, () => true);
+        cancelled.Should().BeEmpty();
+        ModFamilies.CachedGroup(cancelledMods, union: true).Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Catalog_HasSpecialRunesAndIdols()
+    {
+        var sceptre = Engine.ModsForClass("Sceptre");
+        var vitality = sceptre.Single(m =>
+            m.Name == "Rune of Vitality" && m.AugmentTarget == "Weapon" && m.Source == "augment");
+        vitality.AugmentType.Should().Be("Rune");
+        vitality.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("+80 to maximum Life");
+        sceptre.Should().Contain(m =>
+            m.Name == "Rune of Vitality" && m.Source == "bonded" &&
+            m.AugmentTarget == "Weapon");
+
+        var gloves = Engine.ModsForClass("Gloves");
+        var culmination = gloves.Single(m =>
+            m.Name == "Rune of Culmination" && m.AugmentTarget == "Gloves" &&
+            m.Source == "augment");
+        culmination.AugmentType.Should().Be("Rune");
+        culmination.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("50% chance to build an additional Combo on Hit");
+
+        var idol = gloves.Single(m =>
+            m.Name == "Idol of Kraityn" && m.AugmentTarget == "Gloves" &&
+            m.Source == "augment");
+        idol.AugmentType.Should().Be("Idol");
+        idol.StatLines.Should().ContainSingle()
+            .Which.Line.Should().Be("15% chance when you gain a Frenzy Charge to gain an additional Frenzy Charge");
+
+        Engine.PlayableMods().Should().NotContain(m => m.AugmentType == "Congealed Mist");
     }
 
     [Fact]
@@ -87,7 +140,7 @@ public class AugmentTests
         family.IsBonded.Should().BeTrue();
         family.IsAugment.Should().BeFalse();
         family.IsAugmentLike.Should().BeTrue();
-        family.SourceTag.Should().Be("Bonded · Ward Rune · Armour");
+        family.SourceTag.Should().Be("Bonded · Ward Rune");
         family.SourceCssClass.Should().Be("source-bonded");
         family.Tiers.Should().HaveCount(4);
         Engine.CompilePicks([family.Pick()], [], false, "Helmet").Query
@@ -154,7 +207,7 @@ public class AugmentTests
         family.IsAugment.Should().BeTrue();
         family.Source.Should().Be("augment");
         family.Kind.Should().Be("augment");
-        family.SourceTag.Should().Be("Stone Rune · Armour");
+        family.SourceTag.Should().Be("Stone Rune");
         family.SourceCssClass.Should().Be("source-augment");
         family.Tiers.Should().HaveCount(4);
         family.Tiers.Select(t => t.DisplayLabel).Should().Equal(
@@ -187,7 +240,7 @@ public class AugmentTests
         {
             var patterns = PatternSet(augment);
             var covering = nonAugment
-                .Where(f => PatternSet(f).IsSupersetOf(patterns))
+                .Where(f => PatternSet(f).SetEquals(patterns))
                 .ToList();
             var unionAugment = union.FirstOrDefault(f => f.IsAugmentLike &&
                 f.Members.Any(m => m.Id == augment.Anchor.Id));
@@ -218,14 +271,17 @@ public class AugmentTests
         atmohua.Members.Select(m => m.Id)
             .Should().Contain("augment:SoulCoreStrength:martial-weapon",
                 "the same core effect is shared by Armour and Martial Weapon");
-        atmohua.SourceTag.Should().Be("Soul Core of Atmohua · Armour, Martial Weapon");
+        atmohua.SourceTag.Should().Be("Soul Core of Atmohua",
+            "the All-gear row omits the merged targets");
 
         var opiloti = union.Single(f => f.IsAugmentLike &&
             f.Members.Any(m => m.Id == "augment:SoulCoreSpecial8:martial-weapon"));
         opiloti.Members.Select(m => m.Id)
-            .Should().Contain("augment:SoulCoreSpecial8:wand-or-staff");
+            .Should().Contain("augment:SoulCoreSpecial8:wand-or-staff")
+            .And.Contain("augment:IdolSpecial6:gloves");
         opiloti.SourceTag.Should()
-            .Be("Opiloti's Soul Core of Assault · Martial Weapon, Wand or Staff");
+            .Be("Idol / Soul Core",
+                "the same charge effect is shared by Idol of Kraityn and Opiloti's core");
     }
 
     [Fact]
@@ -273,8 +329,8 @@ public class AugmentTests
         var vision = cut.FindAll(".fam-row").Single(r =>
             r.QuerySelector(".fam-text")?.TextContent.Trim() ==
             "% increased Life and Mana Recovery from Flasks");
-        vision.QuerySelector(".mod-source")?.TextContent.Trim().Should().Be("Vision Rune · Armour",
-            "the Vision Rune effect has no normal-family equivalent");
+        vision.QuerySelector(".mod-source")?.TextContent.Trim().Should().Be("Vision Rune",
+            "the All-gear row names the rune without repeating its target");
     }
 
     private static HashSet<string> PatternSet(ModFamily family) =>
@@ -302,7 +358,7 @@ public class AugmentTests
         var bonded = cut.FindAll(".mod-source.source-bonded");
         bonded.Should().NotBeEmpty();
         bonded.Select(x => x.TextContent.Trim())
-            .Should().Contain("Bonded · Ward Rune · Armour");
+            .Should().Contain("Bonded · Ward Rune");
     }
 
     [Fact]
@@ -317,11 +373,11 @@ public class AugmentTests
         var family = ModFamilies.Group(Engine.ModsForClass("Helmet"))
             .Single(f => f.Key == "augment:soulcore:Soul Core of Atmohua:armour");
         family.Tiers.Should().HaveCount(1);
-        family.SourceTag.Should().Be("Soul Core of Atmohua · Armour");
+        family.SourceTag.Should().Be("Soul Core of Atmohua");
 
         var eye = ModFamilies.Group(Engine.ModsForClass("Helmet"))
             .Single(f => f.Key == "augment:abyssaleye:Amanamu's Gaze:helmets");
-        eye.SourceTag.Should().Be("Abyssal Eye · Amanamu's Gaze · Helmets");
+        eye.SourceTag.Should().Be("Abyssal Eye · Amanamu's Gaze");
 
         var cut = ctx.Render<ModPicker>(p => p
             .Add(x => x.State, state)
@@ -333,7 +389,54 @@ public class AugmentTests
             "a single-tier core has no tier list to expand");
         row.QuerySelector(".tier-count").Should().BeNull();
         row.QuerySelector(".mod-source")!.TextContent.Trim()
-            .Should().Be("Soul Core of Atmohua · Armour");
+            .Should().Be("Soul Core of Atmohua",
+                "All-gear rows omit the merged target label");
+    }
+
+    [Fact]
+    public void SourceTag_OmitsTargetsButKeepsThemForFiltering()
+    {
+        var body = ModFamilies.Group(Engine.ModsForClass("Body Armour"))
+            .Single(f => f.Key == "augment:soulcore:Soul Core of Jiquani:body-armours");
+        body.SourceTag.Should().Be("Soul Core of Jiquani");
+        body.Members.Should().OnlyContain(m => m.AugmentTarget == "Body Armours");
+
+        var helmet = ModFamilies.Group(Engine.ModsForClass("Helmet"))
+            .Single(f => f.Key == "augment:rune:Stone Rune:armour");
+        helmet.SourceTag.Should().Be("Stone Rune");
+        helmet.Members.Should().OnlyContain(m => m.AugmentTarget == "Armour");
+
+        var union = ModFamilies.Group(Engine.PlayableMods(), union: true)
+            .Single(f => f.Members.Any(m => m.Id == "augment:SoulCoreStrength:armour"));
+        union.SourceTag.Should().Be("Soul Core of Atmohua");
+    }
+
+    [Fact]
+    public void PerSlotPicker_ShowsNoTargetLabels()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddSingleton(Engine);
+        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        var state = new WorkbenchState();
+
+        var cut = ctx.Render<ModPicker>(p => p
+            .Add(x => x.State, state)
+            .Add(x => x.Scope, "body")
+            .Add(x => x.Mods, Engine.ModsForClass("Body Armour")));
+
+        cut.Find("#mod-search").Input("Jiquani");
+        var core = cut.FindAll(".fam-row").Single(r =>
+            r.TextContent.Contains("Soul Core of Jiquani", StringComparison.Ordinal));
+        core.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Soul Core of Jiquani");
+
+        cut.Find("#mod-search").Input("Mind Rune");
+        var mind = cut.FindAll(".fam-row").First(r =>
+            r.QuerySelector(".mod-source")?.TextContent.Contains("Mind Rune") == true);
+        mind.QuerySelector(".mod-source")!.TextContent.Trim()
+            .Should().Be("Mind Rune");
     }
 
     [Fact]
@@ -360,7 +463,7 @@ public class AugmentTests
         var row = cut.Find($"[id='pick-inc-{family.Anchor.Id}']").ParentElement!;
         var status = row.QuerySelector(".fam-status")!;
         status.LastElementChild!.ClassList.Should().Contain("mod-source");
-        status.LastElementChild!.TextContent.Trim().Should().Be("Stone Rune · Armour");
+        status.LastElementChild!.TextContent.Trim().Should().Be("Stone Rune");
         row.QuerySelector(".fam-toggle .mod-source").Should().BeNull(
             "the rune target tag belongs in the right-aligned metadata");
         row.QuerySelector(".fam-toggle .tier-count").Should().NotBeNull(

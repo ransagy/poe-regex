@@ -41,9 +41,10 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    source (`desecrated`, `implicit`, `corrupted`, `augment`, or empty for normal
    explicit affixes), augment type/target, family, required level,
    class/group membership, rendered stat text, and precomputed catalog
-   fingerprints. The augment pass covers basic runes, Soul Cores, Abyssal
-   Eyes, and bonded effects; special/transformative runes, idols, jewels, and
-   the socket model remain deferred. PoE1 `crafted` prefix/suffix leftovers
+   fingerprints. The augment pass covers all runes (including
+   special/transformative and Legacy), Soul Cores, Idols, Abyssal Eyes, and
+   bonded effects; jewels, Congealed Mist, and the socket model remain
+   deferred. PoE1 `crafted` prefix/suffix leftovers
    are excluded; PoE2's actual crafted mods are jewel-only in domain `misc`.
    Corrupted enchantments are modeled as a separate source; five raw records
    without a positive base/spawn reference are excluded.

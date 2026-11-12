@@ -9,9 +9,9 @@ namespace PoeRegex.Data.Build;
 /// <summary>
 /// Builds selectable augment families from RePoE's augments.json. Augment
 /// effects are conditional on the socketed item's target category, which the
-/// export supplies as a separate category record. This pass enables the basic
-/// runes, Soul Cores and Abyssal Eyes; special runes, idols, jewels and the
-/// socket model stay in their own phases.
+/// export supplies as a separate category record. This pass enables runes,
+/// Soul Cores, idols and Abyssal Eyes; jewels and the socket model stay in
+/// their own phases.
 /// </summary>
 public static class AugmentCatalogBuilder
 {
@@ -33,10 +33,8 @@ public static class AugmentCatalogBuilder
         int RemovedDuplicateRows,
         IReadOnlyList<string> UnmappedTargets);
 
-    private static readonly string[] BasicRuneTags =
-        ["rune_normal", "rune_lesser", "rune_greater", "rune_perfect"];
-
-    private static readonly string[] EnabledTypes = ["Rune", "SoulCore", "AbyssalEye"];
+    private static readonly string[] EnabledTypes =
+        ["Rune", "SoulCore", "Idol", "AbyssalEye"];
 
     private static readonly Regex NumberRe = new(
         @"[-+]?\d+(?:\.\d+)?",
@@ -63,10 +61,8 @@ public static class AugmentCatalogBuilder
             if (!baseItems.TryGetValue(path, out var baseItem)) continue;
             if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.OrdinalIgnoreCase))
                 continue;
-            if (augment.TypeId == "Rune" &&
-                !BasicRuneTags.Any(tag => baseItem.Tags?.Contains(tag, StringComparer.Ordinal) == true))
-                continue;
             if (string.IsNullOrWhiteSpace(baseItem.Name)) continue;
+            if (baseItem.Name.StartsWith("[DNT", StringComparison.OrdinalIgnoreCase)) continue;
 
             var familyName = NormalizeFamilyName(baseItem.Name);
             var typeName = Clean(augment.TypeName);
@@ -352,6 +348,7 @@ public static class AugmentCatalogBuilder
     private static string TypeSlug(string typeId) => typeId switch
     {
         "SoulCore" => "soulcore",
+        "Idol" => "idol",
         "AbyssalEye" => "abyssaleye",
         _ => "rune",
     };
@@ -360,8 +357,9 @@ public static class AugmentCatalogBuilder
     {
         "Rune" => 0,
         "SoulCore" => 1,
-        "AbyssalEye" => 2,
-        _ => 3,
+        "Idol" => 2,
+        "AbyssalEye" => 3,
+        _ => 4,
     };
 
     internal static string TargetText(System.Text.Json.JsonElement target) =>

@@ -27,13 +27,15 @@ Current planned and parked work. Behavior is documented in
   legacy PoE1 `crafted` prefix/suffix records (Navali/Helena master crafts);
   they are excluded because they have no positive PoE2 base mapping. PoE2's
   actual crafted mods are jewel-only (`CraftedJewel*`, domain `misc`) and
-  remain parked with jewel support. Basic runes, Soul Cores, Abyssal Eyes, and
+  remain parked with jewel support. All runes (including
+  special/transformative and Legacy), Soul Cores, Idols, Abyssal Eyes, and
   bonded effects use the same unique-only policy as implicits/corrupted: a
-  family is kept only where at least one effect pattern is new, leaving 234
-  target rows across 118 families after all target mapping. They render in a
-  dedicated **Augments** section with Rune / Soul Core / Abyssal Eye source
-  tags and the export's target tag; bonded effects carry a separate Bonded
-  tag. The export's target category controls which item classes can carry each
+  family is kept only where at least one effect pattern is new, leaving 613
+  target rows across 497 families after all target mapping. They render in a
+  dedicated **Augments** section with Rune / Soul Core / Idol / Abyssal Eye
+  source tags; the export's target filters eligible classes but is not shown
+  in the tag in either view. Bonded effects carry a separate
+  Bonded tag. The export's target category controls which item classes can carry each
   effect. In the All-gear union, a family is omitted when one non-augment
   family covers every one of its effect patterns; per-slot views keep it where
   it is the only source. Special/transformative runes, Idols, Congealed Mist,
@@ -81,17 +83,17 @@ Current planned and parked work. Behavior is documented in
 
 ### Remaining mod-type scope
 
-P1 is shipped: all target strings are mapped, and basic runes, Soul Cores,
-Abyssal Eyes, and bonded effects are in the catalog. Remaining: special and
-transformative runes, Idols, Congealed Mist, jewels (data/simple mode, then
-advanced UX), and the socket/import/builder model. The coverage table below is
-the reference.
+P2 coverage is complete: all target strings are mapped, and all runes (including
+special/transformative and Legacy), Soul Cores, Idols, Abyssal Eyes, and bonded
+effects are in the catalog. Remaining: jewels (data/simple mode, then advanced
+UX), Congealed Mist, and the socket/import/builder model. The coverage table
+below is the reference.
 
 ## Recently completed
 
-- P1 augment coverage: all augment target strings mapped; basic runes, Soul
-  Cores, Abyssal Eyes, and bonded effects added with cross-source dedup; the
-  exact table regenerated with a stability pass.
+- P2 augment coverage: all augment target strings mapped; all runes, Soul
+  Cores, Idols, Abyssal Eyes, and bonded effects added with cross-source
+  dedup; the exact table regenerated with a stability pass.
 - UI follow-up PR: picked/excluded rows stay visible under search, common-only,
   and scope filters; the compact layout pins the search header/query/ruler while
   the tools scroll; Reset workbench is a visible danger button; and
@@ -133,7 +135,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 | Base implicits | 168 ids / 348 base entries | 85 (94 mods) | Medium | High | Done |
 | Corrupted mods | 108 records / 103 mapped | 43 (44 mods) | Medium | Medium | Done |
 | Jewels | 320 normal + 44 desecrated + 13 crafted | ~196 + 34 | High | High for jewel users | Parked |
-| Augments / Soul Cores | 313 released bases | 234 target rows / 118 families | Medium | High for socketed items | Basic runes, Soul Cores, Abyssal Eyes, bonded done; specials/idols/sockets parked |
+| Augments / Idols | 313 released bases | 613 target rows / 497 families | Medium | High for socketed items | All runes, Soul Cores, Idols, Abyssal Eyes, bonded done; jewels/sockets parked |
 
 - **PoE1 crafted leftovers** are not PoE2 coverage. The nine `crafted`
   prefix/suffix records in the PoE2 export are verbatim PoE1 Navali/Helena
@@ -163,14 +165,14 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   item-class/slot work is justified.
 - **Augments / Soul Cores** are sourced from RePoE `augments.json`, which maps
   each base to its target category and rendered effect lines. This pass covers
-  the 63 basic tiered runes (normal and bonded), 52 Soul Cores, and 4 Abyssal
-  Eyes. All 29 target strings are mapped, including `All Equipment`, `Weapon`,
-  shields/foci, specific slots, and compound targets. After target mapping and
-  duplicate removal, 234 target rows across 118 families remain. Bonded
-  effects are a separate `bonded` source and are searchable when the copied
-  item contains `Bonded: … (rune)`; they are Shaman-only in game. Source tags
-  distinguish Rune, Soul Core, Abyssal Eye, and Bonded. Special/transformative
-  runes, Idols, Congealed Mist, jewels, and the socket-count model remain
+  all runes (including special/transformative and Legacy), 52 Soul Cores, 35
+  Idols, and 4 Abyssal Eyes. All 29 target strings are mapped, including
+  `All Equipment`, `Weapon`, shields/foci, specific slots, and compound
+  targets. After target mapping and duplicate removal, 613 target rows across
+  497 families remain. Bonded effects are a separate `bonded` source and are
+  searchable when the copied item contains `Bonded: … (rune)`; they are
+  Shaman-only in game. Source tags distinguish Rune, Soul Core, Idol, Abyssal
+  Eye, and Bonded. Jewels, Congealed Mist, and the socket-count model remain
   parked. The RePoE inventory and PoB cross-check are documented in
   [`REPOE-DATA.md`](REPOE-DATA.md).
 - **Unique-item mods** are out of normal-rarity scope. **Essence/veiled**

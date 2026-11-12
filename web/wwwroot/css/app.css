@@ -181,9 +181,11 @@ h1:focus { outline: none; }
 /* ---------- Options popover ---------- */
 
 .options-wrap { position: relative; }
-.options-backdrop { position: fixed; inset: 0; z-index: 30; }
+/* Above the compact sticky result block (40) and help popovers (41-42),
+   below modal dialogs (50). */
+.options-backdrop { position: fixed; inset: 0; z-index: 45; }
 .options-pop {
-    position: absolute; top: calc(100% + 0.55rem); right: 0; z-index: 31;
+    position: absolute; top: calc(100% + 0.55rem); right: 0; z-index: 46;
     width: min(20rem, calc(100vw - 1.5rem));
     display: grid; gap: 0.7rem;
     padding: 0.9rem 0.95rem 0.8rem;
@@ -475,6 +477,47 @@ input:disabled { opacity: 0.5; }
 .fam-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fam-text.multi { display: flex; flex-direction: column; white-space: normal; gap: 0.05rem; }
 .fam-text.multi .mod-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Narrow picker: a row with a source tag or state label gives the effect
+   text its own line, then puts the tag and actions on a second line. Rows
+   without a status stay compact on one line. */
+@container (max-width: 34rem) {
+    .suggest-row.fam-row.has-status {
+        flex-wrap: wrap;
+        row-gap: 0.1rem;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+    .suggest-row.fam-row.has-status > .suggest-line {
+        flex: 1 0 100%;
+        overflow: visible;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+    }
+    .suggest-row.fam-row.has-status > .suggest-line .fam-text {
+        overflow: visible;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+    }
+    .suggest-row.fam-row.has-status > .suggest-line .mod-line {
+        overflow: visible;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+    }
+    .suggest-row.fam-row.has-status > .fam-status {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-left: 0;
+        white-space: normal;
+        flex-wrap: wrap;
+    }
+    .suggest-row.fam-row.has-status > .fam-status .mod-source {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
 .mod-source { font-weight: 600; font-size: 0.72rem; white-space: nowrap; margin-right: 0.3rem; }
 .mod-source.source-desecrated { color: var(--desecrated); }
 .mod-source.source-implicit { color: var(--implicit); }

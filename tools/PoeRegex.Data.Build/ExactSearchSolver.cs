@@ -80,13 +80,18 @@ internal static class ExactSearchSolver
 
         var targets = scope.Targets(pattern);
         if (targets.Count == 0) return null;
-        var foreignEntries = scope.Lines
-            .Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
-            .GroupBy(x => x.Real, StringComparer.Ordinal)
-            .Select(g => (Raw: g.Key, Pattern: g.First().Pattern))
-            .ToList();
+        // Multi-line mod text is matched line-by-line in game, so a single
+        // quoted term cannot be strict against the whole text. Search only for
+        // a target match and leave the foreign check to the line-local runtime.
+        var multiLine = pattern.Contains('\n');
+        var foreignEntries = multiLine
+            ? []
+            : scope.ForeignLines(pattern)
+                .GroupBy(x => x.Real, StringComparer.Ordinal)
+                .Select(g => (Raw: g.Key, Pattern: g.First().Pattern))
+                .ToList();
         var foreign = foreignEntries.Select(x => x.Raw).ToList();
-        if (foreign.Count == 0) return null;
+        if (foreign.Count == 0 && !multiLine) return null;
         var patternByLine = foreignEntries
             .GroupBy(x => x.Raw, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Pattern, StringComparer.Ordinal);

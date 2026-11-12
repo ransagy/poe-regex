@@ -163,7 +163,10 @@ public class WebComponentTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
-        cut.Find("#slot-query-simple").TextContent.Should().Contain("\\+.*ife");
+        var lifeFragment = ctx.Services.GetRequiredService<EngineService>()
+            .CompilePicks([new WantedMod("IncreasedLife6")], [], false, null)
+            .Query.Trim('"');
+        cut.Find("#slot-query-simple").TextContent.Should().Contain(lifeFragment);
         cut.Find("#slot-copy-simple").Should().NotBeNull();
         cut.FindAll("#auto-copy").Should().BeEmpty(); // moved into the header Options popover
     }

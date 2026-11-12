@@ -41,22 +41,22 @@ safe for both.
 ## Artifact coverage
 
 ```text
-534 families · 616 patterns · 1633 expanded scopes · 0 unresolved
+771 families · 1050 patterns · 2658 expanded scopes · 0 unresolved
 bound-limited: 0
 ```
 
 | Scope | Rows |
 |---|---:|
-| Global | 616 |
-| Class | 630 |
-| Per-class | 387 |
+| Global | 1050 |
+| Class | 866 |
+| Per-class | 742 |
 
 Each expanded scope is independently checked for a shorter candidate.
 
 ## Applied table
 
 ```text
-444 global patterns · 21 classes · 1521 class fragments · 0 unresolved
+724 global patterns · 21 classes · 2480 class fragments · 0 unresolved
 ```
 
 Examples:
@@ -76,7 +76,9 @@ Examples:
 | `Bow Attacks fire an additional Arrow` | Bow | `^bo` |
 
 The strict pass is exact for the declared grammar and target display model
-(advanced item text, including ranged `roll(min-max)` forms).
+(advanced item text, including ranged `roll(min-max)` forms). Multi-line mod
+text is matched line-by-line in game; its table entry uses a single-line
+fragment and is exempt from the whole-text foreign check.
 
 ## Non-game class pruning
 
@@ -91,7 +93,7 @@ safety lines, and cross-line sections contain released classes only.
 ## Proof status
 
 ```text
-2309 / 2309 expanded scopes checked
+3734 / 3734 expanded scopes checked
 0 shorter candidates
 shortestProven: true
 ```
@@ -109,9 +111,9 @@ dotnet ... matrix-solve --prefer <previous-fragments> --jobs 2 --timeout 60
 
 ```text
 runtime: local stability pass
-matrix:  534 families · 616 patterns · 1633 expanded scopes
-table:   444 global · 21 classes · 1521 class fragments
-proof:   2309 / 2309 · 0 failures
+matrix:  771 families · 1050 patterns · 2658 expanded scopes
+table:   724 global · 21 classes · 2480 class fragments
+proof:   3734 / 3734 · 0 failures
 ```
 
 The pass keeps every current fragment that still passes the exact oracle and
@@ -121,9 +123,9 @@ when the solver, grammar, or corpus changes, and is not used for an ordinary
 catalog refresh: multi-line patterns can otherwise produce a line-crossing
 fragment that the query shape validator rejects.
 
-- Expanded scopes: 2309 / 2309, all proven.
+- Expanded scopes: 3734 / 3734, all proven.
 - Chosen length: proven on every scope.
-- Table: 444 global patterns, 21 classes, 1521 class fragments, 0 unresolved.
+- Table: 724 global patterns, 21 classes, 2480 class fragments, 0 unresolved.
 - Equal-length ties are resolved deterministically by the current run.
 
 The exact string is not canonical across equal-length solutions by design;
@@ -135,14 +137,15 @@ authority when the cache is stale.
 Any change that adds catalog lines, changes the vendor/safety corpus, or changes
 the solver must regenerate the table with the stability pass (or from scratch
 when the solver, grammar, or corpus itself changes) and review a before/after
-fragment report before merge. The report states the change reason and covers
-every changed existing scope with its old/new fragment, both lengths, and the
-length delta, plus every added/removed scope. Keep the report outside the repository;
+fragment report before merge. The report states the change reason and separates
+changed, new, and removed patterns for global and class scopes. Changed rows
+show old/new fragments, both lengths, and the length delta; new and removed
+rows show only the side that exists. Keep the report outside the repository;
 the shipped table and proof remain the source of truth.
 
 Generate it with [`../tools/fragment-diff/run.py`](../tools/fragment-diff/run.py)
-after saving the target branch's table. The Markdown and JSON outputs list the
-same signed deltas. See [`RELEASE-PREP.md`](RELEASE-PREP.md) for the full gate
+after saving the target branch's table. The Markdown and JSON outputs use the
+same split. See [`RELEASE-PREP.md`](RELEASE-PREP.md) for the full gate
 sequence.
 
 ## Solver validation

@@ -67,7 +67,9 @@ public class CombineServiceTests
         ], []);
 
         paste.Diagnostics.Should().BeEmpty();
-        paste.Query.Should().Be("\": (Bel|Bod|Hel)\" \"\\+.*ife\"",
+        var lifeFragment = Engine.CompilePicks(
+            [new WantedMod("IncreasedLife6")], [], false, null).Query.Trim('"');
+        paste.Query.Should().Be($"\": (Bel|Bod|Hel)\" \"{lifeFragment}\"",
             "one shared group keeps the combined query compact");
         paste.Groups.Should().ContainSingle(
             "the three slots ask for the same stat line and must share one group");

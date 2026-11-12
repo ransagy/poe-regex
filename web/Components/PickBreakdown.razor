@@ -145,7 +145,8 @@
     private RenderFragment PickList(string? slot, SlotCriteria crit, IReadOnlyList<ModEntry> mods) => __builder =>
     {
         var hasChips = crit.Included.Count > 0 || crit.Excluded.Count > 0;
-        var families = ModFamilies.CachedGroup(mods, union: slot is null && hasChips);
+        var union = slot is null && hasChips;
+        var families = ModFamilies.CachedGroup(mods, union: union);
         var cls = slot is null ? null : State.SlotClassOrDefault(slot);
         var scopeKey = slot ?? "global";
         var scopeBlocks = Model.ScopeBlocks(slot);

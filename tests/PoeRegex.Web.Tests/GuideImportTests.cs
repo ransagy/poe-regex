@@ -199,9 +199,10 @@ public class GuideImportTests
         result.Ok.Should().BeTrue(string.Join("; ", result.Warnings));
         var minions = result.Branches[0];
         minions.Text.Should().Be("minion skills");
-        minions.Candidates.Should().ContainSingle();
+        minions.Candidates.Should().Contain(c =>
+            c.Key == "GlobalIncreaseMinionSpellSkillGemLevel");
         minions.Candidates.Select(c => c.Label).Should().OnlyHaveUniqueItems();
-        minions.Picks.Should().ContainSingle();
+        minions.Picks.Should().NotBeEmpty();
     }
 
     [Fact]

@@ -40,6 +40,10 @@ internal sealed class ScopeCorpus
                 .ThenBy(x => x, StringComparer.Ordinal)
                 .ToList()
             : [];
+
+    /// <summary>Lines from other patterns in this scope.</summary>
+    public IReadOnlyList<SourceLine> ForeignLines(string pattern) =>
+        Lines.Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal)).ToList();
 }
 
 /// <summary>
@@ -68,10 +72,11 @@ internal static class ExactOracle
 
         if (targets.Any(t => !regex.IsMatch(t))) return null;
 
-        var foreign = scope.Lines
-            .Where(x => !string.Equals(x.Pattern, pattern, StringComparison.Ordinal))
-            .Select(x => x.Real)
-            .Distinct(StringComparer.Ordinal);
+        var foreign = pattern.Contains('\n')
+            ? []
+            : scope.ForeignLines(pattern)
+                .Select(x => x.Real)
+                .Distinct(StringComparer.Ordinal);
         var minion = 0;
         var other = 0;
         foreach (var line in foreign)

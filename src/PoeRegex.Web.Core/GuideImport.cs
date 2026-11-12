@@ -177,7 +177,7 @@ public sealed class GuideImportService(
             text = text[2..].Trim();
         }
 
-        if (IsExternalLiteral(text))
+        if (IsExternalLiteral(text) || IsStandaloneRarityTerm(text))
         {
             return new GuideBranch(index, display, externalKind,
                 [], [], [], "imported as a raw item filter", text);
@@ -280,6 +280,12 @@ public sealed class GuideImportService(
             ? term[2..].Trim()
             : term;
     }
+
+    private static readonly HashSet<string> StandaloneRarityTerms =
+        new(StringComparer.OrdinalIgnoreCase) { "normal", "magic", "rare", "unique" };
+
+    private static bool IsStandaloneRarityTerm(string term) =>
+        StandaloneRarityTerms.Contains(term.Trim());
 
     private static bool IsExternalLiteral(string term) =>
         term.StartsWith("Item Class:", StringComparison.OrdinalIgnoreCase) ||
