@@ -93,12 +93,15 @@ socket/import/builder model. The coverage table below is the reference.
 
 ### PoE1 introduction
 
-Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md). PoE1 is a separate game profile,
-not a retrofit of the PoE2 catalog: its own manifest entries, catalog, target
-model, corpus, exact table, proof, class/slot model, and import rules. The
-recommended first release is normal equipment only, with jewels, influenced
-mods, crafts, and league mechanics phased afterward. PoE2 remains the default;
-PoE1 data loads lazily so the current app and PWA stay within size budgets.
+Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md). The offline spike mapped 1,204
+normal-equipment mods to 136 patterns across 23 classes and compiled sample
+queries through the existing compiler. Live grammar/copy-text validation is
+the remaining gate. PoE1 is a separate game profile, not a retrofit of the
+PoE2 catalog: its own manifest entries, catalog, target model, corpus, exact
+table, proof, class/slot model, and import rules. The recommended first
+release is normal equipment only, with jewels, influenced mods, crafts, and
+league mechanics phased afterward. PoE2 remains the default; PoE1 data loads
+lazily so the current app and PWA stay within size budgets.
 
 ## Recently completed
 
