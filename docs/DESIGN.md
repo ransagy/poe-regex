@@ -147,8 +147,9 @@ outer loop. It runs at data-build time, never in the browser.
 
 ## 9. Future Profiles
 
-PoE1 is scoped as a separate game profile with its own catalog, target model,
-corpus, table, proof, and status. It is not part of the current product; see
-[`POE1-SCOPE.md`](POE1-SCOPE.md). The fragment solver stays game-agnostic;
-only the profile and query composer change. PoE1 does not reuse the old
-heuristic selector.
+PoE1 is a separate game profile with its own catalog, target model, corpus,
+table, proof, status, and query dialect. The normal-equipment MVP is
+implemented on `feat/poe1-mvp`; see [`POE1-SCOPE.md`](POE1-SCOPE.md). The
+fragment solver stays game-agnostic; `GameData`, `EngineCorpus.Syntax`,
+`GameDataLoader`, and `GameSession` provide the profile seam. PoE1 does not
+reuse the old heuristic selector.
