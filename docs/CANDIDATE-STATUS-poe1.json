@@ -4,8 +4,8 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-13 00:49:46Z",
-  "matrixGenerated": "2026-11-13 00:36:01Z",
+  "generatedAt": "2026-11-13 01:03:29Z",
+  "matrixGenerated": "2026-11-13 01:03:14Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe1.catalog.json",
@@ -15,7 +15,7 @@
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe1.html",
       "bytes": 606705,
-      "sha256": "5d557486e834b106a43610c71e26a1c2598ff05e5b57d2438adff255c74e60d8"
+      "sha256": "831ca8271638cd2f430f7440bcd06d7113f562b72efc38cab5911b1fff512c12"
     },
     "table": {
       "path": "data/catalogs/poe1.fragments.json",
@@ -83,7 +83,7 @@
       "path": "docs/CANDIDATE-PROOF-poe1.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "5d557486e834b106a43610c71e26a1c2598ff05e5b57d2438adff255c74e60d8",
+      "matrixSha256": "831ca8271638cd2f430f7440bcd06d7113f562b72efc38cab5911b1fff512c12",
       "checkedScopes": 1966,
       "workScopes": 1966,
       "failed": 0,
