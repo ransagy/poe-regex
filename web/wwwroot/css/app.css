@@ -204,6 +204,33 @@ h1:focus { outline: none; }
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
 
+/* ---------- Game rail ---------- */
+
+.game-rail {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 0.35rem 0.7rem;
+    padding: 0.55rem 1.25rem;
+    background: var(--head-bg); border-bottom: 1px solid var(--head-line);
+}
+.game-rail-label {
+    color: var(--head-sub); font-size: 0.72rem; letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.game-rail .game-switch {
+    padding: 3px; gap: 3px;
+    background: rgba(0, 0, 0, 0.28); border-color: var(--head-line);
+}
+.game-rail .game-switch .seg-opt {
+    padding: 0.5rem 1.35rem; font-size: 0.95rem; color: var(--head-sub);
+}
+.game-rail .game-switch .seg-opt:hover { color: var(--head-ink); }
+.game-rail .game-switch .seg-opt.active {
+    background: var(--raised); color: var(--ember);
+    box-shadow: inset 0 0 0 1px var(--line-strong), 0 0 18px rgba(240, 165, 65, 0.12);
+}
+.game-rail .game-switch .seg-opt:disabled { opacity: 0.55; cursor: default; }
+.game-rail .seg-note { color: var(--head-link); font-size: 0.82rem; }
+
 /* ---------- Controls ---------- */
 
 button { font: inherit; color: inherit; }
@@ -1034,6 +1061,7 @@ body.compact .hero + .drawer {
 @media (max-width: 430px) {
     .shell-title { display: none; }
     .shell-actions { gap: 0.7rem; }
+    .game-rail .game-switch .seg-opt { padding: 0.48rem 0.35rem; font-size: 0.82rem; }
 }
 
 @media (max-width: 700px) {
@@ -1041,6 +1069,10 @@ body.compact .hero + .drawer {
     #app, .shell { height: auto; min-height: 100%; }
     .shell-bar { padding: 0 0.75rem; gap: 0.5rem; }
     .shell-sub { display: none; }
+    .game-rail { padding: 0.5rem 0.75rem; justify-content: stretch; }
+    .game-rail-label { display: none; }
+    .game-rail .game-switch { width: 100%; }
+    .game-rail .game-switch .seg-opt { flex: 1; padding: 0.5rem 0.5rem; font-size: 0.9rem; }
     .shell-actions { gap: 0.9rem; }
     .options-pop { position: fixed; top: 3.35rem; left: 0.75rem; right: 0.75rem; width: auto; }
     .bench { flex: none; overflow: visible; padding: 0.75rem; }
@@ -1083,6 +1115,38 @@ body.compact .hero + .drawer {
 
 @media (prefers-reduced-motion: reduce) {
     .tool-chev { transition: none; }
+}
+
+/* ---------- Game load overlay ---------- */
+
+.game-load-overlay {
+    position: fixed; inset: 0; z-index: 70;
+    display: grid; place-items: center;
+    padding: 1.25rem;
+    background: rgba(4, 7, 10, 0.72);
+    backdrop-filter: blur(3px);
+}
+.game-load-card {
+    width: min(24rem, 100%);
+    display: grid; justify-items: center; gap: 0.65rem;
+    padding: 1.4rem 1.5rem 1.25rem;
+    background: var(--raised); color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+.game-load-ring {
+    width: 2.6rem; height: 2.6rem; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--ember);
+    box-shadow: 0 0 0 4px var(--ember-soft);
+    animation: game-load-spin 0.8s linear infinite;
+}
+.game-load-title { margin: 0; font-size: 1.05rem; }
+.game-load-note { margin: 0; color: var(--muted); font-size: 0.83rem; line-height: 1.45; }
+@keyframes game-load-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .game-load-ring { animation: none; border-top-color: var(--line); box-shadow: none; }
 }
 
 /* Forge loading screen; keeps its own dark palette. */

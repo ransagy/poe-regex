@@ -54,7 +54,8 @@ Supported:
 - fractured headers carrying normal prefix/suffix affixes
 - corruption implicit headers
 - plain values and `value(min-max)` advanced forms
-- sockets, quality, requirements, and item level as searchable lines
+- sockets, quality, requirements, and item level as searchable lines; the lab
+  matcher includes `Sockets:` text so its verdict matches the in-game search
 
 Rejected with a clear message:
 

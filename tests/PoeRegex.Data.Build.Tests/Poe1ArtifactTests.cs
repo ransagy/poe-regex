@@ -35,7 +35,7 @@ public class Poe1ArtifactTests
         var vendor = JsonSerializer.Deserialize<VendorCorpusFile>(
             File.ReadAllText(Path.Combine(root, "data", "catalogs", "poe1.vendor-corpus.json")),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        var corpus = new EngineCorpus(catalog, table, vendor, []);
+        var corpus = new EngineCorpus(catalog, table, vendor);
 
         table.Game.Should().Be("poe1");
         table.DataVersion.Should().Be(catalog.DataVersion);
@@ -67,6 +67,27 @@ public class Poe1ArtifactTests
         checkedCount.Should().Be(1626);
         table.Global.Should().HaveCount(382);
         table.ByClass.Values.Sum(x => x.Count).Should().Be(1244);
+    }
+
+    [Fact]
+    public void CapturedBootsSafetyLine_MapsToTheCatalogPattern()
+    {
+        var root = RepoRoot();
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe1.catalog.json")).Load();
+        var vendor = JsonSerializer.Deserialize<VendorCorpusFile>(
+            File.ReadAllText(Path.Combine(root, "data", "catalogs", "poe1.vendor-corpus.json")),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var corpus = new EngineCorpus(catalog, null, vendor);
+
+        corpus.SafetyItems.Should().NotBeEmpty();
+        corpus.SafetyLines("Boots").Should().Contain(x =>
+            x.Raw == "+69(49-85) to Armour" && x.Pattern == "\u0001 to Armour");
+
+        var scope = ScopeCorpus.Build(corpus, "Boots");
+        var check = ExactOracle.Check(scope, "\u0001 to Armour", "o ar");
+        check.Should().NotBeNull();
+        check!.ForeignLines.Should().Be(0);
     }
 
     [Fact]

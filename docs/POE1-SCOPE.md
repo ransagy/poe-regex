@@ -203,15 +203,20 @@ work starts until these are signed off. The results above are now encoded in
 - Exact data: `data/catalogs/poe1.fragments.json` — 1,626 scopes, 0
   unresolved. The web copies live under `web/wwwroot/data/poe1/` and load
   lazily.
+- Safety fixtures: `data/catalogs/poe1.safety-items.txt` — captured item text
+  used as foreign lines by the proof, including the reported `Sockets: G`
+  boots item.
 - Proof pipeline: `docs/CANDIDATE-MATRIX-poe1.html`,
   `docs/CANDIDATE-PROOF-poe1.json`, and `docs/CANDIDATE-STATUS-poe1.json`
-  carry the `poe1` game id and prove the shipped table. PoE1 has no captured
-  safety-item fixture file yet, so strictness is proven over the generated
-  foreign corpus (all catalog mod lines, base names/properties, class and fixed
-  property lines), not over an independently captured item corpus.
+  carry the `poe1` game id and prove the shipped table. Strictness is proven
+  over the generated foreign corpus (all catalog mod lines, base
+  names/properties, class, socket, and fixed property lines) plus the captured
+  safety item.
 - Code: per-game `GameData`/`EngineCorpus`/`EngineService`, `GameSession`,
   `GameDataLoader`, `QuerySyntax.Poe1`, per-game persistence, and PoE1
-  parser/import rules.
+  parser/import rules. Class anchors are at least two characters and are
+  checked against socket and property lines, so `G` cannot satisfy a Gloves
+  guard via `Sockets: G`.
 - Tests: normal, fractured/corrupted, influenced, crafted, veiled, and
   eldritch fixtures in `Poe1Tests`; dialect tests in `Poe1SyntaxTests`.
 
@@ -299,7 +304,9 @@ per-game state. The original plan is kept below as the design record.
   for the root export's many unrelated files.
 - Add PoE1 schema loaders for the list-shaped `stat_translations`, tag-shaped
   `mods_by_base`, and `text` field.
-- Add `Poe1CatalogBuilder`, `Poe1CorpusBuilder`, and PoE1 safety-item fixtures.
+- Add `Poe1CatalogBuilder`, `Poe1CorpusBuilder`, and PoE1 safety-item fixtures
+  (implemented: `Poe1CatalogBuilder`, `poe1.vendor-corpus.json`,
+  `poe1.safety-items.txt`).
 - Parameterize matrix/proof/status output paths and game ids.
 - Keep the exact solver game-agnostic; only scopes, target forms, and class
   anchors differ.

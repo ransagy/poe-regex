@@ -253,13 +253,16 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).
-- **PoE1 is a separate game profile.** The header switch stores the last game
-  and keeps one workbench and saved-picks set per game. The PoE1 catalog has
+- **PoE1 is a separate game profile.** The game rail below the header stores
+  the last game and keeps one workbench and saved-picks set per game; a
+  dimmed overlay covers the page while game data loads. The PoE1 catalog has
   23 equipment classes and 1,652 mods (1,204 normal, 215 base implicit, 233
   corrupted). Its exact table has 1,626 scopes (382 global, 1,244 class
   entries), 0 unresolved, and every entry is strict over the generated PoE1
-  foreign corpus (`data/catalogs/poe1.vendor-corpus.json`; web copy under
-  `wwwroot/data/poe1/`). PoE1 exclusions use `"!term"` (the bang is inside
+  foreign corpus (`data/catalogs/poe1.vendor-corpus.json`) plus the captured
+  `data/catalogs/poe1.safety-items.txt` item. Class anchors are at least two
+  characters and are quiet over socket lines, so `Gl` cannot be satisfied by
+  `Sockets: G`. PoE1 exclusions use `"!term"` (the bang is inside
   the quotes), unlike PoE2's `!"term"`; compile, paste, explain, import, item
   matching, and the block ruler all use the loaded game's `QuerySyntax`.
   Gems are MVP+1 because their copied text includes explanatory lines. Other

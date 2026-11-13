@@ -354,6 +354,13 @@ public class WebComponentTests
         var cut = ctx.Render<MainLayout>(p => p
             .Add(x => x.Body, b => b.AddMarkupContent(0, "<p>body</p>")));
 
+        cut.Find(".shell-sub").TextContent.Trim()
+            .Should().Be("Highlight Items - Create your exact search");
+        cut.Find(".game-rail #game-poe2").TextContent.Trim()
+            .Should().Be("Path of Exile 2");
+        cut.Find(".game-rail #game-poe1").TextContent.Trim()
+            .Should().Be("Path of Exile");
+
         cut.Find("#options-open").Click();
 
         var options = cut.FindAll("#theme-select option");
@@ -371,6 +378,19 @@ public class WebComponentTests
 
         cut.Find(".options-wrap").KeyDown("Escape");
         cut.WaitForAssertion(() => cut.FindAll("#options-pop").Should().BeEmpty());
+    }
+
+    [Fact]
+    public void GameLoadingOverlay_ShowsTheLoadingGame()
+    {
+        using var ctx = Context();
+        var cut = ctx.Render<GameLoadingOverlay>(p => p
+            .Add(x => x.Visible, true)
+            .Add(x => x.Game, "poe1"));
+
+        cut.Find(".game-load-overlay").Should().NotBeNull();
+        cut.Find(".game-load-title").TextContent.Should().Contain("Path of Exile");
+        cut.Find(".game-load-note").TextContent.Should().Contain("2 MB");
     }
 
     [Fact]

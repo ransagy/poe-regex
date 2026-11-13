@@ -468,8 +468,13 @@ public sealed class EngineService
     /// </summary>
     public async Task PrewarmValuePathAsync(string? itemClass)
     {
-        _vendorLoadTask ??= VendorCorpus.ForCurrentGameAsync();
-        await _vendorLoadTask.ConfigureAwait(false);
+        // The embedded streaming vendor corpus is PoE2's. PoE1 already owns
+        // its explicit corpus on the engine instance.
+        if (GameId == "poe2")
+        {
+            _vendorLoadTask ??= VendorCorpus.ForCurrentGameAsync();
+            await _vendorLoadTask.ConfigureAwait(false);
+        }
         if (itemClass is null)
             await _corpus.PrewarmGlobalLinesAsync().ConfigureAwait(false);
         else

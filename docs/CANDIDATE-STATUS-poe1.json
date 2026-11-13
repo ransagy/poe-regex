@@ -4,8 +4,8 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-13 01:03:29Z",
-  "matrixGenerated": "2026-11-13 01:03:14Z",
+  "generatedAt": "2026-11-13 11:40:14Z",
+  "matrixGenerated": "2026-11-13 11:30:57Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe1.catalog.json",
@@ -14,45 +14,45 @@
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe1.html",
-      "bytes": 606705,
-      "sha256": "831ca8271638cd2f430f7440bcd06d7113f562b72efc38cab5911b1fff512c12"
+      "bytes": 609050,
+      "sha256": "ac1d4a0419804f8a2abf5a6a8c1be7d8206427d398d6d279572a47498b07c831"
     },
     "table": {
       "path": "data/catalogs/poe1.fragments.json",
-      "bytes": 98121,
-      "sha256": "c80089e14b9124a009aea5018dfaa8761306dc150af2c986f7b4028c580a5090"
+      "bytes": 98140,
+      "sha256": "f3a7b4f13851313fa82ae7d3910562e6455f3822b06a6b86007da1a40678fdd9"
     }
   },
   "matrix": {
     "families": 429,
     "patterns": 497,
-    "scopes": 1385,
+    "scopes": 1392,
     "coverage": {
-      "class/strict": 581,
+      "class/strict": 588,
       "global/strict": 497,
       "per-class/strict": 307
     },
     "bounds": {
-      "250": 1385
+      "250": 1392
     },
     "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
     "longCurrentOnly": []
   },
   "classAnchors": {
-    "Amulet": "A",
+    "Amulet": "Am",
     "Belt": "Be",
     "Body Armour": "Bod",
     "Boots": "Boo",
     "Bow": "Bow",
-    "Claw": "C",
-    "Dagger": "D",
-    "Gloves": "G",
-    "Helmet": "H",
+    "Claw": "Cl",
+    "Dagger": "Da",
+    "Gloves": "Gl",
+    "Helmet": "He",
     "One Hand Axe": "O.+x",
     "One Hand Mace": "O.+M",
     "One Hand Sword": "O.+o",
-    "Quiver": "Q",
+    "Quiver": "Qu",
     "Ring": "Ri",
     "Sceptre": "Sc",
     "Shield": "Sh",
@@ -83,7 +83,7 @@
       "path": "docs/CANDIDATE-PROOF-poe1.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "831ca8271638cd2f430f7440bcd06d7113f562b72efc38cab5911b1fff512c12",
+      "matrixSha256": "ac1d4a0419804f8a2abf5a6a8c1be7d8206427d398d6d279572a47498b07c831",
       "checkedScopes": 1966,
       "workScopes": 1966,
       "failed": 0,

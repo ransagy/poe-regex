@@ -29,7 +29,7 @@ public sealed class GameDataLoader(HttpClient http)
                     ?? throw new InvalidDataException("PoE1 fragment table is empty.");
         var vendor = JsonSerializer.Deserialize(vendorJson, CatalogJsonContext.Default.VendorCorpusFile)
                      ?? throw new InvalidDataException("PoE1 corpus is empty.");
-        var data = new GameData(catalog, table, vendor, []);
+        var data = new GameData(catalog, table, vendor);
         _cache[game] = data;
         return data;
     }

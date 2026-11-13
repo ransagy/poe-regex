@@ -1,0 +1,27 @@
+@if (Visible)
+{
+    <div class="game-load-overlay" role="presentation">
+        <div class="game-load-card" role="status" aria-live="polite" aria-atomic="true">
+            <div class="game-load-ring" aria-hidden="true"></div>
+            <h2 class="game-load-title">Loading @GameLabel data…</h2>
+            @if (Game == "poe1")
+            {
+                <p class="game-load-note">
+                    The first switch downloads the Path of Exile catalog and exact table
+                    (about 2 MB). Later switches use the cached copy.
+                </p>
+            }
+            else
+            {
+                <p class="game-load-note">Preparing the workbench…</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string? Game { get; set; }
+
+    private string GameLabel => Game == "poe1" ? "Path of Exile" : "Path of Exile 2";
+}

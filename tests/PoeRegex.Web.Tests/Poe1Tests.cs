@@ -21,7 +21,7 @@ public class Poe1Tests
         var vendor = JsonSerializer.Deserialize(
             File.ReadAllText(Path.Combine(dir, "poe1.vendor-corpus.json")),
             CatalogJsonContext.Default.VendorCorpusFile)!;
-        return new EngineService(new GameData(catalog, table, vendor, []));
+        return new EngineService(new GameData(catalog, table, vendor));
     }
 
     private static readonly string FracturedItem = """
@@ -91,6 +91,52 @@ Adds 6(5-7) to 12(11-12) Physical Damage to Attacks
 --------
 Crusader Item
 """;
+
+    private static readonly string CapturedBoots = """
+Item Class: Boots
+Rarity: Rare
+Rapture Track
+Hydrascale Boots
+--------
+Armour: 346 (augmented)
+Evasion Rating: 322 (augmented)
+Memory Strands: 27
+--------
+Requirements:
+Level: 60
+Str: 56
+Dex: 56
+--------
+Sockets: G
+--------
+Item Level: 84
+--------
+{ Prefix Modifier "Durable" (Tier: 1) — Defences, Armour, Evasion }
++69(49-85) to Armour
++56(49-85) to Evasion Rating
+{ Prefix Modifier "Virile" (Tier: 2) — Life }
++104(100-114) to maximum Life
+{ Prefix Modifier "Hero's" (Tier: 2) — Defences, Armour, Evasion }
+84(80-91)% increased Armour and Evasion
+{ Suffix Modifier "of the Maelstrom" (Tier: 3) — Elemental, Lightning, Resistance }
++36(36-41)% to Lightning Resistance
+{ Suffix Modifier "of Abjuration" (Tier: 2) }
++11(11-12)% chance to Suppress Spell Damage
+(40% of Damage from Suppressed Hits and Ailments they inflict is prevented)
+{ Suffix Modifier "of the Volcano" (Tier: 3) — Elemental, Fire, Resistance }
++37(36-41)% to Fire Resistance
+""";
+
+    private static TestItem Item(string text)
+    {
+        var parsed = ItemTextParser.Parse(text);
+        return new TestItem
+        {
+            Name = parsed.Name ?? "item",
+            ClassId = parsed.ItemClass ?? "",
+            Parsed = parsed,
+        };
+    }
 
     [Fact]
     public void Catalog_LoadsNormalEquipment()
@@ -227,6 +273,52 @@ Searing Exarch Item
         var claim = engine.ExcludeClaimKey(mod.Id, "Body Armour");
         claim.Should().NotBeNullOrEmpty();
         compiled.Query.Should().Contain($"\"!{claim}\"");
+    }
+
+    [Fact]
+    public void Parser_IncludesSocketTextInMatchableLines()
+    {
+        var item = Item(CapturedBoots);
+        item.MatchLines().Should().Contain("Sockets: G");
+    }
+
+    [Fact]
+    public void ClassAnchors_AreAtLeastTwoCharacters()
+    {
+        var engine = Engine();
+        engine.ClassNameAnchor("Gloves").Should().Be("Gl");
+        engine.ClassNameAnchor("Helmet").Should().Be("He");
+        engine.ClassNameAnchor("Amulet").Should().Be("Am");
+    }
+
+    [Fact]
+    public void CapturedBootsWithoutMovementSpeed_DoesNotMatchMultiSlotPaste()
+    {
+        var engine = Engine();
+        var movement = engine.PlayableMods().First(m =>
+            m.Classes.Contains("Boots") &&
+            m.StatLines.Any(l => l.Line.Contains("Movement Speed", StringComparison.OrdinalIgnoreCase)));
+        var life = engine.PlayableMods().First(m =>
+            m.Classes.Contains("Gloves") &&
+            m.Classes.Contains("Ring") &&
+            m.StatLines.Any(l => l.Line.Contains("maximum Life", StringComparison.OrdinalIgnoreCase)));
+        var slots = new (string Label, string ClassId, IEnumerable<WantedMod> Includes)[]
+        {
+            ("Boots", "Boots", [new WantedMod(movement.Id)]),
+            ("Gloves", "Gloves", [new WantedMod(life.Id)]),
+            ("Ring", "Ring", [new WantedMod(life.Id)]),
+        };
+        var paste = engine.Combine(slots, [], allowOverflow: true);
+        var item = Item(CapturedBoots);
+
+        paste.Query.Should().Contain("Gl|Ri",
+            "the Boots movement block must use the safe Gloves anchor");
+        ItemMatcher.Match(paste.Query, item.MatchLines(), engine.Syntax).Match
+            .Should().BeFalse("the item has no movement speed line");
+
+        var withMovement = Item(CapturedBoots + "\n25% increased Movement Speed");
+        ItemMatcher.Match(paste.Query, withMovement.MatchLines(), engine.Syntax).Match
+            .Should().BeTrue("the movement speed line satisfies the Boots block");
     }
 
     [Fact]

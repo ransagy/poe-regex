@@ -15,6 +15,9 @@
 
 <PageTitle>Renly's Tools</PageTitle>
 
+<GameLoadingOverlay Visible="@(Games.IsLoading || (!_ready && Games.Current == "poe1"))"
+                    Game="@(Games.LoadingGame ?? Games.Current)" />
+
 <div class="bench mode-@State.Mode">
     @if (Intro.Visible == true)
     {
@@ -126,7 +129,6 @@
     }
 
     <div class="bench-bar">
-        <GameSwitch />
         <ModeSwitch State="State" />
     </div>
 
@@ -256,6 +258,7 @@
     private BackupOutcome? _staleBackup;
     private bool _staleFocus;
     private bool _disposed;
+    private bool _ready;
     private ElementReference _staleReload;
     private DotNetObjectReference<Home>? _tabRef;
     private readonly HashSet<string> _warmedValueKeys = new(StringComparer.Ordinal);
@@ -274,23 +277,31 @@
     {
         State.Changed += OnStateChanged;
         Games.Changed += OnGameChanged;
+        Games.LoadingChanged += OnLoadingChanged;
         Intro.Changed += OnIntroChanged;
-        await Intro.InitializeAsync();
-        await Games.InitializeAsync();
-        _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
-        var saved = await Persistence.LoadAsync(Games.Current);
-        if (saved is not null)
-            WorkbenchSnapshot.Restore(State, saved);
-        else if (Games.Current == "poe1")
-            State.Reset("poe1");
-        // Silently refresh builder-assembled items against the current catalog so
-        // lines saved under an older (buggy) renderer text stop displaying.
-        var healed = false;
-        foreach (var item in State.TestItems)
-            if (item.Reheal(Engine)) healed = true;
-        if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
-        await OpenSharedPicksAsync();
-        Recompute();
+        try
+        {
+            await Intro.InitializeAsync();
+            await Games.InitializeAsync();
+            _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
+            var saved = await Persistence.LoadAsync(Games.Current);
+            if (saved is not null)
+                WorkbenchSnapshot.Restore(State, saved);
+            else if (Games.Current == "poe1")
+                State.Reset("poe1");
+            // Silently refresh builder-assembled items against the current catalog so
+            // lines saved under an older (buggy) renderer text stop displaying.
+            var healed = false;
+            foreach (var item in State.TestItems)
+                if (item.Reheal(Engine)) healed = true;
+            if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
+            await OpenSharedPicksAsync();
+            Recompute();
+        }
+        finally
+        {
+            _ready = true;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -425,6 +436,8 @@
     private Task DismissIntro() => Intro.DismissAsync();
 
     private void OnIntroChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnLoadingChanged() => InvokeAsync(StateHasChanged);
 
     private void OnGameChanged()
     {
@@ -710,6 +723,7 @@
         _disposed = true;
         State.Changed -= OnStateChanged;
         Games.Changed -= OnGameChanged;
+        Games.LoadingChanged -= OnLoadingChanged;
         Intro.Changed -= OnIntroChanged;
         Nav.LocationChanged -= OnLocationChanged;
         try { _ = JS.InvokeVoidAsync("poeRegexUnwatchTabs"); } catch { }

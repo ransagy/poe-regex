@@ -16,12 +16,17 @@ Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
   matrix proof checks 1,966 expanded scopes with 0 failures; `poe1-status
   --check` reports a non-stale table and a proven shortest form.
 - Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
-  against the generated foreign corpus.
-- Tests: 118 core + 435 web + 45 data-build pass.
-- Browser smoke: switching shows 23 PoE1 classes; PoE1 exclusions compile as
-  `"!term"`; PoE2 keeps `!"term"`; picks round-trip per game; a reload with
-  PoE1 as the last game restores PoE1 engine, state, and query. PoE1 data is
-  fetched lazily on first switch and is not in the install-time precache.
+  against the generated foreign corpus plus the captured safety item.
+- Regression: the captured boots item has `Sockets: G` and no movement speed;
+  the multi-slot paste with a Boots movement-speed block must not match it.
+  Class anchors are at least two characters, and `Gloves` uses `Gl`.
+- Tests: 118 core + 439 web + 46 data-build pass.
+- Browser smoke: the game rail shows full game names below the header; a
+  dimmed loading overlay appears while PoE1 data loads; switching shows 23
+  PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;
+  picks round-trip per game; a reload with PoE1 as the last game restores the
+  overlay, engine, state, and query. PoE1 data is fetched lazily on first
+  switch and is not in the install-time precache.
 - PWA: service worker activates, manifest/installability checks pass, and the
   shell boots offline (68 precached entries; PoE1 data is cached on first
   switch).

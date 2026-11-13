@@ -228,7 +228,9 @@ public sealed class EngineCorpus
             _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
             precomputedAnchor.Length > 0)
             return precomputedAnchor;
-        return Syntax.EscapeLiteral(ClassNamePrefix(itemClass));
+        // No shipped anchor: recompute with the same safety rules instead of
+        // falling back to a one-character literal prefix.
+        return ComputeClassNameAnchor(itemClass);
     }
 
     /// <summary>
@@ -333,10 +335,10 @@ public sealed class EngineCorpus
         // per-class suffix indexes. The normal browser compile path uses the
         // precomputed table; the oracle is materialized only when a fallback,
         // import, or audit actually asks for it.
-        // Embedded artifacts belong to PoE2. A PoE1 corpus must supply its own
-        // files so a missing lazy load can never fall back to PoE2 text.
+        // Embedded vendor artifacts belong to PoE2. Safety fixtures are
+        // per-game; PoE1 supplies its own captured items.
         var embedded = string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase);
-        _safetyItems = new(() => safety ?? (embedded ? SafetyItemCorpus.ForCurrentGame : []));
+        _safetyItems = new(() => safety ?? SafetyItemCorpus.ForGame(catalog.Game));
         _vendorLines = new(() => vendor?.Lines ??
             (embedded ? VendorCorpus.ForCurrentGame?.Lines : null) ?? []);
         _vendorNormalized = new(() => InGameVendorLines()
@@ -1008,9 +1010,14 @@ public sealed class EngineCorpus
                     .ToHashSet(StringComparer.Ordinal);
     }
 
-    private static string VendorPattern(string line, HashSet<string> known)
+    private string VendorPattern(string line, HashSet<string> known)
     {
         var normalized = CatalogLineNormalizer.Normalize(line);
+        // PoE1 catalog patterns omit a leading '+' so tiers copied with and
+        // without it share one target. Apply the same canonical form to
+        // captured safety lines before deciding whether they are a target.
+        if (Syntax.Game == "poe1" && normalized.StartsWith('+'))
+            normalized = normalized[1..];
         return known.Contains(normalized) ? normalized : SafetyPatternMarker + normalized;
     }
 

@@ -15,6 +15,13 @@ internal static class ClassAnchorOptimizer
 {
     private const int MaxWildcards = 3;
 
+    /// <summary>
+    /// A one-character class anchor is too easy to collide with item text
+    /// such as <c>Sockets: G</c> or a property value. Two characters still
+    /// keep the shipped selectors short.
+    /// </summary>
+    private const int MinAnchorLength = 2;
+
     private sealed record Candidate(
         string Pattern,
         int Length,
@@ -29,12 +36,16 @@ internal static class ClassAnchorOptimizer
     public static string Shortest(EngineCorpus corpus, string classId)
     {
         var entry = corpus.FindItemClass(classId);
-        var baseline = corpus.Syntax.EscapeLiteral(corpus.ComputeClassNamePrefix(classId));
-        if (entry is null || string.IsNullOrEmpty(entry.Name) || baseline.Length <= 1)
+        var prefix = corpus.ComputeClassNamePrefix(classId);
+        if (entry is not null && prefix.Length < MinAnchorLength)
+            prefix = entry.Name[..Math.Min(MinAnchorLength, entry.Name.Length)];
+        var baseline = corpus.Syntax.EscapeLiteral(prefix);
+        if (entry is null || string.IsNullOrEmpty(entry.Name) || baseline.Length <= MinAnchorLength)
             return baseline;
 
         foreach (var candidate in Candidates(entry.Name, baseline.Length - 1, corpus.Syntax))
         {
+            if (candidate.Length < MinAnchorLength) continue;
             if (candidate.Length >= baseline.Length) continue;
             if (!corpus.ClassTermExact(candidate.Pattern, [classId])) continue;
             if (!corpus.ClassTermQuiet(candidate.Pattern)) continue;

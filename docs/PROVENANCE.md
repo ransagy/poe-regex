@@ -12,7 +12,7 @@ reasoning.
 | Engine, CLI, web workbench | `src/`, `tools/`, `web/` | original work for this project | MIT (`LICENSE`) |
 | Derived catalogs + vendor corpora | `data/catalogs/*.json` | RePoE exports of GGG game data (PoE2 including `augments.json`; PoE1 root export) | tooling MIT; data GGG-owned (below) |
 | Icon artwork | `web/wwwroot/favicon.svg`, inline shell/boot SVGs | original artwork for this project | MIT |
-| Sample item texts | `docs/samples/real-items.txt`, `FixtureTexts.cs` | in-game copy output | GGG-owned text, minimal test data |
+| Sample item texts | `docs/samples/real-items.txt`, `data/catalogs/poe1.safety-items.txt`, `FixtureTexts.cs` | in-game copy output | GGG-owned text, minimal test data |
 | Third-party libraries | see `NOTICE` | upstream packages | all MIT or Apache-2.0 |
 
 Not in the repository: game binaries, game art, audio, fonts, raw RePoE
@@ -55,7 +55,8 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    without a positive base/spawn reference are excluded.
    `poe2.fragments.json` and `poe1.fragments.json` are the exact
    shortest-form tables derived from the same catalogs plus their foreign
-   corpora. PoE1 has 1,626 scopes and 0 unresolved.
+   corpora. PoE1 has 1,626 scopes and 0 unresolved; its proof includes the
+   captured `poe1.safety-items.txt` item.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` and
    `poe1.vendor-corpus.json` are derived from the same raw exports. It adds the searchable line text that the selectable
    catalog omits (regular, corrupted, essence, and implicit item mods; base
@@ -67,8 +68,10 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    Unique-only mods, unique names, captions, flavour, and rare item names are
    deliberately excluded and are reported as unmodeled in the audit. The PoE1
    corpus models normal explicit lines, base implicits, and mapped corrupted
-   mods; influenced, crafted, veiled, eldritch, gem, flask, jewel, map, and
-   currency text remain outside the normal-equipment MVP. No game
+   mods, plus socket color lines; `poe1.safety-items.txt` adds one captured
+   boots item as a false-positive fixture. Influenced, crafted, veiled,
+   eldritch, gem, flask, jewel, map, and currency text remain outside the
+   normal-equipment MVP. No game
    binaries, memory, client logs, or runtime extraction are involved.
 7. **Reference-only PoB export** — RePoE also hosts a Path of Building data
    export at <https://repoe-fork.github.io/pob-data/poe2>. Its source project,

@@ -71,6 +71,8 @@ public sealed record ParsedItem(
     public IReadOnlyList<string> AllLines()
     {
         var lines = new List<string>(BaseLines);
+        if (Sockets is not null) lines.Add($"Sockets: {Sockets}");
+        if (GrantsSkill is not null) lines.Add($"Grants Skill: {GrantsSkill}");
         if (Name is not null) lines.Add(Name);
         foreach (var m in Mods)
         {

@@ -355,6 +355,19 @@ public static class Poe1CatalogBuilder
                     $"Weapon Range: {Format(range.GetDouble())} metres", "property");
         }
 
+        var socketColors = new[] { "R", "G", "B", "W" };
+        var socketLines = new List<string>();
+        foreach (var first in socketColors)
+        {
+            socketLines.Add($"Sockets: {first}");
+            foreach (var second in socketColors)
+                socketLines.Add($"Sockets: {first}-{second}");
+        }
+        socketLines.AddRange(
+        [
+            "Sockets: R-G-B", "Sockets: R-R-G-G", "Sockets: G-G-G", "Sockets: B-B-B",
+        ]);
+
         foreach (var cls in Equipment)
         {
             Add(cls, $"Item Class: {classes[cls].Name}", "class");
@@ -362,12 +375,19 @@ public static class Poe1CatalogBuilder
             foreach (var line in new[]
                      {
                          "Requirements:", "Level: 80", "Str: 100", "Dex: 100", "Int: 100",
-                         "Sockets: R-G", "Sockets: W-W", "Item Level: 80",
-                         "Quality: +20%", "Quality: +17%",
+                         "Item Level: 80", "Quality: +20%", "Quality: +17%",
                      })
             {
                 Add(cls, line, "property");
                 Add(null, line, "property");
+            }
+            // Socket lines are item text the in-game search sees. They matter
+            // for class anchors: a one-letter anchor like ": G" would match
+            // "Sockets: G" and satisfy a class guard on the wrong item.
+            foreach (var socket in socketLines)
+            {
+                Add(cls, socket, "property");
+                Add(null, socket, "property");
             }
         }
 

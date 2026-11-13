@@ -5,24 +5,24 @@
 <div class="seg game-switch" role="group" aria-label="Game">
     <button type="button" id="game-poe2" class="seg-opt @(Games.Current == "poe2" ? "active" : "")"
             aria-pressed="@(Games.Current == "poe2" ? "true" : "false")"
-            disabled="@Games.IsLoading" @onclick='() => Switch("poe2")'>PoE 2</button>
+            disabled="@(Games.IsLoading || !Games.IsReady)" @onclick='() => Switch("poe2")'>Path of Exile 2</button>
     <button type="button" id="game-poe1" class="seg-opt @(Games.Current == "poe1" ? "active" : "")"
             aria-pressed="@(Games.Current == "poe1" ? "true" : "false")"
-            disabled="@Games.IsLoading" @onclick='() => Switch("poe1")'>PoE 1</button>
+            disabled="@(Games.IsLoading || !Games.IsReady)" @onclick='() => Switch("poe1")'>Path of Exile</button>
 </div>
-@if (Games.IsLoading)
+@if (Games.Error is { } error)
 {
-    <span class="seg-note">Loading game data…</span>
-}
-else if (Games.Error is { } error)
-{
-    <span class="seg-note game-error">@error</span>
+    <span class="seg-note game-error" role="status">@error</span>
 }
 
 @code {
-    protected override void OnInitialized() => Games.Changed += OnGameChanged;
+    protected override void OnInitialized()
+    {
+        Games.Changed += OnGamesChanged;
+        Games.LoadingChanged += OnGamesChanged;
+    }
 
-    private void OnGameChanged() => InvokeAsync(StateHasChanged);
+    private void OnGamesChanged() => InvokeAsync(StateHasChanged);
 
     private async Task Switch(string game)
     {
@@ -30,5 +30,9 @@ else if (Games.Error is { } error)
         await InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose() => Games.Changed -= OnGameChanged;
+    public void Dispose()
+    {
+        Games.Changed -= OnGamesChanged;
+        Games.LoadingChanged -= OnGamesChanged;
+    }
 }
