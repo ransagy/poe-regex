@@ -104,7 +104,9 @@ public static class MatrixProof
             var minimum = item.ClassId is null ? minGlobal : minClass;
             var legal = ExactOracle.Solve(
                 scopeCorpus, item.Pattern, minimum,
-                Math.Max(0, item.Chosen.Length - 1));
+                Math.Max(0, item.Chosen.Length - 1),
+                anchoredFallback: string.Equals(
+                    catalog.Game, "poe1", StringComparison.OrdinalIgnoreCase));
             if (legal is not null)
             {
                 failures.Add(new Failure(
