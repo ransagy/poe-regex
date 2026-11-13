@@ -103,7 +103,7 @@ public sealed class PersistenceService(IJSRuntime js)
             return savedPicks
                 .Where(SnapshotValidator.IsValid)
                 .Select(p => p.Game is "poe1" or "poe2" ? p : p with { Game = "poe2" })
-                .Where(p => p.Game == game)
+                .Where(p => p.Game == game && p.Snapshot.Game == game)
                 .ToList();
         }
         catch

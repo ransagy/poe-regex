@@ -50,10 +50,10 @@ public sealed class GameSession(
         {
             await persistence.SaveAsync(Capture(), Current);
             var data = await loader.LoadAsync(game);
+            var saved = await persistence.LoadAsync(game);
             engine.LoadGame(data);
             Current = game;
             await persistence.SaveLastGameAsync(game);
-            var saved = await persistence.LoadAsync(game);
             if (saved is null) state.Reset(game);
             else WorkbenchSnapshot.Restore(state, saved);
         }

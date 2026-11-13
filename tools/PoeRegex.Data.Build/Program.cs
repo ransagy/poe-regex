@@ -106,7 +106,6 @@ public static class Program
         return 0;
     }
 
-
     private static int Poe1Build(string[] args)
     {
         var opts = ParseOptions(args);
@@ -114,8 +113,13 @@ public static class Program
         var catalogPath = GetValue(opts, "--catalog", Poe1CatalogPath);
         var vendorPath = GetValue(opts, "--vendor", Poe1VendorPath);
         var snapshotPath = GetValue(opts, "--snapshot", "data/repoe-poe1.snapshot.json");
-        var dataVersion = ReadDataVersion(snapshotPath)
-                          ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var dataVersion = ReadDataVersion(snapshotPath);
+        if (dataVersion is null)
+        {
+            Console.Error.WriteLine(
+                $"warning: {snapshotPath} is missing; using today's date as dataVersion");
+            dataVersion = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        }
 
         Console.WriteLine($"Building PoE1 normal-equipment catalog from {rawDir}");
         var result = Poe1CatalogBuilder.Build(rawDir, dataVersion);
