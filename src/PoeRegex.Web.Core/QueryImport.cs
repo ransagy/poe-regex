@@ -249,9 +249,29 @@ public sealed class QueryImportService
             return exact;
 
         // Paste anchors are alternations: ": (Am|Ri)" and merged forms such
-        // as ": (.*Hand M)". Match them against the catalog class lines.
+        // as ": (.*Hand M)". Literal alternations are resolved by lookup so a
+        // cold or loaded regex engine cannot time out on a common paste.
         var inner = phrase[2..];
         if (!inner.StartsWith('(') || !inner.EndsWith(')')) return [];
+        var body = inner[1..^1];
+        var parts = body.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length > 1 && parts.All(IsLiteralAnchor))
+        {
+            var resolved = new List<string>();
+            var complete = true;
+            foreach (var part in parts)
+            {
+                if (!ClassByAnchor.TryGetValue(": " + part, out var classes))
+                {
+                    complete = false;
+                    break;
+                }
+                resolved.AddRange(classes);
+            }
+            if (complete)
+                return resolved.Distinct(StringComparer.Ordinal).ToList();
+        }
+
         var result = new List<string>();
         foreach (var cls in _engine.Classes)
         {
@@ -260,7 +280,7 @@ public sealed class QueryImportService
             {
                 if (Regex.IsMatch(line, phrase,
                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                        TimeSpan.FromMilliseconds(50)))
+                        TimeSpan.FromMilliseconds(250)))
                     result.Add(cls.Id);
             }
             catch (ArgumentException)
@@ -270,6 +290,9 @@ public sealed class QueryImportService
         }
         return result;
     }
+
+    private static bool IsLiteralAnchor(string value) =>
+        value.Length > 0 && !value.Any(c => @"\.+*?()[]{}^$|".Contains(c));
 }
 
 public sealed record QueryImportResult(
