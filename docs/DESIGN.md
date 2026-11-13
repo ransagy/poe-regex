@@ -154,8 +154,8 @@ outer loop. It runs at data-build time, never in the browser.
 ## 9. Future Profiles
 
 PoE1 is a separate game profile with its own catalog, target model, corpus,
-table, proof, status, and query dialect. The normal-equipment MVP is
-implemented on `feat/poe1-mvp`; see [`POE1-SCOPE.md`](POE1-SCOPE.md). The
+table, proof, status, and query dialect. The normal-equipment MVP is shipping
+with the current release; see [`POE1-SCOPE.md`](POE1-SCOPE.md). The
 fragment solver stays game-agnostic; `GameData`, `EngineCorpus.Syntax`,
 `GameDataLoader`, and `GameSession` provide the profile seam. PoE1 does not
 reuse the old heuristic selector.

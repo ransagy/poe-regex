@@ -94,9 +94,8 @@ socket/import/builder model. The coverage table below is the reference.
 
 ### PoE1 introduction
 
-Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md) and implemented on
-`feat/poe1-mvp` (awaiting merge approval). PoE1 is a separate game profile,
-not a retrofit of the PoE2 catalog.
+Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md) and shipping with the current
+release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
 - Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit,
   233 corrupted).
