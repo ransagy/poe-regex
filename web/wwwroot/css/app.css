@@ -1076,7 +1076,6 @@ body.compact .hero + .drawer {
     #app, .shell { height: auto; min-height: 100%; }
     .shell-bar { padding: 0 0.75rem; gap: 0.5rem; }
     .shell-sub { display: none; }
-    .shell-title { display: none; }
     .shell-game .game-switch .seg-opt { padding: 0.34rem 0.8rem; font-size: 0.84rem; }
     .shell-actions { gap: 0.9rem; }
     .options-pop { position: fixed; top: 3.35rem; left: 0.75rem; right: 0.75rem; width: auto; }
@@ -1106,8 +1105,15 @@ body.compact .hero + .drawer {
     .builder-right .iprev { max-height: none; }
 }
 
+@media (max-width: 540px) {
+    .shell-title {
+        font-size: 0.78rem; line-height: 1.02; letter-spacing: 0;
+        white-space: normal; max-width: 4rem;
+    }
+}
+
 @media (max-width: 430px) {
-    .shell-bar { padding: 0 0.55rem; }
+    .shell-bar { padding: 0 0.55rem; gap: 0.35rem; }
     .shell-actions { gap: 0.25rem; }
     .shell-link { font-size: 0.74rem; }
     .shell-game .game-switch .seg-opt { padding: 0.26rem 0.45rem; font-size: 0.76rem; }
