@@ -22,7 +22,7 @@ Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,843 forms, 0 failures).
-- Tests: 118 core + 442 web + 46 data-build pass.
+- Tests: 118 core + 443 web + 46 data-build pass.
 - Browser smoke: the top-bar switch shows full game names on desktop and compact labels on phones; the title stays visible (wrapped on small screens); a
   dimmed loading overlay appears while PoE1 data loads; switching shows 23
   PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;
