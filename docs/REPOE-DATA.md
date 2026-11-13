@@ -11,10 +11,38 @@ machine-readable source of truth is
 | Export | URL | Use |
 |---|---|---|
 | PoE2 game data | <https://repoe-fork.github.io/poe2> | Catalog, corpus, exact table |
+| PoE1 game data | <https://repoe-fork.github.io> (index: `poe1.html`) | Normal-equipment catalog, corpus, exact table |
 | PoB data | <https://repoe-fork.github.io/pob-data/poe2> | Development cross-check only |
 
 The PoB export is **not shipped**. `ModRunes.min.json` is useful to verify the
 RePoE augment lines, but the catalog is built from RePoE only.
+
+## PoE1 files
+
+### Used
+
+| File | Consumer | Purpose |
+|---|---|---|
+| `mods.min.json` | `Poe1CatalogBuilder` | Mod text, generation type, domain, spawn weights |
+| `base_items.min.json` | `Poe1CatalogBuilder` | Base names, classes, implicits, properties |
+| `item_classes.min.json` | `Poe1CatalogBuilder` | Item class ids and display names |
+| `mods_by_base.min.json` | `Poe1CatalogBuilder` | Base/tag-set to mod mapping |
+| `stat_translations.min.json` | `Poe1CatalogBuilder` | Stat text reference |
+| `stat_value_handlers.min.json` | `Poe1CatalogBuilder` | Value handler metadata |
+| `stats.min.json` | `Poe1CatalogBuilder` | Stat ids referenced by mods |
+
+The PoE1 root export publishes generated index pages (`poe1.html`) rather than
+a browsable directory tree; `data-audit` reads that index. All 90 entries are
+classified (`used`, `known-unused`, or `not-relevant`). The seven used files
+are pinned by size and SHA-256 in `data/repoe-poe1.snapshot.json`.
+
+Rebuild with:
+
+```sh
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check
+```
 
 ## PoE2 files
 

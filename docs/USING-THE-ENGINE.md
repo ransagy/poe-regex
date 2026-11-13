@@ -1,15 +1,15 @@
 # Using the Engine in Your Own Project
 
-`PoeRegex.Core` is a self-contained .NET class library for PoE2. Give it the
-embedded catalog and exact fragment table, describe the search you want, and
-it returns a short, in-game-safe quoted regex query.
+`PoeRegex.Core` is a self-contained .NET class library for PoE2 and PoE1. Give
+it a game catalog and its exact fragment table, describe the search you want,
+and it returns a short, in-game-safe quoted regex query.
 
 There are two ways to consume it:
 
 | Approach | Audience | What you get |
 |---|---|---|
 | **Library** (`PoeRegex.Core`) | .NET apps | In-process compile and data access |
-| **CLI subprocess** (`poe-regex ... --json`) | Any language | Same compiler over stdin/stdout |
+| **CLI subprocess** (`poe-regex ... --json`) | Any language | Same PoE2 compiler over stdin/stdout; the web workbench is the multi-game surface |
 
 ## What the engine does
 
@@ -17,8 +17,9 @@ There are two ways to consume it:
   precomputed fragments.
 - Applies value floors (`--min`) as digit-range patterns.
 - ANDs quoted blocks, merges included mods into one `|` alternation, factors
-  common prefixes, and emits `!"..."` exclusions.
-- Enforces the 250-character PoE2 limit.
+  common prefixes, and emits the game-specific exclusion shape (`!"..."` for
+  PoE2, `"!..."` for PoE1).
+- Enforces the 250-character limit shared by both games.
 - Targets the advanced item-search text: ranged stats show `roll(min-max)`;
   normal display is presentation only. The shipped table declares
   `targetModel: advanced-ranges-v1`.
@@ -65,6 +66,23 @@ Console.WriteLine(result.Query);
 ```
 
 Output is deterministic for the same input and catalog.
+
+For PoE1, load the catalog, table, and vendor corpus explicitly:
+
+```csharp
+var catalog = new FileCatalogSource("data/catalogs/poe1.catalog.json").Load();
+var table = JsonSerializer.Deserialize(
+    File.ReadAllText("data/catalogs/poe1.fragments.json"),
+    CatalogJsonContext.Default.FragmentTable);
+var vendor = JsonSerializer.Deserialize(
+    File.ReadAllText("data/catalogs/poe1.vendor-corpus.json"),
+    CatalogJsonContext.Default.VendorCorpusFile);
+var corpus = new EngineCorpus(catalog, table, vendor);
+```
+
+`EngineCorpus.Syntax` then selects the PoE1 dialect. The web app wraps this in
+`GameData` and `GameDataLoader` so the data is fetched lazily and cached per
+game.
 
 ## 3. `QuerySpecification`
 
@@ -132,14 +150,15 @@ public interface ICatalogSource
 }
 ```
 
-- `EmbeddedCatalogSource` — the shipped PoE2 catalog, recommended.
-- `FileCatalogSource(path)` — reads a catalog JSON file.
+- `EmbeddedCatalogSource` — the shipped PoE2 catalog, recommended for PoE2.
+- `FileCatalogSource(path)` — reads a catalog JSON file; use it for PoE1 or custom catalogs.
 - Custom sources can load from a database, API, or another format. `Catalog`
   is a plain POCO and source-generated JSON is available through
   `CatalogJsonContext`.
 
-The exact table is embedded separately. A catalog with a different
-`DataVersion` disables the embedded table; the engine then reports unresolved
+The PoE2 exact table is embedded separately; PoE1 supplies its own table and
+vendor corpus through `EngineCorpus`. A catalog with a different `DataVersion`
+disables a mismatched embedded table; the engine then reports unresolved
 modifiers rather than guessing.
 
 ## 6. Discovering ids and classes

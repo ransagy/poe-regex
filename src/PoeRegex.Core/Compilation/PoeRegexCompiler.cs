@@ -32,7 +32,7 @@ public sealed class PoeRegexCompiler
             if (_corpus.FindItemClass(spec.ItemClass) is null)
                 diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-class",
                     $"No fingerprint available for item class '{spec.ItemClass}'."));
-            else blocks.Add(Poe2Syntax.Quote(": " + _corpus.ClassNameAnchor(spec.ItemClass)));
+            else blocks.Add(_corpus.Syntax.Quote(": " + _corpus.ClassNameAnchor(spec.ItemClass)));
         }
 
         // Included modifiers → one quoted block with | alternation.
@@ -55,7 +55,7 @@ public sealed class PoeRegexCompiler
             // verbatim instead of factoring it with mod fragments.
             var terms = CompactionEngine.FactorCommonPrefixes(included).ToList();
             terms.AddRange(includedRaw);
-            blocks.Add(Poe2Syntax.Quote(string.Join("|", terms)));
+            blocks.Add(_corpus.Syntax.Quote(string.Join("|", terms)));
         }
 
         foreach (var group in spec.RequiredGroups)
@@ -77,7 +77,7 @@ public sealed class PoeRegexCompiler
             {
                 var terms = CompactionEngine.FactorCommonPrefixes(fragments).ToList();
                 terms.AddRange(rawFragments);
-                blocks.Add(Poe2Syntax.Quote(string.Join("|", terms)));
+                blocks.Add(_corpus.Syntax.Quote(string.Join("|", terms)));
             }
         }
 
@@ -93,7 +93,7 @@ public sealed class PoeRegexCompiler
                 ? req.Value
                 : mod is not null
                     ? SelectFragment(req, spec.ItemClass, diagnostics) ?? req.Value
-                    : Poe2Syntax.EscapeLiteral(req.Value);
+                    : _corpus.Syntax.EscapeLiteral(req.Value);
             if (!excludedTerms.Add(term)) continue;
             if (included.Contains(term))
             {
@@ -101,22 +101,22 @@ public sealed class PoeRegexCompiler
                     DiagnosticLevel.Warning, "contradictory-filter",
                     $"Included and excluded fragments are identical: \"{term}\"."));
             }
-            blocks.Add(Poe2Syntax.FormatExclusion(term));
+            blocks.Add(_corpus.Syntax.FormatExclusion(term));
         }
 
         // Custom keywords.
         foreach (var kw in spec.Keywords)
         {
-            var diag = Poe2Syntax.ValidateFragment(kw);
+            var diag = _corpus.Syntax.ValidateFragment(kw);
             if (diag is not null) diagnostics.Add(diag);
-            blocks.Add(Poe2Syntax.Quote(kw));
+            blocks.Add(_corpus.Syntax.Quote(kw));
         }
 
         var query = string.Join(" ", blocks);
         foreach (var shapeError in QueryShape.Validate(query))
             diagnostics.Add(new CompilerDiagnostic(
                 DiagnosticLevel.Warning, "query-shape", shapeError));
-        var limit = Poe2Syntax.MaxCharacterLimit;
+        var limit = QuerySyntax.MaxCharacterLimit;
         if (query.Length > limit && !spec.AllowOverflow)
         {
             throw new RegexLengthOverflowException(query.Length, limit);
@@ -142,8 +142,8 @@ public sealed class PoeRegexCompiler
         }
 
         // Free text: validate then escape for literal matching.
-        var diag = Poe2Syntax.ValidateFragment(req.Value);
+        var diag = _corpus.Syntax.ValidateFragment(req.Value);
         if (diag is not null) diagnostics.Add(diag);
-        return Poe2Syntax.EscapeLiteral(req.Value);
+        return _corpus.Syntax.EscapeLiteral(req.Value);
     }
 }

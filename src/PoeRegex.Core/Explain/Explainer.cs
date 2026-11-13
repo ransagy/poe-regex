@@ -20,7 +20,7 @@ public sealed class Explainer
 
     public ExplainResult Explain(string query, string? itemClass = null)
     {
-        var raw = Tokenize(query);
+        var raw = Tokenize(query, _corpus.Syntax);
 
         // Scope: an explicit class is authoritative; otherwise explain over
         // the distinct global union instead of scanning every class twice.
@@ -302,41 +302,12 @@ public sealed class Explainer
     /// leading <c>!</c> exclusion flag. Quotes may contain spaces; unquoted spaces
     /// separate tokens.
     /// </summary>
-    public static List<(string Phrase, bool Excluded)> Tokenize(string query)
-    {
-        var tokens = new List<(string, bool)>();
-        var i = 0;
-        while (i < query.Length)
-        {
-            if (char.IsWhiteSpace(query[i]))
-            {
-                i++;
-                continue;
-            }
+    public static List<(string Phrase, bool Excluded)> Tokenize(string query) =>
+        QuerySyntax.Poe2.Tokenize(query);
 
-            var excluded = false;
-            if (query[i] == '!')
-            {
-                excluded = true;
-                i++;
-            }
-
-            if (i < query.Length && query[i] == '"')
-            {
-                var end = query.IndexOf('"', i + 1);
-                if (end < 0) end = query.Length;
-                tokens.Add((query.Substring(i + 1, end - i - 1), excluded));
-                i = end + 1;
-            }
-            else
-            {
-                var start = i;
-                while (i < query.Length && !char.IsWhiteSpace(query[i])) i++;
-                tokens.Add((query.Substring(start, i - start), excluded));
-            }
-        }
-        return tokens;
-    }
+    /// <summary>Tokenize with a game profile's exclusion convention.</summary>
+    public static List<(string Phrase, bool Excluded)> Tokenize(string query, QuerySyntax syntax) =>
+        syntax.Tokenize(query);
 
     /// <summary>Treats the digit placeholder as a digit-run wildcard in a phrase.</summary>
     public static string PhraseToRegex(string phrase)

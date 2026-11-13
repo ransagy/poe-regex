@@ -1,5 +1,6 @@
 @using PoeRegex.Web.Core
 @inject web.Services.PersistenceService Persistence
+@inject web.Services.GameSession Games
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IDisposable
@@ -94,7 +95,7 @@
     {
         if (_loadedVersion == Version) return;
         _loadedVersion = Version;
-        var savedPicks = await Persistence.LoadSavedPicksAsync();
+        var savedPicks = await Persistence.LoadSavedPicksAsync(Games.Current);
         if (!_disposed) _savedPicks = savedPicks;
     }
 
@@ -135,7 +136,7 @@
         _open = true;
         _undo = null;
         _focusPending = true;
-        var savedPicks = await Persistence.LoadSavedPicksAsync();
+        var savedPicks = await Persistence.LoadSavedPicksAsync(Games.Current);
         if (!_disposed) _savedPicks = savedPicks;
     }
 
@@ -160,8 +161,8 @@
         if (name.Length == 0) name = $"Saved pick {_savedPicks.Count + 1}";
         var before = _savedPicks.ToList();
         _savedPicks.RemoveAll(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
-        _savedPicks.Insert(0, new SavedPick(name, DateTimeOffset.UtcNow, SnapshotCodec.CaptureCriteria(State)));
-        await Persistence.SaveSavedPicksAsync(_savedPicks);
+        _savedPicks.Insert(0, new SavedPick(name, DateTimeOffset.UtcNow, SnapshotCodec.CaptureCriteria(State, Games.Current), Games.Current));
+        await Persistence.SaveSavedPicksAsync(_savedPicks, Games.Current);
         if (_disposed) return;
         _undo = new UndoStep($"Saved “{name}”.", before, null);
         _name = "";
@@ -169,7 +170,7 @@
 
     private void Load(SavedPick savedPick)
     {
-        var before = SnapshotCodec.CaptureCriteria(State);
+        var before = SnapshotCodec.CaptureCriteria(State, Games.Current);
         WorkbenchSnapshot.RestoreCriteria(State, savedPick.Snapshot);
         _undo = new UndoStep($"Loaded “{savedPick.Name}”.", _savedPicks.ToList(), before);
     }
@@ -179,7 +180,7 @@
         if (_disposed) return;
         var before = _savedPicks.ToList();
         _savedPicks.Remove(savedPick);
-        await Persistence.SaveSavedPicksAsync(_savedPicks);
+        await Persistence.SaveSavedPicksAsync(_savedPicks, Games.Current);
         if (_disposed) return;
         _undo = new UndoStep($"Deleted “{savedPick.Name}”.", before, null);
     }
@@ -189,7 +190,7 @@
         if (_disposed || _undo is null) return;
         if (_undo.Picks is { } picks) WorkbenchSnapshot.RestoreCriteria(State, picks);
         _savedPicks = _undo.SavedPicks;
-        await Persistence.SaveSavedPicksAsync(_savedPicks);
+        await Persistence.SaveSavedPicksAsync(_savedPicks, Games.Current);
         if (!_disposed) _undo = null;
     }
 
@@ -197,7 +198,7 @@
     {
         if (_disposed) return;
         var url = Nav.BaseUri + "#" + SnapshotCodec.FragmentPrefix +
-                  SnapshotCodec.Encode(SnapshotCodec.CaptureCriteria(State));
+                  SnapshotCodec.Encode(SnapshotCodec.CaptureCriteria(State, Games.Current));
         if (url.Length > MaxShareUrlLength)
         {
             await FlashShare("Link too long; save your picks instead");

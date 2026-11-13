@@ -11,12 +11,24 @@ namespace PoeRegex.Web.Tests;
 
 public class WebComponentTests
 {
+    private static void AddGames(BunitContext ctx, EngineService engine, WorkbenchState state,
+        PersistenceService persistence)
+    {
+        ctx.Services.AddSingleton(new GameSession(engine, state, persistence,
+            new GameDataLoader(new HttpClient())));
+    }
+
     private static BunitContext Context()
     {
         var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        ctx.Services.AddSingleton(new EngineService());
-        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        var engine = new EngineService();
+        var state = new WorkbenchState();
+        var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
+        ctx.Services.AddSingleton(engine);
+        ctx.Services.AddSingleton(state);
+        ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
         return ctx;
     }
@@ -31,6 +43,7 @@ public class WebComponentTests
         ctx.Services.AddSingleton(engine);
         ctx.Services.AddSingleton(state);
         ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
         return ctx;
@@ -109,9 +122,11 @@ public class WebComponentTests
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
         var state = new WorkbenchState();
-        ctx.Services.AddSingleton(new EngineService());
+        var engine = new EngineService();
+        ctx.Services.AddSingleton(engine);
         ctx.Services.AddSingleton(state);
         ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
 
@@ -339,6 +354,15 @@ public class WebComponentTests
         var cut = ctx.Render<MainLayout>(p => p
             .Add(x => x.Body, b => b.AddMarkupContent(0, "<p>body</p>")));
 
+        cut.Find(".shell-sub").TextContent.Trim()
+            .Should().Be("Highlight Items - Create your exact search");
+        cut.Find(".shell-bar .shell-game #game-poe2").Should().NotBeNull();
+        cut.FindAll(".game-rail").Should().BeEmpty("the game switch lives in the top bar");
+        cut.Find("#game-poe2 .game-full").TextContent.Trim()
+            .Should().Be("Path of Exile 2");
+        cut.Find("#game-poe1 .game-full").TextContent.Trim()
+            .Should().Be("Path of Exile");
+
         cut.Find("#options-open").Click();
 
         var options = cut.FindAll("#theme-select option");
@@ -356,6 +380,19 @@ public class WebComponentTests
 
         cut.Find(".options-wrap").KeyDown("Escape");
         cut.WaitForAssertion(() => cut.FindAll("#options-pop").Should().BeEmpty());
+    }
+
+    [Fact]
+    public void GameLoadingOverlay_ShowsTheLoadingGame()
+    {
+        using var ctx = Context();
+        var cut = ctx.Render<GameLoadingOverlay>(p => p
+            .Add(x => x.Visible, true)
+            .Add(x => x.Game, "poe1"));
+
+        cut.Find(".game-load-overlay").Should().NotBeNull();
+        cut.Find(".game-load-title").TextContent.Should().Contain("Path of Exile");
+        cut.Find(".game-load-note").TextContent.Should().Contain("2 MB");
     }
 
     [Fact]

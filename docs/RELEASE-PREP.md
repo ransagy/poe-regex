@@ -15,7 +15,7 @@ Do not merge until every applicable gate is green. Do not run
 
 ## 1. Provenance and scope
 
-- [ ] Confirm every new mod family is PoE2 data.
+- [ ] Confirm every new PoE2 mod family is PoE2 data.
   - Check exact ids against PoE1 RePoE when an id looks like a legacy/master
     craft.
   - A mod needs a positive PoE2 reference: `mods_by_base`, positive spawn
@@ -36,6 +36,9 @@ Do not merge until every applicable gate is green. Do not run
   [`EXACT-TABLE.md`](EXACT-TABLE.md).
 - [ ] If the change is not PoE2 data, stop and remove it rather than adding a
   manual mapping.
+- [ ] For PoE1 changes, confirm the `poe1` manifest export, the pinned
+  `data/repoe-poe1.snapshot.json`, and the `poe1` safety/corpus artifacts are
+  classified and current.
 
 ## 2. Data rebuild
 
@@ -74,7 +77,7 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   for an ordinary catalog refresh; multi-line patterns can otherwise produce
   a line-crossing fragment that the query shape validator rejects.
 
-- [ ] Verify the proof/status:
+- [ ] Verify the PoE2 proof/status:
 
   ```sh
   dotnet run --project tools/PoeRegex.Data.Build -- matrix-status \
@@ -82,6 +85,18 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   ```
 
   Required: `stale: false`, `shortestProven: true`, `proof.failed: 0`.
+
+- [ ] For PoE1 data changes, rebuild and verify:
+
+  ```sh
+  dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
+  dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
+  dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
+  ```
+
+  Required: 1,626 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  `proof.failed: 0`. Copy the updated catalog/table/corpus into
+  `web/wwwroot/data/poe1/`.
 
 ## 3. Fragment diff report
 
@@ -123,7 +138,8 @@ source of truth.
   change branch.
 - [ ] Confirm CI `test` and the Cloudflare Pages preview are green.
 - [ ] For exact-table changes, confirm the matrix/proof/status artifacts were
-  regenerated together.
+  regenerated together. For PoE1, run `poe1-build` (if raw data changed),
+  `poe1-matrix --from-scratch`, and `poe1-status --check --check-shortest`.
 
 ## 5. Web build and PWA
 

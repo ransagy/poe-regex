@@ -149,7 +149,7 @@ public static class BuildStatus
 
         var report = new
         {
-            game = "poe2",
+            game = catalog.Game,
             dataVersion = catalog.DataVersion,
             targetModel = table.TargetModel,
             grammarVersion = "quoted-shortest-v1",

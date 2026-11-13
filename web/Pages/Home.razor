@@ -7,6 +7,7 @@
 @inject EngineService Engine
 @inject WorkbenchState State
 @inject web.Services.PersistenceService Persistence
+@inject GameSession Games
 @inject web.Services.IntroState Intro
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -14,7 +15,17 @@
 
 <PageTitle>Renly's Tools</PageTitle>
 
+<GameLoadingOverlay Visible="@(Games.IsLoading || (!_ready && Games.Current == "poe1"))"
+                    Game="@(Games.LoadingGame ?? Games.Current)" />
+
 <div class="bench mode-@State.Mode">
+    @if (Games.Error is { } gameError)
+    {
+        <p class="bench-notice game-error" role="alert">
+            @gameError
+            <button type="button" class="link" @onclick="Games.ClearError">Dismiss</button>
+        </p>
+    }
     @if (Intro.Visible == true)
     {
         <div class="intro-top">
@@ -254,6 +265,7 @@
     private BackupOutcome? _staleBackup;
     private bool _staleFocus;
     private bool _disposed;
+    private bool _ready;
     private ElementReference _staleReload;
     private DotNetObjectReference<Home>? _tabRef;
     private readonly HashSet<string> _warmedValueKeys = new(StringComparer.Ordinal);
@@ -271,20 +283,32 @@
     protected override async Task OnInitializedAsync()
     {
         State.Changed += OnStateChanged;
+        Games.Changed += OnGameChanged;
+        Games.LoadingChanged += OnLoadingChanged;
         Intro.Changed += OnIntroChanged;
-        await Intro.InitializeAsync();
-        _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
-        var saved = await Persistence.LoadAsync();
-        if (saved is not null)
-            WorkbenchSnapshot.Restore(State, saved);
-        // Silently refresh builder-assembled items against the current catalog so
-        // lines saved under an older (buggy) renderer text stop displaying.
-        var healed = false;
-        foreach (var item in State.TestItems)
-            if (item.Reheal(Engine)) healed = true;
-        if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
-        await OpenSharedPicksAsync();
-        Recompute();
+        try
+        {
+            await Intro.InitializeAsync();
+            await Games.InitializeAsync();
+            _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
+            var saved = await Persistence.LoadAsync(Games.Current);
+            if (saved is not null)
+                WorkbenchSnapshot.Restore(State, saved);
+            else if (Games.Current == "poe1")
+                State.Reset("poe1");
+            // Silently refresh builder-assembled items against the current catalog so
+            // lines saved under an older (buggy) renderer text stop displaying.
+            var healed = false;
+            foreach (var item in State.TestItems)
+                if (item.Reheal(Engine)) healed = true;
+            if (healed) _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
+            await OpenSharedPicksAsync();
+            Recompute();
+        }
+        finally
+        {
+            _ready = true;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -349,10 +373,12 @@
                            State.Slots.Values.Any(c => c.Included.Count + c.Excluded.Count > 0);
             if (hadPicks && await BackupPicksAsync("Before shared link") == BackupOutcome.Added)
                 _savedPicksVersion++;
+            if (shared.Game != Games.Current)
+                await Games.SwitchAsync(shared.Game);
             WorkbenchSnapshot.RestoreCriteria(State, shared);
             // Persist before announcing the handoff so another tab cannot
             // reload into the previous workbench.
-            await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
+            await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
             await Persistence.MarkSharedHandoffAsync();
             _notice = hadPicks
                 ? "Opened shared picks. Your earlier picks are saved under Saved picks."
@@ -368,17 +394,17 @@
     {
         try
         {
-            var current = SnapshotCodec.CaptureCriteria(State);
+            var current = SnapshotCodec.CaptureCriteria(State, Games.Current);
             var fingerprint = SnapshotCodec.Encode(current);
-            var savedPicks = await Persistence.LoadSavedPicksAsync();
+            var savedPicks = await Persistence.LoadSavedPicksAsync(Games.Current);
             if (savedPicks.Any(r =>
                     string.Equals(SnapshotCodec.Encode(r.Snapshot), fingerprint, StringComparison.Ordinal)))
                 return BackupOutcome.AlreadyPresent;
 
             savedPicks.Insert(0, new SavedPick(
                 $"{prefix}, {DateTime.Now:yyyy-MM-dd HH:mm}",
-                DateTimeOffset.UtcNow, current));
-            await Persistence.SaveSavedPicksAsync(savedPicks);
+                DateTimeOffset.UtcNow, current, Games.Current));
+            await Persistence.SaveSavedPicksAsync(savedPicks, Games.Current);
             return BackupOutcome.Added;
         }
         catch
@@ -418,6 +444,22 @@
 
     private void OnIntroChanged() => InvokeAsync(StateHasChanged);
 
+    private void OnLoadingChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnGameChanged()
+    {
+        _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
+        _railMods = null;
+        _railModsKey = "";
+        _savedPicksVersion++;
+        _warmedValueKeys.Clear();
+        _warmScheduled = false;
+        foreach (var item in State.TestItems)
+            item.Reheal(Engine);
+        Recompute();
+        InvokeAsync(StateHasChanged);
+    }
+
     private void CloseImport() => _importOpen = false;
     private void CloseQueryImport() => _queryImportOpen = false;
 
@@ -434,7 +476,7 @@
     {
         if (_stale || _disposed) return;
         Recompute();
-        _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State));
+        _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
         InvokeAsync(StateHasChanged);
         // After the pick paints, warm the value path for the scope so the
         // first min entry is immediate.
@@ -575,7 +617,7 @@
             : State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0;
         _highlight = chipsPicked
             ? State.TestItems
-                .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines()).Match))
+                .Where(item => queries.Any(q => ItemMatcher.Match(q, item.MatchLines(), Engine.Syntax).Match))
                 .Select(item => item.Id).ToHashSet()
             : [];
         _dimNonMatching = chipsPicked && queries.Count > 0;
@@ -667,7 +709,7 @@
     private IEnumerable<ItemClassEntry> ClassOptions(string slotId)
     {
         var playable = Engine.InGameClasses().ToList();
-        var allowed = SlotClasses.AllowedFor(slotId, playable.Select(c => c.Id)).ToHashSet();
+        var allowed = SlotClasses.AllowedFor(slotId, playable.Select(c => c.Id), Games.Current).ToHashSet();
         var current = State.SlotClassOrDefault(slotId);
         return playable.Where(c => allowed.Contains(c.Id) || c.Id == current);
     }
@@ -679,14 +721,16 @@
     }
     private async Task ResetWorkbench()
     {
-        await Persistence.ClearAsync();
-        State.Reset(); // notifies -> recompute + save of defaults
+        await Persistence.ClearAsync(Games.Current);
+        State.Reset(Games.Current); // notifies -> recompute + save of defaults
     }
 
     public void Dispose()
     {
         _disposed = true;
         State.Changed -= OnStateChanged;
+        Games.Changed -= OnGameChanged;
+        Games.LoadingChanged -= OnLoadingChanged;
         Intro.Changed -= OnIntroChanged;
         Nav.LocationChanged -= OnLocationChanged;
         try { _ = JS.InvokeVoidAsync("poeRegexUnwatchTabs"); } catch { }

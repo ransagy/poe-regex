@@ -18,5 +18,7 @@ public static class GameItemClasses
         classId is not null && !NotInGame.Contains(classId);
 
     public static IReadOnlyList<ItemClassEntry> InGame(Catalog catalog) =>
-        catalog.ItemClasses.Where(c => IsInGame(c.Id)).ToList();
+        string.Equals(catalog.Game, "poe1", StringComparison.OrdinalIgnoreCase)
+            ? catalog.ItemClasses.ToList()
+            : catalog.ItemClasses.Where(c => IsInGame(c.Id)).ToList();
 }

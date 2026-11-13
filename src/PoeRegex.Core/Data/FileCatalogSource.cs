@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace PoeRegex.Core.Data;
 
-/// <summary>Loads a PoE2 catalog from a JSON file on disk.</summary>
+/// <summary>Loads a game catalog from a JSON file on disk.</summary>
 public sealed class FileCatalogSource : ICatalogSource
 {
     private readonly string _path;

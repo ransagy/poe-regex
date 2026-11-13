@@ -56,7 +56,10 @@ public sealed record ParsedItem(
     string? Sockets,
     string? GrantsSkill,
     bool Corrupted,
-    IReadOnlyList<ParsedModBlock> Mods)
+    IReadOnlyList<ParsedModBlock> Mods,
+    bool Fractured = false,
+    string? Influence = null,
+    bool Eldritch = false)
 {
     /// <summary>
     /// Every matchable line — the game's copied advanced description: base
@@ -68,6 +71,8 @@ public sealed record ParsedItem(
     public IReadOnlyList<string> AllLines()
     {
         var lines = new List<string>(BaseLines);
+        if (Sockets is not null) lines.Add($"Sockets: {Sockets}");
+        if (GrantsSkill is not null) lines.Add($"Grants Skill: {GrantsSkill}");
         if (Name is not null) lines.Add(Name);
         foreach (var m in Mods)
         {
@@ -86,6 +91,8 @@ public sealed record ParsedItem(
 /// </summary>
 public static partial class ItemTextParser
 {
+    private static readonly Regex Parenthetical = new(@"\s*\([^)]*\)", RegexOptions.Compiled);
+
     /// <summary>
     /// Rebuilds a `{ ... Modifier ... }` caption the way the game phrases it
     /// (e.g. `{ Prefix Modifier "Snowy" (Tier: 8) — Damage, Lightning }`).
@@ -128,13 +135,15 @@ public static partial class ItemTextParser
     [GeneratedRegex(@"^Grants Skill:\s*(?<v>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex GrantsSkillRe();
     [GeneratedRegex(
-        @"^\{\s*(?:(?<source>Desecrated|Master Crafted|Crafted|Corrupted)\s+)?(?<kind>Implicit|Prefix|Suffix|Corrupted)\b(?<rest>.*)\}$",
+        @"^\{\s*(?:(?<source>Desecrated|Master Crafted|Crafted|Veiled|Fractured|Corruption|Searing Exarch|Eater of Worlds|Corrupted)\s+)?(?<kind>Implicit|Prefix|Suffix|Corrupted)\b(?<rest>.*)\}$",
         RegexOptions.IgnoreCase)]
     private static partial Regex ModHeaderRe();
     [GeneratedRegex(@"""(?<name>[^""]+)""")]
     private static partial Regex QuotedNameRe();
     [GeneratedRegex(@"\(Tier:\s*(?<tier>\d+)\)", RegexOptions.IgnoreCase)]
     private static partial Regex TierRe();
+    [GeneratedRegex(@"\(Rank:\s*(?<rank>\d+)\)", RegexOptions.IgnoreCase)]
+    private static partial Regex RankRe();
     [GeneratedRegex(@"—\s*(?<tags>.+)$")]
     private static partial Regex TagsRe();
 
@@ -195,6 +204,9 @@ public static partial class ItemTextParser
         string? sockets = null;
         string? grantsSkill = null;
         var corrupted = false;
+        var fractured = false;
+        var eldritch = false;
+        var influences = new List<string>();
         var mods = new List<ParsedModBlock>();
 
         ParsedModBlock? current = null;
@@ -243,6 +255,27 @@ public static partial class ItemTextParser
             m = GrantsSkillRe().Match(line);
             if (m.Success) { grantsSkill = m.Groups["v"].Value.Trim(); continue; }
             if (line.Equals("Corrupted", StringComparison.OrdinalIgnoreCase)) { corrupted = true; continue; }
+            if (line.Equals("Fractured Item", StringComparison.OrdinalIgnoreCase)) { fractured = true; continue; }
+            if (line is "Searing Exarch Item" or "Eater of Worlds Item")
+            {
+                eldritch = true;
+                continue;
+            }
+            var influence = line switch
+            {
+                "Crusader Item" => "Crusader",
+                "Elder Item" => "Elder",
+                "Shaper Item" => "Shaper",
+                "Redeemer Item" => "Redeemer",
+                "Hunter Item" => "Hunter",
+                "Warlord Item" => "Warlord",
+                _ => null,
+            };
+            if (influence is not null)
+            {
+                if (!influences.Contains(influence, StringComparer.Ordinal)) influences.Add(influence);
+                continue;
+            }
 
             m = ModHeaderRe().Match(line);
             if (m.Success)
@@ -254,17 +287,26 @@ public static partial class ItemTextParser
                     "desecrated" => "desecrated",
                     "crafted" => "crafted",
                     "master crafted" => "master crafted",
+                    "fractured" => "fractured",
+                    "veiled" => "veiled",
+                    "corruption" => "corrupted",
+                    "searing exarch" => "searing exarch",
+                    "eater of worlds" => "eater of worlds",
                     "corrupted" => "corrupted",
                     _ => kind == "corrupted" ? "corrupted" : "explicit",
                 };
                 var rest = m.Groups["rest"].Value;
                 var qn = QuotedNameRe().Match(rest);
                 var tr = TierRe().Match(rest);
+                var rank = RankRe().Match(rest);
+                var tier = tr.Success ? int.Parse(tr.Groups["tier"].Value)
+                    : rank.Success ? int.Parse(rank.Groups["rank"].Value)
+                    : (int?)null;
                 var tg = TagsRe().Match(rest);
                 current = new ParsedModBlock(
                     kind,
                     qn.Success ? qn.Groups["name"].Value : null,
-                    tr.Success ? int.Parse(tr.Groups["tier"].Value) : null,
+                    tier,
                     tg.Success
                         ? tg.Groups["tags"].Value.Split(',').Select(t => t.Trim())
                             .Where(t => t.Length > 0).ToList()
@@ -277,6 +319,9 @@ public static partial class ItemTextParser
 
             if (currentLines is not null)
             {
+                // Fully parenthetical lines are game annotations, not mod
+                // value lines (e.g. "(Knockback pushes Enemies away...)").
+                if (Parenthetical.Replace(line, "").Trim().Length == 0) continue;
                 currentLines.Add(new ParsedValueLine(line, ParseRolls(line)));
                 continue;
             }
@@ -287,7 +332,8 @@ public static partial class ItemTextParser
         FlushBlock();
 
         return new ParsedItem(itemClass, rarity, name, baseLines, requires,
-            itemLevel, sockets, grantsSkill, corrupted, mods);
+            itemLevel, sockets, grantsSkill, corrupted, mods, fractured,
+            influences.Count == 0 ? null : string.Join(" / ", influences), eldritch);
     }
 
     private static IReadOnlyList<double> ParseRolls(string line)

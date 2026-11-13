@@ -15,6 +15,13 @@ internal static class ClassAnchorOptimizer
 {
     private const int MaxWildcards = 3;
 
+    /// <summary>
+    /// A one-character class anchor is too easy to collide with item text
+    /// such as <c>Sockets: G</c> or a property value. Two characters still
+    /// keep the shipped selectors short.
+    /// </summary>
+    private const int MinAnchorLength = 2;
+
     private sealed record Candidate(
         string Pattern,
         int Length,
@@ -29,12 +36,16 @@ internal static class ClassAnchorOptimizer
     public static string Shortest(EngineCorpus corpus, string classId)
     {
         var entry = corpus.FindItemClass(classId);
-        var baseline = Poe2Syntax.EscapeLiteral(corpus.ComputeClassNamePrefix(classId));
-        if (entry is null || string.IsNullOrEmpty(entry.Name) || baseline.Length <= 1)
+        var prefix = corpus.ComputeClassNamePrefix(classId);
+        if (entry is not null && prefix.Length < MinAnchorLength)
+            prefix = entry.Name[..Math.Min(MinAnchorLength, entry.Name.Length)];
+        var baseline = corpus.Syntax.EscapeLiteral(prefix);
+        if (entry is null || string.IsNullOrEmpty(entry.Name) || baseline.Length <= MinAnchorLength)
             return baseline;
 
-        foreach (var candidate in Candidates(entry.Name, baseline.Length - 1))
+        foreach (var candidate in Candidates(entry.Name, baseline.Length - 1, corpus.Syntax))
         {
+            if (candidate.Length < MinAnchorLength) continue;
             if (candidate.Length >= baseline.Length) continue;
             if (!corpus.ClassTermExact(candidate.Pattern, [classId])) continue;
             if (!corpus.ClassTermQuiet(candidate.Pattern)) continue;
@@ -48,10 +59,10 @@ internal static class ClassAnchorOptimizer
     /// leading literal (readability), then the most literal characters, then
     /// ordinal text.
     /// </summary>
-    private static IReadOnlyList<Candidate> Candidates(string name, int maxLength)
+    private static IReadOnlyList<Candidate> Candidates(string name, int maxLength, QuerySyntax syntax)
     {
         var best = new Dictionary<string, Candidate>(StringComparer.Ordinal);
-        Walk(name, 0, 0, 0, 0, 0, 0, [], maxLength, best);
+        Walk(name, 0, 0, 0, 0, 0, 0, [], maxLength, syntax, best);
 
         return best.Values
             .OrderBy(c => c.Length)
@@ -71,6 +82,7 @@ internal static class ClassAnchorOptimizer
         int literalCharacters,
         List<string> pieces,
         int maxLength,
+        QuerySyntax syntax,
         Dictionary<string, Candidate> best)
     {
         if (blocks > 0)
@@ -90,7 +102,7 @@ internal static class ClassAnchorOptimizer
         {
             for (var j = i + 1; j <= name.Length; j++)
             {
-                var literal = Poe2Syntax.EscapeLiteral(name[i..j]);
+                var literal = syntax.EscapeLiteral(name[i..j]);
                 var separator = blocks == 0 ? "" : i - previousEnd == 1 ? "." : ".+";
                 var nextLength = length + separator.Length + literal.Length;
                 if (nextLength > maxLength) break;
@@ -101,7 +113,7 @@ internal static class ClassAnchorOptimizer
                     name, j + 1, blocks + 1, nextLength, j,
                     blocks == 0 ? literal.Length : firstLiteral,
                     literalCharacters + literal.Length,
-                    pieces, maxLength, best);
+                    pieces, maxLength, syntax, best);
                 pieces.RemoveRange(pieces.Count - 2, 2);
             }
         }

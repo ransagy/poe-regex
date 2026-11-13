@@ -228,7 +228,9 @@ public sealed class EngineCorpus
             _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
             precomputedAnchor.Length > 0)
             return precomputedAnchor;
-        return Poe2Syntax.EscapeLiteral(ClassNamePrefix(itemClass));
+        // No shipped anchor: recompute with the same safety rules instead of
+        // falling back to a one-character literal prefix.
+        return ComputeClassNameAnchor(itemClass);
     }
 
     /// <summary>
@@ -312,9 +314,12 @@ public sealed class EngineCorpus
     /// so tests and custom catalog sources can provide their own validated
     /// table; the embedded table is used when it is null.
     /// </summary>
-    public EngineCorpus(Catalog catalog, FragmentTable? fragments)
+    public EngineCorpus(
+        Catalog catalog, FragmentTable? fragments,
+        VendorCorpusFile? vendor = null, IReadOnlyList<SafetyItem>? safety = null)
     {
         _catalog = catalog;
+        Syntax = QuerySyntax.ForGame(catalog.Game);
         _inGameCatalogClasses = GameItemClasses.InGame(catalog);
         _inGameClassIds = _inGameCatalogClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         _catalogClassIds = catalog.ItemClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
@@ -330,8 +335,12 @@ public sealed class EngineCorpus
         // per-class suffix indexes. The normal browser compile path uses the
         // precomputed table; the oracle is materialized only when a fallback,
         // import, or audit actually asks for it.
-        _safetyItems = new(() => SafetyItemCorpus.ForCurrentGame);
-        _vendorLines = new(() => VendorCorpus.ForCurrentGame?.Lines ?? []);
+        // Embedded vendor artifacts belong to PoE2. Safety fixtures are
+        // per-game; PoE1 supplies its own captured items.
+        var embedded = string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase);
+        _safetyItems = new(() => safety ?? SafetyItemCorpus.ForGame(catalog.Game));
+        _vendorLines = new(() => vendor?.Lines ??
+            (embedded ? VendorCorpus.ForCurrentGame?.Lines : null) ?? []);
         _vendorNormalized = new(() => InGameVendorLines()
             .Select(l => CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
@@ -343,27 +352,38 @@ public sealed class EngineCorpus
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _globalByPattern = new(() => GroupByPattern(RealLinesGlobal()),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _fragments = fragments ?? FragmentTables.ForCurrentGame;
-        if (_fragments is not null)
+        var table = fragments ??
+            (string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase)
+                ? FragmentTables.ForCurrentGame
+                : null);
+        if (table is not null)
         {
+            // Never apply another game's table to this catalog.
+            if (table.Game is "poe1" or "poe2" &&
+                !string.Equals(table.Game, catalog.Game, StringComparison.OrdinalIgnoreCase))
+                table = null;
             // A table without a target model is the legacy table generated
             // before the basis was recorded; it was advanced-ranges only.
-            if (!string.IsNullOrEmpty(_fragments.TargetModel) &&
-                !string.Equals(
-                    _fragments.TargetModel,
-                    FragmentTable.AdvancedRanges,
-                    StringComparison.Ordinal))
-                _fragments = null;
+            else if (!string.IsNullOrEmpty(table.TargetModel) &&
+                     !string.Equals(
+                         table.TargetModel,
+                         FragmentTable.AdvancedRanges,
+                         StringComparison.Ordinal))
+                table = null;
             else if (fragments is null &&
                      !string.Equals(
-                         _fragments.DataVersion,
+                         table.DataVersion,
                          catalog.DataVersion,
                          StringComparison.Ordinal))
-                _fragments = null;
+                table = null;
         }
+        _fragments = table;
     }
 
     public Catalog Catalog => _catalog;
+
+    /// <summary>This catalog's query dialect (exclusion shape, tokenization).</summary>
+    public QuerySyntax Syntax { get; }
 
     /// <summary>Classes with released bases and at least one catalog mod.</summary>
     public IReadOnlyList<ItemClassEntry> InGameClasses => _inGameClasses;
@@ -990,9 +1010,14 @@ public sealed class EngineCorpus
                     .ToHashSet(StringComparer.Ordinal);
     }
 
-    private static string VendorPattern(string line, HashSet<string> known)
+    private string VendorPattern(string line, HashSet<string> known)
     {
         var normalized = CatalogLineNormalizer.Normalize(line);
+        // PoE1 catalog patterns omit a leading '+' so tiers copied with and
+        // without it share one target. Apply the same canonical form to
+        // captured safety lines before deciding whether they are a target.
+        if (Syntax.Game == "poe1" && normalized.StartsWith('+'))
+            normalized = normalized[1..];
         return known.Contains(normalized) ? normalized : SafetyPatternMarker + normalized;
     }
 

@@ -68,6 +68,26 @@ public class FootprintTests
     }
 
     [Fact]
+    public void SlotClasses_Poe1WeaponAndOffhandUsePoE1Classes()
+    {
+        var playable = new[]
+        {
+            "Claw", "Dagger", "Wand", "One Hand Sword", "Thrusting One Hand Sword",
+            "One Hand Axe", "One Hand Mace", "Sceptre", "Bow", "Staff",
+            "Two Hand Sword", "Two Hand Axe", "Two Hand Mace", "Warstaff",
+            "Shield", "Quiver", "Helmet", "Crossbow",
+        };
+        var weapon = SlotClasses.AllowedFor("weapon", playable, "poe1");
+        weapon.Should().Contain(["Thrusting One Hand Sword", "Warstaff"]);
+        weapon.Should().NotContain(["Crossbow", "Shield", "Quiver", "Helmet"]);
+
+        var offhand = SlotClasses.AllowedFor("offhand", playable, "poe1");
+        offhand.Should().Contain(["Shield", "Quiver", "One Hand Sword",
+            "Thrusting One Hand Sword"]);
+        offhand.Should().NotContain(["Bow", "Staff", "Two Hand Sword", "Warstaff"]);
+    }
+
+    [Fact]
     public void Placement_MultiCell_NoOverlap_InBounds()
     {
         var state = new WorkbenchState();

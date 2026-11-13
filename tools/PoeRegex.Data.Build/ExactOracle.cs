@@ -90,15 +90,63 @@ internal static class ExactOracle
 
     public static MatrixOption? Solve(
         ScopeCorpus scope, string pattern, int minLength, int maxLength,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null, bool anchoredFallback = false)
     {
         var result = ExactSearchSolver.Solve(scope, pattern, minLength, maxLength, timeout: timeout);
-        if (result is null) return null;
-        var option = Check(scope, pattern, result.Fragment);
-        if (option is null)
-            throw new InvalidOperationException(
-                $"exact solver returned a fragment that fails verification: {result.Fragment}");
-        return option;
+        if (result is not null)
+        {
+            var option = Check(scope, pattern, result.Fragment);
+            if (option is null)
+                throw new InvalidOperationException(
+                    $"exact solver returned a fragment that fails verification: {result.Fragment}");
+            return option;
+        }
+
+        if (!anchoredFallback) return null;
+
+        // A few PoE1 signed/advanced forms cannot be expressed by the
+        // solver's sign-free token grammar. A full-line anchored alternation
+        // over the actual target texts is the remaining strict shape; the
+        // oracle still proves zero foreign matches. This fallback is opt-in so
+        // the PoE2 proof keeps its original grammar and cost.
+        var anchored = scope.Targets(pattern)
+            .Select(t => "^" + DigitsToRegex(t) + "$")
+            .Distinct(StringComparer.Ordinal)
+            .Where(c => c.Length >= minLength && c.Length <= maxLength)
+            .ToList();
+        foreach (var candidate in anchored)
+        {
+            var option = Check(scope, pattern, candidate);
+            if (option is { ForeignLines: 0 }) return option;
+        }
+        if (anchored.Count > 1)
+        {
+            var combined = "^(" + string.Join("|", anchored.Select(a => a[1..^1])) + ")$";
+            if (combined.Length <= maxLength)
+            {
+                var option = Check(scope, pattern, combined);
+                if (option is { ForeignLines: 0 }) return option;
+            }
+        }
+        return null;
+    }
+
+    private static string DigitsToRegex(string text)
+    {
+        var sb = new System.Text.StringBuilder(text.Length + 8);
+        for (var i = 0; i < text.Length;)
+        {
+            if (char.IsDigit(text[i]))
+            {
+                while (i < text.Length && char.IsDigit(text[i])) i++;
+                sb.Append(@"\d+");
+                continue;
+            }
+            var c = text[i++];
+            if ("\\.+*?()[]{}^$|".Contains(c)) sb.Append('\\');
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     public static bool IsMinionAlliesLine(string line) =>

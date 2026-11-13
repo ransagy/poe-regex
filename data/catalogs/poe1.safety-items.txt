@@ -1,0 +1,32 @@
+Item Class: Boots
+Rarity: Rare
+Rapture Track
+Hydrascale Boots
+--------
+Armour: 346 (augmented)
+Evasion Rating: 322 (augmented)
+Memory Strands: 27
+--------
+Requirements:
+Level: 60
+Str: 56
+Dex: 56
+--------
+Sockets: G
+--------
+Item Level: 84
+--------
+{ Prefix Modifier "Durable" (Tier: 1) — Defences, Armour, Evasion }
++69(49-85) to Armour
++56(49-85) to Evasion Rating
+{ Prefix Modifier "Virile" (Tier: 2) — Life }
++104(100-114) to maximum Life
+{ Prefix Modifier "Hero's" (Tier: 2) — Defences, Armour, Evasion }
+84(80-91)% increased Armour and Evasion
+{ Suffix Modifier "of the Maelstrom" (Tier: 3) — Elemental, Lightning, Resistance }
++36(36-41)% to Lightning Resistance
+{ Suffix Modifier "of Abjuration" (Tier: 2) }
++11(11-12)% chance to Suppress Spell Damage
+(40% of Damage from Suppressed Hits and Ailments they inflict is prevented)
+{ Suffix Modifier "of the Volcano" (Tier: 3) — Elemental, Fire, Resistance }
++37(36-41)% to Fire Resistance

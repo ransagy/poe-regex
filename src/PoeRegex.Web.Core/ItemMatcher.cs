@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Explain;
 
 namespace PoeRegex.Web.Core;
@@ -16,15 +17,17 @@ public sealed record ItemVerdict(bool Match, IReadOnlyList<TokenVerdict> Tokens)
 /// </summary>
 public static partial class ItemMatcher
 {
-    public static ItemVerdict Match(string query, IEnumerable<string> lines)
+    public static ItemVerdict Match(string query, IEnumerable<string> lines,
+        QuerySyntax? syntax = null)
     {
+        syntax ??= QuerySyntax.Poe2;
         // Nothing picked: an empty query matches nothing (a vacuous AND would
         // light up every lab item; the game's empty search is not the lab's point).
         if (string.IsNullOrWhiteSpace(query))
             return new ItemVerdict(false, []);
         var list = lines.ToList();
         var verdicts = new List<TokenVerdict>();
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query, syntax))
         {
             var hit = false;
             try

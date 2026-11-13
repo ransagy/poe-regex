@@ -1,4 +1,4 @@
-# Import behavior and coverage — PoE2 workbench
+# Import behavior and coverage — PoE2 and PoE1 workbenches
 
 Two import surfaces are covered:
 
@@ -39,6 +39,49 @@ Expected exceptions remain explicit:
   stays flagged as `approximate`
 - ambiguous text keeps a ranked candidate list; the header name/range is used
   to choose the default
+
+
+## PoE1 normal-equipment import (MVP)
+
+The PoE1 profile accepts normal, magic, and rare equipment copy text. It maps
+the same plain and advanced roll forms as PoE2, plus PoE1's `(Tier: n)` and
+`(Rank: n)` headers, full-line annotations, and the
+`— Unscalable Value` suffix.
+
+Supported:
+
+- normal/magic/rare equipment with an `Item Class:` header
+- fractured headers carrying normal prefix/suffix affixes
+- corruption implicit headers
+- plain values and `value(min-max)` advanced forms
+- sockets, quality, requirements, and item level as searchable lines; the lab
+  matcher includes `Sockets:` text so its verdict matches the in-game search
+
+Rejected with a clear message:
+
+- Shaper, Elder, Crusader, Redeemer, Hunter, or Warlord influence
+- Searing Exarch / Eater of Worlds eldritch items or modifiers
+- Crafted or Master Crafted modifiers
+- Veiled modifiers
+- synthesised items or implicit headers
+- lab/bench enchantment headers
+- unique-rarity items
+
+Gems (skill and support) are MVP+1: their copied text includes explanatory
+lines that can win fragment selection, so they need a separate corpus and
+target-model review. Flasks, jewels, maps, currency, and unique-only text
+remain outside the normal-equipment MVP.
+
+PoE1 exclusions are emitted as `"!term"` (the bang is inside the quotes);
+PoE2 keeps `!"term"`. The per-game `QuerySyntax` profile is used by compile,
+paste composition, explain, query import/reconstruction, item matching, and
+the block ruler.
+
+The PoE1 exact table is strict over the generated foreign corpus plus the
+captured `poe1.safety-items.txt` item. Rare/unique names, unmodeled league
+text, and other item text can still satisfy a short fragment; this is the same
+inherent text-search limitation as PoE2. The common-picks shortlist is shared
+with PoE2 and resolves near equivalents by family key/display text.
 
 ## Search-string import
 

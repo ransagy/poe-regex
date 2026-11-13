@@ -8,12 +8,18 @@ namespace PoeRegex.Web.Core;
 /// </summary>
 public static class SlotClasses
 {
+    private static readonly HashSet<string> OneHandOrOffhand = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Shield", "Quiver", "Claw", "Dagger", "Wand", "One Hand Sword",
+        "Thrusting One Hand Sword", "One Hand Axe", "One Hand Mace", "Sceptre",
+    };
+
     private static readonly HashSet<string> NonWeapon = new(StringComparer.OrdinalIgnoreCase)
     {
         "Helmet", "Body Armour", "Gloves", "Boots", "Belt", "Amulet", "Ring",
     };
 
-    public static IReadOnlyList<string> AllowedFor(string slotId, IEnumerable<string> playableIds)
+    public static IReadOnlyList<string> AllowedFor(string slotId, IEnumerable<string> playableIds, string game = "poe2")
     {
         var playable = playableIds.ToList();
         return slotId switch
@@ -26,7 +32,14 @@ public static class SlotClasses
             "amulet" => Filter(playable, "Amulet"),
             "ring1" => Filter(playable, "Ring"),
             "ring2" => Filter(playable, "Ring"),
+            "weapon" when game == "poe1" => playable
+                .Where(c => !NonWeapon.Contains(c) &&
+                            !c.Equals("Shield", StringComparison.OrdinalIgnoreCase) &&
+                            !c.Equals("Quiver", StringComparison.OrdinalIgnoreCase) &&
+                            !c.Equals("Crossbow", StringComparison.OrdinalIgnoreCase))
+                .ToList(),
             "weapon" => playable.Where(c => !NonWeapon.Contains(c)).ToList(),
+            "offhand" when game == "poe1" => playable.Where(c => OneHandOrOffhand.Contains(c)).ToList(),
             "offhand" => playable.Where(c => !NonWeapon.Contains(c)).ToList(),
             _ => playable,
         };

@@ -15,11 +15,12 @@ public sealed record WorkbenchSnapshot(
     Dictionary<string, SlotCriteria> Slots,
     SlotCriteria Global,
     List<TestItem> TestItems,
-    List<string>? ExternalIncludes = null)
+    List<string>? ExternalIncludes = null,
+    string Game = "poe2")
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
-    public static WorkbenchSnapshot Capture(WorkbenchState state) => new(
+    public static WorkbenchSnapshot Capture(WorkbenchState state, string game = "poe2") => new(
         CurrentVersion,
         state.Mode,
         null, // single mode retired; kept for loading v2 snapshots
@@ -27,7 +28,8 @@ public sealed record WorkbenchSnapshot(
         state.Slots.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
         state.Global,
         state.TestItems.ToList(),
-        state.ExternalIncludes.ToList());
+        state.ExternalIncludes.ToList(),
+        game);
 
     /// <summary>Restore with light validation (unknown modes/slots/classes are dropped).</summary>
     public static void Restore(WorkbenchState state, WorkbenchSnapshot snap) =>

@@ -66,7 +66,7 @@ public sealed class QueryImportService
             foreach (var anchor in new[]
                      {
                          _engine.ClassNameAnchor(itemClass.Id),
-                         Poe2Syntax.EscapeLiteral(_engine.ClassNamePrefix(itemClass.Id)),
+                         _engine.Syntax.EscapeLiteral(_engine.ClassNamePrefix(itemClass.Id)),
                      }.Distinct(StringComparer.Ordinal))
             {
                 if (anchor.Length == 0) continue;
@@ -98,7 +98,7 @@ public sealed class QueryImportService
         var excludes = new List<ModifierRequirement>();
         var keywords = new List<string>();
 
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query, _engine.Syntax))
         {
             var anchorClasses = ResolveClassAnchor(phrase);
             if (!excluded && anchorClasses.Count > 0)
@@ -209,7 +209,7 @@ public sealed class QueryImportService
         try
         {
             var classId = classes.Count == 1 ? classes.First() : null;
-            var explanation = _engine.Explain(Poe2Syntax.Quote(phrase), classId);
+            var explanation = _engine.Explain(_engine.Syntax.Quote(phrase), classId);
             var result = new List<(string Pattern, string Mod)>();
             foreach (var match in explanation.Tokens.SelectMany(t => t.Matches))
             {
@@ -249,9 +249,29 @@ public sealed class QueryImportService
             return exact;
 
         // Paste anchors are alternations: ": (Am|Ri)" and merged forms such
-        // as ": (.*Hand M)". Match them against the catalog class lines.
+        // as ": (.*Hand M)". Literal alternations are resolved by lookup so a
+        // cold or loaded regex engine cannot time out on a common paste.
         var inner = phrase[2..];
         if (!inner.StartsWith('(') || !inner.EndsWith(')')) return [];
+        var body = inner[1..^1];
+        var parts = body.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length > 1 && parts.All(IsLiteralAnchor))
+        {
+            var resolved = new List<string>();
+            var complete = true;
+            foreach (var part in parts)
+            {
+                if (!ClassByAnchor.TryGetValue(": " + part, out var classes))
+                {
+                    complete = false;
+                    break;
+                }
+                resolved.AddRange(classes);
+            }
+            if (complete)
+                return resolved.Distinct(StringComparer.Ordinal).ToList();
+        }
+
         var result = new List<string>();
         foreach (var cls in _engine.Classes)
         {
@@ -260,7 +280,7 @@ public sealed class QueryImportService
             {
                 if (Regex.IsMatch(line, phrase,
                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                        TimeSpan.FromMilliseconds(50)))
+                        TimeSpan.FromMilliseconds(250)))
                     result.Add(cls.Id);
             }
             catch (ArgumentException)
@@ -270,6 +290,9 @@ public sealed class QueryImportService
         }
         return result;
     }
+
+    private static bool IsLiteralAnchor(string value) =>
+        value.Length > 0 && !value.Any(c => @"\.+*?()[]{}^$|".Contains(c));
 }
 
 public sealed record QueryImportResult(

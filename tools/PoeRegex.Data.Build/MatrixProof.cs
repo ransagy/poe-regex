@@ -23,6 +23,7 @@ public static class MatrixProof
         var opts = ParseOptions(args);
         var catalogPath = GetValue(opts, "--catalog", "data/catalogs/poe2.catalog.json");
         var matrixPath = GetValue(opts, "--matrix", "docs/CANDIDATE-MATRIX-poe2.html");
+        var vendorPath = GetValue(opts, "--vendor", "");
         var outPath = GetValue(opts, "--out", "");
         var familyFilter = GetValue(opts, "--family", "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -34,8 +35,8 @@ public static class MatrixProof
         var minGlobal = int.TryParse(GetValue(opts, "--min-global", "3"), out var mg) ? mg : 3;
         var minClass = int.TryParse(GetValue(opts, "--min-class", "2"), out var mc) ? mc : 2;
 
-        var catalog = new FileCatalogSource(catalogPath).Load();
-        var corpus = new EngineCorpus(catalog);
+        var corpus = CorpusLoader.Load(catalogPath, vendorPath);
+        var catalog = corpus.Catalog;
         var html = File.ReadAllText(matrixPath);
         const string marker = "window.MATRIX = ";
         var start = html.IndexOf(marker, StringComparison.Ordinal);
@@ -103,7 +104,9 @@ public static class MatrixProof
             var minimum = item.ClassId is null ? minGlobal : minClass;
             var legal = ExactOracle.Solve(
                 scopeCorpus, item.Pattern, minimum,
-                Math.Max(0, item.Chosen.Length - 1));
+                Math.Max(0, item.Chosen.Length - 1),
+                anchoredFallback: string.Equals(
+                    catalog.Game, "poe1", StringComparison.OrdinalIgnoreCase));
             if (legal is not null)
             {
                 failures.Add(new Failure(

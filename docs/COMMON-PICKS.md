@@ -1,8 +1,10 @@
 # Common picks
 
 The pre-typing picker shortlist lives in
-[`data/common-picks.json`](../data/common-picks.json). Add or change entries
-there instead of editing a hardcoded family-key list.
+[`data/common-picks.json`](../data/common-picks.json). The same file is shared
+by both game profiles: entries resolve by family key or visible display text,
+so a PoE2 pick with a close PoE1 equivalent also appears in the PoE1 picker.
+Add or change entries there instead of editing a hardcoded family-key list.
 
 ## Entry shape
 
@@ -58,6 +60,9 @@ _Generated from [`data/common-picks.json`](../data/common-picks.json) by `common
 | +% to Critical Hit Chance | `LocalBaseCriticalStrikeChance` | All gear | `LocalBaseCriticalStrikeChance` |
 | + to Accuracy Rating | `LocalAccuracyRating` | All gear | `LocalAccuracyRating` |
 | % increased Mana Regeneration Rate | `ManaRegeneration` | All gear | `ManaRegeneration` |
+| Life Regeneration | `LifeRegeneration` | All gear | `LifeRegeneration` |
+| % increased Cast Speed | `IncreasedCastSpeed` | All gear | `IncreasedCastSpeed` |
+| % increased Spell Damage | `SpellDamage` | All gear | `SpellDamage` |
 | Minion skill levels | `GlobalIncreaseMinionSpellSkillGemLevel` | Helmet | `GlobalIncreaseMinionSpellSkillGemLevel` |
 | Added physical damage | match: "Adds to Physical Damage to Attacks" | Gloves | `PhysicalDamage` |
 | Added fire damage | match: "Adds to Fire damage to Attacks" | Gloves | `FireDamage` |

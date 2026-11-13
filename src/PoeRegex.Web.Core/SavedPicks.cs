@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace PoeRegex.Web.Core;
 
 /// <summary>A named set of picks (modes, classes, picks; never test items).</summary>
-public sealed record SavedPick(string Name, DateTimeOffset SavedAt, WorkbenchSnapshot Snapshot)
+public sealed record SavedPick(string Name, DateTimeOffset SavedAt, WorkbenchSnapshot Snapshot, string Game = "poe2")
 {
     public int PickCount =>
         Snapshot.Global.Included.Count + Snapshot.Global.Excluded.Count +
@@ -22,10 +22,10 @@ public static class SnapshotCodec
     public const int MaxTokenLength = (MaxJsonBytes + 1024) * 4 / 3;
 
     /// <summary>A deep copy: Capture hands out the live criteria objects.</summary>
-    public static WorkbenchSnapshot CaptureCriteria(WorkbenchState state)
+    public static WorkbenchSnapshot CaptureCriteria(WorkbenchState state, string game = "poe2")
     {
         var json = JsonSerializer.Serialize(
-            WorkbenchSnapshot.Capture(state) with { TestItems = [] }, WebJsonContext.Default.WorkbenchSnapshot);
+            WorkbenchSnapshot.Capture(state, game) with { TestItems = [] }, WebJsonContext.Default.WorkbenchSnapshot);
         return JsonSerializer.Deserialize(json, WebJsonContext.Default.WorkbenchSnapshot)!;
     }
 

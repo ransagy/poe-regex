@@ -1,10 +1,39 @@
 # Acceptance
 
-_Last measured: 2026-11-11._
+_Last measured: 2026-11-13._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
 sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
+
+## PoE1 MVP evidence
+
+Measured on `feat/poe1-mvp` (2026-11-13), shipping with the PoE1 MVP release:
+
+- Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit, 233
+  corrupted).
+- Exact table: 1,626 scopes (382 global, 1,244 class), 0 unresolved. The
+  matrix proof checks 1,966 expanded scopes with 0 failures; `poe1-status
+  --check` reports a non-stale table and a proven shortest form.
+- Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
+  against the generated foreign corpus plus the captured safety item.
+- Regression: the captured boots item has `Sockets: G` and no movement speed;
+  the multi-slot paste with a Boots movement-speed block must not match it.
+  Class anchors are at least two characters, and `Gloves` uses `Gl`.
+- Import audit: every PoE1 catalog mod/class/display form maps back to its
+  source mod (18,843 forms, 0 failures).
+- Tests: 118 core + 443 web + 46 data-build pass.
+- Browser smoke: the top-bar switch shows full game names on desktop and compact labels on phones; the title stays visible (wrapped on small screens); a
+  dimmed loading overlay appears while PoE1 data loads; switching shows 23
+  PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;
+  picks round-trip per game; a reload with PoE1 as the last game restores the
+  overlay, engine, state, and query. PoE1 data is fetched lazily on first
+  switch and is not in the install-time precache.
+- PWA: service worker activates, manifest/installability checks pass, and the
+  shell boots offline (68 precached entries; PoE1 data is cached on first
+  switch).
+- Perf at 1920×1080: boot p50 1265 ms / p95 1333 ms (budget 2500 ms); long
+  tasks 14 over 50 ms, 0 over 200 ms, max 91 ms.
 
 ## Performance
 
@@ -15,23 +44,22 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1245 ms | 1281 ms | < 2500 ms |
-| bulk add `++` | 43 ms | 45 ms | < 50 ms |
-| mode: advanced | 37 ms | 43 ms | < 50 ms |
-| builder open | 44 ms | 46 ms | < 50 ms |
-| 10-slot paste update | 70 ms | 71 ms | < 50 ms |
-| explain cold | 93 ms | 100 ms | < 500 ms |
-| import parse 5 items | 36 ms | 44 ms | < 100 ms |
+| boot to interactive | 1408 ms | 1428 ms | < 2500 ms |
+| bulk add `++` | 46 ms | 48 ms | < 50 ms |
+| mode: advanced | 53 ms | 87 ms | < 50 ms |
+| builder open | 49 ms | 53 ms | < 50 ms |
+| 10-slot paste update | 80 ms | 82 ms | < 50 ms |
+| explain cold | 99 ms | 114 ms | < 500 ms |
+| import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
-Advanced per-slot picks: **35–82 ms**. Long tasks: **22 over 50 ms, 0 over
-200 ms, max 88 ms**.
+Advanced per-slot picks: **35–82 ms**. Long tasks: **29 over 50 ms, 0 over
+200 ms, max 103 ms**.
 
-The larger augment catalog and exact table raised boot to about 1.25 s, still
-under the 2.5 s budget. The All-gear union now warms in sliced chunks, so it
-no longer produces a 200 ms+ task while the picker is opening; mode advanced
-and bulk add are inside the 50 ms target. The 10-slot paste update and some
-per-slot picks remain slightly over; the budget is a target, not a hard
-failure.
+The PoE1 profile, lazy data loader, and game rail raised boot to about 1.4 s,
+still under the 2.5 s budget. Bulk add, builder open, explain, and import are
+within their targets; mode advanced, the 10-slot paste update, and some
+per-slot picks remain slightly over the 50 ms target, consistent with the
+existing per-slot variance. The budget is a target, not a hard failure.
 
 ### Narrow and low-end
 

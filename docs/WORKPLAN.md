@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-12._
+_Last updated: 2026-11-13._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -13,10 +13,11 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`. The Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-  PoE2 is the only shipped game; PoE1 is scoped in
-  [`POE1-SCOPE.md`](POE1-SCOPE.md).
+  PoE2 remains the default; the PoE1 normal-equipment MVP is shipping with the
+  current release and is scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md).
 - Engine: exact PoE2 table/proof status is tracked in
-  [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json).
+  [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json); PoE1 in
+  [`CANDIDATE-STATUS-poe1.json`](CANDIDATE-STATUS-poe1.json).
 - Catalog: explicit prefixes/suffixes, Abyss desecrated item affixes, base
   implicits, and corrupted enchantments. Implicits render in a dedicated
   **Implicits** section above the normal Prefixes/Suffixes columns with a
@@ -93,15 +94,29 @@ socket/import/builder model. The coverage table below is the reference.
 
 ### PoE1 introduction
 
-Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md). The offline spike mapped 1,204
-normal-equipment mods to 136 patterns across 23 classes and compiled sample
-queries through the existing compiler. Live grammar/copy-text validation is
-the remaining gate. PoE1 is a separate game profile, not a retrofit of the
-PoE2 catalog: its own manifest entries, catalog, target model, corpus, exact
-table, proof, class/slot model, and import rules. The recommended first
-release is normal equipment only, with jewels, influenced mods, crafts, and
-league mechanics phased afterward. PoE2 remains the default; PoE1 data loads
-lazily so the current app and PWA stay within size budgets.
+Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md) and shipping with the current
+release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
+
+- Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit,
+  233 corrupted).
+- Exact table: 1,626 scopes, 0 unresolved; every entry verified strict over
+  the generated PoE1 foreign-line corpus.
+- Data: `data/repoe.manifest.json` classifies all 90 root-export entries;
+  `data/repoe-poe1.snapshot.json` pins the seven inputs; `poe1-build`,
+  `poe1-matrix`, and `poe1-status` regenerate catalog, table, proof, and
+  status.
+- Web: game switch, lazy PoE1 data load/warm, per-game workbench and saved
+  picks, share-link game id, and legacy PoE2 storage fallback.
+- Import: normal/magic/rare equipment, fractured headers, corruption
+  implicits, annotations, and `— Unscalable Value`; influenced, eldritch,
+  crafted, and veiled sources are rejected with clear messages.
+- Syntax: PoE1 exclusions are `"!term"`; the per-game `QuerySyntax` profile
+  is used by compile, paste, explain, import/reconstruction, and matching.
+- Gems are MVP+1: copied gem text includes explanatory lines that can skew
+  fragment selection. Flasks, jewels, influenced mods, crafts, and league
+  mechanics remain phased afterward.
+- PoE2 remains the default; PoE1 data loads lazily so the current app and PWA
+  stay within size budgets.
 
 ## Recently completed
 

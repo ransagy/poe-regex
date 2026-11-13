@@ -1,0 +1,34 @@
+@using web.Services
+@inject GameSession Games
+@implements IDisposable
+
+<div class="seg game-switch" role="group" aria-label="Game">
+    <button type="button" id="game-poe2" class="seg-opt @(Games.Current == "poe2" ? "active" : "")"
+            aria-pressed="@(Games.Current == "poe2" ? "true" : "false")"
+            disabled="@(Games.IsLoading || !Games.IsReady)" @onclick='() => Switch("poe2")'><span class="game-full">Path of Exile 2</span><span class="game-short">PoE 2</span></button>
+    <button type="button" id="game-poe1" class="seg-opt @(Games.Current == "poe1" ? "active" : "")"
+            aria-pressed="@(Games.Current == "poe1" ? "true" : "false")"
+            disabled="@(Games.IsLoading || !Games.IsReady)" @onclick='() => Switch("poe1")'><span class="game-full">Path of Exile</span><span class="game-short">PoE</span></button>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Games.Changed += OnGamesChanged;
+        Games.LoadingChanged += OnGamesChanged;
+    }
+
+    private void OnGamesChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task Switch(string game)
+    {
+        await Games.SwitchAsync(game);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Games.Changed -= OnGamesChanged;
+        Games.LoadingChanged -= OnGamesChanged;
+    }
+}
