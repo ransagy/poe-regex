@@ -225,7 +225,7 @@ dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check
 
 `poe1-build` reads `data/raw/poe1` (gitignored) and writes the catalog and
 foreign corpus. `poe1-matrix` regenerates the matrix, table, proof, and status;
-`poe1-status --check` fails if the table is stale or the proof is missing.
+`poe1-status --check --check-shortest` fails if the table is stale or the proof is missing.
 
 ### Import boundary
 
