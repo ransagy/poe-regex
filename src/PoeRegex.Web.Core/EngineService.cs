@@ -601,6 +601,6 @@ public sealed class EngineService
         _corpus.ExplainLines(itemClass);
     }
 
-    /// <summary>Null when the query is grammatically valid for PoE2.</summary>
+    /// <summary>Null when the query is grammatically valid for the loaded game.</summary>
     public CompilerDiagnostic? Validate(string query) => Syntax.ValidateFragment(query);
 }
