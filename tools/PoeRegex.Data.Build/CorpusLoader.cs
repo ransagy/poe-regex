@@ -17,6 +17,6 @@ internal static class CorpusLoader
                 File.ReadAllText(vendorPath),
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
-        return new EngineCorpus(catalog, null, vendor, []);
+        return new EngineCorpus(catalog, null, vendor);
     }
 }
