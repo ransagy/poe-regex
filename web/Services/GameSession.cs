@@ -102,6 +102,14 @@ public sealed class GameSession(
         }
     }
 
+    /// <summary>Clear the last load error after the user dismisses it.</summary>
+    public void ClearError()
+    {
+        if (Error is null) return;
+        Error = null;
+        NotifyLoading();
+    }
+
     private void NotifyLoading()
     {
         try { LoadingChanged?.Invoke(); }

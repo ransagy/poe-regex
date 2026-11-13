@@ -19,6 +19,13 @@
                     Game="@(Games.LoadingGame ?? Games.Current)" />
 
 <div class="bench mode-@State.Mode">
+    @if (Games.Error is { } gameError)
+    {
+        <p class="bench-notice game-error" role="alert">
+            @gameError
+            <button type="button" class="link" @onclick="Games.ClearError">Dismiss</button>
+        </p>
+    }
     @if (Intro.Visible == true)
     {
         <div class="intro-top">

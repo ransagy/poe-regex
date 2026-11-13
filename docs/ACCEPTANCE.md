@@ -21,7 +21,7 @@ Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
   the multi-slot paste with a Boots movement-speed block must not match it.
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Tests: 118 core + 439 web + 46 data-build pass.
-- Browser smoke: the game rail shows full game names below the header; a
+- Browser smoke: the top-bar switch shows full game names; a
   dimmed loading overlay appears while PoE1 data loads; switching shows 23
   PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;
   picks round-trip per game; a reload with PoE1 as the last game restores the

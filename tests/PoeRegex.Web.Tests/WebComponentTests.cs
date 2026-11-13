@@ -356,9 +356,11 @@ public class WebComponentTests
 
         cut.Find(".shell-sub").TextContent.Trim()
             .Should().Be("Highlight Items - Create your exact search");
-        cut.Find(".game-rail #game-poe2").TextContent.Trim()
+        cut.Find(".shell-bar .shell-game #game-poe2").Should().NotBeNull();
+        cut.FindAll(".game-rail").Should().BeEmpty("the game switch lives in the top bar");
+        cut.Find("#game-poe2 .game-full").TextContent.Trim()
             .Should().Be("Path of Exile 2");
-        cut.Find(".game-rail #game-poe1").TextContent.Trim()
+        cut.Find("#game-poe1 .game-full").TextContent.Trim()
             .Should().Be("Path of Exile");
 
         cut.Find("#options-open").Click();

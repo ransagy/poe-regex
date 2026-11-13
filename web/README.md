@@ -253,7 +253,7 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).
-- **PoE1 is a separate game profile.** The game rail below the header stores
+- **PoE1 is a separate game profile.** The top-bar switch stores
   the last game and keeps one workbench and saved-picks set per game; a
   dimmed overlay covers the page while game data loads. The PoE1 catalog has
   23 equipment classes and 1,652 mods (1,204 normal, 215 base implicit, 233
