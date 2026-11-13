@@ -47,6 +47,21 @@ public class PersistenceServiceTests
     }
 
     [Fact]
+    public async Task ClearAsync_RemovesOnlyTheRequestedGame()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        var service = new PersistenceService(ctx.JSInterop.JSRuntime);
+
+        await service.ClearAsync("poe1");
+
+        var call = ctx.JSInterop.Invocations
+            .Single(i => i.Identifier == "localStorage.removeItem");
+        call.Arguments.Should().ContainSingle()
+            .Which.Should().Be("poe-regex.workbench.v2.poe1");
+    }
+
+    [Fact]
     public async Task LoadSavedPicks_KeepsGameListsSeparate()
     {
         using var ctx = new BunitContext();
