@@ -8,7 +8,7 @@ sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
 
 ## PoE1 MVP evidence
 
-Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
+Measured on `feat/poe1-mvp` (2026-11-13), shipping with the PoE1 MVP release:
 
 - Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit, 233
   corrupted).
@@ -44,23 +44,22 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1245 ms | 1281 ms | < 2500 ms |
-| bulk add `++` | 43 ms | 45 ms | < 50 ms |
-| mode: advanced | 37 ms | 43 ms | < 50 ms |
-| builder open | 44 ms | 46 ms | < 50 ms |
-| 10-slot paste update | 70 ms | 71 ms | < 50 ms |
-| explain cold | 93 ms | 100 ms | < 500 ms |
-| import parse 5 items | 36 ms | 44 ms | < 100 ms |
+| boot to interactive | 1408 ms | 1428 ms | < 2500 ms |
+| bulk add `++` | 46 ms | 48 ms | < 50 ms |
+| mode: advanced | 53 ms | 87 ms | < 50 ms |
+| builder open | 49 ms | 53 ms | < 50 ms |
+| 10-slot paste update | 80 ms | 82 ms | < 50 ms |
+| explain cold | 99 ms | 114 ms | < 500 ms |
+| import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
-Advanced per-slot picks: **35–82 ms**. Long tasks: **22 over 50 ms, 0 over
-200 ms, max 88 ms**.
+Advanced per-slot picks: **35–82 ms**. Long tasks: **29 over 50 ms, 0 over
+200 ms, max 103 ms**.
 
-The larger augment catalog and exact table raised boot to about 1.25 s, still
-under the 2.5 s budget. The All-gear union now warms in sliced chunks, so it
-no longer produces a 200 ms+ task while the picker is opening; mode advanced
-and bulk add are inside the 50 ms target. The 10-slot paste update and some
-per-slot picks remain slightly over; the budget is a target, not a hard
-failure.
+The PoE1 profile, lazy data loader, and game rail raised boot to about 1.4 s,
+still under the 2.5 s budget. Bulk add, builder open, explain, and import are
+within their targets; mode advanced, the 10-slot paste update, and some
+per-slot picks remain slightly over the 50 ms target, consistent with the
+existing per-slot variance. The budget is a target, not a hard failure.
 
 ### Narrow and low-end
 

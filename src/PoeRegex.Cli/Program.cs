@@ -62,7 +62,8 @@ internal static class Program
     private static int PrintHelp()
     {
         Console.WriteLine("""
-            Poe Regex Compiler
+            Poe Regex Compiler (PoE2 CLI)
+            The web workbench supports both Path of Exile 2 and Path of Exile.
 
             usage:
               poe-regex                          interactive

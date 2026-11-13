@@ -1,8 +1,10 @@
 # Common picks
 
 The pre-typing picker shortlist lives in
-[`data/common-picks.json`](../data/common-picks.json). Add or change entries
-there instead of editing a hardcoded family-key list.
+[`data/common-picks.json`](../data/common-picks.json). The same file is shared
+by both game profiles: entries resolve by family key or visible display text,
+so a PoE2 pick with a close PoE1 equivalent also appears in the PoE1 picker.
+Add or change entries there instead of editing a hardcoded family-key list.
 
 ## Entry shape
 

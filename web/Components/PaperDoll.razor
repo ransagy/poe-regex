@@ -3,7 +3,7 @@
 @inject EngineService Engine
 
 @*
-  Paper doll: the ten gear slots arranged like the PoE2 inventory panel
+  Paper doll: the ten gear slots arranged like an in-game inventory panel (PoE2-style, shared by both profiles)
   (hand-drawn CSS, no game assets). Slots are absolutely positioned in a
   fixed-aspect panel (like the game: fixed frames, not a shared grid).
   Positions follow the in-game panel (maintainer-reviewed).
@@ -52,7 +52,7 @@
     private string ClassName(string classId) =>
         Engine.Classes.FirstOrDefault(c => c.Id == classId)?.Name ?? classId;
 
-    // Cell-grid layout transcribed from the in-game PoE2 gear panel.
+    // Cell-grid layout transcribed from the in-game PoE2 gear panel and reused for both profiles.
     // One cell (c) = ring/amulet; helmet/gloves/boots are 2x2, body 2x3,
     // belt 2x1, weapon/offhand 2 x (4c+2V). Gutters are two classes:
     // thin vertical V = 0.2c (weapon/ring bottoms -> gloves/boots, amulet ->

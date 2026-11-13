@@ -1,7 +1,7 @@
 # PoE1 introduction — scope and sizing
 
-_Status: normal-equipment MVP implemented on `feat/poe1-mvp`; awaiting merge approval.
-Last updated 2026-11-13._
+_Status: normal-equipment MVP shipping with the current release. Last updated
+2026-11-13._
 
 This document sizes the introduction of Path of Exile 1 as a second game
 profile. It is an engineering scope, not a delivery promise; the estimates
@@ -256,6 +256,19 @@ PoE1 exclusion blocks use `"!term"` (inside the quotes), unlike PoE2's
 `!"term"`. `QuerySyntax.Poe1` owns that shape; compiler, paste composition,
 explain, query import/reconstruction, item matching, and the block ruler all
 route through the corpus syntax.
+
+### Known text-search limits
+
+- The exact table is strict over the generated foreign corpus plus the captured
+  `poe1.safety-items.txt` item. Rare/unique names, unmodeled league text, and
+  other item text can still satisfy a short fragment; this is the same
+  inherent text-search limitation as PoE2.
+- The common-picks shortlist is shared with PoE2 and resolves by family key or
+  display text where a close equivalent exists. There is no dedicated PoE1
+  common-picks curation yet.
+- Old copied strings containing one-character class anchors (for example `G`
+  for Gloves) can still false-highlight. Regenerate the string in the current
+  build; the new anchors are at least two characters.
 
 ## 6. Catalog and source model
 

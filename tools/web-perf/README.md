@@ -1,8 +1,10 @@
 # Web performance harness
 
-Repeatable browser timing for the PoE2 workbench. It serves a published
-`wwwroot`, launches headless Chromium, drives the main UX actions over CDP, and
-writes p50/p95 results plus long-task and memory metrics.
+Repeatable browser timing for the PoE2 and PoE1 workbench. It serves a
+published `wwwroot`, launches headless Chromium, drives the main UX actions
+over CDP, and writes p50/p95 results plus long-task and memory metrics. The
+current action set starts from the PoE2 default; PoE1 switching is covered by
+the browser smoke checks.
 
 ## Usage
 

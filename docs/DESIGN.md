@@ -1,21 +1,24 @@
-# Poe2 Regex Compiler Engine — Design Specification
+# Poe Regex Compiler Engine — Design Specification
 
 **Target stack:** .NET 10 (LTS), pure-BCL core (WASM-safe), CLI-first.
 **License:** MIT (project); third-party components are all MIT or Apache-2.0
 (see `NOTICE`). Catalog data is a derived subset of GGG-owned game data
 extracted by RePoE — see `PROVENANCE.md`.
-**Scope:** English client, PoE2 only. The web reference implementation
+**Scope:** English client, PoE2 and PoE1 normal equipment. PoE2 is the original
+full profile; PoE1 adds a separate catalog, target model, corpus, exact table,
+and query dialect while sharing the engine. The web reference implementation
 ("Renly's Tools") lives in `web/`, documented in `web/README.md` and
-`DEPLOYING-WEB.md`.
+`DEPLOYING-WEB.md`; the CLI remains PoE2-only.
 
 ---
 
 ## 1. Data & Licensing Policy
 
-- **Upstream:** `repoe-fork/repoe` PoE2 exports under `/poe2`. The exports
-  carry no version field; the catalog records the fetch date as `DataVersion`.
-  Re-fetching is a repeatable build step, designed so league patches re-source
-  cleanly. Full lineage and refresh procedure: `PROVENANCE.md`.
+- **Upstream:** `repoe-fork/repoe` PoE2 exports under `/poe2` and the PoE1 root
+  export (index `poe1.html`). The exports carry no version field; each catalog
+  records its snapshot date as `DataVersion`. Re-fetching is a repeatable build
+  step, designed so league patches re-source cleanly. Full lineage and refresh
+  procedure: `PROVENANCE.md`.
 - **Distribution:** only **derived catalogs** ship (human-readable mod-text
   lines + precomputed fingerprints). Raw RePoE JSON is dev-only and
   gitignored. RePoE's license states that generated data files are owned by
@@ -47,7 +50,7 @@ poe-regex/
     PoeRegex.Web.Tests/
   data/
     raw/                           # gitignored RePoE downloads
-    catalogs/                      # checked-in PoE2 catalog, vendor corpus,
+    catalogs/                      # checked-in catalogs, vendor corpora,
                                    # safety fixtures, exact fragment table
   web/                             # "Renly's Tools" Blazor WASM
   docs/
@@ -55,7 +58,7 @@ poe-regex/
 
 ## 3. Data Pipeline (`tools/PoeRegex.Data.Build`, dev-time)
 
-1. **Fetch** the PoE2 `.min.json` exports: `mods`, `base_items`,
+1. **Fetch** the PoE2 and PoE1 `.min.json` exports: `mods`, `base_items`,
    `item_classes`, `mods_by_base`, `stat_value_handlers`, and the
    `stat_translations/*` descriptions.
 2. **Render mod text:** resolve each stat translation, apply index handlers
@@ -79,8 +82,10 @@ outer loop. It runs at data-build time, never in the browser.
 - `EngineCorpus` loads the embedded catalog and exact `FragmentTable`.
   It exposes table lookup, class anchors, explain/matching lines, and
   threshold validation. It does not search for fragments.
-- `Poe2Syntax` owns the query dialect: quoted terms, `!` exclusions, the
-  250-character limit, custom keywords, escaping, and `\b` validation.
+- `QuerySyntax` owns the per-game dialect: quoted terms, the exclusion shape
+  (`!"term"` for PoE2, `"!term"` for PoE1), the 250-character limit, custom
+  keywords, escaping, tokenization, and `\b` validation. `Poe2Syntax` is the
+  PoE2-named facade; `EngineCorpus.Syntax` selects the loaded game.
 - `QuerySpecification { ItemClass?, IncludedModifiers, RequiredGroups, ExcludedModifiers,
   Keywords, AllowOverflow }`; each modifier is a catalog mod id or free text,
   optionally with `MinValue`.
@@ -124,8 +129,9 @@ outer loop. It runs at data-build time, never in the browser.
 
 ## 7. CLI (`src/PoeRegex.Cli`)
 
-- Bare run → interactive PoE2 flow: class → mods → thresholds → exclusions →
-  query + `n/250` meter.
+- The CLI is PoE2-only. Bare run → interactive flow: class → mods →
+  thresholds → exclusions → query + `n/250` meter. The web workbench supports
+  PoE2 and PoE1.
 - Batch:
   `generate --class Helmet --include "to maximum life" --min "increased rarity:30" --exclude reflect --ilvl 60 [--clipboard] [--json]`
 - Support: `list-classes`, `list-mods --class X`, `validate --query "..."`,

@@ -77,6 +77,12 @@ PoE2 keeps `!"term"`. The per-game `QuerySyntax` profile is used by compile,
 paste composition, explain, query import/reconstruction, item matching, and
 the block ruler.
 
+The PoE1 exact table is strict over the generated foreign corpus plus the
+captured `poe1.safety-items.txt` item. Rare/unique names, unmodeled league
+text, and other item text can still satisfy a short fragment; this is the same
+inherent text-search limitation as PoE2. The common-picks shortlist is shared
+with PoE2 and resolves near equivalents by family key/display text.
+
 ## Search-string import
 
 `QueryImportService` handles:

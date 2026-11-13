@@ -9,7 +9,7 @@ using PoeRegex.Core.Search;
 namespace PoeRegex.Web.Core;
 
 /// <summary>
-/// In-process data + compile service for the PoE2 web app. Built once
+/// In-process data + compile service for the web workbench (PoE2 and PoE1). Built once
 /// (singleton) and shared: loads the embedded poe2 catalog, builds the
 /// suffix-index corpus, and exposes classes, mod search, compile, explain,
 /// and validate. No I/O, no network — WASM-safe.

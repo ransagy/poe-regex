@@ -32,7 +32,7 @@ Current work: [`docs/WORKPLAN.md`](docs/WORKPLAN.md). Acceptance: [`docs/ACCEPTA
   runtime fragment search), composes value-threshold digit-range patterns,
   factors common prefixes across included mods, and enforces the 250-character
   limit. Output is deterministic.
-- **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands.
+- **CLI** (`src/PoeRegex.Cli`): interactive prompt or batch commands for PoE2. The web workbench supports both games.
 - **Web workbench** (`web/`, "Renly's Tools"): Blazor WebAssembly running
   `PoeRegex.Core` in the browser — gear slots, live queries for the in-game
   Highlight box, an item-import lab, and a test-item backpack. Static site,

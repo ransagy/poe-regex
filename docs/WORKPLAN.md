@@ -13,9 +13,8 @@ Current planned and parked work. Behavior is documented in
   `/build-info.json`. The Pages project is the internal `renlys-recipes`
   project.
 - App: Blazor WebAssembly workbench with saved picks, import, and test items.
-  PoE2 is the default and still the only game deployed to production; the PoE1
-  normal-equipment MVP is implemented on `feat/poe1-mvp` and scoped in
-  [`POE1-SCOPE.md`](POE1-SCOPE.md).
+  PoE2 remains the default; the PoE1 normal-equipment MVP is shipping with the
+  current release and is scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md).
 - Engine: exact PoE2 table/proof status is tracked in
   [`CANDIDATE-STATUS-poe2.json`](CANDIDATE-STATUS-poe2.json); PoE1 in
   [`CANDIDATE-STATUS-poe1.json`](CANDIDATE-STATUS-poe1.json).

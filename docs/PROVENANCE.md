@@ -20,7 +20,7 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 
 ## Data lineage
 
-1. **Game files** — Path of Exile 2 data is © Grinding Gear Games Limited.
+1. **Game files** — Path of Exile 1 and Path of Exile 2 data is © Grinding Gear Games Limited.
 2. **Extraction tooling** — RePoE extracts the game files with PyPoE and the
    poe-tool-dev data schema. Neither is redistributed here.
 3. **RePoE exports** — the PoE2 catalog comes from a manifest-backed set of

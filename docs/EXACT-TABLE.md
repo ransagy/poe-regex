@@ -1,4 +1,16 @@
-# PoE2 exact table — proof and coverage
+# Exact tables — PoE2 proof and coverage
+
+This document covers the PoE2 table in detail. The PoE1 normal-equipment
+table has its own artifacts and proof:
+
+- Matrix: `docs/CANDIDATE-MATRIX-poe1.html`
+- Status: `docs/CANDIDATE-STATUS-poe1.json`
+- Proof: `docs/CANDIDATE-PROOF-poe1.json`
+- Table: `data/catalogs/poe1.fragments.json`
+- Scope: 1,626 entries (382 global, 1,244 class), 0 unresolved; proof 1,966
+  expanded scopes, 0 failures.
+
+PoE2 artifacts:
 
 Artifact: `docs/CANDIDATE-MATRIX-poe2.html`  
 Status: `docs/CANDIDATE-STATUS-poe2.json`  
