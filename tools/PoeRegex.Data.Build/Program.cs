@@ -20,6 +20,7 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
 ///   dotnet run -- common-picks [--check] [--table]
+///   dotnet run -- poe1-fetch [--refresh]
 ///   dotnet run -- poe1-build [--raw data/raw/poe1]
 ///   dotnet run -- poe1-matrix [--from-scratch]
 ///   dotnet run -- poe1-status [--check]
@@ -61,6 +62,7 @@ public static class Program
                 "solve-exact" => SolveExact(args[1..]),
                 "probe" => Probe(args[1..]),
                 "fetch" => Fetch(args[1..]),
+                "poe1-fetch" => Poe1Fetch(args[1..]),
                 "data-audit" => DataAudit.Run(args[1..]),
                 "common-picks" => CommonPicksAudit.Run(args[1..]),
                 "poe1-build" => Poe1Build(args[1..]),
@@ -78,7 +80,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | poe1-fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status");
         return 2;
     }
 
@@ -548,12 +550,19 @@ public static class Program
         return 0;
     }
 
-    private static int Fetch(string[] args)
+    private static int Fetch(string[] args) =>
+        FetchGame("poe2", "data/raw/poe2", "data/repoe.snapshot.json", args);
+
+    private static int Poe1Fetch(string[] args) =>
+        FetchGame("poe1", "data/raw/poe1", "data/repoe-poe1.snapshot.json", args);
+
+    private static int FetchGame(
+        string game, string defaultOutDir, string defaultSnapshotPath, string[] args)
     {
         var opts = ParseOptions(args);
-        var outDir = GetValue(opts, "--out", "data/raw/poe2");
+        var outDir = GetValue(opts, "--out", defaultOutDir);
         var manifestPath = GetValue(opts, "--manifest", "data/repoe.manifest.json");
-        var snapshotPath = GetValue(opts, "--snapshot", "data/repoe.snapshot.json");
+        var snapshotPath = GetValue(opts, "--snapshot", defaultSnapshotPath);
         var refresh = opts.ContainsKey("--refresh");
 
         if (!File.Exists(manifestPath))
@@ -565,10 +574,10 @@ public static class Program
         using var manifestDoc = JsonDocument.Parse(File.ReadAllText(manifestPath));
         var export = manifestDoc.RootElement.GetProperty("exports")
             .EnumerateArray()
-            .FirstOrDefault(e => e.GetProperty("id").GetString() == "poe2");
+            .FirstOrDefault(e => e.GetProperty("id").GetString() == game);
         if (export.ValueKind == JsonValueKind.Undefined)
         {
-            Console.Error.WriteLine("manifest has no poe2 export");
+            Console.Error.WriteLine($"manifest has no {game} export");
             return 1;
         }
 
@@ -617,8 +626,8 @@ public static class Program
         var downloadedAt = DateTime.UtcNow;
         var snapshot = new
         {
-            game = "poe2",
-            export = "poe2",
+            game,
+            export = game,
             downloadedAt = downloadedAt.ToString("O"),
             dataVersion = downloadedAt.ToString("yyyy-MM-dd"),
             source = baseUrl,

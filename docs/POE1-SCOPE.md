@@ -224,16 +224,18 @@ work starts until these are signed off. The results above are now encoded in
 - Tests: normal, fractured/corrupted, influenced, crafted, veiled, and
   eldritch fixtures in `Poe1Tests`; dialect tests in `Poe1SyntaxTests`.
 
-Rebuild from the pinned raw snapshot:
+Refresh the pinned raw snapshot, then rebuild:
 
 ```sh
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch --refresh
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check
 ```
 
-`poe1-build` reads `data/raw/poe1` (gitignored) and writes the catalog and
-foreign corpus. `poe1-matrix` regenerates the matrix, table, proof, and status;
+`poe1-fetch` downloads the seven `used` PoE1 exports and rewrites
+`data/repoe-poe1.snapshot.json`; `poe1-build` reads `data/raw/poe1`
+(gitignored) and writes the catalog and foreign corpus. `poe1-matrix` regenerates the matrix, table, proof, and status;
 `poe1-status --check --check-shortest` fails if the table is stale or the proof is missing.
 
 ### Import boundary
