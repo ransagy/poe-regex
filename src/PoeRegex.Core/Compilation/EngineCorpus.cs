@@ -350,27 +350,32 @@ public sealed class EngineCorpus
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _globalByPattern = new(() => GroupByPattern(RealLinesGlobal()),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _fragments = fragments ??
+        var table = fragments ??
             (string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase)
                 ? FragmentTables.ForCurrentGame
                 : null);
-        if (_fragments is not null)
+        if (table is not null)
         {
+            // Never apply another game's table to this catalog.
+            if (table.Game is "poe1" or "poe2" &&
+                !string.Equals(table.Game, catalog.Game, StringComparison.OrdinalIgnoreCase))
+                table = null;
             // A table without a target model is the legacy table generated
             // before the basis was recorded; it was advanced-ranges only.
-            if (!string.IsNullOrEmpty(_fragments.TargetModel) &&
-                !string.Equals(
-                    _fragments.TargetModel,
-                    FragmentTable.AdvancedRanges,
-                    StringComparison.Ordinal))
-                _fragments = null;
+            else if (!string.IsNullOrEmpty(table.TargetModel) &&
+                     !string.Equals(
+                         table.TargetModel,
+                         FragmentTable.AdvancedRanges,
+                         StringComparison.Ordinal))
+                table = null;
             else if (fragments is null &&
                      !string.Equals(
-                         _fragments.DataVersion,
+                         table.DataVersion,
                          catalog.DataVersion,
                          StringComparison.Ordinal))
-                _fragments = null;
+                table = null;
         }
+        _fragments = table;
     }
 
     public Catalog Catalog => _catalog;

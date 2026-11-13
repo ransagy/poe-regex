@@ -21,6 +21,35 @@ public class Poe1SyntaxTests
     }
 
     [Fact]
+    public void Poe1Corpus_DoesNotAcceptAPoE2Table()
+    {
+        var source = TestCatalog.Build();
+        var catalog = new Catalog
+        {
+            Game = "poe1",
+            DataVersion = source.DataVersion,
+            ItemClasses = source.ItemClasses,
+            Mods = source.Mods,
+        };
+        var baseTable = TestCatalog.Fragments();
+        var poe2Table = new FragmentTable
+        {
+            Game = "poe2",
+            DataVersion = baseTable.DataVersion,
+            TargetModel = baseTable.TargetModel,
+            Global = baseTable.Global,
+            ByClass = baseTable.ByClass,
+            ClassAnchors = baseTable.ClassAnchors,
+            ClassPrefixes = baseTable.ClassPrefixes,
+            ClassGroups = baseTable.ClassGroups,
+        };
+        var corpus = new EngineCorpus(catalog, poe2Table);
+
+        corpus.HasPrecomputedFragments.Should().BeFalse();
+        corpus.PrecomputedGlobal.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ExclusionShape_DiffersPerGame()
     {
         QuerySyntax.Poe1.FormatExclusion("reflect").Should().Be("\"!reflect\"");
