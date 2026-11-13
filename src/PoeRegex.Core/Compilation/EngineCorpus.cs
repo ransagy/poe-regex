@@ -333,8 +333,12 @@ public sealed class EngineCorpus
         // per-class suffix indexes. The normal browser compile path uses the
         // precomputed table; the oracle is materialized only when a fallback,
         // import, or audit actually asks for it.
-        _safetyItems = new(() => safety ?? SafetyItemCorpus.ForCurrentGame);
-        _vendorLines = new(() => vendor?.Lines ?? VendorCorpus.ForCurrentGame?.Lines ?? []);
+        // Embedded artifacts belong to PoE2. A PoE1 corpus must supply its own
+        // files so a missing lazy load can never fall back to PoE2 text.
+        var embedded = string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase);
+        _safetyItems = new(() => safety ?? (embedded ? SafetyItemCorpus.ForCurrentGame : []));
+        _vendorLines = new(() => vendor?.Lines ??
+            (embedded ? VendorCorpus.ForCurrentGame?.Lines : null) ?? []);
         _vendorNormalized = new(() => InGameVendorLines()
             .Select(l => CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
@@ -346,7 +350,10 @@ public sealed class EngineCorpus
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _globalByPattern = new(() => GroupByPattern(RealLinesGlobal()),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _fragments = fragments ?? FragmentTables.ForCurrentGame;
+        _fragments = fragments ??
+            (string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase)
+                ? FragmentTables.ForCurrentGame
+                : null);
         if (_fragments is not null)
         {
             // A table without a target model is the legacy table generated
