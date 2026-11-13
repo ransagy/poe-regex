@@ -17,7 +17,7 @@ Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
   --check` reports a non-stale table and a proven shortest form.
 - Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
   against the generated foreign corpus.
-- Tests: 117 core + 433 web + 45 data-build pass.
+- Tests: 118 core + 435 web + 45 data-build pass.
 - Browser smoke: switching shows 23 PoE1 classes; PoE1 exclusions compile as
   `"!term"`; PoE2 keeps `!"term"`; picks round-trip per game; a reload with
   PoE1 as the last game restores PoE1 engine, state, and query. PoE1 data is
