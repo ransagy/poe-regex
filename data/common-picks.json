@@ -93,6 +93,18 @@
       "label": "% increased Mana Regeneration Rate"
     },
     {
+      "family": "LifeRegeneration",
+      "label": "Life Regeneration"
+    },
+    {
+      "family": "IncreasedCastSpeed",
+      "label": "% increased Cast Speed"
+    },
+    {
+      "family": "SpellDamage",
+      "label": "% increased Spell Damage"
+    },
+    {
       "family": "GlobalIncreaseMinionSpellSkillGemLevel",
       "label": "Minion skill levels",
       "classes": ["Helmet"]

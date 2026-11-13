@@ -248,6 +248,103 @@ Searing Exarch Item
     }
 
     [Fact]
+    public void Import_RejectsSynthesisedEnchantedAndNonEquipmentItems()
+    {
+        var engine = Engine();
+
+        var synthesised = ItemTextParser.Parse("""
+Item Class: Boots
+Rarity: Rare
+Rapture Track
+Hydrascale Boots
+--------
+Sockets: G
+--------
+Item Level: 84
+--------
+{ Synthesised Implicit Modifier — Life }
++40 to maximum Life
+--------
+Synthesised Item
+""");
+        ItemImport.Import(engine, synthesised).Error.Should().Contain("Synthesised");
+
+        var enchanted = ItemTextParser.Parse("""
+Item Class: Boots
+Rarity: Rare
+Rapture Track
+Hydrascale Boots
+--------
+Sockets: G
+--------
+Item Level: 84
+--------
+{ Enchantment Modifier — Speed }
+10% increased Movement Speed
+""");
+        ItemImport.Import(engine, enchanted).Error.Should().Contain("Unsupported modifier header");
+
+        var map = ItemTextParser.Parse("""
+Item Class: Maps
+Rarity: Rare
+Strand Map
+--------
+Item Level: 80
+""");
+        ItemImport.Import(engine, map).Error.Should().Contain("no recognizable item class");
+    }
+
+    [Fact]
+    public void ReportedMultiSlotString_OldAnchorMatches_NewAnchorDoesNot()
+    {
+        var engine = Engine();
+        var item = Item(CapturedBoots);
+        const string oldQuery =
+            "\": (Be|Bod|Boo|G|H|Ri|T.+x)\" \": (Boo|G|Ri|T.+x)|o .+fe$\" " +
+            "\": (Be|Bod|G|H|Ri|T.+x)|sed mo\" " +
+            "\": (Be|Bod|Boo|H|T.+x)|fi.*o a|ld.+o a|n.+o at|p.*o at\" " +
+            "\": (Be|Bod|Boo|G|H|Ri)|d p\"";
+        const string newQuery =
+            "\": (Be|Bod|Boo|Gl|He|Ri|T.+x)\" \": (Boo|Gl|Ri|T.+x)|o .+fe$\" " +
+            "\": (Be|Bod|Gl|He|Ri|T.+x)|sed mo\" " +
+            "\": (Be|Bod|Boo|He|T.+x)|fi.*o a|ld.+o a|n.+o at|p.*o at\" " +
+            "\": (Be|Bod|Boo|Gl|He|Ri)|d p\"";
+
+        ItemMatcher.Match(oldQuery, item.MatchLines(), engine.Syntax).Match
+            .Should().BeTrue("the old G anchor matched the socket line");
+        ItemMatcher.Match(newQuery, item.MatchLines(), engine.Syntax).Match
+            .Should().BeFalse("the safe Gl anchor does not match Sockets: G");
+    }
+
+    [Fact]
+    public void EveryCatalogForm_MapsBackToItsSourceMod()
+    {
+        var engine = Engine();
+        var playableClasses = engine.InGameClasses().Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        var checkedCount = 0;
+        var failures = new List<string>();
+        foreach (var mod in engine.PlayableMods())
+        foreach (var cls in mod.Classes.Where(playableClasses.Contains))
+        foreach (var line in mod.StatLines)
+        {
+            foreach (var form in new[] { line.Line, line.RangeLine, AdvancedStatLine.For(line) })
+            {
+                if (string.IsNullOrWhiteSpace(form)) continue;
+                checkedCount++;
+                var mapped = engine.MapLineToMods(cls, form, [], []);
+                if (!mapped.ModIds.Contains(mod.Id))
+                {
+                    failures.Add(
+                        $"{cls} | {form} | expected {mod.Id}, got {string.Join(",", mapped.ModIds.Take(5))}");
+                }
+            }
+        }
+
+        failures.Take(20).Should().BeEmpty($"{failures.Count} of {checkedCount} forms failed");
+        checkedCount.Should().BeGreaterThan(15000);
+    }
+
+    [Fact]
     public void CorruptedImplicit_MapsToTheCorruptedPool()
     {
         var engine = Engine();

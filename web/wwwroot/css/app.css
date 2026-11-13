@@ -179,6 +179,9 @@ h1:focus { outline: none; }
 .shell-link:hover { color: var(--head-ink); }
 .shell-link:disabled { color: var(--head-link); opacity: 0.45; cursor: default; text-decoration: none; }
 .shell-link:disabled:hover { color: var(--head-link); }
+.shell-github { display: inline-flex; align-items: center; gap: 0.35rem; }
+.shell-link-icon { width: 1rem; height: 1rem; flex: none; }
+.shell-link-short { display: none; }
 /* ---------- Options popover ---------- */
 
 .options-wrap { position: relative; }
@@ -1117,6 +1120,12 @@ body.compact .hero + .drawer {
     .shell-actions { gap: 0.25rem; }
     .shell-link { font-size: 0.74rem; }
     .shell-game .game-switch .seg-opt { padding: 0.26rem 0.45rem; font-size: 0.76rem; }
+}
+
+@media (max-width: 360px) {
+    .shell-intro .shell-link-text,
+    .shell-github .shell-link-text { display: none; }
+    .shell-intro .shell-link-short { display: inline; }
 }
 
 /* Touch devices: the native picker is the control; the styled face sits under

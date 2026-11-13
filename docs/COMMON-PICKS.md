@@ -58,6 +58,9 @@ _Generated from [`data/common-picks.json`](../data/common-picks.json) by `common
 | +% to Critical Hit Chance | `LocalBaseCriticalStrikeChance` | All gear | `LocalBaseCriticalStrikeChance` |
 | + to Accuracy Rating | `LocalAccuracyRating` | All gear | `LocalAccuracyRating` |
 | % increased Mana Regeneration Rate | `ManaRegeneration` | All gear | `ManaRegeneration` |
+| Life Regeneration | `LifeRegeneration` | All gear | `LifeRegeneration` |
+| % increased Cast Speed | `IncreasedCastSpeed` | All gear | `IncreasedCastSpeed` |
+| % increased Spell Damage | `SpellDamage` | All gear | `SpellDamage` |
 | Minion skill levels | `GlobalIncreaseMinionSpellSkillGemLevel` | Helmet | `GlobalIncreaseMinionSpellSkillGemLevel` |
 | Added physical damage | match: "Adds to Physical Damage to Attacks" | Gloves | `PhysicalDamage` |
 | Added fire damage | match: "Adds to Fire damage to Attacks" | Gloves | `FireDamage` |

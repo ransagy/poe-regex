@@ -299,9 +299,11 @@ public class GuideImportTests
             });
 
         overridden.Branches[0].Selected.Should().Equal("LifeGainPerTarget");
-        var initialPick = initial.Branches[0].Picks.Single();
-        var overriddenPick = overridden.Branches[0].Picks.Single();
-        overriddenPick.SamePick(initialPick).Should().BeFalse();
+        // The shared common-picks shortlist includes both LifeGainPerTarget
+        // and LifeRegeneration, so the default branch is multi-pick; the
+        // override narrows it to the requested family.
+        initial.Branches[0].Picks.Should().HaveCountGreaterThan(1);
+        overridden.Branches[0].Picks.Should().ContainSingle();
     }
 
     [Fact]

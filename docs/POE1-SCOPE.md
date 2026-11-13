@@ -246,6 +246,8 @@ foreign corpus. `poe1-matrix` regenerates the matrix, table, proof, and status;
 | Searing Exarch / Eater of Worlds eldritch | No | Rejected with an eldritch message |
 | Crafted / Master Crafted | No | Rejected with a crafted message |
 | Veiled | No | Rejected with a veiled message |
+| Synthesised items | No | Rejected with a synthesised message |
+| Lab/bench enchantments | No | Rejected as an unsupported modifier header |
 | Unique rarity | No | Rejected; unique-only text is outside the MVP |
 | Gems (skill/support) | MVP+1 | Excluded; own text model needed |
 | Flasks, jewels, maps, currency, uniques | No | Outside normal-equipment scope |

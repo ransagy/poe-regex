@@ -36,6 +36,13 @@ public static class ItemImport
             return $"{influence} influence is not supported in the PoE1 MVP.";
         if (parsed.Eldritch)
             return "Eldritch implicits are not supported in the PoE1 MVP.";
+        if (parsed.BaseLines.Any(l =>
+                l.Equals("Synthesised Item", StringComparison.OrdinalIgnoreCase)))
+            return "Synthesised items are not supported in the PoE1 MVP.";
+        var unknownHeader = parsed.BaseLines.FirstOrDefault(l =>
+            l.StartsWith('{') && l.EndsWith('}'));
+        if (unknownHeader is not null)
+            return $"Unsupported modifier header: {unknownHeader}";
         foreach (var block in parsed.Mods)
         {
             if (block.Source is "crafted" or "master crafted")

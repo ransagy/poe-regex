@@ -265,7 +265,11 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   `Sockets: G`. PoE1 exclusions use `"!term"` (the bang is inside
   the quotes), unlike PoE2's `!"term"`; compile, paste, explain, import, item
   matching, and the block ruler all use the loaded game's `QuerySyntax`.
-  Gems are MVP+1 because their copied text includes explanatory lines. Other
+  The shared common-picks shortlist resolves by family key where a PoE2 pick
+  has a close PoE1 equivalent (life, resistances, attributes, defence,
+  movement speed, regeneration, cast speed, spell damage), so the picker still
+  opens with a useful shortlist. Gems are MVP+1 because their copied text
+  includes explanatory lines. Other
   PoE1 sources (influenced, crafted, veiled, eldritch, flasks, jewels, maps,
   currency, uniques) are outside the normal-equipment MVP.
 - Fragments come from the **exact PoE2 table** (`data/catalogs/poe2.fragments.json`):

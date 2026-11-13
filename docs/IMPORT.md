@@ -63,6 +63,8 @@ Rejected with a clear message:
 - Searing Exarch / Eater of Worlds eldritch items or modifiers
 - Crafted or Master Crafted modifiers
 - Veiled modifiers
+- synthesised items or implicit headers
+- lab/bench enchantment headers
 - unique-rarity items
 
 Gems (skill and support) are MVP+1: their copied text includes explanatory
