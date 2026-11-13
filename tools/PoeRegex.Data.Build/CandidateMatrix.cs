@@ -142,7 +142,10 @@ public static class CandidateMatrix
                 foreach (var maximum in bands)
                 {
                     if (maximum < minimum) continue;
-                    solved = ExactOracle.Solve(scopeCorpus, pattern, minimum, maximum, timeout);
+                    solved = ExactOracle.Solve(
+                        scopeCorpus, pattern, minimum, maximum, timeout,
+                        anchoredFallback: string.Equals(
+                            catalog.Game, "poe1", StringComparison.OrdinalIgnoreCase));
                     if (solved is not null) break;
                 }
                 var chosen = solved ?? reusableCurrent;
