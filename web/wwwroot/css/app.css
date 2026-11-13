@@ -1109,8 +1109,12 @@ body.compact .hero + .drawer {
 }
 
 @media (max-width: 600px) {
-    .shell-link { font-size: 0.74rem; }
-    .shell-actions { gap: 0.25rem; }
+    .shell-actions { gap: 0.8rem; }
+    .shell-intro .shell-link-text,
+    .shell-options .shell-link-text,
+    .shell-github .shell-link-text { display: none; }
+    .shell-help-icon, .shell-options-icon { display: inline; }
+    .shell-link-icon { width: 1.2rem; height: 1.2rem; }
 }
 
 @media (max-width: 540px) {
@@ -1122,12 +1126,6 @@ body.compact .hero + .drawer {
 
 @media (max-width: 430px) {
     .shell-bar { padding: 0 0.55rem; gap: 0.35rem; }
-    .shell-actions { gap: 0.8rem; }
-    .shell-intro .shell-link-text,
-    .shell-options .shell-link-text,
-    .shell-github .shell-link-text { display: none; }
-    .shell-help-icon, .shell-options-icon { display: inline; }
-    .shell-link-icon { width: 1.2rem; height: 1.2rem; }
     .shell-game .game-switch .seg-opt { padding: 0.26rem 0.45rem; font-size: 0.76rem; }
 }
 
