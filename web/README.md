@@ -236,7 +236,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   instead (1280x800 at 115% fits with both panels closed). In the stacked
   layouts a bar pinned to the bottom keeps the length and a copy button in
   reach. Display scale, theme, and `Copy on every change` live in the header's
-  **Options** popover between `What is this?` and the GitHub link.
+  **Options** popover between `What is this?` and the GitHub link. On narrow
+  screens those three actions collapse to distinct glyphs (circled help,
+  sliders, GitHub mark) with the text returning at 431px.
 - The Options popover carries a persisted appearance picker. **Forge Black**
   is the dark default; **Bench Amber** is the light theme (tan workbench page, dark
   bronze header/footer, gold CTA with dark ink, game-dark item cards);
