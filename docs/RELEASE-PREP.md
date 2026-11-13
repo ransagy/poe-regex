@@ -94,7 +94,7 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
   ```
 
-  Required: 1,626 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
   `proof.failed: 0`. Copy the updated catalog/table/corpus into
   `web/wwwroot/data/poe1/`.
 

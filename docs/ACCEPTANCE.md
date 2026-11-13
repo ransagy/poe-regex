@@ -10,10 +10,10 @@ sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
 
 Measured on `feat/poe1-mvp` (2026-11-13), shipping with the PoE1 MVP release:
 
-- Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit, 233
+- Catalog: 23 equipment classes, 1,611 mods (1,200 normal, 178 implicit, 233
   corrupted).
-- Exact table: 1,626 scopes (382 global, 1,244 class), 0 unresolved. The
-  matrix proof checks 1,966 expanded scopes with 0 failures; `poe1-status
+- Exact table: 1,584 scopes (367 global, 1,217 class), 0 unresolved. The
+  matrix proof checks 1,918 expanded scopes with 0 failures; `poe1-status
   --check` reports a non-stale table and a proven shortest form.
 - Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
   against the generated foreign corpus plus the captured safety item.
