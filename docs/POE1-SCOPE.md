@@ -56,7 +56,7 @@ table without regressing it.
   Sword, One Hand Axe, One Hand Mace, Sceptre, Bow, Staff, Two Hand Sword,
   Two Hand Axe, Two Hand Mace, Warstaff
 - Normal/magic/rare prefix and suffix families: **1,204 mods, 182 families,
-  and 136 normalized patterns** that map through the current PoE1
+  and 135 normalized patterns** that map through the current PoE1
   `mods_by_base` equipment pools
 - Base implicits at class scope: **215 mods**
 - Item-domain corrupted implicits: **233 mapped mods** out of 372 exported
@@ -120,7 +120,7 @@ Live export survey (2026-11-12):
 | Item prefix/suffix mods | 4,366 |
 | Distinct normalized affix texts | 1,013 |
 | Mapped normal equipment mods | 1,204 |
-| Mapped normal patterns | 136 |
+| Mapped normal patterns | 135 |
 | Mapped base implicits | 215 |
 | Mapped corrupted mods | 233 |
 | Catalog entries (all sources) | 1,652 |
@@ -334,7 +334,7 @@ calibrated to this project's measured velocity.
 The repo has 436 commits; the main October–November run spans 31 days. The P2
 augment pass (catalog, 3,734-scope exact table, and picker/union work) landed
 in about two days. The offline PoE1 spike mapped the normal-equipment surface
-to **1,204 normal mods / 136 normal patterns / 764 class-pattern rows**, and
+to **1,204 normal mods / 135 normal patterns / 764 class-pattern rows**, and
 the shipped MVP catalog now carries **1,652 mods across 1,626 table scopes**,
 versus 1,050 patterns / 2,480 class rows for the PoE2 P2 table. PoE1 is smaller and simpler
 to render because its mods already carry a `text` field. The real new cost is
@@ -355,7 +355,7 @@ time. Add review, release, and upstream league churn separately.
 | Tests, docs, PWA, perf, release | 1–2 |
 | **Normal-equipment MVP** | **7–14 (~1.5–2.5 focused weeks)** |
 
-The offline spike (1,204 normal mods / 136 patterns) and the normal-equipment
+The offline spike (1,204 normal mods / 135 patterns) and the normal-equipment
 MVP catalog/table (1,652 mods / 1,626 scopes) are complete. Engine/data/
 table only, without the web switch, is **4–7 focused days**. Add
 influences/crafts/veils/flasks: **+5–9 days**. Add normal/abyss/cluster
