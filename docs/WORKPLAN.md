@@ -97,9 +97,9 @@ socket/import/builder model. The coverage table below is the reference.
 Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md) and shipping with the current
 release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
-- Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit,
+- Catalog: 23 equipment classes, 1,611 mods (1,200 normal, 178 implicit,
   233 corrupted).
-- Exact table: 1,626 scopes, 0 unresolved; every entry verified strict over
+- Exact table: 1,584 scopes, 0 unresolved; every entry verified strict over
   the generated PoE1 foreign-line corpus.
 - Data: `data/repoe.manifest.json` classifies all 90 root-export entries;
   `data/repoe-poe1.snapshot.json` pins the seven inputs; `poe1-build`,

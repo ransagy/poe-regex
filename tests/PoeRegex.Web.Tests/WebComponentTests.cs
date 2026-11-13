@@ -392,7 +392,8 @@ public class WebComponentTests
 
         cut.Find(".game-load-overlay").Should().NotBeNull();
         cut.Find(".game-load-title").TextContent.Should().Contain("Path of Exile");
-        cut.Find(".game-load-note").TextContent.Should().Contain("2 MB");
+        cut.Find(".game-load-note").TextContent.Should().Contain("catalog");
+        cut.Find(".game-load-note").TextContent.Should().Contain("cached copy");
     }
 
     [Fact]
