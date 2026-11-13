@@ -3,12 +3,13 @@
 [![ci](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ransagy/poe-regex/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-c9a227.svg)](LICENSE)
 
-A PoE2 engine that turns modifier requirements into short, in-game-safe regex
-queries. PoE2 search boxes cap regex queries at 250 characters; the project
-precomputes the exact shortest line-safe fragment for every mod line over the
-vendor/stash corpus and assembles deterministic, AND-ed quoted blocks. The
-target text is the advanced in-game item-search text; normal display is
-presentation only.
+A PoE2 and PoE1 engine that turns modifier requirements into short,
+in-game-safe regex queries. Search boxes cap queries at 250 characters; the
+project precomputes the exact shortest line-safe fragment for every mod line
+over the vendor/stash corpus and assembles deterministic, AND-ed quoted blocks.
+The target text is the advanced in-game item-search text; normal display is
+presentation only. PoE2 and PoE1 are separate game profiles with their own
+catalogs, tables, grammars, and saved state.
 
 The repository contains the engine, its data pipeline, the CLI, and the web
 reference implementation — **"Renly's Tools"**, a Blazor WebAssembly
@@ -26,7 +27,7 @@ Current work: [`docs/WORKPLAN.md`](docs/WORKPLAN.md). Acceptance: [`docs/ACCEPTA
   exactly, and emits the derived catalog plus the exact fragment table
   (`data/catalogs/*.json`). Raw RePoE JSON is dev-only and gitignored; only
   derived data ships. See [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
-- **Engine** (`src/PoeRegex.Core`): consumes the PoE2 catalog and its exact
+- **Engine** (`src/PoeRegex.Core`): consumes a game catalog and its exact
   fragment table through `ICatalogSource`, performs table lookup only (no
   runtime fragment search), composes value-threshold digit-range patterns,
   factors common prefixes across included mods, and enforces the 250-character
@@ -39,7 +40,7 @@ Current work: [`docs/WORKPLAN.md`](docs/WORKPLAN.md). Acceptance: [`docs/ACCEPTA
   build includes cookieless Cloudflare Web Analytics — see
   [`web/README.md`](web/README.md)).
 - **Tests** (`tests/`): engine unit tests, exact-table audits, and web
-  no-false-positive property tests over the shipped PoE2 catalog.
+  no-false-positive property tests over the shipped PoE2 and PoE1 catalogs.
 
 See `docs/DESIGN.md` for the full specification. Integrating `PoeRegex.Core`
 into your own app (references, pipeline, custom catalog sources, AOT)?
@@ -128,7 +129,8 @@ Sources and prior art from the Path of Exile community this project builds on:
   PyPoE code is incorporated. See [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **Community grammar knowledge** — the trade-search regex conventions this tool
   targets (quoted-block AND `"A" "B"`, `!` negation, lookaheads and custom
-  keywords on PoE 2, the 250-character query limit) are treated as functional
+  keywords on PoE 2, the PoE 1 `"!term"` exclusion form, the 250-character
+  query limit) are treated as functional
   behavior of the in-game trade sites and described here in our own words.
   No example text, query strings, or prose are reproduced from community wikis
   (which use CC BY-NC-SA), forums, subreddits, or guide sites. No unlicensed

@@ -440,12 +440,21 @@ public sealed class WorkbenchState
     }
 
     /// <summary>Restore factory defaults (mode, slots, classes, criteria, items).</summary>
-    public void Reset()
+    public void Reset() => Reset("poe2");
+
+    public void Reset(string game)
     {
+        var defaults = game == "poe1"
+            ? new Dictionary<string, string>(DefaultClasses, StringComparer.Ordinal)
+            {
+                ["weapon"] = "One Hand Sword",
+                ["offhand"] = "Shield",
+            }
+            : DefaultClasses;
         Mode = "simple";
         FocusedSlot = null;
         Slots.Clear();
-        foreach (var (slot, cls) in DefaultClasses)
+        foreach (var (slot, cls) in defaults)
             Slots[slot] = new SlotCriteria { ClassId = cls };
         Global.ClassId = "";
         Global.Included.Clear();

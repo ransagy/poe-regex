@@ -24,6 +24,9 @@
 /web.styles.css
   Cache-Control: no-cache
 
+/data/poe1/*
+  Cache-Control: no-cache
+
 # .NET 10 fingerprints every file in _framework/ (content hash in the
 # name), so these are safe to cache forever; new builds get new names.
 /_framework/*

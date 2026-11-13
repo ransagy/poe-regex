@@ -83,8 +83,8 @@ public sealed class SearchModel(EngineService engine, WorkbenchState state)
         _externalBlocks.Clear();
         Anchor = null;
         if (Query.Length == 0) return;
-        var tokens = Explainer.Tokenize(Query).ToList();
-        var texts = tokens.Select(t => (t.Excluded ? "!" : "") + "\"" + t.Phrase + "\"").ToList();
+        var tokens = Explainer.Tokenize(Query, engine.Syntax).ToList();
+        var texts = tokens.Select(t => t.Excluded ? engine.Syntax.FormatExclusion(t.Phrase) : engine.Syntax.Quote(t.Phrase)).ToList();
         if (!string.Equals(string.Join(" ", texts), Query, StringComparison.Ordinal)) return;
 
         var advanced = state.Mode == "advanced";

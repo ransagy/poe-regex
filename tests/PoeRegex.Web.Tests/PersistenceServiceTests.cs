@@ -14,7 +14,7 @@ public class PersistenceServiceTests
         JsonSerializer.Serialize(picks.ToList(), WebJsonContext.Default.ListSavedPick);
 
     [Fact]
-    public async Task LoadSavedPicks_MigratesLegacyPicksToTheNewKey()
+    public async Task LoadSavedPicks_ReadsLegacyPicksWithoutDeletingTheKey()
     {
         using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -25,8 +25,9 @@ public class PersistenceServiceTests
         var loaded = await service.LoadSavedPicksAsync();
 
         loaded.Should().ContainSingle().Which.Name.Should().Be("Legacy");
-        ctx.JSInterop.VerifyInvoke("localStorage.setItem");
-        ctx.JSInterop.VerifyInvoke("localStorage.removeItem");
+        // Legacy keys are retained as the one-release fallback.
+        ctx.JSInterop.VerifyNotInvoke("localStorage.setItem");
+        ctx.JSInterop.VerifyNotInvoke("localStorage.removeItem");
     }
 
     [Fact]

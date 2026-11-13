@@ -1,0 +1,44 @@
+{
+  "game": "poe1",
+  "export": "poe1",
+  "downloadedAt": "2026-11-13T00:00:00Z",
+  "dataVersion": "2026-11-13",
+  "source": "https://repoe-fork.github.io",
+  "files": [
+    {
+      "path": "base_items.min.json",
+      "bytes": 3010191,
+      "sha256": "8cac14018abe33299eb65b5fa089008123c63b192946685d4bdccffc97068cec"
+    },
+    {
+      "path": "item_classes.min.json",
+      "bytes": 10864,
+      "sha256": "a0476bbc21d9d8657db9058586c99a1a8095fc99f9664b995073384c43838c1e"
+    },
+    {
+      "path": "mods.min.json",
+      "bytes": 22812409,
+      "sha256": "2f62711c8723a55376b70248da4e81802bca3a325e3a3007ecae66a8bdcbb852"
+    },
+    {
+      "path": "mods_by_base.min.json",
+      "bytes": 15102987,
+      "sha256": "bcca7a333a9f990098972635f9b918193b3b9f885663bcae00c94697a562b947"
+    },
+    {
+      "path": "stat_translations.min.json",
+      "bytes": 4603207,
+      "sha256": "c93e7b1b5e704aaf71453e9146f88a89afe15654c43a2a2dbf48c8ad78509174"
+    },
+    {
+      "path": "stat_value_handlers.min.json",
+      "bytes": 192114,
+      "sha256": "dcf5541f8f45eca1829dd118006037418c8683e3608c7ce18670f5fd108897ec"
+    },
+    {
+      "path": "stats.min.json",
+      "bytes": 2638720,
+      "sha256": "d8f548aed4996bf9eb56fcc78b0023db5082f24e3422c74a5e422a982cc9f99d"
+    }
+  ]
+}

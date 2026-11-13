@@ -20,6 +20,9 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
 ///   dotnet run -- common-picks [--check] [--table]
+///   dotnet run -- poe1-build [--raw data/raw/poe1]
+///   dotnet run -- poe1-matrix [--from-scratch]
+///   dotnet run -- poe1-status [--check]
 /// </summary>
 public static class Program
 {
@@ -29,6 +32,13 @@ public static class Program
     private const string MatrixPath = "docs/CANDIDATE-MATRIX-poe2.html";
     private const string ProofPath = "docs/CANDIDATE-PROOF-poe2.json";
     private const string StatusPath = "docs/CANDIDATE-STATUS-poe2.json";
+
+    private const string Poe1CatalogPath = "data/catalogs/poe1.catalog.json";
+    private const string Poe1VendorPath = "data/catalogs/poe1.vendor-corpus.json";
+    private const string Poe1TablePath = "data/catalogs/poe1.fragments.json";
+    private const string Poe1MatrixPath = "docs/CANDIDATE-MATRIX-poe1.html";
+    private const string Poe1ProofPath = "docs/CANDIDATE-PROOF-poe1.json";
+    private const string Poe1StatusPath = "docs/CANDIDATE-STATUS-poe1.json";
 
     public static int Main(string[] args)
     {
@@ -53,6 +63,9 @@ public static class Program
                 "fetch" => Fetch(args[1..]),
                 "data-audit" => DataAudit.Run(args[1..]),
                 "common-picks" => CommonPicksAudit.Run(args[1..]),
+                "poe1-build" => Poe1Build(args[1..]),
+                "poe1-matrix" => Poe1Matrix(args[1..]),
+                "poe1-status" => Poe1Status(args[1..]),
                 _ => Usage(args[0]),
             };
         }
@@ -65,7 +78,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit | common-picks");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status");
         return 2;
     }
 
@@ -91,6 +104,145 @@ public static class Program
         File.WriteAllText(catalogPath, json);
         Console.WriteLine($"  wrote {catalogPath} ({new FileInfo(catalogPath).Length / 1024} KiB)");
         return 0;
+    }
+
+
+    private static int Poe1Build(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var rawDir = GetValue(opts, "--raw", "data/raw/poe1");
+        var catalogPath = GetValue(opts, "--catalog", Poe1CatalogPath);
+        var vendorPath = GetValue(opts, "--vendor", Poe1VendorPath);
+        var snapshotPath = GetValue(opts, "--snapshot", "data/repoe-poe1.snapshot.json");
+        var dataVersion = ReadDataVersion(snapshotPath)
+                          ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+        Console.WriteLine($"Building PoE1 normal-equipment catalog from {rawDir}");
+        var result = Poe1CatalogBuilder.Build(rawDir, dataVersion);
+        Directory.CreateDirectory(Path.GetDirectoryName(catalogPath)!);
+        // Emit exactly the derived-catalog contract; source-generated
+        // serialization would also write default-valued augment fields.
+        var catalogJson = JsonSerializer.Serialize(
+            new
+            {
+                game = result.Catalog.Game,
+                dataVersion = result.Catalog.DataVersion,
+                itemClasses = result.Catalog.ItemClasses.Select(c => new
+                {
+                    id = c.Id,
+                    name = c.Name,
+                    baseFingerprint = c.BaseFingerprint,
+                }),
+                mods = result.Catalog.Mods.Select(m => new
+                {
+                    id = m.Id,
+                    name = m.Name,
+                    generationType = m.GenerationType,
+                    source = m.Source,
+                    family = m.Family,
+                    requiredLevel = m.RequiredLevel,
+                    classes = m.Classes,
+                    groups = m.Groups,
+                    statLines = m.StatLines.Select(l => new
+                    {
+                        line = l.Line,
+                        rangeLine = l.RangeLine,
+                        pattern = l.Pattern,
+                        minValue = l.MinValue,
+                        maxValue = l.MaxValue,
+                        fingerprints = l.Fingerprints,
+                    }),
+                }),
+            },
+            new JsonSerializerOptions
+            {
+                WriteIndented = false,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            });
+        File.WriteAllText(catalogPath, catalogJson + "\n");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(vendorPath)!);
+        var vendorJson = JsonSerializer.Serialize(
+            result.Vendor, CatalogJsonContext.Default.VendorCorpusFile);
+        File.WriteAllText(vendorPath, vendorJson + "\n");
+
+        Console.WriteLine(
+            $"  {result.Catalog.ItemClasses.Count} item classes, " +
+            $"{result.Catalog.Mods.Count} mods, {result.Vendor.Lines.Count} foreign lines");
+        Console.WriteLine($"  wrote {catalogPath}");
+        Console.WriteLine($"  wrote {vendorPath}");
+        return 0;
+    }
+
+    private static int Poe1Matrix(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var catalog = GetValue(opts, "--catalog", Poe1CatalogPath);
+        var vendor = GetValue(opts, "--vendor", Poe1VendorPath);
+        var matrix = GetValue(opts, "--matrix", Poe1MatrixPath);
+        var table = GetValue(opts, "--table", Poe1TablePath);
+        var proof = GetValue(opts, "--proof", Poe1ProofPath);
+        var status = GetValue(opts, "--status", Poe1StatusPath);
+        var jobs = GetValue(opts, "--jobs", Math.Max(1, Environment.ProcessorCount - 1).ToString());
+        var timeout = GetValue(opts, "--timeout", "120");
+        var prefer = opts.TryGetValue("--prefer", out var preferPath) ? preferPath : "";
+
+        var common = new List<string>
+        {
+            "--catalog", catalog, "--vendor", vendor,
+        };
+        var matrixArgs = common.Concat(new[]
+        {
+            "--jobs", jobs, "--timeout", timeout, "--out", matrix,
+        });
+        if (opts.ContainsKey("--from-scratch"))
+            matrixArgs = matrixArgs.Append("--from-scratch");
+        var code = CandidateMatrix.Run(matrixArgs.ToArray());
+        if (code != 0) return code;
+
+        var tableArgs = common.Concat(new[] { "--matrix", matrix, "--out", table });
+        if (prefer.Length > 0)
+            tableArgs = tableArgs.Concat(new[] { "--prefer", prefer });
+        code = MatrixTable(tableArgs.ToArray());
+        if (code != 0) return code;
+
+        code = MatrixProof.Run(common.Concat(new[]
+        {
+            "--matrix", matrix, "--jobs", jobs, "--out", proof,
+        }).ToArray());
+        if (code != 0) return code;
+
+        return BuildStatus.Run(common.Concat(new[]
+        {
+            "--matrix", matrix, "--table", table, "--proof", proof, "--out", status,
+        }).ToArray());
+    }
+
+    private static int Poe1Status(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var catalog = GetValue(opts, "--catalog", Poe1CatalogPath);
+        var matrix = GetValue(opts, "--matrix", Poe1MatrixPath);
+        var table = GetValue(opts, "--table", Poe1TablePath);
+        var proof = GetValue(opts, "--proof", Poe1ProofPath);
+        var status = GetValue(opts, "--status", Poe1StatusPath);
+        var statusArgs = new List<string>
+        {
+            "--catalog", catalog, "--matrix", matrix, "--table", table,
+            "--proof", proof, "--out", status,
+        };
+        if (opts.ContainsKey("--check")) statusArgs.Add("--check");
+        if (opts.ContainsKey("--check-shortest")) statusArgs.Add("--check-shortest");
+        return BuildStatus.Run(statusArgs.ToArray());
+    }
+
+    private static string? ReadDataVersion(string snapshotPath)
+    {
+        if (!File.Exists(snapshotPath)) return null;
+        using var doc = JsonDocument.Parse(File.ReadAllText(snapshotPath));
+        return doc.RootElement.TryGetProperty("dataVersion", out var version)
+            ? version.GetString()
+            : null;
     }
 
     private static int Corpus(string[] args)
@@ -121,8 +273,10 @@ public static class Program
         var status = GetValue(opts, "--status", StatusPath);
         var prefer = opts.TryGetValue("--prefer", out var preferPath) ? preferPath : "";
         var timeout = GetValue(opts, "--timeout", "120");
+        var vendor = GetValue(opts, "--vendor", "");
 
-        var common = new[] { "--catalog", catalog };
+        var common = new List<string> { "--catalog", catalog };
+        if (vendor.Length > 0) common.AddRange(["--vendor", vendor]);
         var matrixArgs = common.Concat(new[] { "--jobs", jobs, "--timeout", timeout, "--out", matrix });
         if (opts.ContainsKey("--from-scratch"))
             matrixArgs = matrixArgs.Append("--from-scratch");
@@ -158,8 +312,10 @@ public static class Program
         var matrixPath = GetValue(opts, "--matrix", MatrixPath);
         var outPath = GetValue(opts, "--out", TablePath);
         var preferPath = GetValue(opts, "--prefer", "");
+        var vendorPath = GetValue(opts, "--vendor", "");
 
-        var catalog = new FileCatalogSource(catalogPath).Load();
+        var corpus = CorpusLoader.Load(catalogPath, vendorPath);
+        var catalog = corpus.Catalog;
         FragmentTable? prefer = null;
         if (preferPath.Length > 0 && File.Exists(preferPath))
         {
@@ -167,7 +323,6 @@ public static class Program
                 File.ReadAllText(preferPath),
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
-        var corpus = new EngineCorpus(catalog);
         var global = new Dictionary<string, string>(StringComparer.Ordinal);
         var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
 

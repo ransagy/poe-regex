@@ -123,7 +123,8 @@ source of truth.
   change branch.
 - [ ] Confirm CI `test` and the Cloudflare Pages preview are green.
 - [ ] For exact-table changes, confirm the matrix/proof/status artifacts were
-  regenerated together.
+  regenerated together. For PoE1, run `poe1-build` (if raw data changed),
+  `poe1-matrix --from-scratch`, and `poe1-status --check --check-shortest`.
 
 ## 5. Web build and PWA
 

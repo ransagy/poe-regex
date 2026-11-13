@@ -1,10 +1,32 @@
 # Acceptance
 
-_Last measured: 2026-11-11._
+_Last measured: 2026-11-13._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
 sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
+
+## PoE1 MVP evidence
+
+Measured on `feat/poe1-mvp` (2026-11-13), not yet deployed:
+
+- Catalog: 23 equipment classes, 1,652 mods (1,204 normal, 215 implicit, 233
+  corrupted).
+- Exact table: 1,626 scopes (382 global, 1,244 class), 0 unresolved. The
+  matrix proof checks 1,966 expanded scopes with 0 failures; `poe1-status
+  --check` reports a non-stale table and a proven shortest form.
+- Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
+  against the generated foreign corpus.
+- Tests: 117 core + 433 web + 45 data-build pass.
+- Browser smoke: switching shows 23 PoE1 classes; PoE1 exclusions compile as
+  `"!term"`; PoE2 keeps `!"term"`; picks round-trip per game; a reload with
+  PoE1 as the last game restores PoE1 engine, state, and query. PoE1 data is
+  fetched lazily on first switch and is not in the install-time precache.
+- PWA: service worker activates, manifest/installability checks pass, and the
+  shell boots offline (68 precached entries; PoE1 data is cached on first
+  switch).
+- Perf at 1920×1080: boot p50 1265 ms / p95 1333 ms (budget 2500 ms); long
+  tasks 14 over 50 ms, 0 over 200 ms, max 91 ms.
 
 ## Performance
 

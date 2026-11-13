@@ -1,8 +1,645 @@
 {
   "game": "poe2",
-  "lastAudited": "2026-11-12",
+  "lastAudited": "2026-11-13",
   "notes": "Inventory of RePoE hosts. used = fetched by tools/PoeRegex.Data.Build fetch. cross-check = development reference only, never shipped. known-unused/not-relevant must still be classified, not silently ignored.",
   "exports": [
+    {
+      "id": "poe1",
+      "baseUrl": "https://repoe-fork.github.io",
+      "indexUrl": "https://repoe-fork.github.io/poe1.html",
+      "entries": [
+        {
+          "path": "Art/",
+          "kind": "assets",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Art/metadata tree; not used by the catalog pipeline."
+        },
+        {
+          "path": "French/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "German/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Japanese/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Korean/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Metadata/",
+          "kind": "assets",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Art/metadata tree; not used by the catalog pipeline."
+        },
+        {
+          "path": "Portuguese/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Russian/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Spanish/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Thai/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "Traditional Chinese/",
+          "kind": "translation-tree",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Localized client data; the English export is the only catalog input."
+        },
+        {
+          "path": "active_skill_types.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "active_skill_types.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "audio.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "audio.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "base_items.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "base_items.min.json",
+          "kind": "item-bases",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Base item names, tags, implicits, properties and item classes."
+        },
+        {
+          "path": "base_items/",
+          "kind": "base-items-dir",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-entry tree; the pinned aggregate .min.json files are the catalog inputs."
+        },
+        {
+          "path": "buff_visuals.html",
+          "kind": "documentation",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML view of an export table."
+        },
+        {
+          "path": "buff_visuals.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "buff_visuals.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "buff_visuals_grid.html",
+          "kind": "documentation",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML view of an export table."
+        },
+        {
+          "path": "buffs.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "buffs.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "characters.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "characters.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "cluster_jewel_notables.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "cluster_jewel_notables.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "cluster_jewels.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "cluster_jewels.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "cost_types.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "cost_types.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "crafting_bench_options.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "crafting_bench_options.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "data-formats/",
+          "kind": "data-formats",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-entry tree; the pinned aggregate .min.json files are the catalog inputs."
+        },
+        {
+          "path": "default_monster_stats.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "default_monster_stats.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "essences.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "essences.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "favicon.ico",
+          "kind": "asset",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Non-data asset served with the export."
+        },
+        {
+          "path": "flavour.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "flavour.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "fossils.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "fossils.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "gem_tags.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "gem_tags.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "gems.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "gems.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "gems_minimal.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "gems_minimal.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "index.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "item_classes.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "item_classes.min.json",
+          "kind": "item-classes",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Item class ids and display names."
+        },
+        {
+          "path": "lab_layout.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "lab_layout.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mercenary_builds.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mercenary_builds.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mercenary_classes.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mercenary_classes.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mercenary_flavour_text.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mercenary_flavour_text.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mercenary_skills.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mercenary_skills.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mercenary_supports.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mercenary_supports.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mod_types.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mod_types.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "mods.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mods.min.json",
+          "kind": "mods",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Mod text, generation type, spawn weights, domains."
+        },
+        {
+          "path": "mods_by_base.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "mods_by_base.min.json",
+          "kind": "mods-by-base",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Mod-to-base class mapping through tag sets."
+        },
+        {
+          "path": "passive_skill_trees/",
+          "kind": "passive-trees",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-entry tree; the pinned aggregate .min.json files are the catalog inputs."
+        },
+        {
+          "path": "stat_translations.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stat_translations.min.json",
+          "kind": "stat-translations",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Stat text translation for mod patterns."
+        },
+        {
+          "path": "stat_translations/",
+          "kind": "stat-translations-dir",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Per-entry tree; the pinned aggregate .min.json files are the catalog inputs."
+        },
+        {
+          "path": "stat_value_handlers.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stat_value_handlers.min.json",
+          "kind": "stat-value-handlers",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Value handler metadata used while normalizing rolls."
+        },
+        {
+          "path": "stats.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stats.min.json",
+          "kind": "stats",
+          "status": "used",
+          "consumer": "Poe1CatalogBuilder",
+          "notes": "Stat ids referenced by mods."
+        },
+        {
+          "path": "stats_by_file.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "stats_by_file.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "tag_details.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "tag_details.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "tags.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "tags.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "uniques.html",
+          "kind": "documentation",
+          "status": "not-relevant",
+          "consumer": "none",
+          "notes": "Generated HTML view of an export table."
+        },
+        {
+          "path": "uniques.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "uniques.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        },
+        {
+          "path": "world_areas.json",
+          "kind": "full-format-duplicate",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "Non-minified duplicate of a mapped export."
+        },
+        {
+          "path": "world_areas.min.json",
+          "kind": "poe1-export",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoE1 export table outside the normal-equipment MVP inputs."
+        }
+      ]
+    },
     {
       "id": "poe2",
       "baseUrl": "https://repoe-fork.github.io/poe2",

@@ -66,7 +66,7 @@ public sealed class QueryImportService
             foreach (var anchor in new[]
                      {
                          _engine.ClassNameAnchor(itemClass.Id),
-                         Poe2Syntax.EscapeLiteral(_engine.ClassNamePrefix(itemClass.Id)),
+                         _engine.Syntax.EscapeLiteral(_engine.ClassNamePrefix(itemClass.Id)),
                      }.Distinct(StringComparer.Ordinal))
             {
                 if (anchor.Length == 0) continue;
@@ -98,7 +98,7 @@ public sealed class QueryImportService
         var excludes = new List<ModifierRequirement>();
         var keywords = new List<string>();
 
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query, _engine.Syntax))
         {
             var anchorClasses = ResolveClassAnchor(phrase);
             if (!excluded && anchorClasses.Count > 0)
@@ -209,7 +209,7 @@ public sealed class QueryImportService
         try
         {
             var classId = classes.Count == 1 ? classes.First() : null;
-            var explanation = _engine.Explain(Poe2Syntax.Quote(phrase), classId);
+            var explanation = _engine.Explain(_engine.Syntax.Quote(phrase), classId);
             var result = new List<(string Pattern, string Mod)>();
             foreach (var match in explanation.Tokens.SelectMany(t => t.Matches))
             {

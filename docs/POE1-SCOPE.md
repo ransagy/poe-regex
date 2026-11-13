@@ -1,6 +1,7 @@
 # PoE1 introduction — scope and sizing
 
-_Status: scoped; offline spike complete, live validation pending. Last updated 2026-11-12._
+_Status: normal-equipment MVP implemented on `feat/poe1-mvp`; awaiting merge approval.
+Last updated 2026-11-13._
 
 This document sizes the introduction of Path of Exile 1 as a second game
 profile. It is an engineering scope, not a delivery promise; the estimates
@@ -41,6 +42,11 @@ and other league sources.
 currency, passive tree, trade-site queries, accounts, and exact base-type
 fidelity beyond the item class.
 
+**MVP+1:** vendorable skill and support gems. Their copied text includes
+explanatory lines that can win fragment selection, so they need their own
+corpus and target-model review before they can join the normal-equipment
+table without regressing it.
+
 ### MVP boundary
 
 **Included**
@@ -52,8 +58,12 @@ fidelity beyond the item class.
 - Normal/magic/rare prefix and suffix families: **1,204 mods, 182 families,
   and 136 normalized patterns** that map through the current PoE1
   `mods_by_base` equipment pools
-- Base implicits at class scope
-- Item-domain corrupted implicits (372 mods)
+- Base implicits at class scope: **215 mods**
+- Item-domain corrupted implicits: **233 mapped mods** out of 372 exported
+  (the rest have no equipment class in `mods_by_base`)
+- **Catalog total: 1,652 mods across 23 classes**
+- **Exact table: 1,626 scopes, 0 unresolved, all verified strict** against the
+  generated PoE1 foreign-line corpus
 - Ten equipment slots, All-gear union, per-slot pickers
 - Query compile, min values, exclusions, copy, explain, saved picks/share
 - Import of normal/magic/rare copied item text, including fractured headers
@@ -66,7 +76,7 @@ fidelity beyond the item class.
 - Crafted/veiled mods, lab/bench enchantments
 - Flasks, jewels, cluster/abyss/timeless jewels
 - Synthesis, eldritch, scourge, crucible, tattoos, and other league sources
-- Unique-only text, gems, maps, currency
+- Unique-only text, gems (MVP+1), maps, currency
 - Exact base-type implicit fidelity beyond the item class
 
 ## 2. What is reusable
@@ -93,11 +103,10 @@ What is currently PoE2-hardcoded and must become profile data:
 
 The PoE1 export is the **root** RePoE export
 (`https://repoe-fork.github.io/`, linked from `poe1.html`), not
-`/poe1`. The local `data/raw/poe1` snapshot is from 2026-08-09 and is already
-stale; the live root export has 40,355 mods / 5,461 bases / 103 classes
-versus 40,348 / 5,173 / 102 locally.
-PoE1 is not yet in `data/repoe.manifest.json`, so the first data task is to add
-and classify it before any builder work.
+`/poe1`. The local `data/raw/poe1` snapshot is the 2026-11-13 live fetch and
+is pinned by size and SHA-256 in `data/repoe-poe1.snapshot.json`.
+`data/repoe.manifest.json` now carries and classifies the root export's 90
+entries; `data-audit --check` passes.
 
 Live export survey (2026-11-12):
 
@@ -112,13 +121,17 @@ Live export survey (2026-11-12):
 | Distinct normalized affix texts | 1,013 |
 | Mapped normal equipment mods | 1,204 |
 | Mapped normal patterns | 136 |
+| Mapped base implicits | 215 |
+| Mapped corrupted mods | 233 |
+| Catalog entries (all sources) | 1,652 |
+| Exact-table scopes | 1,626 |
 | Essence-only affixes | 458 |
 | Influence-tagged affixes | 1,933 |
 | Crafted mods | 1,637 |
 | Unveiled mods | 258 |
 | Flask mods | 439 |
 | Abyss jewel mods | 548 |
-| Item-domain corrupted mods | 372 |
+| Item-domain corrupted mods | 372 (233 mapped) |
 | Enchantments | 1,635 |
 | Eldritch implicits (`eater`/`searing`) | 4,086 |
 | Crucible tree mods | 2,604 |
@@ -154,42 +167,88 @@ Raw file sizes: `mods.min.json` 22 MB, `mods_by_base.min.json` 15 MB,
 
 ## 4. Grammar and copy-text spikes
 
-These must be resolved before committing to an exact table:
+Validated in-game on 2026-11-12/13. Outcomes:
 
-1. **In-game grammar parity.** Verify PoE1 search behavior for quoted phrases,
-   `|`, `!` exclusions, case folding, whitespace, wildcards, anchors, and the
-   maximum query length. Reuse the PoE2 grammar only if the client behavior
-   matches; otherwise add a separate `Poe1Syntax` profile.
-2. **Copied item text.** Capture representative PoE1 items and confirm whether
-   copy text uses final values only or PoE2-style `roll(min-max)` advanced
-   forms, and whether `{ Prefix Modifier … }` headers are copied. This decides
-   whether the target model is `poe1-plain-v1` or an advanced variant.
-3. **Search corpus.** Confirm what the in-game search actually matches:
-   visible mod lines only, or also advanced headers/names/tags. The exact
-   table and safety corpus depend on this.
-4. **Import shapes.** Verify magic/rare item names, influenced/fractured/
-   synthesised headers, flask/jewel text, socket lines, and item-level lines.
-5. **Length/budget.** Measure the PoE1 search limit and whether it matches the
-   current 250-character budget.
+1. **In-game grammar parity.** Confirmed: quoted phrases, `|`, case folding,
+   whitespace, wildcards, anchors, `\d`, escaped punctuation, and the
+   250-character limit match PoE2. One difference: exclusions use `"!term"`
+   (inside the quotes), not `!"term"`; `QuerySyntax.Poe1` owns that shape.
+2. **Copied item text.** Confirmed: copy text carries both final values and
+   advanced `roll(min-max)` forms plus `{ Prefix/Suffix/Implicit Modifier … }`
+   headers. The PoE2 `advanced-ranges-v1` target model applies unchanged.
+3. **Search corpus.** Confirmed line-local, case-insensitive, substring
+   matching over headers, annotations, properties, names/base types, and
+   class/sockets/quality/item level.
+4. **Import shapes.** Confirmed normal/magic/rare names, fractured headers,
+   corruption implicits, annotations, socket lines, and item-level lines.
+   Influenced, eldritch, crafted, and veiled sources are rejected.
+5. **Length/budget.** Confirmed 250 characters, the same budget as PoE2.
 
 Deliverable: a grammar/copy-text spike note with a fixture matrix; no builder
-work starts until these are signed off.
+work starts until these are signed off. The results above are now encoded in
+`Poe1SyntaxTests`, `Poe1Tests`, and the shipped table.
 
-## 5. Base artifacts to establish
+## 5. Shipped artifacts and reproducible build
 
-- Manifest: a `poe1` export entry, current raw snapshot, audit classifications
-  for the root export's unrelated files, and a version stamp.
-- Catalog: `poe1.catalog.json` with PoE1 item classes, sources, family keys,
-  tier order, and fingerprints.
-- Exact data: `poe1.fragments.json`, `poe1.vendor-corpus.json`, and
-  `poe1.safety-items.txt`.
-- Proof pipeline: PoE1 candidate matrix, proof, and status files with the
-  game id in their payloads.
-- Code: `GameProfile`, `Poe1Syntax` (or a proven shared syntax), PoE1 class/slot
-  model, common-picks data, import rules, and profile-scoped persistence.
-- Test fixtures: captured normal/magic/rare item text, influenced/fractured/
-  synthesised examples, flask/jewel examples, and negative fixtures
-  (gems/maps/currency) for foreign-line checks.
+- Manifest: `data/repoe.manifest.json` has a `poe1` export rooted at
+  <https://repoe-fork.github.io>, audited through the generated
+  <https://repoe-fork.github.io/poe1.html> index. All 90 entries are
+  classified; the seven catalog inputs are `used`.
+- Snapshot: `data/repoe-poe1.snapshot.json` pins the seven raw files by size
+  and SHA-256, with `dataVersion` `2026-11-13`.
+- Catalog: `data/catalogs/poe1.catalog.json` — 23 item classes, 1,652 mods,
+  with source, family, tier order, classes, groups, and stat lines.
+- Foreign corpus: `data/catalogs/poe1.vendor-corpus.json` — deduplicated base
+  names, properties, class lines, and every plain/advanced mod form.
+- Exact data: `data/catalogs/poe1.fragments.json` — 1,626 scopes, 0
+  unresolved. The web copies live under `web/wwwroot/data/poe1/` and load
+  lazily.
+- Proof pipeline: `docs/CANDIDATE-MATRIX-poe1.html`,
+  `docs/CANDIDATE-PROOF-poe1.json`, and `docs/CANDIDATE-STATUS-poe1.json`
+  carry the `poe1` game id and prove the shipped table. PoE1 has no captured
+  safety-item fixture file yet, so strictness is proven over the generated
+  foreign corpus (all catalog mod lines, base names/properties, class and fixed
+  property lines), not over an independently captured item corpus.
+- Code: per-game `GameData`/`EngineCorpus`/`EngineService`, `GameSession`,
+  `GameDataLoader`, `QuerySyntax.Poe1`, per-game persistence, and PoE1
+  parser/import rules.
+- Tests: normal, fractured/corrupted, influenced, crafted, veiled, and
+  eldritch fixtures in `Poe1Tests`; dialect tests in `Poe1SyntaxTests`.
+
+Rebuild from the pinned raw snapshot:
+
+```sh
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check
+```
+
+`poe1-build` reads `data/raw/poe1` (gitignored) and writes the catalog and
+foreign corpus. `poe1-matrix` regenerates the matrix, table, proof, and status;
+`poe1-status --check` fails if the table is stale or the proof is missing.
+
+### Import boundary
+
+| Source | MVP | Behavior |
+|---|---|---|
+| Normal / magic / rare equipment | Yes | Parsed and mapped |
+| Fractured headers with normal affixes | Yes | Parsed; affix maps normally |
+| Corruption implicits | Yes | Mapped to the corrupted pool |
+| Plain and advanced roll forms | Yes | `roll` and `roll(min-max)` both match |
+| `(Tier: n)` / `(Rank: n)` headers | Yes | Header is searchable text |
+| `— Unscalable Value` line suffix | Yes | Stripped before catalog mapping |
+| Shaper / Elder / Crusader / Redeemer / Hunter / Warlord | No | Rejected with an influence message |
+| Searing Exarch / Eater of Worlds eldritch | No | Rejected with an eldritch message |
+| Crafted / Master Crafted | No | Rejected with a crafted message |
+| Veiled | No | Rejected with a veiled message |
+| Unique rarity | No | Rejected; unique-only text is outside the MVP |
+| Gems (skill/support) | MVP+1 | Excluded; own text model needed |
+| Flasks, jewels, maps, currency, uniques | No | Outside normal-equipment scope |
+
+PoE1 exclusion blocks use `"!term"` (inside the quotes), unlike PoE2's
+`!"term"`. `QuerySyntax.Poe1` owns that shape; compiler, paste composition,
+explain, query import/reconstruction, item matching, and the block ruler all
+route through the corpus syntax.
 
 ## 6. Catalog and source model
 
@@ -219,6 +278,11 @@ Duplicate policy should stay class-scoped and effect-first, as in PoE2, but
 the source tags and duplicate rules need their own acceptance tests.
 
 ## 7. Architecture changes
+
+Implemented in the MVP: `GameData` carries a game's catalog/table/corpus;
+`EngineCorpus.Syntax` selects the query dialect; `EngineService.LoadGame`
+switches in place; `GameDataLoader`/`GameSession` own lazy loading and
+per-game state. The original plan is kept below as the design record.
 
 ### Profile foundation
 
@@ -270,8 +334,9 @@ calibrated to this project's measured velocity.
 The repo has 436 commits; the main October–November run spans 31 days. The P2
 augment pass (catalog, 3,734-scope exact table, and picker/union work) landed
 in about two days. The offline PoE1 spike mapped the normal-equipment surface
-to **1,204 mods / 136 patterns / 764 class-pattern rows**, versus 1,050
-patterns / 2,480 class rows for the PoE2 P2 table. PoE1 is smaller and simpler
+to **1,204 normal mods / 136 normal patterns / 764 class-pattern rows**, and
+the shipped MVP catalog now carries **1,652 mods across 1,626 table scopes**,
+versus 1,050 patterns / 2,480 class rows for the PoE2 P2 table. PoE1 is smaller and simpler
 to render because its mods already carry a `text` field. The real new cost is
 the profile/web refactor and the grammar/copy-text unknowns, not the stat
 volume.
@@ -290,7 +355,8 @@ time. Add review, release, and upstream league churn separately.
 | Tests, docs, PWA, perf, release | 1–2 |
 | **Normal-equipment MVP** | **7–14 (~1.5–2.5 focused weeks)** |
 
-The offline spike (1,204 mods / 136 patterns) is already complete. Engine/data/
+The offline spike (1,204 normal mods / 136 patterns) and the normal-equipment
+MVP catalog/table (1,652 mods / 1,626 scopes) are complete. Engine/data/
 table only, without the web switch, is **4–7 focused days**. Add
 influences/crafts/veils/flasks: **+5–9 days**. Add normal/abyss/cluster
 jewels: **+8–12 days**. Full normal gear + crafts + flasks + jewels is

@@ -55,6 +55,7 @@ public static class RePoESchema
         [JsonPropertyName("groups")] public List<string>? Groups { get; init; }
         [JsonPropertyName("implicit_tags")] public List<string>? ImplicitTags { get; init; }
         [JsonPropertyName("spawn_weights")] public List<SpawnWeight>? SpawnWeights { get; init; }
+        [JsonPropertyName("is_essence_only")] public bool IsEssenceOnly { get; init; }
     }
 
     public sealed class ModStat

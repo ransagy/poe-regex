@@ -16,11 +16,11 @@ namespace PoeRegex.Web.Core;
 /// </summary>
 public sealed class EngineService
 {
-    private readonly EngineCorpus _corpus;
-    private readonly PoeRegexCompiler _compiler;
-    private readonly CompactionEngine _compaction;
-    private readonly Explainer _explainer;
-    private readonly Lazy<HashSet<string>> _playableClassIds;
+    private EngineCorpus _corpus = null!;
+    private PoeRegexCompiler _compiler = null!;
+    private CompactionEngine _compaction = null!;
+    private Explainer _explainer = null!;
+    private Lazy<HashSet<string>> _playableClassIds = null!;
     private readonly ConcurrentDictionary<(string Query, string? ItemClass), ExplainResult> _explainCache = new();
     private readonly ConcurrentDictionary<(string PickKey, string? ItemClass), bool> _minCapable = new();
     private readonly ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<IReadOnlyList<string>>> _pickTerms = new();
@@ -32,10 +32,24 @@ public sealed class EngineService
     private volatile IReadOnlyList<ItemClassEntry>? _inGameClasses;
     private volatile IReadOnlyList<ModEntry>? _playableMods;
 
-    public EngineService()
+    public EngineService() : this(new GameData(new EmbeddedCatalogSource().Load()))
     {
-        var catalog = new EmbeddedCatalogSource().Load();
-        _corpus = new EngineCorpus(catalog);
+    }
+
+    public EngineService(GameData data)
+    {
+        LoadGame(data);
+    }
+
+    public string GameId => _corpus.Catalog.Game;
+
+    /// <summary>The loaded game's query dialect.</summary>
+    public QuerySyntax Syntax => _corpus.Syntax;
+
+    /// <summary>Replace the loaded game in place; the web shell holds one service.</summary>
+    public void LoadGame(GameData data)
+    {
+        _corpus = new EngineCorpus(data.Catalog, data.Fragments, data.Vendor, data.Safety);
         _compiler = new PoeRegexCompiler(_corpus);
         _compaction = new CompactionEngine(_corpus);
         _explainer = new Explainer(_corpus);
@@ -47,6 +61,19 @@ public sealed class EngineService
                     ids.Add(cls);
             return ids;
         });
+        _explainCache.Clear();
+        _minCapable.Clear();
+        _pickTerms.Clear();
+        _excludeFragments.Clear();
+        _excludeClaims.Clear();
+        _modsByClass.Clear();
+        _modsByClassSet.Clear();
+        _playableClasses = null;
+        _inGameClasses = null;
+        _playableMods = null;
+        _warmedValueScopes.Clear();
+        _valuePathReady = false;
+        _vendorLoadTask = null;
     }
 
     public string DataVersion => _corpus.Catalog.DataVersion;
@@ -363,8 +390,8 @@ public sealed class EngineService
             if (mod is not null)
                 fragment = _compaction.SelectFragment(req, itemClass);
             else
-                fragment = Poe2Syntax.ValidateFragment(req.Value) is null
-                    ? Poe2Syntax.EscapeLiteral(req.Value)
+                fragment = Syntax.ValidateFragment(req.Value) is null
+                    ? Syntax.EscapeLiteral(req.Value)
                     : null;
             if (fragment is not null) fragments.Add(fragment);
         }
@@ -466,7 +493,7 @@ public sealed class EngineService
     private IReadOnlyList<string> ComputePickTerms(WantedMod pick, string? cls)
     {
         var result = Compile(pick.Requirements(), [], itemClass: cls, allowOverflow: true);
-        var terms = Explainer.Tokenize(result.Query)
+        var terms = Explainer.Tokenize(result.Query, Syntax)
             .Where(token => !token.Excluded)
             .Select(token => token.Phrase)
             .ToList();
@@ -503,7 +530,7 @@ public sealed class EngineService
     {
         var result = Compile(
             [], [ExclusionRequirement(exc)], itemClass: cls, allowOverflow: true);
-        var terms = Explainer.Tokenize(result.Query)
+        var terms = Explainer.Tokenize(result.Query, Syntax)
             .Where(token => token.Excluded)
             .Select(token => token.Phrase)
             .ToList();
@@ -513,7 +540,7 @@ public sealed class EngineService
     private string? ComputeExcludeFragment(string exc)
     {
         var result = Compile([], [new ModifierRequirement(exc)], allowOverflow: true);
-        return Explainer.Tokenize(result.Query)
+        return Explainer.Tokenize(result.Query, Syntax)
             .Where(t => t.Excluded)
             .Select(t => t.Phrase)
             .FirstOrDefault();
@@ -575,5 +602,5 @@ public sealed class EngineService
     }
 
     /// <summary>Null when the query is grammatically valid for PoE2.</summary>
-    public CompilerDiagnostic? Validate(string query) => Poe2Syntax.ValidateFragment(query);
+    public CompilerDiagnostic? Validate(string query) => Syntax.ValidateFragment(query);
 }

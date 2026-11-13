@@ -46,6 +46,11 @@ public static class DataAudit
         {
             var id = export.GetProperty("id").GetString() ?? "?";
             var baseUrl = export.GetProperty("baseUrl").GetString() ?? "";
+            // Some exports (PoE1) publish a generated README index instead of a
+            // browsable directory; point the audit at the real listing.
+            var indexUrl = export.TryGetProperty("indexUrl", out var iu)
+                ? iu.GetString() ?? baseUrl + "/"
+                : baseUrl + "/";
             var entries = export.GetProperty("entries").EnumerateArray().ToList();
             var mapped = entries
                 .Select(e => e.GetProperty("path").GetString() ?? "")
@@ -56,7 +61,7 @@ public static class DataAudit
             lines.Add("");
             lines.Add($"Source: {baseUrl}");
 
-            var rootHtml = await Fetch(http, baseUrl + "/");
+            var rootHtml = await Fetch(http, indexUrl);
             var remoteRoot = ParseIndex(rootHtml, isMainExport: id == "poe2")
                 .Where(p => !p.StartsWith("stat_translations/", StringComparison.Ordinal))
                 .ToHashSet(StringComparer.Ordinal);
@@ -81,11 +86,14 @@ public static class DataAudit
             {
                 var transUrl = baseUrl.TrimEnd('/') + "/stat_translations/";
                 var transHtml = await Fetch(http, transUrl);
+                // The directory index lists paths relative to stat_translations/;
+                // normalize them back to export-root paths for comparison.
                 var remoteTrans = ParseIndex(transHtml, isMainExport: true)
-                    .Where(p => p.StartsWith("stat_translations/", StringComparison.Ordinal))
+                    .Select(p => "stat_translations/" + p)
                     .ToHashSet(StringComparer.Ordinal);
                 var mappedTrans = mapped
                     .Where(p => p.StartsWith("stat_translations/", StringComparison.Ordinal))
+                    .Where(p => p.Length > "stat_translations/".Length)
                     .ToHashSet(StringComparer.Ordinal);
                 var transUnmapped = remoteTrans.Except(mappedTrans, StringComparer.Ordinal)
                     .OrderBy(p => p, StringComparer.Ordinal)

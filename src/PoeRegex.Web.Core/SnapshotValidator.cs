@@ -19,6 +19,7 @@ public static class SnapshotValidator
         snap is not null
         && snap.Version is >= 1 and <= WorkbenchSnapshot.CurrentVersion
         && IsText(snap.Mode)
+        && (snap.Game is "poe1" or "poe2")
         && IsOptionalText(snap.SelectedSlot) && IsOptionalText(snap.MultiFocus)
         && snap.Slots is not null && snap.Slots.Count <= GearSlot.All.Count
         && snap.Slots.All(kv => GearSlot.ById(kv.Key) is not null && IsValid(kv.Value, classless: false))

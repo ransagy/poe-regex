@@ -22,8 +22,9 @@ chmod +x out/dotnet-install.sh
 # Pages (it compresses at the edge itself). BlazorEnableCompression
 # normally suppresses them; the delete is a safety net in case the
 # property is renamed in a future SDK.
-# The app is PoE2-only; the embedded catalog/table/vendor corpus stays
-# below Cloudflare Pages' per-file limit.
+# PoE2's catalog/table/vendor corpus is embedded. PoE1's files are fetched
+# lazily from /data/poe1/ on first switch, so they stay out of the install-time
+# precache and are cached on demand by the service worker.
 # Clear the previous publish so deleted/stale assets never enter the shell
 # or the precache manifest when build.sh is run repeatedly locally.
 rm -rf out/web
@@ -57,8 +58,8 @@ printf '{"commit":"%s","branch":"%s"}\n' "$COMMIT" "$BRANCH" \
 sed -i "s/__BUILD_COMMIT__/$COMMIT/g" out/web/wwwroot/index.html
 
 # The offline shell fetches this list at install time. Exclude the worker,
-# deployment metadata, and Cloudflare control files; everything else is the
-# immutable app shell.
+# deployment metadata, Cloudflare control files, and the lazily fetched PoE1
+# data; everything else is the immutable app shell.
 {
   find out/web/wwwroot -type f \
     ! -name 'sw.js' \
@@ -67,6 +68,7 @@ sed -i "s/__BUILD_COMMIT__/$COMMIT/g" out/web/wwwroot/index.html
     ! -name '_headers' \
     ! -name '_redirects' \
     ! -name '_routes.json' \
+    ! -path 'out/web/wwwroot/data/poe1/*' \
     -printf '/%P\n' \
     | LC_ALL=C sort \
     | awk 'BEGIN { printf "[" } { printf "%s\"%s\"", sep, $0; sep = "," } END { print "]" }'

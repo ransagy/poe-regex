@@ -228,7 +228,7 @@ public sealed class EngineCorpus
             _fragments.ClassAnchors.TryGetValue(itemClass, out var precomputedAnchor) &&
             precomputedAnchor.Length > 0)
             return precomputedAnchor;
-        return Poe2Syntax.EscapeLiteral(ClassNamePrefix(itemClass));
+        return Syntax.EscapeLiteral(ClassNamePrefix(itemClass));
     }
 
     /// <summary>
@@ -312,9 +312,12 @@ public sealed class EngineCorpus
     /// so tests and custom catalog sources can provide their own validated
     /// table; the embedded table is used when it is null.
     /// </summary>
-    public EngineCorpus(Catalog catalog, FragmentTable? fragments)
+    public EngineCorpus(
+        Catalog catalog, FragmentTable? fragments,
+        VendorCorpusFile? vendor = null, IReadOnlyList<SafetyItem>? safety = null)
     {
         _catalog = catalog;
+        Syntax = QuerySyntax.ForGame(catalog.Game);
         _inGameCatalogClasses = GameItemClasses.InGame(catalog);
         _inGameClassIds = _inGameCatalogClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         _catalogClassIds = catalog.ItemClasses.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
@@ -330,8 +333,8 @@ public sealed class EngineCorpus
         // per-class suffix indexes. The normal browser compile path uses the
         // precomputed table; the oracle is materialized only when a fallback,
         // import, or audit actually asks for it.
-        _safetyItems = new(() => SafetyItemCorpus.ForCurrentGame);
-        _vendorLines = new(() => VendorCorpus.ForCurrentGame?.Lines ?? []);
+        _safetyItems = new(() => safety ?? SafetyItemCorpus.ForCurrentGame);
+        _vendorLines = new(() => vendor?.Lines ?? VendorCorpus.ForCurrentGame?.Lines ?? []);
         _vendorNormalized = new(() => InGameVendorLines()
             .Select(l => CatalogLineNormalizer.Normalize(l.Line))
             .ToHashSet(StringComparer.Ordinal));
@@ -364,6 +367,9 @@ public sealed class EngineCorpus
     }
 
     public Catalog Catalog => _catalog;
+
+    /// <summary>This catalog's query dialect (exclusion shape, tokenization).</summary>
+    public QuerySyntax Syntax { get; }
 
     /// <summary>Classes with released bases and at least one catalog mod.</summary>
     public IReadOnlyList<ItemClassEntry> InGameClasses => _inGameClasses;

@@ -151,11 +151,11 @@ public sealed class QueryReconstructionService
     private IReadOnlyList<string> AnchorClasses(string query)
     {
         var classes = new List<string>();
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query, _engine.Syntax))
         {
             if (excluded || !phrase.StartsWith(": ", StringComparison.Ordinal)) continue;
             if (TopLevelSeparator(phrase) >= 0) continue; // a paste group, not the anchor
-            classes.AddRange(_anchors.Import(Poe2Syntax.Quote(phrase)).Classes);
+            classes.AddRange(_anchors.Import(_engine.Syntax.Quote(phrase)).Classes);
             break;
         }
         return classes.Distinct(StringComparer.Ordinal).ToList();
@@ -294,7 +294,7 @@ public sealed class QueryReconstructionService
             c => c, _ => new List<WantedMod>(), StringComparer.Ordinal);
         var usedExcludes = new List<WantedMod>();
 
-        foreach (var (phrase, excluded) in Explainer.Tokenize(query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(query, _engine.Syntax))
         {
             if (excluded)
             {
@@ -317,7 +317,7 @@ public sealed class QueryReconstructionService
 
                 var classPart = phrase[..separator];
                 var fragPart = phrase[(separator + 1)..];
-                var others = _anchors.Import(Poe2Syntax.Quote(classPart)).Classes;
+                var others = _anchors.Import(_engine.Syntax.Quote(classPart)).Classes;
                 if (others.Count == 0)
                     return ReconstructedWorkbench.Failed($"group '{classPart}' does not resolve to a class");
                 var targets = classes.Where(c => !others.Contains(c, StringComparer.Ordinal)).ToList();
@@ -557,7 +557,7 @@ public sealed class QueryReconstructionService
         // Occurrence-aware: a duplicate fragment must resolve to a distinct
         // pick, or applying it would collapse the duplicate.
         var used = new List<WantedMod>();
-        var tokens = Explainer.Tokenize(query).ToList();
+        var tokens = Explainer.Tokenize(query, _engine.Syntax).ToList();
         var includeTerms = tokens
             .Where(t => !t.Excluded && !t.Phrase.StartsWith(": ", StringComparison.Ordinal))
             .Select(t => t.Phrase)
@@ -1181,7 +1181,7 @@ public sealed class QueryReconstructionService
     {
         var compiled = _engine.CompilePicks([pick], [], false, itemClass);
         var terms = new List<string>();
-        foreach (var (phrase, excluded) in Explainer.Tokenize(compiled.Query))
+        foreach (var (phrase, excluded) in Explainer.Tokenize(compiled.Query, _engine.Syntax))
         {
             if (!excluded && phrase.StartsWith(": ", StringComparison.Ordinal)) continue;
             terms.Add(phrase);

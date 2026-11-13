@@ -23,6 +23,31 @@ public static class ItemImport
     /// left gets its default pick moved to the front — `ModIds[0]` is the
     /// resolved affix the annotations and the assembled item use.
     /// </summary>
+    private static string? UnsupportedPoe1(ParsedItem parsed)
+    {
+        if (parsed.Rarity is { } rarity &&
+            !rarity.Equals("Normal", StringComparison.OrdinalIgnoreCase) &&
+            !rarity.Equals("Magic", StringComparison.OrdinalIgnoreCase) &&
+            !rarity.Equals("Rare", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{rarity} items are not supported in the PoE1 MVP.";
+        }
+        if (parsed.Influence is { } influence)
+            return $"{influence} influence is not supported in the PoE1 MVP.";
+        if (parsed.Eldritch)
+            return "Eldritch implicits are not supported in the PoE1 MVP.";
+        foreach (var block in parsed.Mods)
+        {
+            if (block.Source is "crafted" or "master crafted")
+                return "Crafted modifiers are not supported in the PoE1 MVP.";
+            if (block.Source is "veiled")
+                return "Veiled modifiers are not supported in the PoE1 MVP.";
+            if (block.Source is "searing exarch" or "eater of worlds")
+                return "Eldritch modifiers are not supported in the PoE1 MVP.";
+        }
+        return null;
+    }
+
     public static Mapped Map(EngineService engine, ParsedItem parsed)
     {
         var classId = engine.ResolveClassId(parsed.ItemClass);
@@ -36,7 +61,10 @@ public static class ItemImport
     private static EngineService.ModMapping Resolve(
         EngineService engine, ParsedModBlock block, ParsedValueLine line, string? classId)
     {
-        var mapping = engine.MapLineToMods(classId, line.CanonicalText, line.Rolls, line.Ranges);
+        var canonical = line.CanonicalText
+            .Replace(" — Unscalable Value", "", StringComparison.Ordinal)
+            .Trim();
+        var mapping = engine.MapLineToMods(classId, canonical, line.Rolls, line.Ranges);
 
         // The catalog now has implicit-only and corrupted families, but plain
         // game implicit lines stay quiet on import: the same header is used
@@ -223,6 +251,11 @@ public static class ItemImport
     /// <summary>One-shot import — batch rows and quick loads.</summary>
     public static Result Import(EngineService engine, ParsedItem parsed, string fallbackName = "imported item")
     {
+        if (engine.GameId == "poe1")
+        {
+            var unsupported = UnsupportedPoe1(parsed);
+            if (unsupported is not null) return new Result(null, [], unsupported);
+        }
         var mapped = Map(engine, parsed);
         var gate = Gate(engine, mapped.ClassId);
         if (gate is not null) return new Result(null, [], gate);

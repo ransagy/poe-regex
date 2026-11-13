@@ -13,4 +13,5 @@ namespace PoeRegex.Core.Data;
 [JsonSerializable(typeof(ModEntry))]
 [JsonSerializable(typeof(StatLineEntry))]
 [JsonSerializable(typeof(VendorCorpusFile))]
+[JsonSerializable(typeof(FragmentTable))]
 public sealed partial class CatalogJsonContext : JsonSerializerContext;

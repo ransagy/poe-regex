@@ -1,0 +1,93 @@
+{
+  "game": "poe1",
+  "dataVersion": "2026-11-13",
+  "targetModel": "advanced-ranges-v1",
+  "grammarVersion": "quoted-shortest-v1",
+  "oracleVersion": "exact-term-v1",
+  "generatedAt": "2026-11-13 00:49:46Z",
+  "matrixGenerated": "2026-11-13 00:36:01Z",
+  "files": {
+    "catalog": {
+      "path": "data/catalogs/poe1.catalog.json",
+      "bytes": 784981,
+      "sha256": "27fd6fdfdcaca6759415304fbecf688a4973a654a5b37ef8e36cd4df423efae7"
+    },
+    "matrix": {
+      "path": "docs/CANDIDATE-MATRIX-poe1.html",
+      "bytes": 606705,
+      "sha256": "5d557486e834b106a43610c71e26a1c2598ff05e5b57d2438adff255c74e60d8"
+    },
+    "table": {
+      "path": "data/catalogs/poe1.fragments.json",
+      "bytes": 98121,
+      "sha256": "c80089e14b9124a009aea5018dfaa8761306dc150af2c986f7b4028c580a5090"
+    }
+  },
+  "matrix": {
+    "families": 429,
+    "patterns": 497,
+    "scopes": 1385,
+    "coverage": {
+      "class/strict": 581,
+      "global/strict": 497,
+      "per-class/strict": 307
+    },
+    "bounds": {
+      "250": 1385
+    },
+    "boundCompleteCurrentOnly": 0,
+    "longCurrentOnlyCount": 0,
+    "longCurrentOnly": []
+  },
+  "classAnchors": {
+    "Amulet": "A",
+    "Belt": "Be",
+    "Body Armour": "Bod",
+    "Boots": "Boo",
+    "Bow": "Bow",
+    "Claw": "C",
+    "Dagger": "D",
+    "Gloves": "G",
+    "Helmet": "H",
+    "One Hand Axe": "O.+x",
+    "One Hand Mace": "O.+M",
+    "One Hand Sword": "O.+o",
+    "Quiver": "Q",
+    "Ring": "Ri",
+    "Sceptre": "Sc",
+    "Shield": "Sh",
+    "Staff": "St",
+    "Thrusting One Hand Sword": "Th",
+    "Two Hand Axe": "T.+x",
+    "Two Hand Mace": "T.+M",
+    "Two Hand Sword": "Tw.+o",
+    "Wand": "Wan",
+    "Warstaff": "War"
+  },
+  "table": {
+    "global": 382,
+    "classes": 23,
+    "classFragments": 1244,
+    "unresolvedGlobal": 0,
+    "unresolvedClass": 0,
+    "classAnchors": 23,
+    "classGroups": 13
+  },
+  "status": {
+    "stale": false,
+    "staleReasons": [],
+    "anchorsInMatrix": false,
+    "shortestProven": true,
+    "boundLimited": 0,
+    "proof": {
+      "path": "docs/CANDIDATE-PROOF-poe1.json",
+      "grammarVersion": "quoted-shortest-v1",
+      "targetModel": "advanced-ranges-v1",
+      "matrixSha256": "5d557486e834b106a43610c71e26a1c2598ff05e5b57d2438adff255c74e60d8",
+      "checkedScopes": 1966,
+      "workScopes": 1966,
+      "failed": 0,
+      "proven": true
+    }
+  }
+}

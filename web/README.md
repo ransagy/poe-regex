@@ -1,8 +1,9 @@
 # Renly's Tools — the poe-regex web workbench
 
 Blazor WebAssembly app that runs `PoeRegex.Core` **in the browser**: a
-PoE2-inventory-style workbench with editable gear slots, live-compiled regex
-queries, a backpack test-items lab, and English advanced-description import.
+game-inventory-style workbench for **PoE2 and PoE1** with editable gear slots,
+live-compiled regex queries, a backpack test-items lab, and English
+advanced-description import.
 No backend and no app-level network calls; no game assets (all panels are
 hand-drawn CSS/SVG). The deployed static build is at
 <https://renlys.tools> (link-only; preview hosts are noindex) and includes
@@ -10,7 +11,9 @@ Cloudflare Web Analytics — cookieless page-view counts injected by the host,
 not part of the app source ([Cloudflare's description](https://developers.cloudflare.com/web-analytics/)).
 The app is installable and works offline after one online load: `build.sh`
 generates a precache manifest, and the service worker caches the shell per
-build commit. Registration uses a commit-versioned URL, so a normal reload
+build commit. PoE1 data is deliberately not in the install-time precache; it
+is cached on first switch, so PoE1 works offline after it has been opened
+once. Registration uses a commit-versioned URL, so a normal reload
 adopts a new build without a hard refresh; registration is skipped on
 localhost.
 
@@ -32,9 +35,11 @@ dotnet run --project web/web.csproj
 # open the printed http://localhost:PORT/ URL
 ```
 
-The app loads the embedded PoE2 catalog and exact fragment table and compiles
-locally by table lookup. Suffix indexes for explain are built lazily on first
-use (~5 ms warm, ~165 ms cold in the interpreter build).
+The app loads the embedded PoE2 catalog and exact fragment table on boot. The
+PoE1 catalog, table, and foreign corpus live under `wwwroot/data/poe1/` and
+are fetched only when PoE1 is first opened (or when it was the last game).
+Compilation is local table lookup; suffix indexes for explain are built lazily
+on first use (~5 ms warm, ~165 ms cold in the interpreter build).
 
 ## Build for deployment
 
@@ -248,6 +253,18 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - There is no separate base-class row: simple is classless, and in advanced
   only weapon/offhand have a class choice, made in the picker header while
   that slot is focused (every other slot is 1:1 with its class).
+- **PoE1 is a separate game profile.** The header switch stores the last game
+  and keeps one workbench and saved-picks set per game. The PoE1 catalog has
+  23 equipment classes and 1,652 mods (1,204 normal, 215 base implicit, 233
+  corrupted). Its exact table has 1,626 scopes (382 global, 1,244 class
+  entries), 0 unresolved, and every entry is strict over the generated PoE1
+  foreign corpus (`data/catalogs/poe1.vendor-corpus.json`; web copy under
+  `wwwroot/data/poe1/`). PoE1 exclusions use `"!term"` (the bang is inside
+  the quotes), unlike PoE2's `!"term"`; compile, paste, explain, import, item
+  matching, and the block ruler all use the loaded game's `QuerySyntax`.
+  Gems are MVP+1 because their copied text includes explanatory lines. Other
+  PoE1 sources (influenced, crafted, veiled, eldritch, flasks, jewels, maps,
+  currency, uniques) are outside the normal-equipment MVP.
 - Fragments come from the **exact PoE2 table** (`data/catalogs/poe2.fragments.json`):
   every entry was proven shortest for its scope under G1 by the data-build
   solver. The target text is the advanced item-search text (ranged stats show
@@ -300,10 +317,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.
 - `SavedPicksMenu`: `Saved picks` saves the current picks under a name
-  (modes, classes, picks, match mode and minimums; never test items) in
-  `poe-regex.saved-picks.v1`, loads one back, or deletes one, each with a
-  one-step undo. Saved picks from the pre-rename `poe-regex.recipes.v1` key
-  are migrated once and the old key is removed. `Copy share link` copies
+  (modes, classes, picks, match mode and minimums; never test items) in the
+  current game's `poe-regex.saved-picks.v2.<game>` key, loads one back, or
+  deletes one, each with a one-step undo. Workbench state uses
+  `poe-regex.workbench.v2.<game>`. Legacy PoE2 keys (`workbench.v1`,
+  `saved-picks.v1`, and the pre-rename `recipes.v1`) are still read as a
+  one-release fallback and are not deleted. Share links carry the game id.
+  Reset clears only the current game. `Copy share link` copies
   `/#r=<token>`, the picks as deflated, base64url JSON (`SnapshotCodec`; a
   few hundred characters).
   Opening a link replaces the picks, keeps the backpack, saves any earlier

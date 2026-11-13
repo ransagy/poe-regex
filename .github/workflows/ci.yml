@@ -44,3 +44,8 @@ jobs:
         run: >
           dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
           matrix-proof --jobs 2 --check --out /tmp/poe2-proof.json
+
+      - name: Verify exact PoE1 proof
+        run: >
+          dotnet run --project tools/PoeRegex.Data.Build --configuration Release --
+          poe1-status --check --check-shortest

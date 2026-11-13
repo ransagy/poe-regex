@@ -11,12 +11,24 @@ namespace PoeRegex.Web.Tests;
 
 public class WebComponentTests
 {
+    private static void AddGames(BunitContext ctx, EngineService engine, WorkbenchState state,
+        PersistenceService persistence)
+    {
+        ctx.Services.AddSingleton(new GameSession(engine, state, persistence,
+            new GameDataLoader(new HttpClient())));
+    }
+
     private static BunitContext Context()
     {
         var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        ctx.Services.AddSingleton(new EngineService());
-        ctx.Services.AddSingleton(new PersistenceService(ctx.JSInterop.JSRuntime));
+        var engine = new EngineService();
+        var state = new WorkbenchState();
+        var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
+        ctx.Services.AddSingleton(engine);
+        ctx.Services.AddSingleton(state);
+        ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
         return ctx;
     }
@@ -31,6 +43,7 @@ public class WebComponentTests
         ctx.Services.AddSingleton(engine);
         ctx.Services.AddSingleton(state);
         ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
         return ctx;
@@ -109,9 +122,11 @@ public class WebComponentTests
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         var persistence = new PersistenceService(ctx.JSInterop.JSRuntime);
         var state = new WorkbenchState();
-        ctx.Services.AddSingleton(new EngineService());
+        var engine = new EngineService();
+        ctx.Services.AddSingleton(engine);
         ctx.Services.AddSingleton(state);
         ctx.Services.AddSingleton(persistence);
+        AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
 

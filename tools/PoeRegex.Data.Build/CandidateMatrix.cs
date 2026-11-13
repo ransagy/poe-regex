@@ -46,6 +46,7 @@ public static class CandidateMatrix
         var opts = ParseOptions(args);
         var catalogPath = GetValue(opts, "--catalog", "data/catalogs/poe2.catalog.json");
         var tablePath = GetValue(opts, "--table", "data/catalogs/poe2.fragments.json");
+        var vendorPath = GetValue(opts, "--vendor", "");
         var outPath = GetValue(opts, "--out", "docs/CANDIDATE-MATRIX-poe2.html");
         var only = GetValue(opts, "--family", "");
         var jobs = int.TryParse(GetValue(opts, "--jobs", "0"), out var requestedJobs) &&
@@ -58,8 +59,8 @@ public static class CandidateMatrix
             : 120;
         var timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
-        var catalog = new FileCatalogSource(catalogPath).Load();
-        var corpus = new EngineCorpus(catalog);
+        var corpus = CorpusLoader.Load(catalogPath, vendorPath);
+        var catalog = corpus.Catalog;
         var loadedTable = LoadTable(tablePath);
         var fromScratch = opts.ContainsKey("--from-scratch") ||
                           loadedTable is null ||
@@ -228,7 +229,7 @@ public static class CandidateMatrix
 
         var data = new
         {
-            Game = "poe2",
+            Game = catalog.Game,
             TargetModel = FragmentTable.AdvancedRanges,
             Generated = DateTimeOffset.UtcNow.ToString("u"),
             Families = families,
