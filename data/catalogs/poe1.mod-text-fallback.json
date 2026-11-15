@@ -1,0 +1,27 @@
+{
+  "source": "RePoE PoE1 3.29.3.6",
+  "reason": "ExileData 3.30 leaves mod.text null or incomplete for these mods; the 3.30 patch notes do not change their text.",
+  "mods": {
+    "MinionGrantsConvocation1": "Grants Level 1 Convocation Skill",
+    "V2SupportedByAccuracyCorrupted__": "Socketed Gems are supported by Level 10 Additional Accuracy",
+    "V2SupportedByAddedChaosDamageCorrupted": "Socketed Gems are Supported by Level 17 Added Chaos Damage",
+    "V2SupportedByAreaOfEffectCorrupted": "Socketed Gems are Supported by Level 10 Increased Area of Effect",
+    "V2SupportedByBlindCorrupted": "Socketed Gems are supported by Level 10 Blind",
+    "V2SupportedByBloodmagicCorrupted": "Socketed Gems are Supported by Level 1 Lifetap",
+    "V2SupportedByChainCorrupted": "Socketed Gems are Supported by Level 10 Chain",
+    "V2SupportedByCrueltyCorrupted": "Socketed Gems are Supported by Level 10 Cruelty",
+    "V2SupportedByElementalPenetrationCorrupted": "Socketed Gems are Supported by Level 10 Elemental Penetration",
+    "V2SupportedByFasterProjectilesCorrupted": "Socketed Gems are supported by Level 10 Faster Projectiles",
+    "V2SupportedByForkCorrupted": "Socketed Gems are supported by Level 10 Fork",
+    "V2SupportedByFortifyCorrupted_": "Socketed Gems are Supported by Level 10 Fortify",
+    "V2SupportedByImpaleCorrupted": "Socketed Gems are Supported by Level 10 Impale",
+    "V2SupportedByLifeGainOnHitCorrupted": "Socketed Gems are Supported by Level 10 Life Gain On Hit",
+    "V2SupportedByMultipleProjectilesCorrupted": "Socketed Gems are Supported by Level 10 Multiple Projectiles",
+    "V2SupportedByOnslaughtCorrupted": "Socketed Gems are Supported by Level 10 Momentum",
+    "V2SupportedByRageCorrupted": "Socketed Gems are Supported by Level 10 Rage",
+    "V2SupportedByReducedManaCorrupted": "Socketed Gems are Supported by Level 10 Inspiration",
+    "MaxChaosResistanceCrushedImplicitR1": "You are Crushed\n-15% additional Physical Damage Reduction\n+2% to maximum Chaos Resistance",
+    "MaxChaosResistanceCrushedImplicitR2": "You are Crushed\n-15% additional Physical Damage Reduction\n+3% to maximum Chaos Resistance",
+    "MaxChaosResistanceCrushedImplicitR3": "You are Crushed\n-15% additional Physical Damage Reduction\n+4% to maximum Chaos Resistance"
+  }
+}

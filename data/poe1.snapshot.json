@@ -1,0 +1,32 @@
+{
+  "game": "poe1",
+  "export": "poe1",
+  "sourceKind": "exiledata",
+  "source": "https://data.exiledata.dev/poe1/3.30.0.2",
+  "sourceVersion": "3.30.0.2",
+  "generatedAt": "2026-11-15T08:20:46.035Z",
+  "downloadedAt": "2026-11-15T17:11:37.2469567Z",
+  "dataVersion": "3.30.0.2",
+  "files": [
+    {
+      "path": "base_items.min.json",
+      "bytes": 3287901,
+      "sha256": "dc70494bbdece8034b71f744405d4789a41ae771f54d72fc88b7617b6ffd23ee"
+    },
+    {
+      "path": "mods.min.json",
+      "bytes": 23996586,
+      "sha256": "f17b1cb71df114040f7e3cdd6a4317f2e527870ca6b132b5c39af5d466107ed8"
+    },
+    {
+      "path": "mods_by_base.min.json",
+      "bytes": 18981141,
+      "sha256": "6a748e179ccfd9cf31545fb8e48574f141db8349a4bdc6661a2281a3f163598e"
+    },
+    {
+      "path": "item_classes.min.json",
+      "bytes": 8063,
+      "sha256": "db3f6e5fcef61f4a4d19252c0a54673d2bc1266f54517ef6442c4360acf98db4"
+    }
+  ]
+}

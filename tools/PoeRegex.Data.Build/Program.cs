@@ -20,10 +20,11 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
 ///   dotnet run -- common-picks [--check] [--table]
-///   dotnet run -- poe1-fetch [--refresh]
+///   dotnet run -- poe1-fetch [--source repoe|exiledata] [--version 3.30.0.2] [--refresh]
 ///   dotnet run -- poe1-build [--raw data/raw/poe1]
 ///   dotnet run -- poe1-matrix [--from-scratch]
 ///   dotnet run -- poe1-status [--check]
+///   dotnet run -- poe1-compare --left a.catalog.json --right b.catalog.json [--out diff.md]
 /// </summary>
 public static class Program
 {
@@ -68,6 +69,7 @@ public static class Program
                 "poe1-build" => Poe1Build(args[1..]),
                 "poe1-matrix" => Poe1Matrix(args[1..]),
                 "poe1-status" => Poe1Status(args[1..]),
+                "poe1-compare" => Poe1SourceCompare.Run(args[1..]),
                 _ => Usage(args[0]),
             };
         }
@@ -80,7 +82,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | poe1-fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | poe1-fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status | poe1-compare");
         return 2;
     }
 
@@ -114,7 +116,7 @@ public static class Program
         var rawDir = GetValue(opts, "--raw", "data/raw/poe1");
         var catalogPath = GetValue(opts, "--catalog", Poe1CatalogPath);
         var vendorPath = GetValue(opts, "--vendor", Poe1VendorPath);
-        var snapshotPath = GetValue(opts, "--snapshot", "data/repoe-poe1.snapshot.json");
+        var snapshotPath = GetValue(opts, "--snapshot", "data/poe1.snapshot.json");
         var dataVersion = ReadDataVersion(snapshotPath);
         if (dataVersion is null)
         {
@@ -122,9 +124,11 @@ public static class Program
                 $"warning: {snapshotPath} is missing; using today's date as dataVersion");
             dataVersion = DateTime.UtcNow.ToString("yyyy-MM-dd");
         }
+        var sourceKind = ReadSourceKind(snapshotPath);
 
         Console.WriteLine($"Building PoE1 normal-equipment catalog from {rawDir}");
-        var result = Poe1CatalogBuilder.Build(rawDir, dataVersion);
+        var result = Poe1CatalogBuilder.Build(
+            rawDir, dataVersion, useFallbackText: sourceKind != "repoe");
         Directory.CreateDirectory(Path.GetDirectoryName(catalogPath)!);
         // Emit exactly the derived-catalog contract; source-generated
         // serialization would also write default-valued augment fields.
@@ -248,6 +252,15 @@ public static class Program
         using var doc = JsonDocument.Parse(File.ReadAllText(snapshotPath));
         return doc.RootElement.TryGetProperty("dataVersion", out var version)
             ? version.GetString()
+            : null;
+    }
+
+    private static string? ReadSourceKind(string snapshotPath)
+    {
+        if (!File.Exists(snapshotPath)) return null;
+        using var doc = JsonDocument.Parse(File.ReadAllText(snapshotPath));
+        return doc.RootElement.TryGetProperty("sourceKind", out var kind)
+            ? kind.GetString()
             : null;
     }
 
@@ -553,8 +566,26 @@ public static class Program
     private static int Fetch(string[] args) =>
         FetchGame("poe2", "data/raw/poe2", "data/repoe.snapshot.json", args);
 
-    private static int Poe1Fetch(string[] args) =>
-        FetchGame("poe1", "data/raw/poe1", "data/repoe-poe1.snapshot.json", args);
+    private static int Poe1Fetch(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var source = GetValue(opts, "--source", "repoe").Trim().ToLowerInvariant();
+        return source switch
+        {
+            "repoe" => FetchGame(
+                "poe1", "data/raw/poe1", "data/poe1.snapshot.json", args),
+            "exiledata" => FetchExileData(
+                "poe1", "data/raw/poe1", "data/poe1.snapshot.json", args),
+            _ => UnknownPoe1Source(source),
+        };
+    }
+
+    private static int UnknownPoe1Source(string source)
+    {
+        Console.Error.WriteLine(
+            $"unknown PoE1 source '{source}' (expected repoe or exiledata)");
+        return 2;
+    }
 
     private static int FetchGame(
         string game, string defaultOutDir, string defaultSnapshotPath, string[] args)
@@ -624,13 +655,17 @@ public static class Program
         }
 
         var downloadedAt = DateTime.UtcNow;
+        var sourceVersion = game == "poe1" ? ReadRepoEIndexVersion(baseUrl) : null;
         var snapshot = new
         {
             game,
             export = game,
-            downloadedAt = downloadedAt.ToString("O"),
-            dataVersion = downloadedAt.ToString("yyyy-MM-dd"),
+            sourceKind = "repoe",
             source = baseUrl,
+            sourceVersion,
+            generatedAt = downloadedAt.ToString("O"),
+            downloadedAt = downloadedAt.ToString("O"),
+            dataVersion = sourceVersion ?? downloadedAt.ToString("yyyy-MM-dd"),
             files = snapshotFiles.Select(f => new
             {
                 path = f.Path,
@@ -644,6 +679,168 @@ public static class Program
         Console.WriteLine($"  snapshot {snapshotPath} ({snapshotFiles.Count} files)");
         Console.WriteLine(failures == 0 ? "done" : $"done with {failures} failure(s)");
         return failures == 0 ? 0 : 1;
+    }
+
+    private static string? ReadRepoEIndexVersion(string baseUrl)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PoeRegex.Data.Build/0.1");
+            var html = client.GetStringAsync($"{baseUrl}/poe1.html")
+                .GetAwaiter().GetResult();
+            var match = System.Text.RegularExpressions.Regex.Match(
+                html, @"\b3\.\d+\.\d+(?:\.\d+)?\b");
+            return match.Success ? match.Value : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Fetch the PoE1 raw inputs from ExileData's immutable per-patch export.
+    /// ExileData publishes the same game-client files as RePoE in the same
+    /// shapes; it is used as a secondary source when RePoE lags a patch.
+    /// </summary>
+    private static int FetchExileData(
+        string game, string defaultOutDir, string defaultSnapshotPath, string[] args)
+    {
+        var opts = ParseOptions(args);
+        var outDir = GetValue(opts, "--out", defaultOutDir);
+        var snapshotPath = GetValue(opts, "--snapshot", defaultSnapshotPath);
+        var requestedVersion = GetValue(opts, "--version", "latest");
+        var refresh = opts.ContainsKey("--refresh");
+
+        var manifestUrl = $"https://data.exiledata.dev/{game}/{requestedVersion}/manifest.json";
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("PoeRegex.Data.Build/0.1");
+
+        JsonDocument manifest;
+        try
+        {
+            var manifestJson = client.GetStringAsync(manifestUrl)
+                .GetAwaiter().GetResult();
+            manifest = JsonDocument.Parse(manifestJson);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"manifest fetch failed: {manifestUrl}: {ex.Message}");
+            return 1;
+        }
+
+        using (manifest)
+        {
+            var root = manifest.RootElement;
+            var gameVersion = root.GetProperty("gameVersion").GetString() ?? requestedVersion;
+            var generatedAt = root.GetProperty("generatedAt").GetString() ?? "";
+            var baseUrl = $"https://data.exiledata.dev/{game}/{gameVersion}";
+
+            var minFiles = new Dictionary<string, (long Bytes, string Sha256)>(
+                StringComparer.Ordinal);
+            foreach (var file in root.GetProperty("files").EnumerateArray())
+            {
+                if (!file.TryGetProperty("min", out var min) ||
+                    min.ValueKind != JsonValueKind.Object)
+                    continue;
+                var path = min.TryGetProperty("path", out var p) ? p.GetString() : null;
+                if (string.IsNullOrEmpty(path)) continue;
+                var bytes = min.TryGetProperty("bytes", out var b) ? b.GetInt64() : 0;
+                var sha = min.TryGetProperty("sha256", out var s) ? s.GetString() : null;
+                if (!string.IsNullOrEmpty(sha))
+                    minFiles[path] = (bytes, sha);
+            }
+
+            // The PoE1 catalog builder reads these four files. Stats and
+            // stat_translations are not needed because PoE1 mods already
+            // carry rendered text.
+            var files = new[]
+            {
+                "base_items.min.json",
+                "mods.min.json",
+                "mods_by_base.min.json",
+                "item_classes.min.json",
+            };
+
+            Directory.CreateDirectory(outDir);
+            var snapshotFiles = new List<(string Path, long Bytes, string Sha256)>();
+            var failures = 0;
+            foreach (var file in files)
+            {
+                if (!minFiles.TryGetValue(file, out var expected))
+                {
+                    Console.Error.WriteLine($"  {file}: missing from ExileData manifest");
+                    failures++;
+                    continue;
+                }
+
+                var dest = Path.Combine(outDir, file);
+                if (File.Exists(dest) && !refresh)
+                {
+                    var existing = File.ReadAllBytes(dest);
+                    var existingSha = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(existing))
+                        .ToLowerInvariant();
+                    if (string.Equals(existingSha, expected.Sha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"  skip {file} (matches manifest)");
+                        snapshotFiles.Add((file, existing.Length, existingSha));
+                        continue;
+                    }
+                }
+
+                Console.Write($"  download {file} ... ");
+                var url = $"{baseUrl}/{file}";
+                using var resp = client.GetAsync(url).GetAwaiter().GetResult();
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"FAILED ({resp.StatusCode})");
+                    failures++;
+                    continue;
+                }
+                var bytes = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                var sha = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(bytes))
+                    .ToLowerInvariant();
+                if (!string.Equals(sha, expected.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"SHA-256 MISMATCH (expected {expected.Sha256}, got {sha})");
+                    failures++;
+                    continue;
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                File.WriteAllBytes(dest, bytes);
+                snapshotFiles.Add((file, bytes.Length, sha));
+                Console.WriteLine($"ok ({bytes.Length / 1024} KiB)");
+            }
+
+            var downloadedAt = DateTime.UtcNow;
+            var snapshot = new
+            {
+                game,
+                export = game,
+                sourceKind = "exiledata",
+                source = baseUrl,
+                sourceVersion = gameVersion,
+                generatedAt,
+                downloadedAt = downloadedAt.ToString("O"),
+                dataVersion = gameVersion,
+                files = snapshotFiles.Select(f => new
+                {
+                    path = f.Path,
+                    bytes = f.Bytes,
+                    sha256 = f.Sha256,
+                }).ToList(),
+            };
+            Directory.CreateDirectory(Path.GetDirectoryName(snapshotPath)!);
+            File.WriteAllText(snapshotPath,
+                JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+            Console.WriteLine(
+                $"  snapshot {snapshotPath} ({snapshotFiles.Count} files, {gameVersion})");
+            Console.WriteLine(failures == 0 ? "done" : $"done with {failures} failure(s)");
+            return failures == 0 ? 0 : 1;
+        }
     }
 
     private static Dictionary<string, string> ParseOptions(string[] args)

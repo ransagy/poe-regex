@@ -21,27 +21,38 @@ RePoE augment lines, but the catalog is built from RePoE only.
 
 ### Used
 
-| File | Consumer | Purpose |
+| File | Read by `Poe1CatalogBuilder` | Purpose |
 |---|---|---|
-| `mods.min.json` | `Poe1CatalogBuilder` | Mod text, generation type, domain, spawn weights |
-| `base_items.min.json` | `Poe1CatalogBuilder` | Base names, classes, implicits, properties |
-| `item_classes.min.json` | `Poe1CatalogBuilder` | Item class ids and display names |
-| `mods_by_base.min.json` | `Poe1CatalogBuilder` | Base/tag-set to mod mapping |
-| `stat_translations.min.json` | `Poe1CatalogBuilder` | Stat text reference |
-| `stat_value_handlers.min.json` | `Poe1CatalogBuilder` | Value handler metadata |
-| `stats.min.json` | `Poe1CatalogBuilder` | Stat ids referenced by mods |
+| `mods.min.json` | yes | Mod text, generation type, domain, spawn weights |
+| `base_items.min.json` | yes | Base names, classes, implicits, properties |
+| `item_classes.min.json` | yes | Item class ids and display names |
+| `mods_by_base.min.json` | yes | Base/tag-set to mod mapping |
+| `stat_translations.min.json` | no | Stat text reference for other pipelines |
+| `stat_value_handlers.min.json` | no | Value handler metadata |
+| `stats.min.json` | no | Stat ids referenced by mods |
 
 The PoE1 root export publishes generated index pages (`poe1.html`) rather than
 a browsable directory tree; `data-audit` reads that index. All 90 entries are
-classified (`used`, `known-unused`, or `not-relevant`). The seven used files
-are pinned by size and SHA-256 in `data/repoe-poe1.snapshot.json`.
+classified (`used`, `known-unused`, or `not-relevant`). The RePoE fetch pins
+all seven `used` files; the current snapshot pins the four files the builder
+actually reads.
+
+### Secondary source
+
+When RePoE lags a patch, `poe1-fetch --source exiledata --version <patch>`
+uses the compatible [ExileData](https://exiledata.dev) export
+(<https://data.exiledata.dev/poe1/>). ExileData publishes the same game-client
+files in the same shapes; the current 3.30.0.2 snapshot uses its four used
+files. See [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md) for the source
+switch, comparison, and move-back procedure.
 
 Rebuild with:
 
 ```sh
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch --source repoe --refresh
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
-dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
 ```
 
 ## PoE2 files

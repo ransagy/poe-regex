@@ -15,7 +15,9 @@ The catalogs in data/catalogs/ are a derived subset produced by
 tools/PoeRegex.Data.Build from RePoE's hosted exports
 (https://repoe-fork.github.io; repository
 https://github.com/repoe-fork/repoe, a fork of
-https://github.com/brather1ng/RePoE).
+https://github.com/brather1ng/RePoE). The current PoE1 3.30.0.2 snapshot
+uses the compatible ExileData export (https://exiledata.dev; documentation
+https://docs.exiledata.dev) while RePoE remains on 3.29.3.6.
 
 RePoE and its generated data files are distributed under the MIT License
 (Copyright (c) 2016 brather1ng). RePoE's license adds: "Contents of generated
@@ -39,6 +41,9 @@ Application runtime:
 
 Build-time data pipeline:
 - RePoE (https://github.com/repoe-fork/repoe) - MIT; extracted game data
+- ExileData (https://exiledata.dev; https://docs.exiledata.dev) - MIT
+  tooling/docs; extracted game data owned by GGG. Secondary compatible source
+  for the current PoE1 3.30 snapshot.
 - RePoE, original project (https://github.com/brather1ng/RePoE) - MIT
 - Path of Building Community data export (https://repoe-fork.github.io/pob-data/poe2;
   source https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2-v2) -

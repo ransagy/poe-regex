@@ -380,6 +380,19 @@ Item Level: 80
     }
 
     [Fact]
+    public void ItemTier_IsTreatedAsAPropertyLine()
+    {
+        var engine = Engine();
+        var text = CapturedBoots.Replace(
+            "Item Level: 84", "Item Level: 84\nItem Tier: 5", StringComparison.Ordinal);
+        var imported = ItemImport.Import(engine, ItemTextParser.Parse(text));
+
+        imported.Error.Should().BeNull();
+        imported.Item.Should().NotBeNull();
+        imported.Item!.Mapped.Should().NotContain(m => m.Text.Contains("Item Tier"));
+    }
+
+    [Fact]
     public void ClassAnchors_AreAtLeastTwoCharacters()
     {
         var engine = Engine();
