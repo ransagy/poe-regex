@@ -37,7 +37,7 @@ Do not merge until every applicable gate is green. Do not run
 - [ ] If the change is not PoE2 data, stop and remove it rather than adding a
   manual mapping.
 - [ ] For PoE1 changes, confirm the `poe1` manifest export, the pinned
-  `data/repoe-poe1.snapshot.json`, and the `poe1` safety/corpus artifacts are
+  `data/poe1.snapshot.json`, and the `poe1` safety/corpus artifacts are
   classified and current.
 
 ## 2. Data rebuild
@@ -89,13 +89,18 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
 - [ ] For PoE1 data changes, refresh the upstream export, rebuild, and verify:
 
   ```sh
-  dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch --refresh
+  # Use --source repoe once the primary export is current.
+  dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch \
+    --source exiledata --version 3.30.0.2 --refresh
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
   ```
 
-  Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  When switching between RePoE and ExileData, run `poe1-compare` against the
+  previous catalog and review the diff before committing.
+
+  Required: 1,585 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
   `proof.failed: 0`. Copy the updated catalog/table/corpus into
   `web/wwwroot/data/poe1/`.
 
@@ -139,9 +144,10 @@ source of truth.
   change branch.
 - [ ] Confirm CI `test` and the Cloudflare Pages preview are green.
 - [ ] For exact-table changes, confirm the matrix/proof/status artifacts were
-  regenerated together. For PoE1, run `poe1-fetch --refresh` (if the
-  upstream export changed), `poe1-build`, `poe1-matrix --from-scratch`, and
-  `poe1-status --check --check-shortest`.
+  regenerated together. For PoE1, run `poe1-fetch --source <repoe|exiledata>
+  --refresh` (if the upstream export changed), `poe1-build`,
+  `poe1-matrix --from-scratch`, and `poe1-status --check --check-shortest`.
+  If the source changed, run `poe1-compare` against the previous catalog.
 
 ## 5. Web build and PWA
 

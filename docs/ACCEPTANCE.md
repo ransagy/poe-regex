@@ -1,6 +1,6 @@
 # Acceptance
 
-_Last measured: 2026-11-13._
+_Last measured: 2026-11-13; 3.30 catalog counts updated 2026-11-15._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
@@ -8,11 +8,12 @@ sequence is in [`RELEASE-PREP.md`](RELEASE-PREP.md).
 
 ## PoE1 MVP evidence
 
-Measured on `feat/poe1-mvp` (2026-11-13), shipping with the PoE1 MVP release:
+Measured on the PoE1 MVP branch (2026-11-13), shipping with the PoE1 3.30
+update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 
-- Catalog: 23 equipment classes, 1,611 mods (1,200 normal, 178 implicit, 233
+- Catalog: 23 equipment classes, 1,612 mods (1,200 normal, 179 implicit, 233
   corrupted).
-- Exact table: 1,584 scopes (367 global, 1,217 class), 0 unresolved. The
+- Exact table: 1,585 scopes (367 global, 1,218 class), 0 unresolved. The
   matrix proof checks 1,918 expanded scopes with 0 failures; `poe1-status
   --check` reports a non-stale table and a proven shortest form.
 - Independent audit: `Poe1ArtifactTests` re-checks every shipped fragment
@@ -21,8 +22,8 @@ Measured on `feat/poe1-mvp` (2026-11-13), shipping with the PoE1 MVP release:
   the multi-slot paste with a Boots movement-speed block must not match it.
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
-  source mod (18,663 forms, 0 failures).
-- Tests: 118 core + 443 web + 49 data-build pass.
+  source mod (18,666 forms, 0 failures).
+- Tests: 118 core + 444 web + 52 data-build pass.
 - Browser smoke: the top-bar switch shows full game names on desktop and compact labels on phones; the title stays visible (wrapped on small screens); a
   dimmed loading overlay appears while PoE1 data loads; switching shows 23
   PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;

@@ -1,39 +1,39 @@
 {
   "game": "poe1",
-  "dataVersion": "2026-11-13",
+  "dataVersion": "3.30.0.2",
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-13 18:57:03Z",
-  "matrixGenerated": "2026-11-13 18:56:11Z",
+  "generatedAt": "2026-11-15 17:23:03Z",
+  "matrixGenerated": "2026-11-15 17:18:58Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe1.catalog.json",
-      "bytes": 767396,
-      "sha256": "6c825247cfbd7b4c1e1ea8bc07edfcac642ae21d45a7421b93287b01f2f3b399"
+      "bytes": 767528,
+      "sha256": "7e3b7d44a29eee1b5e7dc572e5392f32728cee7e697576e673c1380c516920f0"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe1.html",
-      "bytes": 578123,
-      "sha256": "638f4c67f47f53643bc672c7d239a60a756485c0becc727684c4d7f216f03895"
+      "bytes": 576255,
+      "sha256": "3fc35b2e7336ec60d43d757e50289514db2fa24b9a2ce65685749a8f04f562b7"
     },
     "table": {
       "path": "data/catalogs/poe1.fragments.json",
-      "bytes": 95528,
-      "sha256": "eb9903357591fa34eaac33495461fd39c20dac467703e2c66a2a6d3e1e9f2639"
+      "bytes": 95496,
+      "sha256": "93ad828a36679ca67ab18c7dd5cd5331e6b493dffc21e6bdfd8350cc0d314522"
     }
   },
   "matrix": {
-    "families": 410,
-    "patterns": 478,
-    "scopes": 1316,
+    "families": 409,
+    "patterns": 477,
+    "scopes": 1311,
     "coverage": {
-      "class/strict": 537,
-      "global/strict": 478,
-      "per-class/strict": 301
+      "class/strict": 531,
+      "global/strict": 477,
+      "per-class/strict": 303
     },
     "bounds": {
-      "250": 1316
+      "250": 1311
     },
     "boundCompleteCurrentOnly": 0,
     "longCurrentOnlyCount": 0,
@@ -67,7 +67,7 @@
   "table": {
     "global": 367,
     "classes": 23,
-    "classFragments": 1217,
+    "classFragments": 1218,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
     "classAnchors": 23,
@@ -83,7 +83,7 @@
       "path": "docs/CANDIDATE-PROOF-poe1.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "638f4c67f47f53643bc672c7d239a60a756485c0becc727684c4d7f216f03895",
+      "matrixSha256": "3fc35b2e7336ec60d43d757e50289514db2fa24b9a2ce65685749a8f04f562b7",
       "checkedScopes": 1918,
       "workScopes": 1918,
       "failed": 0,

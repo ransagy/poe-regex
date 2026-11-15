@@ -92,4 +92,100 @@ public class Poe1DataValidityTests
                 $"{mod.Id} must be obtainable on a current base");
         }
     }
+
+    [Fact]
+    public void ShippedCatalog_ContainsPoe330ImplicitValues()
+    {
+        var root = RepoRoot();
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe1.catalog.json")).Load();
+
+        catalog.DataVersion.Should().Be("3.30.0.2");
+
+        string Line(string id) =>
+            catalog.Mods.Single(m => m.Id == id).StatLines[0].Line;
+        string Range(string id) =>
+            catalog.Mods.Single(m => m.Id == id).StatLines[0].RangeLine;
+
+        Line("DegenerationDamageImplicit1")
+            .Should().Be("+18% to Damage over Time Multiplier");
+        Range("DegenerationDamageImplicit1")
+            .Should().Be("+14–18% to Damage over Time Multiplier");
+        Line("SpellDamageImplicitGloves1").Should().Be("26% increased Spell Damage");
+        Line("ProjectileAttackDamageImplicitGloves1")
+            .Should().Be("28% increased Projectile Attack Damage");
+        Line("MeleeDamageImplicitGloves1").Should().Be("30% increased Melee Damage");
+        Line("MinionDamageImplicitHelmet1")
+            .Should().Be("Minions deal 30% increased Damage");
+        Line("LifeRegenerationImplicitAmulet2")
+            .Should().Be("Regenerate 2% of Life per second");
+        Line("ReducedEnergyShieldDelayImplicit1_")
+            .Should().Be("30% faster start of Energy Shield Recharge");
+        Line("ArmourAndEvasionImplicitBelt1")
+            .Should().Be("+480 to Armour and Evasion Rating");
+        Line("AdditionalAttackTotemsImplicit1")
+            .Should().Be("Attack Skills have +1 to maximum number of Summoned Totems");
+        Line("ColdAndLightningResistImplicitBoots1")
+            .Should().Be("+20% to Cold and Lightning Resistances");
+        Line("FireAndColdResistImplicitBoots1_")
+            .Should().Be("+20% to Fire and Cold Resistances");
+        Line("FireAndLightningResistImplicitBoots1")
+            .Should().Be("+20% to Fire and Lightning Resistances");
+        Line("LightRadiusAndAccuracy3")
+            .Should().Be("30% increased Light Radius");
+        Line("ItemFoundRarityIncrease1")
+            .Should().Be("+10% to Item Rarity");
+
+        catalog.Mods.Should().NotContain(m => m.Id == "SummonTotemCastSpeedImplicit1");
+
+        // ExileData keeps keyword markup in its raw text; the shipped catalog
+        // must contain the display text only.
+        catalog.Mods.SelectMany(m => m.StatLines)
+            .Should().OnlyContain(l => !l.Line.Contains('[') && !l.Line.Contains(']'));
+
+        // The crushed implicit's second stat is present in ExileData's stats
+        // but missing from its rendered text; the fallback restores it.
+        catalog.Mods.Single(m => m.Id == "MaxChaosResistanceCrushedImplicitR1")
+            .StatLines.Select(l => l.Line)
+            .Should().Contain("-15% additional Physical Damage Reduction");
+
+        Line("MinionGrantsConvocation1")
+            .Should().Be("Grants Level 1 Convocation Skill");
+    }
+
+    [Fact]
+    public void ShippedVendorCorpus_ContainsPoe330Lines()
+    {
+        var root = RepoRoot();
+        var vendor = JsonSerializer.Deserialize<VendorCorpusFile>(
+            File.ReadAllText(Path.Combine(
+                root, "data", "catalogs", "poe1.vendor-corpus.json")),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var lines = vendor.Lines.Select(l => l.Line).ToList();
+
+        lines.Should().Contain("Item Tier: 2");
+        lines.Should().Contain("Item Tier: 3");
+        lines.Should().Contain("Item Tier: 4");
+        lines.Should().Contain("Item Tier: 5");
+        lines.Should().Contain("Attack Skills have +1 to maximum number of Summoned Totems");
+        lines.Should().Contain("+10% to Item Rarity");
+        lines.Should().OnlyContain(l => !l.Contains('[') && !l.Contains(']'));
+    }
+
+    [Fact]
+    public void ShippedSnapshot_IsPinnedToAPoe330Source()
+    {
+        var root = RepoRoot();
+        using var snapshot = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(root, "data", "poe1.snapshot.json")));
+        var payload = snapshot.RootElement;
+        payload.GetProperty("sourceKind").GetString().Should().BeOneOf("repoe", "exiledata");
+        payload.GetProperty("dataVersion").GetString().Should().StartWith("3.30");
+        payload.GetProperty("files").GetArrayLength().Should().BeGreaterThanOrEqualTo(4);
+
+        var catalog = new FileCatalogSource(
+            Path.Combine(root, "data", "catalogs", "poe1.catalog.json")).Load();
+        catalog.DataVersion.Should().Be(payload.GetProperty("dataVersion").GetString());
+    }
+
 }

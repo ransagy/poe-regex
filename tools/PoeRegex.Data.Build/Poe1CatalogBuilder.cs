@@ -46,6 +46,8 @@ public static class Poe1CatalogBuilder
         "Royale", "Descent", "Demigod", "Victor", "Talisman", "StormBlade",
     ];
 
+    private const string FallbackTextPath = "data/catalogs/poe1.mod-text-fallback.json";
+
     /// <summary>
     /// True for base records that are not current normal equipment: old
     /// Talisman bases, race/reward bases (Demigod's, Descent, Victor,
@@ -67,6 +69,30 @@ public static class Poe1CatalogBuilder
         LegacyModIdMarkers.Any(marker =>
             modId.Contains(marker, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// ExileData's raw export leaves mod.text empty for a handful of mods
+    /// whose text RePoE already rendered (the granted-skill suffix and the
+    /// corrupted support-gem implicits). The 3.30 patch notes do not change
+    /// their wording, so the committed RePoE 3.29 text is used as a fallback
+    /// only when the raw export has no text.
+    /// </summary>
+    private static Dictionary<string, string> LoadFallbackText()
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!File.Exists(FallbackTextPath)) return result;
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(FallbackTextPath));
+        if (!doc.RootElement.TryGetProperty("mods", out var mods) ||
+            mods.ValueKind != JsonValueKind.Object)
+            return result;
+        foreach (var mod in mods.EnumerateObject())
+        {
+            var text = mod.Value.GetString();
+            if (!string.IsNullOrWhiteSpace(text)) result[mod.Name] = text;
+        }
+        return result;
+    }
+
     private static readonly Regex Range = new(
         @"\(([-+]?\d+(?:\.\d+)?)\s*-\s*([-+]?\d+(?:\.\d+)?)\)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -75,16 +101,45 @@ public static class Poe1CatalogBuilder
         @"[-+]?\d+(?:\.\d+)?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>
+    /// ExileData keeps the game's keyword markup in mod.text
+    /// (`[PlayerItemRarity|Item Rarity]`, `[Onslaught]`). The copied item
+    /// text shows the display half only; RePoE's export is already plain.
+    /// </summary>
+    private static readonly Regex Markup = new(
+        @"\[[^\[\]]*?\|([^\[\]]+)\]|\[([^\[\]|]+)\]",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static string CleanText(string text) =>
+        Markup.Replace(text, match => match.Groups[1].Success
+            ? match.Groups[1].Value
+            : match.Groups[2].Value);
+
     private sealed record ParsedLine(
         string Line, string RangeLine, string Pattern, double MinValue, double MaxValue);
 
     public sealed record BuildResult(Catalog Catalog, VendorCorpusFile Vendor);
 
-    public static BuildResult Build(string rawDir, string dataVersion)
+    public static BuildResult Build(
+        string rawDir, string dataVersion, bool useFallbackText = true)
     {
         var mods = RePoEJson.LoadMods(Path.Combine(rawDir, "mods.min.json"));
         var bases = RePoEJson.LoadBaseItems(Path.Combine(rawDir, "base_items.min.json"));
         var classes = RePoEJson.LoadItemClasses(Path.Combine(rawDir, "item_classes.min.json"));
+        var fallbackText = useFallbackText
+            ? LoadFallbackText()
+            : new Dictionary<string, string>(StringComparer.Ordinal);
+
+        string? TextOf(string modId)
+        {
+            if (fallbackText.TryGetValue(modId, out var fallback))
+                return CleanText(fallback);
+            if (mods.TryGetValue(modId, out var mod) &&
+                !string.IsNullOrWhiteSpace(mod.Text))
+                return CleanText(mod.Text);
+            return null;
+        }
+
         var classByMod = MapClasses(
             Path.Combine(rawDir, "mods_by_base.min.json"), classes, bases);
 
@@ -97,7 +152,7 @@ public static class Poe1CatalogBuilder
                          mods.TryGetValue(kv.Key, out var mod) &&
                          mod.Domain == "item" &&
                          mod.GenerationType is "prefix" or "suffix" &&
-                         !string.IsNullOrEmpty(mod.Text) &&
+                         !string.IsNullOrEmpty(TextOf(kv.Key)) &&
                          !mod.IsEssenceOnly)
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
@@ -106,7 +161,7 @@ public static class Poe1CatalogBuilder
                          mods.TryGetValue(kv.Key, out var mod) &&
                          mod.Domain == "item" &&
                          mod.GenerationType == "corrupted" &&
-                         !string.IsNullOrEmpty(mod.Text))
+                         !string.IsNullOrEmpty(TextOf(kv.Key)))
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
         var implicitByMod = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -119,8 +174,7 @@ public static class Poe1CatalogBuilder
             foreach (var modId in baseItem.Implicits ?? [])
             {
                 if (IsLegacyModId(modId)) continue;
-                if (!mods.TryGetValue(modId, out var mod) ||
-                    string.IsNullOrEmpty(mod.Text)) continue;
+                if (string.IsNullOrEmpty(TextOf(modId))) continue;
                 if (!implicitByMod.TryGetValue(modId, out var set))
                     implicitByMod[modId] = set = new HashSet<string>(StringComparer.Ordinal);
                 set.Add(baseItem.ItemClass);
@@ -132,7 +186,7 @@ public static class Poe1CatalogBuilder
         {
             if (parsed.TryGetValue(modId, out var cached)) return cached;
             var result = new List<ParsedLine>();
-            foreach (var raw in mods[modId].Text!.Split('\n'))
+            foreach (var raw in TextOf(modId)!.Split('\n'))
             {
                 if (string.IsNullOrWhiteSpace(raw)) continue;
                 result.Add(ParseLine(raw));
@@ -215,7 +269,8 @@ public static class Poe1CatalogBuilder
         };
 
         return new BuildResult(
-            catalog, BuildVendor(catalog, bases, classes, mods, dataVersion));
+            catalog, BuildVendor(
+                catalog, bases, classes, mods, fallbackText, useFallbackText, dataVersion));
     }
 
     private static Dictionary<string, HashSet<string>> MapClasses(
@@ -338,6 +393,8 @@ public static class Poe1CatalogBuilder
         Dictionary<string, RePoESchema.BaseItem> bases,
         Dictionary<string, RePoESchema.ItemClass> classes,
         Dictionary<string, RePoESchema.Mod> mods,
+        IReadOnlyDictionary<string, string> fallbackText,
+        bool useFallbackText,
         string dataVersion)
     {
         var lines = new List<VendorLine>();
@@ -482,9 +539,14 @@ public static class Poe1CatalogBuilder
             foreach (var implicitId in baseItem.Implicits ?? [])
             {
                 if (IsLegacyModId(implicitId)) continue;
-                if (!mods.TryGetValue(implicitId, out var implicitMod) ||
-                    string.IsNullOrEmpty(implicitMod.Text)) continue;
-                foreach (var raw in implicitMod.Text.Split('\n'))
+                if (!mods.TryGetValue(implicitId, out var implicitMod)) continue;
+                var implicitText = useFallbackText &&
+                                   fallbackText.TryGetValue(implicitId, out var fallback)
+                    ? fallback
+                    : implicitMod.Text;
+                if (string.IsNullOrWhiteSpace(implicitText)) continue;
+                implicitText = CleanText(implicitText);
+                foreach (var raw in implicitText.Split('\n'))
                 {
                     if (string.IsNullOrWhiteSpace(raw)) continue;
                     var parsed = ParseLine(raw);
@@ -544,6 +606,11 @@ public static class Poe1CatalogBuilder
                      "Corrupted", "Fractured Item", "Synthesised Item", "Mirrored", "Split",
                  })
             Add(null, line, "property");
+
+        // 3.30 adds an Item Tier (2-5) to generated Magic and Rare items.
+        // It is item text like Item Level and must be in the foreign corpus.
+        foreach (var tier in Enumerable.Range(2, 4))
+            Add(null, $"Item Tier: {tier}", "property");
 
         foreach (var cls in Equipment)
         {
