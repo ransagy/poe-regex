@@ -30,6 +30,43 @@ public static class Poe1CatalogBuilder
         "_eyrie", "_adjudicator", "_basilisk",
     ];
 
+    private static readonly string[] LegacyBaseTags =
+    [
+        "talisman", "demigods", "trade_market_legacy_item",
+    ];
+
+    private static readonly string[] LegacyBasePathMarkers =
+    [
+        "Royale", "Descent", "Victor", "Demigods", "Wreath", "MirrorRing",
+        "StormBlade", "TwoHandSwordDev",
+    ];
+
+    private static readonly string[] LegacyModIdMarkers =
+    [
+        "Royale", "Descent", "Demigod", "Victor", "Talisman", "StormBlade",
+    ];
+
+    /// <summary>
+    /// True for base records that are not current normal equipment: old
+    /// Talisman bases, race/reward bases (Demigod's, Descent, Victor,
+    /// Royale), legacy trade-market base variants, and skill/test bases.
+    /// These records still exist in RePoE but their implicits and mods are
+    /// not obtainable on current normal items.
+    /// </summary>
+    public static bool IsLegacyBase(string path, RePoESchema.BaseItem baseItem)
+    {
+        var tags = baseItem.Tags ?? [];
+        if (tags.Any(tag => LegacyBaseTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
+            return true;
+        return LegacyBasePathMarkers.Any(marker =>
+            path.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>True for mod ids that belong to legacy/event/race data.</summary>
+    public static bool IsLegacyModId(string modId) =>
+        LegacyModIdMarkers.Any(marker =>
+            modId.Contains(marker, StringComparison.OrdinalIgnoreCase));
+
     private static readonly Regex Range = new(
         @"\(([-+]?\d+(?:\.\d+)?)\s*-\s*([-+]?\d+(?:\.\d+)?)\)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -48,14 +85,16 @@ public static class Poe1CatalogBuilder
         var mods = RePoEJson.LoadMods(Path.Combine(rawDir, "mods.min.json"));
         var bases = RePoEJson.LoadBaseItems(Path.Combine(rawDir, "base_items.min.json"));
         var classes = RePoEJson.LoadItemClasses(Path.Combine(rawDir, "item_classes.min.json"));
-        var classByMod = MapClasses(Path.Combine(rawDir, "mods_by_base.min.json"), classes);
+        var classByMod = MapClasses(
+            Path.Combine(rawDir, "mods_by_base.min.json"), classes, bases);
 
         var nameToId = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (id, cls) in classes)
             nameToId.TryAdd(cls.Name, id);
 
         var normal = classByMod
-            .Where(kv => mods.TryGetValue(kv.Key, out var mod) &&
+            .Where(kv => !IsLegacyModId(kv.Key) &&
+                         mods.TryGetValue(kv.Key, out var mod) &&
                          mod.Domain == "item" &&
                          mod.GenerationType is "prefix" or "suffix" &&
                          !string.IsNullOrEmpty(mod.Text) &&
@@ -63,20 +102,23 @@ public static class Poe1CatalogBuilder
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
         var corrupted = classByMod
-            .Where(kv => mods.TryGetValue(kv.Key, out var mod) &&
+            .Where(kv => !IsLegacyModId(kv.Key) &&
+                         mods.TryGetValue(kv.Key, out var mod) &&
                          mod.Domain == "item" &&
                          mod.GenerationType == "corrupted" &&
                          !string.IsNullOrEmpty(mod.Text))
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
         var implicitByMod = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var baseItem in bases.Values)
+        foreach (var (basePath, baseItem) in bases)
         {
             if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.Ordinal))
                 continue;
             if (!Equipment.Contains(baseItem.ItemClass, StringComparer.Ordinal)) continue;
+            if (IsLegacyBase(basePath, baseItem)) continue;
             foreach (var modId in baseItem.Implicits ?? [])
             {
+                if (IsLegacyModId(modId)) continue;
                 if (!mods.TryGetValue(modId, out var mod) ||
                     string.IsNullOrEmpty(mod.Text)) continue;
                 if (!implicitByMod.TryGetValue(modId, out var set))
@@ -106,10 +148,19 @@ public static class Poe1CatalogBuilder
         foreach (var cls in classSet)
             normalPatterns[cls].Add(line.Pattern);
 
-        var implicitSelected = implicitByMod
-            .Where(kv => kv.Value.Any(cls => LinesOf(kv.Key)
-                .Any(line => !normalPatterns[cls].Contains(line.Pattern))))
-            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        // Keep only the classes where the implicit text is not already a
+        // normal affix pattern. Otherwise a base implicit that shares wording
+        // with an explicit mod would be offered twice for that class.
+        var implicitSelected = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var (modId, classSet) in implicitByMod)
+        {
+            var classesForImplicit = classSet
+                .Where(cls => LinesOf(modId)
+                    .Any(line => !normalPatterns[cls].Contains(line.Pattern)))
+                .ToHashSet(StringComparer.Ordinal);
+            if (classesForImplicit.Count > 0)
+                implicitSelected[modId] = classesForImplicit;
+        }
 
         var entries = new List<ModEntry>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -163,11 +214,14 @@ public static class Poe1CatalogBuilder
             Mods = entries,
         };
 
-        return new BuildResult(catalog, BuildVendor(catalog, bases, classes, dataVersion));
+        return new BuildResult(
+            catalog, BuildVendor(catalog, bases, classes, mods, dataVersion));
     }
 
     private static Dictionary<string, HashSet<string>> MapClasses(
-        string modsByBasePath, Dictionary<string, RePoESchema.ItemClass> classes)
+        string modsByBasePath,
+        Dictionary<string, RePoESchema.ItemClass> classes,
+        Dictionary<string, RePoESchema.BaseItem> bases)
     {
         var nameToId = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (id, cls) in classes)
@@ -189,9 +243,15 @@ public static class Poe1CatalogBuilder
                 var basePaths = basesNode.EnumerateArray()
                     .Select(x => x.GetString() ?? "")
                     .ToList();
-                // Entries backed only by unique bases are outside normal rarity.
-                if (basePaths.Count == 0 ||
-                    basePaths.All(path => path.Contains("Unique", StringComparison.Ordinal)))
+                // Entries backed only by unique, legacy, event, or race bases
+                // are outside the current normal-equipment scope. A tag group
+                // that also has a current base keeps its mod.
+                var currentPaths = basePaths
+                    .Where(path => !path.Contains("Unique", StringComparison.Ordinal))
+                    .Where(path => !bases.TryGetValue(path, out var item) ||
+                                   !IsLegacyBase(path, item))
+                    .ToList();
+                if (currentPaths.Count == 0)
                     continue;
 
                 if (!tagGroup.Value.TryGetProperty("mods", out var modsNode) ||
@@ -277,6 +337,7 @@ public static class Poe1CatalogBuilder
         Catalog catalog,
         Dictionary<string, RePoESchema.BaseItem> bases,
         Dictionary<string, RePoESchema.ItemClass> classes,
+        Dictionary<string, RePoESchema.Mod> mods,
         string dataVersion)
     {
         var lines = new List<VendorLine>();
@@ -317,42 +378,151 @@ public static class Poe1CatalogBuilder
                 Add(null, form, "mod", statLine.Pattern);
         }
 
-        foreach (var baseItem in bases.Values)
+        foreach (var (basePath, baseItem) in bases
+                     .OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
             if (!string.Equals(baseItem.ReleaseState, "released", StringComparison.Ordinal))
                 continue;
             if (!Equipment.Contains(baseItem.ItemClass, StringComparer.Ordinal)) continue;
-            Add(baseItem.ItemClass, baseItem.Name, "base");
+            if (IsLegacyBase(basePath, baseItem)) continue;
+
+            var cls = baseItem.ItemClass;
+            Add(cls, baseItem.Name, "base");
+            Add(null, baseItem.Name, "base");
+
             var props = baseItem.Properties ?? [];
-            AddProperty("armour", "Armour: ");
-            AddProperty("evasion", "Evasion Rating: ");
-            AddProperty("energy_shield", "Energy Shield: ");
 
-            void AddProperty(string key, string label)
+            AddRange("Armour", "armour");
+            AddRange("Evasion Rating", "evasion");
+            AddRange("Energy Shield", "energy_shield");
+            AddRange("Ward", "ward");
+
+            if (props.TryGetValue("block", out var block) &&
+                block.ValueKind == JsonValueKind.Number)
+                Add(cls, $"Chance to Block: {Format(block.GetDouble())}%", "property");
+
+            if (props.TryGetValue("movement_speed", out var move) &&
+                move.ValueKind == JsonValueKind.Number)
+                Add(cls, $"Movement Speed: {Format(move.GetDouble())}%", "property");
+
+            if (props.TryGetValue("physical_damage_min", out var pmin) &&
+                props.TryGetValue("physical_damage_max", out var pmax) &&
+                pmin.ValueKind == JsonValueKind.Number &&
+                pmax.ValueKind == JsonValueKind.Number)
+                Add(cls,
+                    $"Physical Damage: {Format(pmin.GetDouble())}-{Format(pmax.GetDouble())}",
+                    "property");
+
+            if (props.TryGetValue("critical_strike_chance", out var crit) &&
+                crit.ValueKind == JsonValueKind.Number)
+                Add(cls,
+                    $"Critical Strike Chance: {crit.GetDouble() / 100:0.00}%",
+                    "property");
+
+            if (props.TryGetValue("attack_time", out var attack) &&
+                attack.ValueKind == JsonValueKind.Number &&
+                attack.GetDouble() > 0)
+                Add(cls,
+                    $"Attacks per Second: {1000 / attack.GetDouble():0.00}",
+                    "property");
+
+            if (props.TryGetValue("range", out var range) &&
+                range.ValueKind == JsonValueKind.Number)
+                Add(cls, $"Weapon Range: {Format(range.GetDouble())}", "property");
+
+            void AddRange(string label, string key)
             {
-                if (!props.TryGetValue(key, out var node) ||
-                    node.ValueKind != JsonValueKind.Object ||
-                    !node.TryGetProperty("max", out var max)) return;
-                Add(baseItem.ItemClass, $"{label}{Format(max.GetDouble())}", "property");
+                if (!props.TryGetValue(key, out var node)) return;
+                if (node.ValueKind == JsonValueKind.Object &&
+                    node.TryGetProperty("min", out var minNode) &&
+                    node.TryGetProperty("max", out var maxNode) &&
+                    minNode.ValueKind == JsonValueKind.Number &&
+                    maxNode.ValueKind == JsonValueKind.Number)
+                {
+                    var min = minNode.GetDouble();
+                    var max = maxNode.GetDouble();
+                    var text = Math.Abs(min - max) < 0.0001
+                        ? $"{label}: {Format(min)}"
+                        : $"{label}: {Format(min)}-{Format(max)}";
+                    Add(cls, text, "property");
+                    Add(cls, $"{text} (augmented)", "property");
+                }
+                else if (node.ValueKind == JsonValueKind.Number)
+                {
+                    var value = Format(node.GetDouble());
+                    Add(cls, $"{label}: {value}", "property");
+                    Add(cls, $"{label}: {value} (augmented)", "property");
+                }
             }
 
-            if (props.TryGetValue("physical_damage", out var physical) &&
-                physical.ValueKind == JsonValueKind.Object)
+            if (baseItem.Requirements is { Level: > 0 } req)
             {
-                var min = physical.TryGetProperty("min", out var minNode) ? minNode.GetDouble() : 0;
-                var max = physical.TryGetProperty("max", out var maxNode) ? maxNode.GetDouble() : 0;
-                Add(baseItem.ItemClass,
-                    $"Physical Damage: {Format(min)}-{Format(max)}", "property");
+                var parts = new List<string> { $"Level {req.Level}" };
+                Add(cls, $"Level: {req.Level}", "property");
+                if (req.Strength > 0)
+                {
+                    parts.Add($"{req.Strength} Str");
+                    Add(cls, $"Str: {req.Strength}", "property");
+                }
+                if (req.Dexterity > 0)
+                {
+                    parts.Add($"{req.Dexterity} Dex");
+                    Add(cls, $"Dex: {req.Dexterity}", "property");
+                }
+                if (req.Intelligence > 0)
+                {
+                    parts.Add($"{req.Intelligence} Int");
+                    Add(cls, $"Int: {req.Intelligence}", "property");
+                }
+                Add(cls, "Requires: " + string.Join(", ", parts), "property");
             }
-            if (props.TryGetValue("critical_strike_chance", out var crit))
-                Add(baseItem.ItemClass,
-                    $"Critical Strike Chance: {Format(crit.GetDouble())}%", "property");
-            if (props.TryGetValue("attacks_per_second", out var aps))
-                Add(baseItem.ItemClass,
-                    $"Attacks per Second: {Format(aps.GetDouble())}", "property");
-            if (props.TryGetValue("weapon_range", out var range))
-                Add(baseItem.ItemClass,
-                    $"Weapon Range: {Format(range.GetDouble())} metres", "property");
+
+            // The base implicit is item text even when the selectable catalog
+            // omits it because the same wording is also an explicit affix.
+            foreach (var implicitId in baseItem.Implicits ?? [])
+            {
+                if (IsLegacyModId(implicitId)) continue;
+                if (!mods.TryGetValue(implicitId, out var implicitMod) ||
+                    string.IsNullOrEmpty(implicitMod.Text)) continue;
+                foreach (var raw in implicitMod.Text.Split('\n'))
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    var parsed = ParseLine(raw);
+                    foreach (var form in CopyForms(parsed.Line))
+                        Add(cls, form, "implicit", parsed.Pattern);
+                }
+            }
+        }
+
+        // Affix names and advanced-description captions are item text too.
+        // They are common on magic items and in imported advanced copies, so
+        // the exact table must not pick fragments that match them.
+        foreach (var mod in catalog.Mods)
+        {
+            if (string.IsNullOrWhiteSpace(mod.Name)) continue;
+            foreach (var cls in mod.Classes)
+                Add(cls, mod.Name, "affix-name");
+            Add(null, mod.Name, "affix-name");
+        }
+
+        foreach (var mod in catalog.Mods)
+        {
+            var label = mod.Source switch
+            {
+                "implicit" => "Implicit",
+                "corrupted" => "Corrupted",
+                _ => mod.GenerationType == "prefix" ? "Prefix" : "Suffix",
+            };
+            var name = string.IsNullOrWhiteSpace(mod.Name) ? "" : $" \"{mod.Name}\"";
+            var tiers = mod.Source == "implicit" ? [0] : Enumerable.Range(1, 12);
+            foreach (var tier in tiers)
+            {
+                var tierText = tier == 0 ? "" : $" (Tier: {tier})";
+                var line = $"{{ {label} Modifier{name}{tierText} }}";
+                foreach (var cls in mod.Classes)
+                    Add(cls, line, "caption");
+                Add(null, line, "caption");
+            }
         }
 
         var socketColors = new[] { "R", "G", "B", "W" };
@@ -367,6 +537,13 @@ public static class Poe1CatalogBuilder
         [
             "Sockets: R-G-B", "Sockets: R-R-G-G", "Sockets: G-G-G", "Sockets: B-B-B",
         ]);
+
+        foreach (var line in new[]
+                 {
+                     "Rarity: Normal", "Rarity: Magic", "Rarity: Rare", "Rarity: Unique",
+                     "Corrupted", "Fractured Item", "Synthesised Item", "Mirrored", "Split",
+                 })
+            Add(null, line, "property");
 
         foreach (var cls in Equipment)
         {

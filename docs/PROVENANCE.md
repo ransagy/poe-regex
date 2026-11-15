@@ -41,7 +41,7 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    CLI and web assemblies at build time, and
    `data/catalogs/poe1.catalog.json`, served lazily by the web app from
    `web/wwwroot/data/poe1/`. The PoE1 catalog covers normal equipment:
-   1,204 normal affixes, 215 base implicits, and 233 corrupted mods.
+   1,200 normal affixes, 178 base implicits, and 233 corrupted mods.
    They contain item class names, mod ids and affix names, generation type,
    source (`desecrated`, `implicit`, `corrupted`, `augment`, or empty for normal
    explicit affixes), augment type/target, family, required level,
@@ -55,7 +55,7 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    without a positive base/spawn reference are excluded.
    `poe2.fragments.json` and `poe1.fragments.json` are the exact
    shortest-form tables derived from the same catalogs plus their foreign
-   corpora. PoE1 has 1,626 scopes and 0 unresolved; its proof includes the
+   corpora. PoE1 has 1,584 scopes and 0 unresolved; its proof includes the
    captured `poe1.safety-items.txt` item.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` and
    `poe1.vendor-corpus.json` are derived from the same raw exports. It adds the searchable line text that the selectable
@@ -65,11 +65,12 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    universal usage). Modeled desecrated lines, implicit-only base lines, and
    corrupted enchantment lines are also included. PoE1 `crafted`
    leftovers are excluded; PoE2 crafted jewel lines are not modeled yet.
-   Unique-only mods, unique names, captions, flavour, and rare item names are
+   Unique-only mods and names, flavour text, and random rare item names are
    deliberately excluded and are reported as unmodeled in the audit. The PoE1
-   corpus models normal explicit lines, base implicits, and mapped corrupted
-   mods, plus socket color lines; `poe1.safety-items.txt` adds one captured
-   boots item as a false-positive fixture. Influenced, crafted, veiled,
+   corpus models normal explicit lines, base implicits, affix names,
+   advanced-description captions, base properties and requirements, and mapped
+   corrupted mods, plus socket color lines; `poe1.safety-items.txt` adds one
+   captured boots item as a false-positive fixture. Influenced, crafted, veiled,
    eldritch, gem, flask, jewel, map, and currency text remain outside the
    normal-equipment MVP. No game
    binaries, memory, client logs, or runtime extraction are involved.

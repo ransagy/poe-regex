@@ -86,15 +86,16 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
 
   Required: `stale: false`, `shortestProven: true`, `proof.failed: 0`.
 
-- [ ] For PoE1 data changes, rebuild and verify:
+- [ ] For PoE1 data changes, refresh the upstream export, rebuild, and verify:
 
   ```sh
+  dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch --refresh
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
   ```
 
-  Required: 1,626 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
   `proof.failed: 0`. Copy the updated catalog/table/corpus into
   `web/wwwroot/data/poe1/`.
 
@@ -138,8 +139,9 @@ source of truth.
   change branch.
 - [ ] Confirm CI `test` and the Cloudflare Pages preview are green.
 - [ ] For exact-table changes, confirm the matrix/proof/status artifacts were
-  regenerated together. For PoE1, run `poe1-build` (if raw data changed),
-  `poe1-matrix --from-scratch`, and `poe1-status --check --check-shortest`.
+  regenerated together. For PoE1, run `poe1-fetch --refresh` (if the
+  upstream export changed), `poe1-build`, `poe1-matrix --from-scratch`, and
+  `poe1-status --check --check-shortest`.
 
 ## 5. Web build and PWA
 

@@ -64,9 +64,9 @@ public class Poe1ArtifactTests
         foreach (var (cls, map) in table.ByClass) CheckScope(cls, map);
 
         failures.Take(20).Should().BeEmpty($"{failures.Count} PoE1 strict table failures");
-        checkedCount.Should().Be(1626);
-        table.Global.Should().HaveCount(382);
-        table.ByClass.Values.Sum(x => x.Count).Should().Be(1244);
+        checkedCount.Should().Be(1584);
+        table.Global.Should().HaveCount(367);
+        table.ByClass.Values.Sum(x => x.Count).Should().Be(1217);
     }
 
     [Fact]

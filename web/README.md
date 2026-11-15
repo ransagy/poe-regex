@@ -258,8 +258,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - **PoE1 is a separate game profile.** The top-bar switch stores
   the last game and keeps one workbench and saved-picks set per game; a
   dimmed overlay covers the page while game data loads. The PoE1 catalog has
-  23 equipment classes and 1,652 mods (1,204 normal, 215 base implicit, 233
-  corrupted). Its exact table has 1,626 scopes (382 global, 1,244 class
+  23 equipment classes and 1,611 mods (1,200 normal, 178 base implicit, 233
+  corrupted). Its exact table has 1,584 scopes (367 global, 1,217 class
   entries), 0 unresolved, and every entry is strict over the generated PoE1
   foreign corpus (`data/catalogs/poe1.vendor-corpus.json`) plus the captured
   `data/catalogs/poe1.safety-items.txt` item. Class anchors are at least two
