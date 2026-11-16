@@ -33,4 +33,33 @@ public class DataAuditTests
         paths.Should().Contain(["ModRunes.min.json", "Bases/"]);
         paths.Should().NotContain("../");
     }
+
+    [Fact]
+    public void WriteReport_AcceptsBareFilenameAndNestedPath()
+    {
+        // The scheduled workflow passes --out data-audit.md, which has no
+        // directory component; creating an empty directory used to throw.
+        var bare = $"data-audit-{Guid.NewGuid():N}.md";
+        try
+        {
+            DataAudit.WriteReport(bare, "bare");
+            File.ReadAllText(bare).Should().Be("bare");
+        }
+        finally
+        {
+            if (File.Exists(bare)) File.Delete(bare);
+        }
+
+        var dir = Directory.CreateTempSubdirectory("poe-audit-");
+        try
+        {
+            var nested = Path.Combine(dir.FullName, "nested", "report.md");
+            DataAudit.WriteReport(nested, "nested");
+            File.ReadAllText(nested).Should().Be("nested");
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
+    }
 }

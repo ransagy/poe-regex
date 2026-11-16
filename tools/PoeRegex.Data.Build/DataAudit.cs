@@ -116,12 +116,24 @@ public static class DataAudit
         Console.Write(report);
         if (outPath.Length > 0)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-            File.WriteAllText(outPath, report);
+            WriteReport(outPath, report);
             Console.WriteLine($"wrote {outPath}");
         }
 
         return check && failed ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Write the audit report. A bare filename (for example the scheduled
+    /// workflow's `--out data-audit.md`) has no directory component, so do
+    /// not try to create an empty directory.
+    /// </summary>
+    internal static void WriteReport(string outPath, string report)
+    {
+        var directory = Path.GetDirectoryName(outPath);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+        File.WriteAllText(outPath, report);
     }
 
     /// <summary>
