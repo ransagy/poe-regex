@@ -179,6 +179,51 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public async Task PickBreakdown_MovementSpeedFamily_MinFiltersFixedTiers()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var boots = ModFamilies.Group(engine.ModsForClass("Boots"))
+            .First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("boots");
+        state.AddInclude("boots", boots.Pick());
+        var paste = engine.Combine(
+            [("boots (Boots)", "Boots",
+                (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],
+            [], allowOverflow: true);
+        var model = new SearchModel(engine, state);
+        model.Update(null, paste);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.FindAll(".bd-min").Should().HaveCount(2);
+        await cut.Find("#min-boots-MovementVelocity1-v").ChangeAsync("20");
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.MinValue.Should().Be(20);
+        var query = engine.Combine(
+            [("boots (Boots)", "Boots",
+                (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],
+            [], allowOverflow: true).Query;
+        foreach (var value in new[] { 20, 25, 30, 35 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeTrue($"{value}% is inside the 20+ filter");
+        }
+        foreach (var value in new[] { 10, 15 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeFalse($"{value}% is below the 20+ filter");
+        }
+    }
+
+    [Fact]
     public async Task PickBreakdown_ExactRangedName_ConvertsToRangeOnMin()
     {
         using var ctx = Context();

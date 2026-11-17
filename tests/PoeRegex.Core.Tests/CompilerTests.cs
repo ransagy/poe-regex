@@ -126,8 +126,8 @@ public class CompilerTests
             IncludedModifiers = [new ModifierRequirement("IncreasedLife1", 20)],
         });
 
-        result.Query.Should().Contain("2[0-9]");
-        result.Query.Should().Contain("maximum Life");
+        result.Query.Should().Contain(@"\d");
+        result.Query.Should().Contain("maximum");
     }
 
     [Fact]

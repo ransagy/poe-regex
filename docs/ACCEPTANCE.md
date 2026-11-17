@@ -38,16 +38,17 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 
 ## PoE2 tier ranges (prototype)
 
-- Tier-up actions use one combined family+range fragment when a safe one
-  exists; exact tiers use the shorter of the affix-name and exact-range
-  forms. The pick row shows the explicit range, a name-up row shows the
-  compact equivalent range (`= 20–35% increased Movement Speed`), and the
-  breakdown shows the compiled term.
+- Tier picks in a multi-value family (movement speed, maximum life) use one
+  combined family+range fragment for both exact and up tiers. A single-value
+  family (`+1 Skills`) keeps the shorter affix-name form. The pick row shows
+  the explicit range, a legacy name-up row shows the compact equivalent range
+  (`= 20–35% increased Movement Speed`), and the breakdown shows the compiled
+  term.
 - Min/max boxes appear when the pick covers more than one numeric value.
   A single fixed value (one fixed tier or `+1 Skills`) hides both; an exact
-  ranged tier keeps its short name until the first filter, then converts to
-  the equivalent range pick. Integer stats use whole numbers and decimal
-  stats keep the displayed precision.
+  ranged tier in a multi-value family uses the range form, and a legacy exact
+  name pick converts on the first filter. Integer stats use whole numbers and
+  decimal stats keep the displayed precision.
 - The range fragment is proven against the catalog: every matched line must
   be an allowed pattern and its first roll must sit inside the requested
   intervals. A range endpoint in `roll(low-high)` cannot satisfy the roll.
@@ -58,10 +59,10 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 126 core + 465 web + 53 data-build; the published
+- Current Release suite: 126 core + 467 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, one run): boot 1392 ms; picker expand 28 ms;
-  advanced family pick 84 ms; longest task 89 ms, none over 200 ms.
+- Perf smoke (published Release, one run): boot 1459 ms; picker expand 23 ms;
+  advanced family pick 88 ms; longest task 100 ms, none over 200 ms.
 
 ## Performance
 

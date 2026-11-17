@@ -108,6 +108,7 @@ public sealed class PasteComposer
             merged.Add(new PasteSlotCriterion(group.Key, includes, label));
         }
         merged.Sort((a, b) => string.CompareOrdinal(a.ItemClass, b.ItemClass));
+        merged = NormalizeRangeSlots(merged);
 
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
 
@@ -211,6 +212,163 @@ public sealed class PasteComposer
             MergedToAnyClasses = mergedToAnyClasses,
         };
     }
+
+    /// <summary>One slot whose only include is a tier range.</summary>
+    private sealed record RangeSlot(
+        int Index,
+        PasteSlotCriterion Slot,
+        ModifierRequirement Requirement,
+        string Key,
+        IReadOnlyList<(double Lo, double Hi)> Intervals,
+        IReadOnlyList<string> Patterns);
+
+    /// <summary>
+    /// Merge the same anchor tier across slots when the union is safe for
+    /// every class. A Gloves Athlete's exact range is a subset of a
+    /// Body/Helmet Athlete's-or-better range; Gloves has no Fecund tier, so
+    /// the union 120–174 is equivalent there and the three slots become one
+    /// range group instead of repeating Athlete's.
+    /// </summary>
+    private List<PasteSlotCriterion> NormalizeRangeSlots(List<PasteSlotCriterion> merged)
+    {
+        var candidates = new List<RangeSlot>();
+        for (var i = 0; i < merged.Count; i++)
+        {
+            var slot = merged[i];
+            if (slot.MatchAll || slot.Includes.Count != 1) continue;
+            var req = slot.Includes[0];
+            if (req.RangeModIds is not { Count: > 0 }) continue;
+            var mod = _corpus.FindMod(req.Value);
+            if (mod is null) continue;
+            var intervals = ClampedIntervals(req);
+            if (intervals.Count == 0) continue;
+            var patterns = mod.StatLines
+                .Select(line => line.Pattern)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(pattern => pattern, StringComparer.Ordinal)
+                .ToList();
+            var key = (mod.Family ?? "") + "\u0001" + (mod.Name ?? "") + "\u0001" +
+                      string.Join("\u0001", patterns);
+            candidates.Add(new RangeSlot(i, slot, req, key, intervals, patterns));
+        }
+        if (candidates.Count < 2) return merged;
+
+        var result = merged.ToList();
+        foreach (var group in candidates.GroupBy(x => x.Key, StringComparer.Ordinal))
+        {
+            var items = group.ToList();
+            if (items.Count < 2) continue;
+            var anchor = _corpus.FindMod(items[0].Requirement.Value);
+            if (anchor is null ||
+                !items.All(item => anchor.Classes.Contains(item.Slot.ItemClass, StringComparer.Ordinal)))
+                continue;
+
+            var union = MergeIntervals(items.SelectMany(item => item.Intervals));
+            if (union.Count == 0) continue;
+            if (items.Any(item => !UnionSafeForSlot(item, union))) continue;
+
+            var unionIds = items
+                .SelectMany(item => item.Requirement.RangeModIds!)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+            var unionReq = new ModifierRequirement(
+                items[0].Requirement.Value,
+                MinValue: union.Min(x => x.Lo),
+                MaxValue: union.Max(x => x.Hi),
+                RangeModIds: unionIds);
+            // A union that cannot compile globally is not a safe merge.
+            if (_compaction.SelectFragment(unionReq, null) is null) continue;
+
+            foreach (var item in items)
+            {
+                result[item.Index] = new PasteSlotCriterion(
+                    item.Slot.ItemClass, [unionReq], item.Slot.Label);
+            }
+        }
+        return result;
+    }
+
+    private IReadOnlyList<(double Lo, double Hi)> ClampedIntervals(ModifierRequirement req)
+    {
+        var intervals = new List<(double Lo, double Hi)>();
+        foreach (var id in req.RangeModIds ?? [])
+        {
+            var mod = _corpus.FindMod(id);
+            if (mod is null) continue;
+            foreach (var line in mod.StatLines)
+            {
+                var lo = req.MinValue is { } min
+                    ? Math.Max(line.MinValue, min)
+                    : line.MinValue;
+                var hi = req.MaxValue is { } max
+                    ? Math.Min(line.MaxValue, max)
+                    : line.MaxValue;
+                if (hi >= lo && (lo != 0 || hi != 0))
+                    intervals.Add((lo, hi));
+            }
+        }
+        return MergeIntervals(intervals);
+    }
+
+    private static List<(double Lo, double Hi)> MergeIntervals(
+        IEnumerable<(double Lo, double Hi)> intervals)
+    {
+        var ordered = intervals
+            .Where(x => x.Hi >= x.Lo)
+            .OrderBy(x => x.Lo)
+            .ThenBy(x => x.Hi)
+            .ToList();
+        var result = new List<(double Lo, double Hi)>(ordered.Count);
+        foreach (var current in ordered)
+        {
+            if (result.Count == 0)
+            {
+                result.Add(current);
+                continue;
+            }
+            var last = result[^1];
+            if (current.Lo <= last.Hi + 1e-9)
+                result[^1] = (last.Lo, Math.Max(last.Hi, current.Hi));
+            else
+                result.Add(current);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// True when the union adds no values the slot's class can actually
+    /// roll; a narrowed slot keeps its own group otherwise.
+    /// </summary>
+    private bool UnionSafeForSlot(
+        RangeSlot item, IReadOnlyList<(double Lo, double Hi)> union)
+    {
+        foreach (var pattern in item.Patterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (!mod.Classes.Contains(item.Slot.ItemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (line.MaxValue < line.MinValue) continue;
+                    if (line.MinValue == 0 && line.MaxValue == 0) continue;
+                    if (!Overlaps(union, line.MinValue, line.MaxValue)) continue;
+                    if (!ContainedIn(item.Intervals, line.MinValue, line.MaxValue))
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static bool Overlaps(
+        IReadOnlyList<(double Lo, double Hi)> intervals, double lo, double hi) =>
+        intervals.Any(x => lo <= x.Hi + 1e-9 && x.Lo <= hi + 1e-9);
+
+    private static bool ContainedIn(
+        IReadOnlyList<(double Lo, double Hi)> intervals, double lo, double hi) =>
+        intervals.Any(x => lo >= x.Lo - 1e-9 && hi <= x.Hi + 1e-9);
 
     private string CriterionKey(PasteSlotCriterion s)
     {

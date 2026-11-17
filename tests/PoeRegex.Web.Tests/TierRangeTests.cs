@@ -59,14 +59,19 @@ public class TierRangeTests
     }
 
     [Fact]
-    public void BodyLife_ExactTier_PrefersTheName_UpTier_PrefersTheRange()
+    public void BodyLife_ExactAndUpTiers_UseTheRange()
     {
         var fam = Family("Body Armour", "IncreasedLife");
         var tier = fam.Tiers.Single(t => t.Name == "Virile");
 
         var exact = Engine.BestTierPick(fam, tier, up: false, cls: "Body Armour");
         exact.Should().NotBeNull();
-        exact!.IsNamePick.Should().BeTrue("\"Virile\" is shorter than the exact range fragment");
+        exact!.IsTierRange.Should().BeTrue(
+            "the family covers multiple values, so exact tiers use the range form");
+        exact.MinValue.Should().Be(100);
+        exact.MaxValue.Should().Be(119);
+        Engine.TierRangeLabel(exact, tier, "Body Armour")
+            .Should().Be("+100–119 to maximum Life");
 
         var up = Engine.BestTierPick(fam, tier, up: true, cls: "Body Armour");
         up.Should().NotBeNull();

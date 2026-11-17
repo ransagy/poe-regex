@@ -53,20 +53,23 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
-- Tier ranges: tier-up actions use one combined family+range fragment when
-  safe; exact tiers use the shorter of the affix-name and exact-range forms.
-  The pick row shows the explicit range (for example
-  `20–35% increased Movement Speed`); a name-up row shows the compact
-  equivalent range (`= 20–35% increased Movement Speed`). The range is
-  proven against the catalog: every matched line must be an allowed pattern
-  and its first roll must sit inside the requested intervals. Min/max boxes
-  appear when the pick covers more than one numeric value; a single fixed
-  value (one fixed tier or `+1 Skills`) hides both, and an exact ranged tier
+- Tier ranges: tier picks in a multi-value family use one combined
+  family+range fragment for exact and up tiers; a single-value family
+  (`+1 Skills`) keeps the shorter affix-name form. The pick row shows the
+  explicit range (for example `20–35% increased Movement Speed`); a legacy
+  name-up row shows the compact equivalent range
+  (`= 20–35% increased Movement Speed`). The range is proven against the
+  catalog: every matched line must be an allowed pattern and its first roll
+  must sit inside the requested intervals. Min/max boxes appear when the
+  pick covers more than one numeric value; a single fixed value (one fixed
+  tier or `+1 Skills`) hides both, and a legacy exact ranged name pick
   converts to its range pick on the first filter. Integer stats use whole
   numbers, decimal stats keep the game's displayed precision (including
   extra digits such as 2.03 in a 1.5–2.5 stat), and the range stays in the
   same quoted fragment as the family text. Cross-slot tier ranges group by
-  covered intervals and min/max. PoE2 exclusions use `"!term"` like PoE1.
+  covered intervals and min/max, including exact+up unions when the extra
+  span does not exist for the narrower class. PoE2 exclusions use `"!term"`
+  like PoE1.
 - Common picks: the pre-typing shortlist is data-driven from
   `data/common-picks.json`. `classes` is a runtime scope, so Helmet minion
   levels and Gloves attack-only added damage stay out of All gear while the

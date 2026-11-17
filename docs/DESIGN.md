@@ -127,17 +127,18 @@ outer loop. It runs at data-build time, never in the browser.
 
 - Table lookup per stat line; choose the shortest table form across a hybrid
   mod's lines and between class/global scopes.
-- `MinValue` builds a digit-range alternation from the catalog value span and
-  re-validates it against real display shapes. `MaxValue` (with or without a
-  floor) builds a bounded range; a floor alone keeps the shipped "this or
-  higher" behavior.
+- `MinValue` builds a bounded range from the floor to the pattern's catalog
+  maximum and proves it with the value-aware range oracle. `MaxValue` (with
+  or without a floor) builds a bounded range; a floor alone keeps the
+  shipped "this or higher" behavior without matching a longer line such as
+  "25% increased Movement Speed while Sprinting".
 - Tier ranges use one combined fragment: the first roll placeholder in the
   advanced display shape is replaced with the shortest safe value class, and
   the candidate is proven against the catalog by pattern **and** first-roll
   value. The family text tail is anchored so a range endpoint inside
-  `roll(low-high)` cannot stand in for the roll. Tier-up actions are
-  range-first when a safe range exists; exact tiers use the shorter of the
-  affix-name and exact-range forms.
+  `roll(low-high)` cannot stand in for the roll. Tier picks in a multi-value
+  family are range-first for exact and up tiers; a single-value family keeps
+  the shorter affix-name form.
 - Multi-slot paste criteria group by semantic key. A tier range keys by stat
   pattern, clamped covered intervals, and min/max, so the same tier range on
   different classes shares one group while a different or gapped range stays

@@ -320,17 +320,18 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   compile to the same query share one selection: the active one carries the
   chip, the others stay visible as `covered` with a `⇄` switch button. Picks
   that cover more than one numeric value take `min` and `max` values; an
-  exact ranged tier keeps its short affix name until you filter, then
-  converts to the equivalent range pick. A single fixed value (`+1 Skills`,
-  one fixed tier) hides both. Integer stats accept whole numbers, and decimal
+  exact ranged tier in a multi-value family uses the range form, and a
+  legacy exact name pick converts on the first filter. A single fixed value
+  (`+1 Skills`, one fixed tier) hides both. Integer stats accept whole numbers, and decimal
   stats keep the game's displayed precision. The range is compiled into the same quoted fragment
   as the family text, so it targets the first roll and cannot be satisfied by
   a range endpoint in `roll(low-high)`. Hovering a block, segment, pick, or
-  section highlights the matching parts. Tier-up picks use one combined range
-  fragment when safe; exact tiers use the shorter of the affix-name and
-  exact-range forms. The pick row shows the explicit range (for example
-  `20–35% increased Movement Speed`); a name-up row shows the compact
-  equivalent range (`= 20–35% increased Movement Speed`).
+  section highlights the matching parts. Tier picks in a multi-value family
+  use one combined range fragment for exact and up tiers; a single-value
+  family keeps the shorter affix-name form. The pick row shows the explicit
+  range (for example `20–35% increased Movement Speed`); a legacy name-up
+  row shows the compact equivalent range
+  (`= 20–35% increased Movement Speed`).
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.
 - `SavedPicksMenu`: `Saved picks` saves the current picks under a name
@@ -456,8 +457,8 @@ Acceptance criteria and current measurements:
 - Each pick that covers more than one numeric value has min and max boxes.
   The range compiles into the same combined fragment as the family text, so
   it targets the first roll; the boxes sit next to the pick's cost. A single
-  fixed value (one fixed tier or `+1 Skills`) shows neither box; an exact
-  ranged tier converts to its range pick on the first entry. A tier-up range
-  can be narrowed without adding a separate block.
+  fixed value (one fixed tier or `+1 Skills`) shows neither box; a legacy
+  exact ranged name pick converts to its range pick on the first entry. A
+  tier-up range can be narrowed without adding a separate block.
 - Publish is the unoptimized interpreter build (25 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).

@@ -576,10 +576,10 @@ public sealed class EngineService
     }
 
     /// <summary>
-    /// Tier-up actions are range-first when a safe range exists; exact tiers
-    /// use the shorter of the affix-name and exact-range forms. Returns null
-    /// when the caller should use its fallback (desecrated/implicit/union
-    /// tiers).
+    /// Tier-up and multi-value exact tiers are range-first when a safe range
+    /// exists; a single-value family keeps the shorter affix-name form.
+    /// Returns null when the caller should use its fallback
+    /// (desecrated/implicit/union tiers).
     /// </summary>
     public WantedMod? BestTierPick(ModFamily fam, ModTier tier, bool up, string? cls)
     {
@@ -590,16 +590,34 @@ public sealed class EngineService
         if (rangePick is null) return null;
         var rangeTerms = PickTerms(rangePick, cls);
         if (rangeTerms.Count == 0) return null;
-        // Tier-up is range-first: one predictable representation, one
-        // fragment, and min/max always available. Exact tiers keep the
-        // shorter of the name and the exact range.
-        if (up) return rangePick;
+        // Multi-value families are range-first for exact and up tiers: the
+        // representation is predictable, min/max is available, and the
+        // exact pick matches the "or better" form. A single-value family
+        // (+1 Skills, one fixed tier) keeps the shorter name form.
+        if (up || HasMultipleValues(fam)) return rangePick;
         var namePick = new WantedMod(tier.Anchor.Id, [tier.Name]);
         var nameTerms = PickTerms(namePick, cls);
         if (nameTerms.Count == 0) return rangePick;
         var rangeCost = string.Join("|", rangeTerms).Length;
         var nameCost = string.Join("|", nameTerms).Length;
         return rangeCost <= nameCost ? rangePick : namePick;
+    }
+
+    /// <summary>
+    /// True when the family can produce more than one numeric value. Such a
+    /// family uses the range form even for an exact tier, so individual
+    /// movement-speed/life tiers match the "or better" representation.
+    /// </summary>
+    private static bool HasMultipleValues(ModFamily fam)
+    {
+        var values = new HashSet<double>();
+        foreach (var tier in fam.Tiers)
+        {
+            if (tier.ValueRange is not { } range) continue;
+            if (range.Max > range.Min) return true;
+            if (range.Min != 0) values.Add(range.Min);
+        }
+        return values.Count > 1;
     }
 
     /// <summary>The one combined range pick for a tier action.</summary>

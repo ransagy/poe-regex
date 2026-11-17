@@ -383,64 +383,40 @@ public sealed class CompactionEngine
     }
 
     /// <summary>
-    /// Builds a fragment matching values >= minValue by replacing the value token
-    /// in the line's pattern with a digit-range alternation, then re-validating
-    /// uniqueness on the class corpus against real copy text.
+    /// Builds a fragment matching values >= minValue. The upper bound is the
+    /// pattern's own maximum, so the range builder can anchor the family tail
+    /// and prove the actual roll values; a plain "digit range + rest of line"
+    /// fragment also matches longer lines such as "25% increased Movement
+    /// Speed while Sprinting" and was silently falling back.
     /// </summary>
     private string? BuildThresholdFragment(StatLineEntry line, double minValue, string? itemClass, string fallbackFp)
     {
         var pattern = line.Pattern;
         if (pattern.IndexOf(SuffixIndex.DigitPlaceholder) < 0) return fallbackFp;
 
-        var digitRange = DigitRangeRegex.Build((int)Math.Ceiling(minValue));
-        if (digitRange is null) return fallbackFp;
+        var maxValue = MaxPatternValue(pattern, itemClass);
+        if (maxValue <= 0) maxValue = line.MaxValue;
+        if (maxValue < minValue) return null;
 
-        var shapes = _corpus.DisplayPatternsFor(pattern, itemClass)
-            .Where(x => x.Contains('(', StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        // Prefer a range-aware shape when one exists: the compact catalog
-        // pattern would silently fail on every advanced ranged item.
-        string? best = null;
-        foreach (var shape in shapes)
-        {
-            var fragment = BuildThresholdFromPattern(shape, digitRange);
-            if (fragment is null) continue;
-            if (!IsFragmentSafe(itemClass, fragment, pattern)) continue;
-            if (best is null || fragment.Length < best.Length) best = fragment;
-        }
-        if (best is not null) return best;
-
-        var plain = BuildThresholdFromPattern(pattern, digitRange);
-        if (plain is not null && IsFragmentSafe(itemClass, plain, pattern)) return plain;
-        return fallbackFp;
+        var precision = Math.Max(
+            RangeRegex.PrecisionOf(line.MinValue), RangeRegex.PrecisionOf(line.MaxValue));
+        var fragment = BuildRangeFragment(
+            pattern, [(minValue, maxValue)], precision, itemClass, [pattern]);
+        return fragment ?? fallbackFp;
     }
 
-    private static string? BuildThresholdFromPattern(string pattern, string digitRange)
+    /// <summary>Largest catalog roll for a pattern in the selected scope.</summary>
+    private double MaxPatternValue(string pattern, string? itemClass)
     {
-        var idx = pattern.IndexOf(SuffixIndex.DigitPlaceholder);
-        if (idx < 0) return null;
-        var sb = new System.Text.StringBuilder();
-        for (var i = 0; i < pattern.Length; i++)
-        {
-            if (i == idx)
-            {
-                sb.Append("(").Append(digitRange).Append(')');
-            }
-            else if (pattern[i] == SuffixIndex.DigitPlaceholder)
-            {
-                // Other rolls and tier-span endpoints can be multi-digit.
-                sb.Append(@"\d+");
-            }
-            else
-            {
-                var c = pattern[i];
-                if (System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
-                    sb.Append('\\');
-                sb.Append(c);
-            }
-        }
-        return sb.ToString();
+        var values = _corpus.ModsWithPattern(pattern)
+            .Where(mod => itemClass is null ||
+                          mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+            .SelectMany(mod => mod.StatLines)
+            .Where(stat => string.Equals(stat.Pattern, pattern, StringComparison.Ordinal))
+            .Select(stat => stat.MaxValue)
+            .Where(value => value > 0)
+            .ToList();
+        return values.Count == 0 ? 0 : values.Max();
     }
 
     /// <summary>

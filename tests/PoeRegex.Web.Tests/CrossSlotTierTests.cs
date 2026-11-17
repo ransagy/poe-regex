@@ -59,6 +59,36 @@ public class CrossSlotTierTests
     }
 
     [Fact]
+    public void ExactAndUpAthletes_AcrossClasses_UnionToOneGroup()
+    {
+        var paste = Engine.Combine(
+        [
+            ("helmet (Helmet)", "Helmet",
+                new[] { RangePick("Helmet", "Athlete's", up: true) }),
+            ("body (Body Armour)", "Body Armour",
+                new[] { RangePick("Body Armour", "Athlete's", up: true) }),
+            ("gloves (Gloves)", "Gloves",
+                new[] { RangePick("Gloves", "Athlete's", up: false) }),
+        ], []);
+
+        paste.Diagnostics.Should().BeEmpty();
+        paste.Groups.Should().ContainSingle(
+            "Gloves exact Athlete's is inside the Body/Helmet union and has no Fecund tier");
+        paste.Groups[0].TargetClasses.Should().Equal(["Body Armour", "Gloves", "Helmet"]);
+        paste.Query.Should().NotContain("Athlete's");
+
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife9")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Helmets", Line("IncreasedLife10")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Body Armours", Line("IncreasedLife13")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife8")]).Match.Should().BeFalse(
+            "the union starts at Athlete's 120");
+    }
+
+    [Fact]
     public void SameExactTierRange_AcrossClasses_OneSharedGroup()
     {
         var paste = Engine.Combine(

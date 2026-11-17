@@ -694,7 +694,8 @@ public class ModPickerHighlightTests
         exact.Click();
 
         crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count == 1 && pick.Names[0] == tier.Name);
+            pick.ModId == tier.Anchor.Id &&
+            (pick.IsTierRange || (pick.IsNamePick && pick.Names!.Count == 1)));
         crit.Excluded.Should().BeEmpty();
         exact.GetAttribute("aria-pressed").Should().Be("true");
         exact.TextContent.Should().Be("✓");
