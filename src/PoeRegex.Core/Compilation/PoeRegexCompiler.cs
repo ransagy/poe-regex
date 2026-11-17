@@ -36,19 +36,8 @@ public sealed class PoeRegexCompiler
         }
 
         // Included modifiers → one quoted block with | alternation.
-        var included = new List<string>();
-        var includedRaw = new List<string>();
-        foreach (var req in spec.IncludedModifiers)
-        {
-            var frag = SelectFragment(req, spec.ItemClass, diagnostics);
-            if (frag is null)
-            {
-                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
-                    $"Modifier '{req.Value}' could not be resolved; skipped."));
-                continue;
-            }
-            (req.IsRegex ? includedRaw : included).Add(frag);
-        }
+        var (included, includedRaw) = PlanRequirements(
+            spec.IncludedModifiers, spec.ItemClass, diagnostics);
         if (included.Count > 0 || includedRaw.Count > 0)
         {
             // Factor/dedupe catalog fragments, but keep imported custom text
@@ -60,19 +49,8 @@ public sealed class PoeRegexCompiler
 
         foreach (var group in spec.RequiredGroups)
         {
-            var fragments = new List<string>();
-            var rawFragments = new List<string>();
-            foreach (var req in group)
-            {
-                var frag = SelectFragment(req, spec.ItemClass, diagnostics);
-                if (frag is null)
-                {
-                    diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
-                        $"Modifier '{req.Value}' could not be resolved; skipped."));
-                    continue;
-                }
-                (req.IsRegex ? rawFragments : fragments).Add(frag);
-            }
+            var (fragments, rawFragments) = PlanRequirements(
+                group, spec.ItemClass, diagnostics);
             if (fragments.Count > 0 || rawFragments.Count > 0)
             {
                 var terms = CompactionEngine.FactorCommonPrefixes(fragments).ToList();
@@ -128,6 +106,53 @@ public sealed class PoeRegexCompiler
             Limit = limit,
             Diagnostics = diagnostics,
         };
+    }
+
+    /// <summary>
+    /// Split catalog requirements from raw/free text, diagnose unresolved
+    /// mods, then plan all catalog requirements as canonical constraints.
+    /// </summary>
+    private (List<string> Fragments, List<string> Raw) PlanRequirements(
+        IReadOnlyList<ModifierRequirement> requirements,
+        string? itemClass,
+        List<CompilerDiagnostic> diagnostics)
+    {
+        var catalog = new List<ModifierRequirement>();
+        var literals = new List<string>();
+        var raw = new List<string>();
+        foreach (var req in requirements)
+        {
+            if (req.IsRegex)
+            {
+                raw.Add(req.Value);
+                continue;
+            }
+            if (_corpus.FindMod(req.Value) is null)
+            {
+                var diag = _corpus.Syntax.ValidateFragment(req.Value);
+                if (diag is not null) diagnostics.Add(diag);
+                // Free-text affix names are literal fragments and may be
+                // factored with other literals; imported regex stays raw.
+                literals.Add(_corpus.Syntax.EscapeLiteral(req.Value));
+                continue;
+            }
+            if (_corpus.FindMod(req.Value) is { StatLines.Count: 0 })
+            {
+                diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                    $"Modifier '{req.Value}' could not be resolved; skipped."));
+                continue;
+            }
+            catalog.Add(req);
+        }
+        var planned = _compaction.PlanMany(catalog, itemClass);
+        if (planned.Count == 0 && catalog.Count > 0)
+        {
+            diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
+                $"Modifier '{catalog[0].Value}' could not be resolved; skipped."));
+        }
+        var fragments = planned.ToList();
+        fragments.AddRange(literals);
+        return (fragments, raw);
     }
 
     private string? SelectFragment(ModifierRequirement req, string? itemClass, List<CompilerDiagnostic> diagnostics)

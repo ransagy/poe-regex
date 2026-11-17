@@ -328,10 +328,13 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   a range endpoint in `roll(low-high)`. Hovering a block, segment, pick, or
   section highlights the matching parts. Tier picks in a multi-value family
   use one combined range fragment for exact and up tiers; a single-value
-  family keeps the shorter affix-name form. The pick row shows the explicit
-  range (for example `20–35% increased Movement Speed`); a legacy name-up
-  row shows the compact equivalent range
-  (`= 20–35% increased Movement Speed`).
+  family keeps the shorter affix-name form. Same-family exact tiers coalesce
+  into one range chip, and a full-family range uses the family label, so
+  four exact tiers, “Stallion’s or better”, and the family pick are the same
+  search. The pick row shows the explicit range (for example
+  `20–35% increased Movement Speed`); a legacy name-up row shows the compact
+  equivalent range (`= 20–35% increased Movement Speed`). Cross-slot ranges
+  union only when the extra span does not exist for the narrower class.
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.
 - `SavedPicksMenu`: `Saved picks` saves the current picks under a name

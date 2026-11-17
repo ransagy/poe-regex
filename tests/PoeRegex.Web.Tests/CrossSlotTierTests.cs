@@ -1,3 +1,4 @@
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 using PoeRegex.Web.Core;
 
@@ -56,6 +57,67 @@ public class CrossSlotTierTests
         paste.Groups.Should().HaveCount(2);
         paste.Query.Split("Athlete's", StringSplitOptions.None).Should().HaveCount(2);
         paste.Query.Split("Fecund", StringSplitOptions.None).Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void GlovesTwoTiersAndOthersExact_StaySeparateButValid()
+    {
+        var gloves = new[]
+        {
+            RangePick("Gloves", "Athlete's"),
+            new WantedMod("IncreasedLife10", MinValue: 150, MaxValue: 174,
+                RangeModIds: ["IncreasedLife10"]),
+        };
+        var paste = Engine.Combine(
+        [
+            ("belt (Belt)", "Belt", new[] { RangePick("Belt", "Athlete's") }),
+            ("body (Body Armour)", "Body Armour", new[] { RangePick("Body Armour", "Athlete's") }),
+            ("gloves (Gloves)", "Gloves", gloves),
+            ("helmet (Helmet)", "Helmet", new[] { RangePick("Helmet", "Athlete's") }),
+        ], []);
+
+        paste.Diagnostics.Should().BeEmpty();
+        QueryShape.Validate(paste.Query).Should().BeEmpty(
+            "no malformed class split or line break");
+        paste.Groups.Should().HaveCount(2,
+            "Belt/Body/Helmet exact Athlete's cannot union with Gloves 120–174 without over-matching Fecund");
+
+        // Gloves has no Fecund tier, so its wider range is safe there.
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeTrue();
+        // Belt/Body/Helmet asked for exact Athlete's; Fecund must not match.
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Body Armours", Line("IncreasedLife10")]).Match.Should().BeFalse();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Body Armours", Line("IncreasedLife9")]).Match.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MultipleExactTiersInOneSlot_CoalesceToValidRange()
+    {
+        var gloves = new[]
+        {
+            RangePick("Gloves", "Athlete's"),
+            new WantedMod("IncreasedLife10", MinValue: 150, MaxValue: 174,
+                RangeModIds: ["IncreasedLife10"]),
+        };
+        var paste = Engine.Combine(
+        [
+            ("gloves (Gloves)", "Gloves", gloves),
+            ("helmet (Helmet)", "Helmet", new[] { RangePick("Helmet", "Athlete's") }),
+        ], []);
+
+        paste.Diagnostics.Should().BeEmpty();
+        QueryShape.Validate(paste.Query).Should().BeEmpty(
+            "coalesced range fragments must never produce a malformed class split");
+        paste.Query.Should().NotContain("Athlete's");
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife9")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife8")]).Match.Should().BeFalse(
+            "the Gloves group is 120–174, not the whole life family");
     }
 
     [Fact]

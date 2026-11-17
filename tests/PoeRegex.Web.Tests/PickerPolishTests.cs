@@ -179,6 +179,35 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_FirstTierOrBetter_UsesTheFamilyLabel()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var boots = ModFamilies.Group(engine.ModsForClass("Boots"))
+            .First(f => f.Key == "MovementVelocity");
+        var first = boots.Tiers.OrderBy(t => t.RequiredLevel).First();
+        var pick = engine.BestTierPick(boots, first, up: true, "Boots")!;
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("boots");
+        state.AddInclude("boots", pick);
+        var paste = engine.Combine(
+            [("boots (Boots)", "Boots",
+                (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],
+            [], allowOverflow: true);
+        var model = new SearchModel(engine, state);
+        model.Update(null, paste);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var label = cut.Find(".bd-row.inc .bd-text").TextContent;
+        label.Should().NotContain("10–35");
+        label.Should().Contain("Movement Speed");
+    }
+
+    [Fact]
     public async Task PickBreakdown_MovementSpeedFamily_MinFiltersFixedTiers()
     {
         using var ctx = Context();
@@ -440,8 +469,6 @@ public class PickerPolishTests
         state.SetMode("advanced");
         state.SelectSlot("ring1");
         state.AddInclude("ring1", new WantedMod("IncreasedLife6"));
-        state.AddInclude("ring1",
-            new WantedMod("LightRadiusAndManaRegeneration1", ["of Warmth"]));
         var paste = engine.Combine(
             [("ring1 (Ring)", "Ring", (IEnumerable<WantedMod>)state.CriteriaFor("ring1").Included, false)],
             [], allowOverflow: true);

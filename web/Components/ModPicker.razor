@@ -324,6 +324,7 @@
     private int _unionWarmVersion;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private readonly Dictionary<string, string?> _familyClaimKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _tierClaimKeys = new(StringComparer.Ordinal);
     private string? _claimScope;
     private string? _claimClass;
     private IReadOnlyList<ModFamily> _families = [];
@@ -418,6 +419,7 @@
             _unionActive = false;
             _allFamilies = ModFamilies.CachedGroup(Mods);
             _familyClaimKeys.Clear();
+            _tierClaimKeys.Clear();
         }
         State.WithSuppressedNotifications(() =>
             PickClaims.Normalize(ScopeCriteria(), Engine, ScopeClassId));
@@ -428,6 +430,9 @@
 
     private void Refresh()
     {
+        // The slot's picks may have changed; tier claim keys are cheap to
+        // recompute and stale keys would leave covered rows wrong.
+        _tierClaimKeys.Clear();
         var filter = _search.Trim();
         // The common shortlist is identical raw and unionized; defer the
         // All-gear union until the user searches or shows all mods.
@@ -945,6 +950,8 @@
 
     private string? TierClaimKey(ModFamily fam, ModTier tier)
     {
+        var id = fam.Key + "\u0001" + tier.Anchor.Id + "\u0001" + tier.Name;
+        if (_tierClaimKeys.TryGetValue(id, out var cached)) return cached;
         // Render-time claim checks use the cheap name form unless the slot
         // already holds an exact range pick for this tier. Computing the auto
         // range for every tier made expanding a family take seconds.
@@ -952,8 +959,10 @@
             pick.IsTierRange &&
             pick.RangeModIds!.Count == tier.MemberIds.Count &&
             pick.RangeModIds.All(tier.MemberIds.Contains));
-        return Engine.PickClaimKey(
+        var key = Engine.PickClaimKey(
             exactRange ?? FallbackTierPick(fam, tier), ScopeClassId);
+        _tierClaimKeys[id] = key;
+        return key;
     }
 
     private string ClaimLabel(WantedMod pick, ModTier? tier = null)
@@ -1112,7 +1121,7 @@
             {
                 RemoveClaimIncludes(Engine, crit, key);
                 RemoveClaimExcludes(Engine, crit, Engine.ExcludeClaimKey(TierExclusionTerm(fam, tier), ScopeClassId));
-                if (!claimedHere) State.AddInclude(Scope, pick);
+                if (!claimedHere) AddExactTierPick(fam, pick);
                 Refresh();
                 return;
             }
@@ -1130,9 +1139,82 @@
                 State.RemoveInclude(Scope, p);
             foreach (var e in TierExclusionTerms(fam, tier, crit.Excluded))
                 State.RemoveExclude(Scope, e);
-            State.AddInclude(Scope, pick);
+            AddExactTierPick(fam, pick);
         }
         Refresh();
+    }
+
+    /// <summary>
+    /// Add an exact tier, then coalesce same-family range picks into one
+    /// canonical range (or the family pick when every tier is covered).
+    /// </summary>
+    private void AddExactTierPick(ModFamily fam, WantedMod pick)
+    {
+        State.AddInclude(Scope, pick);
+        MergeExactTierRanges(fam);
+    }
+
+    private void MergeExactTierRanges(ModFamily fam)
+    {
+        var crit = ScopeCriteria();
+        var rangePicks = crit.Included
+            .Where(p => p.IsTierRange && !p.IsNamePick &&
+                        PickTouchesFamily(fam, p, fam.MemberIds))
+            .ToList();
+        if (rangePicks.Count < 2) return;
+        if (crit.Included.Any(p => p.VariantModIds is { Count: > 0 } &&
+                                   PickTouchesFamily(fam, p, fam.MemberIds)))
+            return;
+
+        var coveredTiers = fam.Tiers
+            .Where(t => rangePicks.Any(p => p.RangeModIds!.Any(t.MemberIds.Contains)))
+            .ToList();
+        if (coveredTiers.Count == 0) return;
+
+        // A user-narrowed range keeps its own filter; only natural tier
+        // ranges are safe to coalesce.
+        foreach (var rangePick in rangePicks)
+        {
+            var covered = fam.Tiers
+                .Where(t => rangePick.RangeModIds!.Any(t.MemberIds.Contains))
+                .ToList();
+            if (covered.Count == 0) return;
+            var lines = covered.SelectMany(t => t.Members)
+                .SelectMany(m => m.StatLines).ToList();
+            if (lines.Count == 0) return;
+            var naturalMin = lines.Min(line => line.MinValue);
+            var naturalMax = lines.Max(line => line.MaxValue);
+            if (rangePick.MinValue is { } min && Math.Abs(min - naturalMin) > 1e-9) return;
+            if (rangePick.MaxValue is { } max && Math.Abs(max - naturalMax) > 1e-9) return;
+        }
+
+        State.WithSuppressedNotifications(() =>
+        {
+            foreach (var rangePick in rangePicks)
+                State.RemoveInclude(Scope, rangePick);
+            if (coveredTiers.Count == fam.Tiers.Count)
+            {
+                State.AddInclude(Scope, fam.Pick());
+                return;
+            }
+            var anchor = coveredTiers
+                .OrderBy(t => t.RequiredLevel)
+                .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
+                .First();
+            var ids = coveredTiers
+                .SelectMany(t => t.Members)
+                .Select(m => m.Id)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+            var lines = coveredTiers.SelectMany(t => t.Members)
+                .SelectMany(m => m.StatLines).ToList();
+            State.AddInclude(Scope, new WantedMod(
+                anchor.Anchor.Id,
+                MinValue: lines.Min(line => line.MinValue),
+                MaxValue: lines.Max(line => line.MaxValue),
+                RangeModIds: ids));
+        });
     }
 
     private void ToggleTierUp(ModFamily fam, ModTier tier)

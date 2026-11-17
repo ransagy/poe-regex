@@ -45,6 +45,36 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void BootsMovementSpeed_FourExactTiers_CoalesceToOneRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        foreach (var id in new[]
+                 {
+                     "MovementVelocity3", "MovementVelocity4",
+                     "MovementVelocity5", "MovementVelocity6",
+                 })
+        {
+            cut.Find($"#pick-tier-{id}").Click();
+        }
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+    }
+
+    [Fact]
     public void BootsMovementSpeed_UpButton_AddsOneCombinedRangePick()
     {
         using var ctx = Context();

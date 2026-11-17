@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Web.Core;
 using web.Components;
 using web.Layout;
@@ -278,8 +279,10 @@ public class WebComponentTests
         await cut.Find("#query-import-apply").ClickAsync(new MouseEventArgs());
 
         state.Global.Included.Should().HaveCount(5);
-        engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
-            .Query.Should().Be(query);
+        var applied = engine.CompilePicks(
+            state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null).Query;
+        QueryEquivalence.Equivalent(applied, query, engine.Syntax)
+            .Should().BeTrue($"expected '{query}', got '{applied}'");
     }
 
     [Fact]

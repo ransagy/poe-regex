@@ -14,6 +14,10 @@ public sealed class CompactionEngine
 {
     private readonly EngineCorpus _corpus;
     private readonly ConcurrentDictionary<string, Lazy<string?>> _rangeCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<string>>> _planCache =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<StatConstraint>>> _constraintCache =
+        new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _catalogLines =
         new(StringComparer.Ordinal);
 
@@ -335,7 +339,8 @@ public sealed class CompactionEngine
 
     private IReadOnlyList<(string Pattern, string Real)> CatalogLines(string? itemClass) =>
         _catalogLines.GetOrAdd(
-            itemClass ?? "\0", _ => _corpus.ExplainLines(itemClass));
+            itemClass is null ? "\0" : "\u0001" + itemClass,
+            _ => _corpus.ProofLines(itemClass));
 
     private static bool TryFirstNumber(string text, out double value)
     {
@@ -369,6 +374,180 @@ public sealed class CompactionEngine
         _corpus.TryPrecomputedFragment(pattern, itemClass, out var fragment)
             ? fragment
             : null;
+
+    /// <summary>One chosen representation and the capability that produced it.</summary>
+    public sealed record PlannedFragment(string Text, string Kind);
+
+    /// <summary>
+    /// Canonicalize a pick list and plan each stat family once. This is the
+    /// single entry point for the compiler: four exact tiers, an “or better”
+    /// pick, and the family pick become the same canonical constraint.
+    /// </summary>
+    public IReadOnlyList<string> PlanMany(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = PlanKey(requirements, itemClass);
+        return _planCache.GetOrAdd(
+            key,
+            _ => new Lazy<IReadOnlyList<string>>(
+                () => ComputePlanMany(requirements, itemClass))).Value;
+    }
+
+    /// <summary>Canonicalize with a cache; the paste composer calls this per slot.</summary>
+    public IReadOnlyList<StatConstraint> Canonicalize(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = PlanKey(requirements, itemClass);
+        return _constraintCache.GetOrAdd(
+            key,
+            _ => new Lazy<IReadOnlyList<StatConstraint>>(
+                () => ConstraintCanonicalizer.Canonicalize(
+                    requirements, itemClass, _corpus))).Value;
+    }
+
+    private (IReadOnlyList<StatConstraint> Constraints, IReadOnlyList<ModifierRequirement> Raw)
+        SplitCached(IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var raw = requirements
+            .Where(requirement => requirement.IsRegex ||
+                                  _corpus.FindMod(requirement.Value) is null)
+            .ToList();
+        return (Canonicalize(requirements, itemClass), raw);
+    }
+
+    private IReadOnlyList<string> ComputePlanMany(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var (constraints, raw) = SplitCached(requirements, itemClass);
+        var result = new List<string>();
+        foreach (var constraint in constraints)
+        {
+            var planned = PlanConstraint(constraint, itemClass);
+            if (planned is not null)
+            {
+                result.Add(planned.Text);
+                continue;
+            }
+            // Hybrid/multi-pattern constraints keep the old per-member
+            // fallback so a family pick still ORs every variant's proven
+            // table fragment, not just the anchor's line.
+            var fallbackFragments = constraint.MemberIds
+                .Select(id => SelectFragment(new ModifierRequirement(id), itemClass))
+                .Where(IsCleanFragment)
+                .Select(fragment => fragment!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            result.AddRange(fallbackFragments);
+        }
+        foreach (var requirement in raw)
+            result.Add(requirement.IsRegex
+                ? requirement.Value
+                : _corpus.Syntax.EscapeLiteral(requirement.Value));
+        return result;
+    }
+
+    private static string PlanKey(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var parts = requirements.Select(requirement =>
+        {
+            var min = requirement.MinValue?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+            var max = requirement.MaxValue?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+            var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
+                ? string.Join(",", rangeIds.OrderBy(id => id, StringComparer.Ordinal))
+                : "";
+            return (requirement.IsRegex ? "r" : "m") + "\u0002" +
+                   requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+        });
+        // Keep input order in the key: the canonicalizer already sorts the
+        // planned constraints, but raw regex terms keep their order in the
+        // emitted block. Sorting here would let reversed raw inputs share a
+        // cached result.
+        return (itemClass is null ? "\0" : "\u0001" + itemClass) + "\u0001" +
+               string.Join("\u0001", parts);
+    }
+
+    /// <summary>
+    /// Plan one canonical constraint. Full-family coverage uses the exact
+    /// table fragment; a multi-value tier/filter prefers the range form; a
+    /// single-value family uses the shortest proven form.
+    /// </summary>
+    public PlannedFragment? PlanConstraint(StatConstraint constraint, string? itemClass)
+    {
+        if (constraint.Patterns.Count != 1) return null;
+        var pattern = constraint.Patterns[0];
+
+        var familyFragment = Lookup(pattern, itemClass);
+        if (itemClass is not null)
+        {
+            var global = Lookup(pattern, null);
+            if (global is not null &&
+                (familyFragment is null || global.Length < familyFragment.Length))
+                familyFragment = global;
+        }
+        if (!IsCleanFragment(familyFragment)) familyFragment = null;
+        if (constraint.Intervals.Count == 0)
+            return familyFragment is null
+                ? null
+                : new PlannedFragment(familyFragment, "family");
+
+        // A full-family multi-tier pick uses the table fragment without
+        // building a range. A single-tier family range still needs the
+        // precise range form.
+        var needsRangeForFullFamily = constraint.IsFullFamily &&
+            constraint.PreferRange &&
+            constraint.FamilyHasMultipleValues &&
+            constraint.MemberIds.Count == 1;
+        if (constraint.IsFullFamily && familyFragment is not null &&
+            !needsRangeForFullFamily)
+            return new PlannedFragment(familyFragment, "family");
+        // A plain pick with a table fragment keeps the exact-table baseline;
+        // only filters and tier selections pay for range generation. A plain
+        // pick with no table entry fails closed instead of silently inventing
+        // a live range.
+        if (!constraint.PreferRange)
+            return familyFragment is null
+                ? null
+                : new PlannedFragment(familyFragment, "family");
+
+        var precision = constraint.Intervals
+            .SelectMany(interval => new[]
+            {
+                RangeRegex.PrecisionOf(interval.Lo),
+                RangeRegex.PrecisionOf(interval.Hi)
+            })
+            .DefaultIfEmpty(0)
+            .Max();
+        var intervals = constraint.Intervals.Select(i => (i.Lo, i.Hi)).ToList();
+        var range = BuildRangeFragment(
+            pattern, intervals, precision, itemClass, [pattern]);
+        if (!IsCleanFragment(range)) range = null;
+
+        if (constraint.IsFullFamily)
+        {
+            if (needsRangeForFullFamily && range is not null)
+                return new PlannedFragment(range, "range");
+            if (familyFragment is not null)
+                return new PlannedFragment(familyFragment, "family");
+            if (range is not null)
+                return new PlannedFragment(range, "range");
+        }
+
+        if (constraint.PreferRange && constraint.FamilyHasMultipleValues && range is not null)
+            return new PlannedFragment(range, "range");
+
+        var candidates = new List<PlannedFragment>();
+        if (range is not null) candidates.Add(new PlannedFragment(range, "range"));
+        if (familyFragment is not null) candidates.Add(new PlannedFragment(familyFragment, "family"));
+        return candidates
+            .Where(candidate => IsCleanFragment(candidate.Text))
+            .OrderBy(candidate => candidate.Text.Length)
+            .ThenBy(candidate => candidate.Text, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    private static bool IsCleanFragment(string? text) =>
+        text is not null && text.IndexOf('\n') < 0 && text.IndexOf('\r') < 0;
 
     private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
     {
@@ -463,6 +642,15 @@ public sealed class CompactionEngine
                 result.Add(new FactoredAlternative(items[0], sources[items[0]]));
                 continue;
             }
+            // Character classes and groups are multi-character tokens. A
+            // character-based prefix split can cut inside them and produce
+            // invalid regex such as `1[(234]\d...`. Leave those alternatives
+            // unfactored rather than risk a malformed query.
+            if (items.Any(ContainsStructuredRegex))
+            {
+                result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
+                continue;
+            }
             var prefix = LongestCommonPrefix(items);
             var suffixes = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
                 ? items.Select(s => s.Substring(prefix.Length)).ToList()
@@ -496,6 +684,9 @@ public sealed class CompactionEngine
         }
         return result;
     }
+
+    private static bool ContainsStructuredRegex(string fragment) =>
+        fragment.IndexOfAny(['[', ']', '(', ')', '{', '}', '|']) >= 0;
 
     private static bool EndsWithOddBackslash(string s)
     {

@@ -192,15 +192,16 @@ corpus.PrecomputedFragments()
 
 ## 7. Threshold and range patterns
 
-A `MinValue` produces a digit-range fragment from the catalog value span and
-validates it against the real display shapes in the scope:
+A `MinValue` expands to every family member whose span intersects the filter,
+then builds a proven range from the floor to the pattern’s catalog maximum:
 
 ```csharp
 new ModifierRequirement("IncreasedLife6", 80)
 ```
 
-The resulting term matches every roll at or above 80, including the advanced
-`roll(min-max)` display shape.
+The resulting term matches every roll at or above 80, including better tiers
+and the advanced `roll(min-max)` display shape, without matching a longer
+line such as “25% increased Movement Speed while Sprinting”.
 
 A `MaxValue` (with or without a floor) produces a bounded range:
 
@@ -222,6 +223,13 @@ must sit inside the requested intervals; a range endpoint in
 `roll(low-high)` cannot satisfy the roll. Integer stats use whole numbers;
 decimal stats keep the displayed precision and accept extra fractional digits
 (such as `2.03` in a `1.5–2.5` stat).
+
+`CompactionEngine.PlanMany` is the single entry point: it canonicalizes the
+requirements into `StatConstraint`s, merges exact tiers/“or better”/family
+picks into one interval set, and plans each family once. Full-family coverage
+uses the exact table fragment; a multi-value subset prefers the proven range;
+a single-value family keeps the shortest form. The result is independent of
+requirement order.
 
 ## 8. Paste composition
 

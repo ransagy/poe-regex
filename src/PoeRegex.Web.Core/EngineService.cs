@@ -28,6 +28,9 @@ public sealed class EngineService
     private readonly ConcurrentDictionary<(string Exclusion, string? Class), Lazy<string?>> _excludeClaims = new();
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<string, Lazy<CompileResult>> _compileCache = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<string, Lazy<MultiPasteResult>> _combineCache = new(StringComparer.Ordinal);
+    private PasteComposer _pasteComposer = null!;
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
     private volatile IReadOnlyList<ItemClassEntry>? _inGameClasses;
     private volatile IReadOnlyList<ModEntry>? _playableMods;
@@ -53,6 +56,9 @@ public sealed class EngineService
         _compiler = new PoeRegexCompiler(_corpus);
         _compaction = new CompactionEngine(_corpus);
         _explainer = new Explainer(_corpus);
+        _pasteComposer = new PasteComposer(_corpus, validateRecall: false);
+        _compileCache = new(StringComparer.Ordinal);
+        _combineCache = new(StringComparer.Ordinal);
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -336,16 +342,63 @@ public sealed class EngineService
         string? itemClass = null,
         IEnumerable<string>? keywords = null,
         bool allowOverflow = false,
-        IEnumerable<IEnumerable<ModifierRequirement>>? requiredGroups = null) =>
-        _compiler.Compile(new QuerySpecification
-        {
-            ItemClass = itemClass,
-            IncludedModifiers = includes.ToList(),
-            RequiredGroups = requiredGroups?.Select(g => (IReadOnlyList<ModifierRequirement>)g.ToList()).ToList() ?? [],
-            ExcludedModifiers = excludes.ToList(),
-            Keywords = keywords?.ToList() ?? [],
-            AllowOverflow = allowOverflow,
-        });
+        IEnumerable<IEnumerable<ModifierRequirement>>? requiredGroups = null)
+    {
+        var included = includes.ToList();
+        var excluded = excludes.ToList();
+        var keywordList = keywords?.ToList() ?? [];
+        var groups = requiredGroups?
+            .Select(g => (IReadOnlyList<ModifierRequirement>)g.ToList()).ToList() ?? [];
+        var key = CompileKey(included, excluded, keywordList, groups, itemClass, allowOverflow);
+        return _compileCache.GetOrAdd(
+            key,
+            _ => new Lazy<CompileResult>(() => _compiler.Compile(new QuerySpecification
+            {
+                ItemClass = itemClass,
+                IncludedModifiers = included,
+                RequiredGroups = groups,
+                ExcludedModifiers = excluded,
+                Keywords = keywordList,
+                AllowOverflow = allowOverflow,
+            }))).Value;
+    }
+
+    private static string CompileKey(
+        IReadOnlyList<ModifierRequirement> includes,
+        IReadOnlyList<ModifierRequirement> excludes,
+        IReadOnlyList<string> keywords,
+        IReadOnlyList<IReadOnlyList<ModifierRequirement>> requiredGroups,
+        string? itemClass,
+        bool allowOverflow) =>
+        (itemClass is null ? "\0" : "\u0001" + itemClass) + "\u0001" +
+        (allowOverflow ? "1" : "0") + "\u0001" +
+        string.Join("\u0003", includes.Select(RequirementKey)) + "\u0004" +
+        string.Join("\u0003", excludes.Select(RequirementKey)) + "\u0004" +
+        string.Join("\u0003", keywords) + "\u0004" +
+        string.Join("\u0005", requiredGroups.Select(
+            group => string.Join("\u0003", group.Select(RequirementKey))));
+
+    private static string RequirementKey(ModifierRequirement requirement)
+    {
+        var min = requirement.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var max = requirement.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
+            ? string.Join(",", rangeIds)
+            : "";
+        return (requirement.IsRegex ? "r" : "m") + "\u0002" +
+               requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+    }
+
+    private static string PickKey(WantedMod pick)
+    {
+        var min = pick.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var max = pick.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        return pick.ModId + "\u0002" +
+               string.Join(",", pick.Names ?? []) + "\u0002" +
+               string.Join(",", pick.VariantModIds ?? []) + "\u0002" +
+               min + "\u0002" + max + "\u0002" +
+               string.Join(",", pick.RangeModIds ?? []);
+    }
 
     /// <summary>Compiles picks the way a slot asks for them: one any-of block, or one block per pick when every pick is required.</summary>
     public CompileResult CompilePicks(
@@ -633,6 +686,11 @@ public sealed class EngineService
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
         if (ids.Count == 0) return null;
+        // A hybrid tier has more than one stat line; a single combined
+        // family+range fragment cannot represent it, so keep the affix-name
+        // form instead of claiming the whole family's search.
+        if (covered.Any(t => t.Members.Any(m => m.StatLines.Count != 1)))
+            return null;
         var lines = covered
             .SelectMany(t => t.Members)
             .SelectMany(m => m.StatLines)
@@ -744,19 +802,40 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes, bool MatchAll)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false,
-        IEnumerable<string>? externalIncludes = null) =>
-        new PasteComposer(_corpus, validateRecall: false).Compose(
-            slots.Select(s => s.MatchAll && s.Includes.Any()
-                ? new PasteSlotCriterion(
-                    s.ClassId, [], s.Label,
-                    s.Includes.Select(m => (IReadOnlyList<ModifierRequirement>)m.Requirements().ToList()).ToList())
-                : new PasteSlotCriterion(
-                    s.ClassId,
-                    s.Includes.SelectMany(m => m.Requirements()).ToList(),
-                    s.Label)).ToList(),
-            excludes.Select(ExclusionRequirement),
-            allowOverflow,
-            externalIncludes);
+        IEnumerable<string>? externalIncludes = null)
+    {
+        var slotList = slots.Select(s => (
+            s.Label, s.ClassId, Includes: s.Includes.ToList(), s.MatchAll)).ToList();
+        var excluded = excludes.ToList();
+        var keywords = externalIncludes?.ToList() ?? [];
+        var key = CombineKey(slotList, excluded, keywords, allowOverflow);
+        return _combineCache.GetOrAdd(
+            key,
+            _ => new Lazy<MultiPasteResult>(() => _pasteComposer.Compose(
+                slotList.Select(s => s.MatchAll && s.Includes.Count > 0
+                    ? new PasteSlotCriterion(
+                        s.ClassId, [], s.Label,
+                        s.Includes.Select(m => (IReadOnlyList<ModifierRequirement>)m.Requirements().ToList()).ToList())
+                    : new PasteSlotCriterion(
+                        s.ClassId,
+                        s.Includes.SelectMany(m => m.Requirements()).ToList(),
+                        s.Label)).ToList(),
+                excluded.Select(ExclusionRequirement),
+                allowOverflow,
+                keywords))).Value;
+    }
+
+    private static string CombineKey(
+        IReadOnlyList<(string Label, string ClassId, List<WantedMod> Includes, bool MatchAll)> slots,
+        IReadOnlyList<string> excludes,
+        IReadOnlyList<string> keywords,
+        bool allowOverflow) =>
+        (allowOverflow ? "1" : "0") + "\u0001" +
+        string.Join("\u0004", slots.Select(slot =>
+            slot.Label + "\u0002" + slot.ClassId + "\u0002" + (slot.MatchAll ? "1" : "0") +
+            "\u0002" + string.Join("\u0003", slot.Includes.Select(PickKey)))) +
+        "\u0005" + string.Join("\u0003", excludes) +
+        "\u0005" + string.Join("\u0003", keywords);
 
     /// <summary>
     /// Explain is the one intentionally expensive action. Results are cached

@@ -387,7 +387,7 @@ public sealed class QueryReconstructionService
 
         var recompiled = new ReconstructedWorkbench(
             true, "advanced", slots, excludes, externalIncludes, [], warnings).Recompile(_engine);
-        if (recompiled == query)
+        if (recompiled == query || SameMods(recompiled, query))
             return new ReconstructedWorkbench(
                 true, "advanced", slots, excludes, externalIncludes, [], warnings);
 
@@ -396,7 +396,7 @@ public sealed class QueryReconstructionService
         var anyOf = slots.Select(s => s with { MatchAll = false }).ToList();
         var fallback = new ReconstructedWorkbench(
             true, "advanced", anyOf, excludes, externalIncludes, [], warnings).Recompile(_engine);
-        if (fallback == query)
+        if (fallback == query || SameMods(fallback, query))
         {
             warnings.Add("same-class all-of falls back to any-of (accepted)");
             return new ReconstructedWorkbench(
@@ -405,6 +405,21 @@ public sealed class QueryReconstructionService
 
         return ReconstructedWorkbench.Failed(
             $"recompiled paste differs (got '{recompiled}'; any-of '{fallback}')");
+    }
+
+    /// <summary>
+    /// A canonical planner may choose a different but equivalent fragment
+    /// shape (family text vs a proven range). Compare the catalog mods the
+    /// queries recall, not only the bytes.
+    /// </summary>
+    private bool SameMods(string? left, string? right)
+    {
+        if (left is null || right is null) return false;
+        var a = _engine.Explain(left).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var b = _engine.Explain(right).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return a.Count > 0 && a.SequenceEqual(b);
     }
 
     private bool TryResolveGroup(
@@ -633,8 +648,9 @@ public sealed class QueryReconstructionService
 
         var any = _engine.CompilePicks(includes, excludes, false, itemClass, externalIncludes);
         var all = _engine.CompilePicks(includes, excludes, true, itemClass, externalIncludes);
-        var anyMatch = any.Query == query;
-        var allMatch = includes.Count > 1 && all.Query == query;
+        var anyMatch = QueryEquivalence.Equivalent(any.Query, query, _engine.Syntax);
+        var allMatch = includes.Count > 1 &&
+                       QueryEquivalence.Equivalent(all.Query, query, _engine.Syntax);
         if (!anyMatch && !allMatch)
             return ReconstructedQuery.Failed(query,
                 $"recompiled query differs (any: '{any.Query}'; all: '{all.Query}')");
@@ -1112,12 +1128,14 @@ public sealed class QueryReconstructionService
     {
         pick = null;
         var matches = _anchors.FragmentsFor(branch);
-        if (matches.Count == 0) return false;
+        if (matches.Count == 0)
+            return TryRawFragmentPick(branch, itemClass, used, out pick);
 
         var scoped = itemClass is null
             ? matches
             : matches.Where(m => m.Class is null || string.Equals(m.Class, itemClass, StringComparison.Ordinal)).ToList();
-        if (scoped.Count == 0) return false;
+        if (scoped.Count == 0)
+            return TryRawFragmentPick(branch, itemClass, used, out pick);
 
         // A fragment is class-specific in the table (`o Ev` vs `^\+.*on` for
         // the same line), so try the class-scoped pattern(s) before global.
@@ -1128,7 +1146,8 @@ public sealed class QueryReconstructionService
             .DistinctBy(m => m.Id, StringComparer.Ordinal)
             .OrderBy(m => m.Id, StringComparer.Ordinal)
             .ToList();
-        if (mods.Count == 0) return false;
+        if (mods.Count == 0)
+            return TryRawFragmentPick(branch, itemClass, used, out pick);
 
         // Prefer the tierless family form: the query has no tier information.
         var familyKeys = mods
@@ -1174,7 +1193,28 @@ public sealed class QueryReconstructionService
             pick = candidate;
             return true;
         }
-        return false;
+
+        return TryRawFragmentPick(branch, itemClass, used, out pick);
+    }
+
+    /// <summary>
+    /// Runtime range/threshold fragments are not in the table reverse index.
+    /// Preserve them as imported regex text so the query round-trips; the
+    /// planner emits the same term.
+    /// </summary>
+    private bool TryRawFragmentPick(
+        string branch, string? itemClass, IReadOnlyList<WantedMod> used, out WantedMod? pick)
+    {
+        pick = null;
+        if (!IsRegexLike(branch) || _engine.Syntax.ValidateFragment(branch) is not null)
+            return false;
+        if (_engine.Explain(_engine.Syntax.Quote(branch), itemClass).Mods.Count == 0)
+            return false;
+        var raw = new WantedMod(RawText.Encode(branch));
+        if (Conflicts(raw, used) || !CompilesToTerm(raw, branch, itemClass))
+            return false;
+        pick = raw;
+        return true;
     }
 
     private bool CompilesToTerm(WantedMod pick, string term, string? itemClass)

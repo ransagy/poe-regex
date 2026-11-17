@@ -108,6 +108,7 @@ public sealed class PasteComposer
             merged.Add(new PasteSlotCriterion(group.Key, includes, label));
         }
         merged.Sort((a, b) => string.CompareOrdinal(a.ItemClass, b.ItemClass));
+        merged = merged.Select(NormalizeSlotRanges).ToList();
         merged = NormalizeRangeSlots(merged);
 
         var scope = merged.Select(s => s.ItemClass).Distinct(StringComparer.Ordinal).ToList();
@@ -127,6 +128,7 @@ public sealed class PasteComposer
         foreach (var bucket in merged.Where(s => s.Includes.Count > 0 || s.MatchAll)
                      .GroupBy(CriterionKey, StringComparer.Ordinal))
         {
+
             var targets = bucket.Select(s => s.ItemClass).OrderBy(x => x, StringComparer.Ordinal).ToList();
             var label = string.Join(", ", bucket.Select(s => s.Label).OrderBy(x => x, StringComparer.Ordinal));
             var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal)).ToList();
@@ -153,7 +155,12 @@ public sealed class PasteComposer
                         continue;
                     }
                     (req.IsRegex ? rawFrags : frags).Add(frag);
-                    if (_corpus.FindMod(req.Value) is not null) sources.Add(req.Value);
+                    if (_corpus.FindMod(req.Value) is not null)
+                    {
+                        sources.Add(req.Value);
+                        if (req.RangeModIds is { Count: > 0 } ids)
+                            sources.AddRange(ids);
+                    }
                 }
                 if (frags.Count == 0 && rawFrags.Count == 0) continue;
                 var terms = CompactionEngine.FactorCommonPrefixes(frags).ToList();
@@ -219,8 +226,30 @@ public sealed class PasteComposer
         PasteSlotCriterion Slot,
         ModifierRequirement Requirement,
         string Key,
+        string Family,
         IReadOnlyList<(double Lo, double Hi)> Intervals,
         IReadOnlyList<string> Patterns);
+
+    /// <summary>
+    /// Canonicalize a slot's includes before grouping. Multiple exact tiers of
+    /// the same family become one range requirement, so the composer sees the
+    /// same semantic unit the single-item compiler does.
+    /// </summary>
+    private PasteSlotCriterion NormalizeSlotRanges(PasteSlotCriterion slot)
+    {
+        if (slot.MatchAll || slot.Includes.Count <= 1) return slot;
+        if (slot.Includes.Any(req =>
+                req.IsRegex || _corpus.FindMod(req.Value) is null))
+            return slot;
+        var constraints = _compaction.Canonicalize(slot.Includes, slot.ItemClass);
+        if (constraints.Count == 0) return slot;
+        var requirements = constraints.Select(constraint => new ModifierRequirement(
+            constraint.AnchorModId,
+            MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
+            MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
+            RangeModIds: constraint.MemberIds)).ToList();
+        return new PasteSlotCriterion(slot.ItemClass, requirements, slot.Label);
+    }
 
     /// <summary>
     /// Merge the same anchor tier across slots when the union is safe for
@@ -249,7 +278,7 @@ public sealed class PasteComposer
                 .ToList();
             var key = (mod.Family ?? "") + "\u0001" + (mod.Name ?? "") + "\u0001" +
                       string.Join("\u0001", patterns);
-            candidates.Add(new RangeSlot(i, slot, req, key, intervals, patterns));
+            candidates.Add(new RangeSlot(i, slot, req, key, mod.Family ?? "", intervals, patterns));
         }
         if (candidates.Count < 2) return merged;
 
@@ -343,11 +372,19 @@ public sealed class PasteComposer
     private bool UnionSafeForSlot(
         RangeSlot item, IReadOnlyList<(double Lo, double Hi)> union)
     {
+        // The common case is a full-family pick: the union adds no span the
+        // slot did not already allow, so no corpus scan is needed.
+        if (union.All(span => ContainedIn(item.Intervals, span.Lo, span.Hi)))
+            return true;
+
         foreach (var pattern in item.Patterns)
         {
             foreach (var mod in _corpus.ModsWithPattern(pattern))
             {
                 if (!mod.Classes.Contains(item.Slot.ItemClass, StringComparer.Ordinal))
+                    continue;
+                if (!string.IsNullOrEmpty(item.Family) &&
+                    !string.Equals(mod.Family, item.Family, StringComparison.Ordinal))
                     continue;
                 foreach (var line in mod.StatLines)
                 {
@@ -460,8 +497,9 @@ public sealed class PasteComposer
     private string? FragmentFor(ModifierRequirement req, string? itemClass, List<CompilerDiagnostic> diagnostics)
     {
         if (req.IsRegex) return req.Value;
-        var mod = _corpus.FindMod(req.Value);
-        if (mod is not null) return _compaction.SelectFragment(req, itemClass);
+        var planned = _compaction.PlanMany([req], itemClass).FirstOrDefault();
+        if (planned is not null) return planned;
+        if (_corpus.FindMod(req.Value) is not null) return null;
         var diag = _corpus.Syntax.ValidateFragment(req.Value);
         if (diag is not null) diagnostics.Add(diag);
         return _corpus.Syntax.EscapeLiteral(req.Value);

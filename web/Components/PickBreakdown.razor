@@ -200,8 +200,19 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
-                    if (inc.IsTierRange && tier is not null &&
-                        Engine.TierRangeLabel(inc, tier, cls) is { } rangeLabel)
+                    var familySpan = inc.IsTierRange ? Engine.NumericRange(inc, cls) : null;
+                    var fullFamilyRange = inc.IsTierRange && family is not null &&
+                        inc.RangeModIds!.Count >= family.MemberIds.Count &&
+                        inc.RangeModIds.All(family.MemberIds.Contains) &&
+                        (familySpan is null ||
+                         ((inc.MinValue is null ||
+                           Math.Abs(inc.MinValue.Value - familySpan.Min) < 1e-9) &&
+                          (inc.MaxValue is null ||
+                           Math.Abs(inc.MaxValue.Value - familySpan.Max) < 1e-9)));
+                    if (fullFamilyRange)
+                        label = SearchModel.FamilyText(families, mods, inc.ModId, Engine);
+                    else if (inc.IsTierRange && tier is not null &&
+                             Engine.TierRangeLabel(inc, tier, cls) is { } rangeLabel)
                         label = rangeLabel;
                     var source = SourceFor(inc);
                     var numeric = inc.IsNamePick && inc.Names!.Count == 1 &&
@@ -571,7 +582,6 @@
             {
                 _minBusy = pick;
                 await InvokeAsync(StateHasChanged);
-                await Engine.PrewarmValuePathAsync(cls);
                 State.ReplaceInclude(
                     slot, pick, rangePick with { MinValue = lo, MaxValue = hi });
                 _minBusy = null;
@@ -584,9 +594,6 @@
         // the first range entry never looks like a frozen input.
         _minBusy = pick;
         await InvokeAsync(StateHasChanged);
-        // A value typed before the background warm-up finishes waits for the
-        // chunked corpus load instead of blocking the UI thread.
-        await Engine.PrewarmValuePathAsync(cls);
         State.SetRange(slot, pick, lo, hi);
         _minBusy = null;
         await InvokeAsync(StateHasChanged);

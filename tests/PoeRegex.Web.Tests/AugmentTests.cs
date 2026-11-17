@@ -254,9 +254,12 @@ public class AugmentTests
             else
             {
                 unionAugment.Should().BeNull($"{augment.Key} is redundant in the All-gear union");
-                covering.Select(f => Engine.CompilePicks([f.Pick()], [], false, null).Query)
-                    .Should().Contain(augmentQuery,
-                        $"{augment.Key} is only safe to hide when a visible row compiles the same query");
+                var augmentLine = AdvancedStatLine.For(augment.Anchor.StatLines[0]);
+                covering.Any(f => ItemMatcher.Match(
+                        Engine.CompilePicks([f.Pick()], [], false, null).Query,
+                        [augmentLine]).Match)
+                    .Should().BeTrue(
+                        $"{augment.Key} is only safe to hide when a visible row matches its line");
             }
         }
     }

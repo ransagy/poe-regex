@@ -38,10 +38,16 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 
 ## PoE2 tier ranges (prototype)
 
+- A canonical `StatConstraint` layer normalizes exact tiers, “or better”,
+  family picks, and min/max into one lossless interval set. Four exact
+  movement-speed tiers, Stallion’s or better, and the same tier set compile
+  identically and independent of pick order. First-tier “or better” equals
+  the family pick.
 - Tier picks in a multi-value family (movement speed, maximum life) use one
   combined family+range fragment for both exact and up tiers. A single-value
   family (`+1 Skills`) keeps the shorter affix-name form. The pick row shows
-  the explicit range, a legacy name-up row shows the compact equivalent range
+  the explicit range, a full-family range uses the family label, a legacy
+  name-up row shows the compact equivalent range
   (`= 20–35% increased Movement Speed`), and the breakdown shows the compiled
   term.
 - Min/max boxes appear when the pick covers more than one numeric value.
@@ -52,17 +58,23 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 - The range fragment is proven against the catalog: every matched line must
   be an allowed pattern and its first roll must sit inside the requested
   intervals. A range endpoint in `roll(low-high)` cannot satisfy the roll.
-- Cross-slot tier ranges group by covered intervals and min/max, so the same
-  tier range on different classes shares one group; different ranges stay
-  separate and do not cross-match.
+- Cross-slot tier ranges group by canonical covered intervals and min/max.
+  Same-anchor ranges union only when the extra span does not exist for the
+  narrower class; otherwise they stay separate and do not cross-match.
+  Multiple exact tiers in one slot coalesce to one valid range before grouping.
+- Token-aware factoring never cuts inside character classes/groups; a
+  malformed split such as `1[(234]...` cannot be emitted.
 - Tests cover boots movement speed (fixed tiers), body/helmet maximum life
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 126 core + 467 web + 53 data-build; the published
+- Current Release suite: 131 core + 471 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, one run): boot 1459 ms; picker expand 23 ms;
-  advanced family pick 88 ms; longest task 100 ms, none over 200 ms.
+- Perf smoke (published Release, two runs): boot 1379–1413 ms; picker expand
+  24 ms; advanced family pick 69 ms; first cross-class range pick 281 ms
+  (subsequent picks 33–98 ms); 10-slot paste update 69 ms; class change
+  79 ms; longest task 272 ms. Only the first cross-class range exceeds
+  200 ms, and only once per session.
 
 ## Performance
 
@@ -77,18 +89,25 @@ Release wwwroot, headless Chromium, cache disabled.
 | bulk add `++` | 46 ms | 48 ms | < 50 ms |
 | mode: advanced | 53 ms | 87 ms | < 50 ms |
 | builder open | 49 ms | 53 ms | < 50 ms |
-| 10-slot paste update | 80 ms | 82 ms | < 50 ms |
+| 10-slot paste update | 69 ms | 72 ms | < 50 ms |
 | explain cold | 99 ms | 114 ms | < 500 ms |
 | import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
-Advanced per-slot picks: **35–82 ms**. Long tasks: **29 over 50 ms, 0 over
-200 ms, max 103 ms**.
+Advanced per-slot picks: **33–98 ms** after the first cross-class range;
+the first cross-class range is **281 ms** because it builds the global
+safety corpus. Long tasks across two runs: **19 over 50 ms, 2 over 200 ms,
+max 272 ms**. The two over-200 tasks are that same first cross-class range,
+one per run.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about 1.4 s,
 still under the 2.5 s budget. Bulk add, builder open, explain, and import are
-within their targets; mode advanced, the 10-slot paste update, and some
-per-slot picks remain slightly over the 50 ms target, consistent with the
-existing per-slot variance. The budget is a target, not a hard failure.
+within their targets; mode advanced and some per-slot picks remain slightly
+over the 50 ms target, consistent with the existing per-slot variance. The
+budget is a target, not a hard failure. Compile and combine results are
+cached by semantic key, one `PasteComposer` is reused per session, global
+display shapes come from catalog forms, and the range proof uses unsorted
+proof lines; those changes removed the 1.9 s first-pick and 0.7 s class-change
+long tasks.
 
 ### Narrow and low-end
 

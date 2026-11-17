@@ -90,6 +90,19 @@ outer loop. It runs at data-build time, never in the browser.
   Keywords, AllowOverflow }`; each modifier is a catalog mod id or free text,
   optionally with `MinValue`/`MaxValue`, or `RangeModIds` for one combined
   tier-range fragment.
+- `StatConstraint` + `ConstraintCanonicalizer` normalize exact tiers,
+  “or better”, family picks, and min/max into one lossless interval set.
+  Discrete tiers and gaps stay separate; only overlapping spans merge.
+- `CompactionEngine.PlanMany`/`PlanConstraint` is the single representation
+  planner: full-family table fragment, proven range, or single-value form.
+  Exact/up/family selections of the same tiers produce the same query,
+  independent of selection order.
+- `EngineService` caches whole `Compile` and `Combine` results by semantic
+  key and reuses one `PasteComposer` per game session, so a re-render does
+  not re-plan unchanged slots. Range proofs use unsorted per-scope proof
+  lines, global display shapes come from catalog forms instead of grouping
+  the whole vendor corpus, and the pattern index is hand-built. These are
+  representation-neutral performance changes, not alternate matching paths.
 - `PoeRegexCompiler(corpus)` composes a query from table lookups and
   threshold/range patterns. `PasteComposer(corpus)` composes multi-slot pastes.
 - `CompileResult { Query, Length, Limit, Diagnostics, Exceeded }`.
@@ -138,11 +151,17 @@ outer loop. It runs at data-build time, never in the browser.
   value. The family text tail is anchored so a range endpoint inside
   `roll(low-high)` cannot stand in for the roll. Tier picks in a multi-value
   family are range-first for exact and up tiers; a single-value family keeps
-  the shorter affix-name form.
-- Multi-slot paste criteria group by semantic key. A tier range keys by stat
-  pattern, clamped covered intervals, and min/max, so the same tier range on
-  different classes shares one group while a different or gapped range stays
-  separate.
+  the shorter affix-name form. Full-family coverage uses the table fragment,
+  so the first tier’s “or better” and the family pick are the same query.
+- Factoring is token-aware: fragments containing classes or groups are left
+  unfactored rather than risk a malformed split such as `1[(234]...`; literal
+  prefixes still factor.
+- Multi-slot paste criteria group by semantic key. Each slot is
+  canonicalized first, so multiple exact tiers of one family become one range
+  requirement. A tier range keys by stat pattern, clamped covered intervals,
+  and min/max; cross-slot union merges the same anchor range only when the
+  extra span does not exist for the narrower class. Different or gapped
+  ranges stay separate.
 - Candidate generation tries exact values, digit classes, fixed-width ranges,
   alternations, and decimal forms; the shortest proven candidate wins.
 - Common-prefix factorization via a trie reduces multi-mod alternations.
