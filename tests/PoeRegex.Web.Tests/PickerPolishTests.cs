@@ -102,13 +102,16 @@ public class PickerPolishTests
     }
 
     [Fact]
-    public void PickBreakdown_ShowsMinMaxOnlyForRangedNumericPicks()
+    public void PickBreakdown_ShowsMinMaxForPicksWithMultipleValues()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
+        var boots = ModFamilies.Group(engine.ModsForClass("Boots"))
+            .First(f => f.Key == "MovementVelocity");
         var state = new WorkbenchState();
-        state.AddInclude(null, new WantedMod("IncreasedLife6")); // real range
-        state.AddInclude(null, new WantedMod("MovementVelocity1")); // fixed value
+        state.AddInclude(null, new WantedMod("IncreasedLife6")); // ranged family
+        state.AddInclude(null, boots.Pick()); // fixed-tier family (10–35)
+        state.AddInclude(null, new WantedMod("MovementVelocity1")); // single fixed value
         state.AddInclude(null, new WantedMod("MovementVelocity1", ["Runner's"])); // name pick
         var model = new SearchModel(engine, state);
         model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
@@ -117,10 +120,12 @@ public class PickerPolishTests
             .Add(x => x.Model, model)
             .Add(x => x.State, state));
 
-        cut.FindAll(".bd-row.inc").Should().HaveCount(3);
-        cut.FindAll(".bd-min").Should().HaveCount(2, "one min and one max for the ranged life pick");
+        cut.FindAll(".bd-row.inc").Should().HaveCount(4);
+        cut.FindAll(".bd-min").Should().HaveCount(4, "min+max for the life and movement-speed families");
         cut.Find("#min-global-IncreasedLife6").Should().NotBeNull();
         cut.Find("#max-global-IncreasedLife6").Should().NotBeNull();
+        cut.Find("#min-global-MovementVelocity1-v").Should().NotBeNull();
+        cut.Find("#max-global-MovementVelocity1-v").Should().NotBeNull();
         cut.FindAll(".bd-min.ignored").Should().BeEmpty();
         cut.FindAll(".bd-min.noop").Should().BeEmpty();
     }
@@ -165,12 +170,78 @@ public class PickerPolishTests
 
         var label = cut.Find(".bd-row.inc .bd-text").TextContent;
         label.Should().Contain("100–214");
-        label.Should().Contain("or better");
+        label.Should().NotContain("or better");
         cut.FindAll(".bd-min").Should().HaveCount(2);
         cut.Find("#min-global-" + pick.ModId + "-r").Should().NotBeNull();
         cut.Find("#max-global-" + pick.ModId + "-r").Should().NotBeNull();
         cut.FindAll(".bd-warn").Should().BeEmpty(
             "the tier's own min/max are natural bounds, not an ignored filter");
+    }
+
+    [Fact]
+    public async Task PickBreakdown_ExactRangedName_ConvertsToRangeOnMin()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var family = ModFamilies.Group(engine.ModsForClass("Body Armour"))
+            .First(f => f.Key == "IncreasedLife");
+        var tier = family.Tiers.Single(t => t.Name == "Virile");
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("body");
+        state.AddInclude("body", new WantedMod(tier.Anchor.Id, [tier.Name]));
+        var paste = engine.Combine(
+            [("body (Body Armour)", "Body Armour",
+                (IEnumerable<WantedMod>)state.CriteriaFor("body").Included, false)],
+            [], allowOverflow: true);
+        var model = new SearchModel(engine, state);
+        model.Update(null, paste);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.FindAll(".bd-min").Should().HaveCount(2,
+            "an exact ranged tier has a min/max even when its short name is chosen");
+        await cut.Find($"#min-body-{tier.Anchor.Id}-n-Virile").ChangeAsync("110");
+
+        var pick = state.CriteriaFor("body").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue("the first filter converts the name pick");
+        pick.MinValue.Should().Be(110);
+        pick.MaxValue.Should().BeNull();
+
+        var query = engine.Combine(
+            [("body (Body Armour)", "Body Armour",
+                (IEnumerable<WantedMod>)state.CriteriaFor("body").Included, false)],
+            [], allowOverflow: true).Query;
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "+110(100-119) to maximum Life"]).Match
+            .Should().BeTrue();
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "+109(100-119) to maximum Life"]).Match
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void PickBreakdown_NameUp_ShowsCompactEquivalentRange()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var family = ModFamilies.Group(engine.ModsForClass("Body Armour"))
+            .First(f => f.Key == "IncreasedLife");
+        var tier = family.Tiers.Single(t => t.Name == "Virile");
+        var state = new WorkbenchState();
+        state.AddInclude(null, new WantedMod(tier.Anchor.Id, family.NamesFrom(tier)));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.Find(".bd-row.inc .bd-text").TextContent.Should().Contain("\"Virile\" or better");
+        cut.Find(".bd-row.inc .bd-detail").TextContent
+            .Should().Contain("= +100–214 to maximum Life");
     }
 
     [Fact]
@@ -324,7 +395,8 @@ public class PickerPolishTests
         state.SetMode("advanced");
         state.SelectSlot("ring1");
         state.AddInclude("ring1", new WantedMod("IncreasedLife6"));
-        state.AddInclude("ring1", new WantedMod("IncreasedLife1", ["Hale"]));
+        state.AddInclude("ring1",
+            new WantedMod("LightRadiusAndManaRegeneration1", ["of Warmth"]));
         var paste = engine.Combine(
             [("ring1 (Ring)", "Ring", (IEnumerable<WantedMod>)state.CriteriaFor("ring1").Included, false)],
             [], allowOverflow: true);

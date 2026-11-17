@@ -26,6 +26,8 @@ public class TierRangeTests
         pick!.RangeModIds.Should().HaveCount(4);
         pick.MinValue.Should().Be(20);
         pick.MaxValue.Should().Be(35);
+        Engine.TierRangeLabel(pick, tier, "Boots")
+            .Should().Be("20–35% increased Movement Speed");
 
         var fragment = Engine.PickFragment(pick, "Boots");
         fragment.Should().NotBeNullOrEmpty();
@@ -52,7 +54,7 @@ public class TierRangeTests
 
         pick.Should().NotBeNull();
         pick!.IsTierRange.Should().BeTrue("20.*eed$ is shorter than \"Stallion's\"");
-        Engine.TierRangeLabel(pick, tier, up: false, "Boots")
+        Engine.TierRangeLabel(pick, tier, "Boots")
             .Should().Be("20% increased Movement Speed");
     }
 
@@ -71,11 +73,10 @@ public class TierRangeTests
         up!.IsTierRange.Should().BeTrue("the six-name set is longer than one 100–214 fragment");
         up.MinValue.Should().Be(100);
         up.MaxValue.Should().Be(214);
-        Engine.TierRangeLabel(up, tier, up: true, "Body Armour")
-            .Should().Be("+100–214 to maximum Life or better");
-        Engine.TierRangeLabel(up with { MinValue = 110, MaxValue = 119 }, tier, up: true, "Body Armour")
-            .Should().Be("+110–119 to maximum Life",
-                "a narrowed ceiling is no longer this tier or better");
+        Engine.TierRangeLabel(up, tier, "Body Armour")
+            .Should().Be("+100–214 to maximum Life");
+        Engine.TierRangeLabel(up with { MinValue = 110, MaxValue = 119 }, tier, "Body Armour")
+            .Should().Be("+110–119 to maximum Life");
     }
 
     [Fact]
@@ -104,9 +105,47 @@ public class TierRangeTests
     }
 
     [Fact]
-    public void NumericRange_HidesFixedValuesAndNamePicks()
+    public void MovementSpeedNameUp_HasCompactEquivalentRange()
     {
+        var boots = Family("Boots", "MovementVelocity");
+        var tier = boots.Tiers.Single(t => t.Name == "Stallion's");
+        Engine.TierCoveredRangeLabel(boots, tier)
+            .Should().Be("20–35% increased Movement Speed");
+    }
+
+    [Fact]
+    public void MovementSpeedFamily_MinMax_FiltersFixedTiers()
+    {
+        var boots = Family("Boots", "MovementVelocity");
+        var pick = boots.Pick() with { MinValue = 20, MaxValue = 30 };
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Boots").Query;
+
+        foreach (var value in new[] { 20, 25, 30 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeTrue($"{value}% is inside the 20–30 filter");
+        }
+        foreach (var value in new[] { 10, 15, 35 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeFalse($"{value}% is outside the 20–30 filter");
+        }
+    }
+
+    [Fact]
+    public void NumericRange_UsesThePicksValueSpan()
+    {
+        // A single exact tier or a genuinely fixed mod has nothing to narrow.
         Engine.NumericRange(new WantedMod("MovementVelocity3"), "Boots").Should().BeNull();
+        Engine.NumericRange(new WantedMod("GlobalSpellGemsLevel1"), "Focus").Should().BeNull();
+
+        // A fixed-tier family still covers several values.
+        var boots = Family("Boots", "MovementVelocity");
+        Engine.NumericRange(boots.Pick(), "Boots")
+            .Should().Be(new EngineService.NumericSpan(10, 35, 0));
+
         Engine.NumericRange(new WantedMod("IncreasedLife8"), "Body Armour")
             .Should().Be(new EngineService.NumericSpan(100, 119, 0));
         Engine.NumericRange(new WantedMod("IncreasedLife8", ["Virile"]), "Body Armour")

@@ -200,12 +200,19 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
-                    var upRange = inc.IsTierRange && tier is not null && IsUpRangePick(tier, inc);
                     if (inc.IsTierRange && tier is not null &&
-                        Engine.TierRangeLabel(inc, tier, upRange, cls) is { } rangeLabel)
+                        Engine.TierRangeLabel(inc, tier, cls) is { } rangeLabel)
                         label = rangeLabel;
                     var source = SourceFor(inc);
-                    var numeric = Engine.NumericRange(inc, cls) is { IsRanged: true } span ? span : null;
+                    var numeric = inc.IsNamePick && inc.Names!.Count == 1 &&
+                        tier is { IsRanged: true, ValueRange: { } tierRange } &&
+                        family is not null &&
+                        Engine.TierRangeAvailable(family, tier, up: false, cls)
+                        ? new EngineService.NumericSpan(
+                            tierRange.Min, tierRange.Max, tier.Precision)
+                        : Engine.NumericRange(inc, cls) is { IsRanged: true } span
+                            ? span
+                            : null;
                     // The natural bound is the stat's own span; clearing it
                     // changes nothing by design, so it is not a fallback.
                     var minIgnored = inc.MinValue is { } minValue && frag is not null &&
@@ -217,6 +224,16 @@
                     var rangeUnavailable = inc.IsNamePick && inc.Names!.Count > 1 &&
                         tier is not null && family is not null &&
                         !Engine.TierRangeAvailable(family, tier, up: true, cls);
+                    var naturalNames = family is not null && tier is not null
+                        ? family.NamesFrom(tier)
+                        : [];
+                    var equivalentRange = inc.IsNamePick && inc.Names!.Count > 1 &&
+                        !rangeUnavailable &&
+                        tier is not null && family is not null &&
+                        inc.Names.Count == naturalNames.Count &&
+                        inc.Names.All(naturalNames.Contains)
+                        ? Engine.TierCoveredRangeLabel(family, tier)
+                        : null;
                     var busy = _minBusy?.SamePick(inc) == true;
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
@@ -228,7 +245,11 @@
                                     <span class="mod-source @tag.Css">@tag.Text</span>
                                 }
                             </span>
-                            @if (inc.IsNamePick && tier is not null)
+                            @if (equivalentRange is not null)
+                            {
+                                <span class="bd-detail" title="Equivalent range for these tier names">= @equivalentRange</span>
+                            }
+                            else if (inc.IsNamePick && tier is not null)
                             {
                                 <span class="bd-detail">@string.Join(" / ", PickTierLines(family, tier))</span>
                             }
@@ -256,14 +277,14 @@
                                        value="@FormatRangeValue(inc.MinValue)"
                                        title="@(busy ? "Applying the range…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher")"
                                        aria-label="@($"Minimum value for {label}")"
-                                       @onchange="e => SetRange(slot, inc, cls, e, min: true)" />
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: true, family, tier)" />
                                 <input class="bd-min @(maxIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
                                        id="max-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "max")" autocomplete="off"
                                        aria-busy="@(busy ? "true" : "false")"
                                        value="@FormatRangeValue(inc.MaxValue)"
                                        title="@(busy ? "Applying the range…" : maxIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or lower")"
                                        aria-label="@($"Maximum value for {label}")"
-                                       @onchange="e => SetRange(slot, inc, cls, e, min: false)" />
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: false, family, tier)" />
                             </span>
                         }
                         else
@@ -468,9 +489,6 @@
         }
     };
 
-    private static bool IsUpRangePick(ModTier tier, WantedMod pick) =>
-        pick.RangeModIds is { Count: > 0 } ids && ids.Count > tier.MemberIds.Count;
-
     private static string? FormatRangeValue(double? value) =>
         value?.ToString("0.############", CultureInfo.InvariantCulture);
 
@@ -527,18 +545,41 @@
     }
 
     private async Task SetRange(
-        string? slot, WantedMod pick, string? cls, ChangeEventArgs e, bool min)
+        string? slot, WantedMod pick, string? cls, ChangeEventArgs e, bool min,
+        ModFamily? family = null, ModTier? tier = null)
     {
         var text = e.Value?.ToString()?.Trim();
+        var precision = tier?.Precision ?? Engine.NumericRange(pick, cls)?.Precision ?? 0;
         double? value = null;
         if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0)
         {
             // Integer stats display whole numbers; decimal stats keep the
             // game's precision (2.03 stays 2.03).
-            value = Engine.NumericRange(pick, cls) is { Precision: 0 } ? Math.Floor(v) : v;
+            value = precision == 0 ? Math.Floor(v) : v;
         }
         var lo = min ? value : pick.MinValue;
         var hi = min ? pick.MaxValue : value;
+
+        // An exact ranged tier can keep its short affix-name form until the
+        // user actually filters; the first min/max entry converts it to the
+        // equivalent range pick in place.
+        if (pick.IsNamePick && pick.Names is { Count: 1 } &&
+            family is not null && tier is { IsRanged: true })
+        {
+            var rangePick = Engine.TierRangePick(family, tier, up: false);
+            if (rangePick is not null)
+            {
+                _minBusy = pick;
+                await InvokeAsync(StateHasChanged);
+                await Engine.PrewarmValuePathAsync(cls);
+                State.ReplaceInclude(
+                    slot, pick, rangePick with { MinValue = lo, MaxValue = hi });
+                _minBusy = null;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
         // Paint the working state before the (possibly first-use) compile, so
         // the first range entry never looks like a frozen input.
         _minBusy = pick;

@@ -204,7 +204,7 @@
                                                     TierExplicitPicks(fam, tier, [tierClaim]).Count > 0;
                                                 var tierCoveredClaim = tierClaim is not null && !tierClaimedHere;
                                                 var tierCoveredLabel = tierCoveredClaim
-                                                    ? ClaimLabel(tierClaim!, fam, tier, up: false)
+                                                    ? ClaimLabel(tierClaim!, tier)
                                                     : null;
                                                 var includedTier = tierClaimedHere ||
                                                     TierExplicitPicks(fam, tier, crit.Included).Count > 0;
@@ -956,11 +956,10 @@
             exactRange ?? FallbackTierPick(fam, tier), ScopeClassId);
     }
 
-    private string ClaimLabel(
-        WantedMod pick, ModFamily? fam = null, ModTier? tier = null, bool up = false)
+    private string ClaimLabel(WantedMod pick, ModTier? tier = null)
     {
         if (pick.IsTierRange && tier is not null &&
-            Engine.TierRangeLabel(pick, tier, up, ScopeClassId) is { } range)
+            Engine.TierRangeLabel(pick, tier, ScopeClassId) is { } range)
             return range;
         return pick.IsNamePick && pick.Names is { Count: > 0 }
             ? $"\"{pick.Names[0]}\""

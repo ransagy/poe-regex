@@ -345,6 +345,29 @@ public sealed class WorkbenchState
         return true;
     }
 
+    /// <summary>
+    /// Replaces one pick in place, for example an exact affix-name pick with
+    /// the equivalent range pick when a min/max is entered.
+    /// </summary>
+    public bool ReplaceInclude(string? slot, WantedMod oldPick, WantedMod newPick)
+    {
+        var list = CriteriaFor(slot).Included;
+        var i = list.FindIndex(m => m.SamePick(oldPick));
+        if (i < 0) return false;
+        var duplicate = list.FindIndex(m => m.SamePick(newPick));
+        if (duplicate >= 0 && duplicate != i)
+        {
+            list[duplicate] = newPick;
+            list.RemoveAt(i);
+        }
+        else
+        {
+            list[i] = newPick;
+        }
+        Notify();
+        return true;
+    }
+
     public void AddExclude(string? slot, string modId)
     {
         var list = CriteriaFor(slot).Excluded;

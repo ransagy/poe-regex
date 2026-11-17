@@ -532,8 +532,9 @@ public sealed class EngineService
     }
 
     /// <summary>
-    /// The catalog roll span a pick can filter. Fixed-value and non-numeric
-    /// picks return null, so the workbench shows neither min nor max for them.
+    /// The catalog roll span a pick can filter. A pick with a single value or
+    /// no number returns null, so the workbench shows neither min nor max;
+    /// a fixed-tier family that covers several values still gets a span.
     /// </summary>
     public NumericSpan? NumericRange(WantedMod pick, string? itemClass)
     {
@@ -547,10 +548,20 @@ public sealed class EngineService
         if (mods.Count == 0) return null;
         var lines = mods.SelectMany(m => m!.StatLines).ToList();
         if (lines.Count == 0) return null;
-        // A fixed-value stat has nothing to narrow; hide both boxes.
-        if (lines.Any(line => line.MaxValue <= line.MinValue)) return null;
-        var min = lines.Min(line => line.MinValue);
-        var max = lines.Max(line => line.MaxValue);
+
+        // The gate is the pick's value span, not whether each tier can roll
+        // inside itself. A fixed-tier family such as movement speed still
+        // covers 10/15/…/35, so it takes a min/max; a single fixed value
+        // (+1 skills, one exact tier) has nothing to narrow.
+        var values = lines
+            .Where(line => line.MaxValue >= line.MinValue &&
+                           (line.MinValue != 0 || line.MaxValue != 0))
+            .SelectMany(line => new[] { line.MinValue, line.MaxValue })
+            .Distinct()
+            .ToList();
+        if (values.Count <= 1) return null;
+        var min = values.Min();
+        var max = values.Max();
         if (max <= min) return null;
         var precision = lines.Max(line => Math.Max(
             PrecisionOf(line.MinValue), PrecisionOf(line.MaxValue)));
@@ -565,10 +576,10 @@ public sealed class EngineService
     }
 
     /// <summary>
-    /// Shortest safe representation for a tier action: one combined range
-    /// fragment when it is no longer than the affix-name set, otherwise the
-    /// existing name pick. Returns null when the caller should use its
-    /// fallback (desecrated/implicit/union tiers).
+    /// Tier-up actions are range-first when a safe range exists; exact tiers
+    /// use the shorter of the affix-name and exact-range forms. Returns null
+    /// when the caller should use its fallback (desecrated/implicit/union
+    /// tiers).
     /// </summary>
     public WantedMod? BestTierPick(ModFamily fam, ModTier tier, bool up, string? cls)
     {
@@ -579,9 +590,11 @@ public sealed class EngineService
         if (rangePick is null) return null;
         var rangeTerms = PickTerms(rangePick, cls);
         if (rangeTerms.Count == 0) return null;
-        var namePick = up
-            ? new WantedMod(tier.Anchor.Id, fam.NamesFrom(tier))
-            : new WantedMod(tier.Anchor.Id, [tier.Name]);
+        // Tier-up is range-first: one predictable representation, one
+        // fragment, and min/max always available. Exact tiers keep the
+        // shorter of the name and the exact range.
+        if (up) return rangePick;
+        var namePick = new WantedMod(tier.Anchor.Id, [tier.Name]);
         var nameTerms = PickTerms(namePick, cls);
         if (nameTerms.Count == 0) return rangePick;
         var rangeCost = string.Join("|", rangeTerms).Length;
@@ -623,8 +636,8 @@ public sealed class EngineService
         return pick is not null && PickFragment(pick, cls) is not null;
     }
 
-    /// <summary>Explicit pick-row text for a tier range, e.g. "20–35% increased Movement Speed or better".</summary>
-    public string? TierRangeLabel(WantedMod pick, ModTier tier, bool up, string? cls)
+    /// <summary>Explicit pick-row text for a tier range, e.g. "20–35% increased Movement Speed".</summary>
+    public string? TierRangeLabel(WantedMod pick, ModTier tier, string? cls)
     {
         if (!pick.IsTierRange) return null;
         var span = NumericRange(pick, cls);
@@ -633,13 +646,41 @@ public sealed class EngineService
         if (min is null || max is null) return null;
         var precision = span?.Precision ?? tier.Precision;
         var line = tier.DisplayLines.FirstOrDefault() ?? "";
-        var label = ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
-        // A narrowed ceiling means the pick is no longer "this tier or
-        // better"; the explicit span carries the mode by itself.
-        var naturalMax = span?.Max ?? tier.ValueRange?.Max;
-        var keepsBetterTiers = naturalMax is null || pick.MaxValue is null ||
-                               pick.MaxValue >= naturalMax - 1e-9;
-        return up && keepsBetterTiers ? label + " or better" : label;
+        return ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
+    }
+
+    /// <summary>
+    /// The range covered by a tier-or-better name set, used as a compact
+    /// equivalence hint in the pick row. Computed from tier metadata, so it
+    /// never compiles a fragment.
+    /// </summary>
+    public string? TierCoveredRangeLabel(ModFamily fam, ModTier tier)
+    {
+        if (tier.Name.Length == 0) return null;
+        if (tier.DisplayLines.Count != 1) return null;
+        var line = tier.DisplayLines[0];
+        // Only a single numeric span can be replaced unambiguously; a hybrid
+        // "Adds X to Y" line would produce a misleading equivalence.
+        if (System.Text.RegularExpressions.Regex.Matches(
+                line, @"\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?").Count != 1)
+            return null;
+        var covered = fam.Tiers
+            .Where(t => t.RequiredLevel >= tier.RequiredLevel)
+            .ToList();
+        if (covered.Count <= 1) return null;
+        // Only hint when every covered tier has the same stat shape; a
+        // singular/plural or hybrid variant would make one line misleading.
+        var shape = tier.ShapeLines.FirstOrDefault();
+        if (shape is null || covered.Any(t =>
+                t.ShapeLines.Count != 1 ||
+                !string.Equals(t.ShapeLines[0], shape, StringComparison.Ordinal)))
+            return null;
+        if (covered.Any(t => t.ValueRange is null)) return null;
+        var min = covered.Min(t => t.ValueRange!.Value.Min);
+        var max = covered.Max(t => t.ValueRange!.Value.Max);
+        if (max <= min) return null;
+        var precision = covered.Max(t => t.Precision);
+        return ModFamilies.RangeLabel(line, min, max, precision);
     }
 
     /// <summary>Canonical claim identity for an exclusion in a scope.</summary>

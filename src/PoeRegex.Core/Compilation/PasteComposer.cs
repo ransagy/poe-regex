@@ -237,15 +237,61 @@ public sealed class PasteComposer
     private string RequirementKey(ModifierRequirement r)
     {
         var min = r.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
-        if (r.IsRegex) return "regex\u0001" + min + "\u0001" + TextKey(r.Value);
+        var max = r.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        if (r.IsRegex)
+            return "regex\u0001" + min + "\u0001" + max + "\u0001" + TextKey(r.Value);
+        if (r.RangeModIds is { Count: > 0 } rangeIds)
+            return RangeRequirementKey(r, rangeIds, min, max);
         var mod = _corpus.FindMod(r.Value);
-        if (mod is null) return "text\u0001" + min + "\u0001" + TextKey(r.Value);
+        if (mod is null)
+            return "text\u0001" + min + "\u0001" + max + "\u0001" + TextKey(r.Value);
         var patterns = mod.StatLines
             .Select(line => line.Pattern)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(pattern => pattern, StringComparer.Ordinal)
             .Select(TextKey);
-        return "mod\u0001" + min + "\u0001" + string.Join("\u0001", patterns);
+        return "mod\u0001" + min + "\u0001" + max + "\u0001" + string.Join("\u0001", patterns);
+    }
+
+    /// <summary>
+    /// A tier range is the same criterion across classes when its stat
+    /// pattern and covered value intervals match, even though each class uses
+    /// different mod ids. The interval list also distinguishes a gapped tier
+    /// set from a continuous one with the same min/max.
+    /// </summary>
+    private string RangeRequirementKey(
+        ModifierRequirement r, IReadOnlyList<string> rangeIds, string min, string max)
+    {
+        var patterns = new HashSet<string>(StringComparer.Ordinal);
+        var intervals = new List<(double Lo, double Hi)>();
+        foreach (var id in rangeIds)
+        {
+            var mod = _corpus.FindMod(id);
+            if (mod is null) continue;
+            foreach (var line in mod.StatLines)
+            {
+                patterns.Add(line.Pattern);
+                var lo = r.MinValue is { } minValue
+                    ? Math.Max(line.MinValue, minValue)
+                    : line.MinValue;
+                var hi = r.MaxValue is { } maxValue
+                    ? Math.Min(line.MaxValue, maxValue)
+                    : line.MaxValue;
+                if (hi >= lo) intervals.Add((lo, hi));
+            }
+        }
+        if (patterns.Count == 0)
+            return "range\u0001" + min + "\u0001" + max + "\u0001" + TextKey(r.Value);
+        var intervalKey = string.Join(",", intervals
+            .Distinct()
+            .OrderBy(x => x.Lo)
+            .ThenBy(x => x.Hi)
+            .Select(x =>
+                x.Lo.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "-" +
+                x.Hi.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
+        return "range\u0001" + min + "\u0001" + max + "\u0001" +
+               string.Join("\u0001", patterns.OrderBy(p => p, StringComparer.Ordinal)) +
+               "\u0001" + intervalKey;
     }
 
     /// <summary>Length-prefixed text so a delimiter inside a value cannot

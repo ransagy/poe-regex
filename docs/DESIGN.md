@@ -135,7 +135,13 @@ outer loop. It runs at data-build time, never in the browser.
   advanced display shape is replaced with the shortest safe value class, and
   the candidate is proven against the catalog by pattern **and** first-roll
   value. The family text tail is anchored so a range endpoint inside
-  `roll(low-high)` cannot stand in for the roll.
+  `roll(low-high)` cannot stand in for the roll. Tier-up actions are
+  range-first when a safe range exists; exact tiers use the shorter of the
+  affix-name and exact-range forms.
+- Multi-slot paste criteria group by semantic key. A tier range keys by stat
+  pattern, clamped covered intervals, and min/max, so the same tier range on
+  different classes shares one group while a different or gapped range stays
+  separate.
 - Candidate generation tries exact values, digit classes, fixed-width ranges,
   alternations, and decimal forms; the shortest proven candidate wins.
 - Common-prefix factorization via a trie reduces multi-mod alternations.
