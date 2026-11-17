@@ -177,8 +177,8 @@ Validated in-game on 2026-11-12/13. Outcomes:
 
 1. **In-game grammar parity.** Confirmed: quoted phrases, `|`, case folding,
    whitespace, wildcards, anchors, `\d`, escaped punctuation, and the
-   250-character limit match PoE2. One difference: exclusions use `"!term"`
-   (inside the quotes), not `!"term"`; `QuerySyntax.Poe1` owns that shape.
+   250-character limit match PoE2. Exclusions use `"!term"` (inside the quotes)
+   for both games; `QuerySyntax` owns that shape.
 2. **Copied item text.** Confirmed: copy text carries both final values and
    advanced `roll(min-max)` forms plus `{ Prefix/Suffix/Implicit Modifier … }`
    headers. The PoE2 `advanced-ranges-v1` target model applies unchanged.
@@ -270,8 +270,8 @@ proof, and status;
 | Gems (skill/support) | MVP+1 | Excluded; own text model needed |
 | Flasks, jewels, maps, currency, uniques | No | Outside normal-equipment scope |
 
-PoE1 exclusion blocks use `"!term"` (inside the quotes), unlike PoE2's
-`!"term"`. `QuerySyntax.Poe1` owns that shape; compiler, paste composition,
+Exclusion blocks use `"!term"` (inside the quotes) for both games.
+`QuerySyntax` owns that shape; compiler, paste composition,
 explain, query import/reconstruction, item matching, and the block ruler all
 route through the corpus syntax.
 

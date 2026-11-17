@@ -45,6 +45,53 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void BootsMovementSpeed_UpButton_AddsOneCombinedRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Name == "Stallion's");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+        pick.Names.Should().BeNull();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactButton_AddsTheShorterRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Name == "Stallion's");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().ContainSingle();
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(20);
+    }
+
+    [Fact]
     public void DesecratedFamily_ShowsPlainGreenSourceText()
     {
         using var ctx = Context();
@@ -676,7 +723,8 @@ public class ModPickerHighlightTests
         up.Click();
 
         crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+            pick.ModId == tier.Anchor.Id &&
+            (pick.IsTierRange || (pick.IsNamePick && pick.Names!.Count > 1)));
         crit.Excluded.Should().BeEmpty();
         up.GetAttribute("aria-pressed").Should().Be("true");
         up.ClassList.Should().Contain("active");
@@ -797,7 +845,8 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
 
         crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+            pick.ModId == tier.Anchor.Id &&
+            (pick.IsTierRange || (pick.IsNamePick && pick.Names!.Count > 1)));
         crit.Excluded.Should().BeEmpty();
         TierRow(cut, includedHigher).ClassList.Should().NotContain("picked");
         TierRow(cut, excludedHigher).ClassList.Should().NotContain("excluded");
@@ -889,7 +938,7 @@ public class ModPickerHighlightTests
         lowerUp.HasAttribute("disabled").Should().BeFalse();
         lowerUp.Click();
         crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.ModId == lower.Anchor.Id);
+            pick.ModId == lower.Anchor.Id && (pick.IsTierRange || pick.IsNamePick));
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
         cut.Find($"#pick-tier-{higher.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();

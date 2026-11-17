@@ -197,14 +197,15 @@
                                             @foreach (var tier in fam.Tiers)
                                             {
                                                 var upNames = fam.NamesFrom(tier);
-                                                var tierPick = TierPick(fam, tier);
                                                 var tierClaim = crit.Included.Count == 0
                                                     ? null
                                                     : TierClaim(fam, tier, crit);
                                                 var tierClaimedHere = tierClaim is not null &&
                                                     TierExplicitPicks(fam, tier, [tierClaim]).Count > 0;
                                                 var tierCoveredClaim = tierClaim is not null && !tierClaimedHere;
-                                                var tierCoveredLabel = tierCoveredClaim ? ClaimLabel(tierClaim!) : null;
+                                                var tierCoveredLabel = tierCoveredClaim
+                                                    ? ClaimLabel(tierClaim!, fam, tier, up: false)
+                                                    : null;
                                                 var includedTier = tierClaimedHere ||
                                                     TierExplicitPicks(fam, tier, crit.Included).Count > 0;
                                                 var upSelected = TierUpPicks(fam, tier, crit.Included).Count > 0;
@@ -323,7 +324,6 @@
     private int _unionWarmVersion;
     private IReadOnlyList<ModFamily> _allFamilies = [];
     private readonly Dictionary<string, string?> _familyClaimKeys = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> _tierClaimKeys = new(StringComparer.Ordinal);
     private string? _claimScope;
     private string? _claimClass;
     private IReadOnlyList<ModFamily> _families = [];
@@ -418,7 +418,6 @@
             _unionActive = false;
             _allFamilies = ModFamilies.CachedGroup(Mods);
             _familyClaimKeys.Clear();
-            _tierClaimKeys.Clear();
         }
         State.WithSuppressedNotifications(() =>
             PickClaims.Normalize(ScopeCriteria(), Engine, ScopeClassId));
@@ -649,6 +648,9 @@
     /// </summary>
     private static bool TierPicked(ModTier tier, WantedMod pick)
     {
+        if (pick.IsTierRange)
+            return pick.RangeModIds!.Count == tier.MemberIds.Count &&
+                   pick.RangeModIds.All(tier.MemberIds.Contains);
         if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 }) return false;
         if (tier.MemberIds.Contains(pick.ModId)) return true;
         return pick.IsNamePick && tier.Name.Length > 0 &&
@@ -687,6 +689,9 @@
         ModFamily fam, ModTier tier, WantedMod pick,
         IReadOnlySet<string> tierIds, IReadOnlySet<string> memberIds)
     {
+        if (pick.IsTierRange)
+            return pick.RangeModIds!.Count == tierIds.Count &&
+                   pick.RangeModIds.All(tierIds.Contains);
         if (pick.IsNamePick)
         {
             if (pick.Names!.Count != 1) return false;
@@ -723,12 +728,24 @@
     }
 
     private bool IsUpPick(ModFamily fam, WantedMod pick, IReadOnlySet<string> memberIds) =>
-        pick.IsNamePick && pick.Names!.Count > 1 &&
-        PickTouchesFamily(fam, pick, memberIds);
+        (pick.IsNamePick && pick.Names!.Count > 1 &&
+         PickTouchesFamily(fam, pick, memberIds)) ||
+        IsUpRangePick(fam, pick);
 
-    private static ModTier? UpAnchorTier(ModFamily fam, WantedMod pick) =>
-        fam.Tiers.FirstOrDefault(t =>
+    private static bool IsUpRangePick(ModFamily fam, WantedMod pick)
+    {
+        if (!pick.IsTierRange) return false;
+        var anchor = fam.Tiers.FirstOrDefault(t => t.Anchor.Id == pick.ModId);
+        return anchor is not null && pick.RangeModIds!.Count > anchor.MemberIds.Count;
+    }
+
+    private static ModTier? UpAnchorTier(ModFamily fam, WantedMod pick)
+    {
+        if (pick.IsTierRange)
+            return fam.Tiers.FirstOrDefault(t => t.Anchor.Id == pick.ModId);
+        return fam.Tiers.FirstOrDefault(t =>
             t.Name.Length > 0 && pick.Names!.Contains(t.Name, StringComparer.Ordinal));
+    }
 
     /// <summary>The or-better pick covering this tier, if any.</summary>
     private ModTier? UpCoveringTier(
@@ -738,8 +755,14 @@
         var memberIds = fam.MemberIds;
         foreach (var pick in included)
         {
-            if (!IsUpPick(fam, pick, memberIds) ||
-                !pick.Names!.Contains(tier.Name, StringComparer.Ordinal)) continue;
+            if (!IsUpPick(fam, pick, memberIds)) continue;
+            if (pick.IsTierRange)
+            {
+                if (tier.MemberIds.All(pick.RangeModIds!.Contains))
+                    return UpAnchorTier(fam, pick);
+                continue;
+            }
+            if (!pick.Names!.Contains(tier.Name, StringComparer.Ordinal)) continue;
             return UpAnchorTier(fam, pick);
         }
         return null;
@@ -771,8 +794,13 @@
             ? tier.DisplayLabel
             : tier.DisplayLines.FirstOrDefault() ?? tier.Anchor.Id;
 
-    private static WantedMod TierPick(ModFamily fam, ModTier tier) =>
-        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted || fam.IsAugmentLike || tier.Name.Length == 0
+    private WantedMod TierPick(ModFamily fam, ModTier tier) =>
+        Engine.BestTierPick(fam, tier, up: false, ScopeClassId) ?? FallbackTierPick(fam, tier);
+
+    /// <summary>The pre-range representation; cheap enough for render-time claim checks.</summary>
+    private static WantedMod FallbackTierPick(ModFamily fam, ModTier tier) =>
+        fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted ||
+        fam.IsAugmentLike || tier.Name.Length == 0
             ? new WantedMod(tier.Anchor.Id)
             : new WantedMod(tier.Anchor.Id, [tier.Name]);
 
@@ -782,7 +810,9 @@
         if (fam.Tiers.Count != 1) return false;
         var tier = fam.Tiers[0];
         var familyFragment = Engine.PickFragment(fam.Pick(), ScopeClassId);
-        var tierFragment = Engine.PickFragment(TierPick(fam, tier), ScopeClassId);
+        // The collapse decision only needs the pre-range tier form; using the
+        // auto range here would compile every single-tier family on render.
+        var tierFragment = Engine.PickFragment(FallbackTierPick(fam, tier), ScopeClassId);
         return !string.IsNullOrEmpty(familyFragment) &&
                string.Equals(familyFragment, tierFragment, StringComparison.Ordinal);
     }
@@ -915,17 +945,27 @@
 
     private string? TierClaimKey(ModFamily fam, ModTier tier)
     {
-        var id = fam.Key + "\u0001" + tier.Anchor.Id + "\u0001" + tier.Name;
-        if (_tierClaimKeys.TryGetValue(id, out var cached)) return cached;
-        var key = Engine.PickClaimKey(TierPick(fam, tier), ScopeClassId);
-        _tierClaimKeys[id] = key;
-        return key;
+        // Render-time claim checks use the cheap name form unless the slot
+        // already holds an exact range pick for this tier. Computing the auto
+        // range for every tier made expanding a family take seconds.
+        var exactRange = ScopeCriteria().Included.FirstOrDefault(pick =>
+            pick.IsTierRange &&
+            pick.RangeModIds!.Count == tier.MemberIds.Count &&
+            pick.RangeModIds.All(tier.MemberIds.Contains));
+        return Engine.PickClaimKey(
+            exactRange ?? FallbackTierPick(fam, tier), ScopeClassId);
     }
 
-    private string ClaimLabel(WantedMod pick) =>
-        pick.IsNamePick && pick.Names is { Count: > 0 }
+    private string ClaimLabel(
+        WantedMod pick, ModFamily? fam = null, ModTier? tier = null, bool up = false)
+    {
+        if (pick.IsTierRange && tier is not null &&
+            Engine.TierRangeLabel(pick, tier, up, ScopeClassId) is { } range)
+            return range;
+        return pick.IsNamePick && pick.Names is { Count: > 0 }
             ? $"\"{pick.Names[0]}\""
             : SearchModel.FamilyText(_allFamilies, Mods, pick.ModId, Engine);
+    }
 
     private static string CoveredTitle(string? label) =>
         label is null
@@ -933,10 +973,9 @@
             : $"The same search is selected on {label}. Use ⇄ to switch to this mod.";
 
     private static string TierPickTitle(
-        ModTier tier, bool included, string? coveredHint)
+        string label, bool included, string? coveredHint)
     {
         if (coveredHint is not null) return coveredHint;
-        var label = TierLabel(tier);
         return included
             ? $"Included: \"{label}\". Remove inclusion."
             : $"Add \"{label}\"";
@@ -945,9 +984,10 @@
     private static string TierPickActionTitle(
         ModTier tier, bool claimedHere, string? coveredLabel, string? coveredHint)
     {
+        var label = TierLabel(tier);
         if (coveredLabel is not null)
-            return $"The same search is selected on {coveredLabel}. Use ⇄ to switch to \"{TierLabel(tier)}\".";
-        return TierPickTitle(tier, claimedHere, coveredHint);
+            return $"The same search is selected on {coveredLabel}. Use ⇄ to switch to \"{label}\".";
+        return TierPickTitle(label, claimedHere, coveredHint);
     }
 
     private static string TierUpTitle(
@@ -1062,7 +1102,9 @@
     {
         var crit = ScopeCriteria();
         var pick = TierPick(fam, tier);
-        var key = TierClaimKey(fam, tier);
+        // Use the actual representation's claim key on click; render-time
+        // claim checks stay on the cheap fallback.
+        var key = Engine.PickClaimKey(pick, ScopeClassId);
         if (key is not null)
         {
             var claims = PickClaims.FindIncludes(crit, Engine, ScopeClassId, key);
@@ -1097,7 +1139,8 @@
     private void ToggleTierUp(ModFamily fam, ModTier tier)
     {
         var crit = ScopeCriteria();
-        var pick = new WantedMod(tier.Anchor.Id, fam.NamesFrom(tier));
+        var pick = Engine.BestTierPick(fam, tier, up: true, ScopeClassId)
+            ?? new WantedMod(tier.Anchor.Id, fam.NamesFrom(tier));
         var key = Engine.PickClaimKey(pick, ScopeClassId);
         if (key is not null)
         {

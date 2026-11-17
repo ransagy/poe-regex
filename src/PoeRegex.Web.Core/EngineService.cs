@@ -525,6 +525,123 @@ public sealed class EngineService
         return terms.Count == 0 ? null : string.Join("\u0001", terms);
     }
 
+    /// <summary>Numeric span of a plain/family/tier-range pick, or null when it has no real range.</summary>
+    public sealed record NumericSpan(double Min, double Max, int Precision)
+    {
+        public bool IsRanged => Max > Min;
+    }
+
+    /// <summary>
+    /// The catalog roll span a pick can filter. Fixed-value and non-numeric
+    /// picks return null, so the workbench shows neither min nor max for them.
+    /// </summary>
+    public NumericSpan? NumericRange(WantedMod pick, string? itemClass)
+    {
+        if (pick.IsNamePick || pick.IsRawText) return null;
+        var ids = pick.RangeModIds is { Count: > 0 } rangeIds
+            ? rangeIds
+            : pick.VariantModIds is { Count: > 0 } variantIds
+                ? variantIds
+                : [pick.ModId];
+        var mods = ids.Select(FindMod).Where(m => m is not null).ToList();
+        if (mods.Count == 0) return null;
+        var lines = mods.SelectMany(m => m!.StatLines).ToList();
+        if (lines.Count == 0) return null;
+        // A fixed-value stat has nothing to narrow; hide both boxes.
+        if (lines.Any(line => line.MaxValue <= line.MinValue)) return null;
+        var min = lines.Min(line => line.MinValue);
+        var max = lines.Max(line => line.MaxValue);
+        if (max <= min) return null;
+        var precision = lines.Max(line => Math.Max(
+            PrecisionOf(line.MinValue), PrecisionOf(line.MaxValue)));
+        return new NumericSpan(min, max, precision);
+    }
+
+    private static int PrecisionOf(double value)
+    {
+        var text = value.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture);
+        var dot = text.IndexOf('.');
+        return dot < 0 ? 0 : text.Length - dot - 1;
+    }
+
+    /// <summary>
+    /// Shortest safe representation for a tier action: one combined range
+    /// fragment when it is no longer than the affix-name set, otherwise the
+    /// existing name pick. Returns null when the caller should use its
+    /// fallback (desecrated/implicit/union tiers).
+    /// </summary>
+    public WantedMod? BestTierPick(ModFamily fam, ModTier tier, bool up, string? cls)
+    {
+        if (fam.Source is "desecrated" or "implicit" or "corrupted" or "augment" or "bonded")
+            return null;
+        if (fam.IsUnion || tier.Name.Length == 0) return null;
+        var rangePick = TierRangePick(fam, tier, up);
+        if (rangePick is null) return null;
+        var rangeTerms = PickTerms(rangePick, cls);
+        if (rangeTerms.Count == 0) return null;
+        var namePick = up
+            ? new WantedMod(tier.Anchor.Id, fam.NamesFrom(tier))
+            : new WantedMod(tier.Anchor.Id, [tier.Name]);
+        var nameTerms = PickTerms(namePick, cls);
+        if (nameTerms.Count == 0) return rangePick;
+        var rangeCost = string.Join("|", rangeTerms).Length;
+        var nameCost = string.Join("|", nameTerms).Length;
+        return rangeCost <= nameCost ? rangePick : namePick;
+    }
+
+    /// <summary>The one combined range pick for a tier action.</summary>
+    public WantedMod? TierRangePick(ModFamily fam, ModTier tier, bool up)
+    {
+        var covered = up
+            ? fam.Tiers.Where(t => t.RequiredLevel >= tier.RequiredLevel).ToList()
+            : [tier];
+        var ids = covered
+            .SelectMany(t => t.Members)
+            .Select(m => m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0) return null;
+        var lines = covered
+            .SelectMany(t => t.Members)
+            .SelectMany(m => m.StatLines)
+            .ToList();
+        if (lines.Count == 0 || lines.Any(line => line.MaxValue < line.MinValue)) return null;
+        var min = lines.Min(line => line.MinValue);
+        var max = lines.Max(line => line.MaxValue);
+        return new WantedMod(
+            tier.Anchor.Id,
+            MinValue: min,
+            MaxValue: max,
+            RangeModIds: ids);
+    }
+
+    /// <summary>True when a tier action has a safe combined range fragment.</summary>
+    public bool TierRangeAvailable(ModFamily fam, ModTier tier, bool up, string? cls)
+    {
+        var pick = TierRangePick(fam, tier, up);
+        return pick is not null && PickFragment(pick, cls) is not null;
+    }
+
+    /// <summary>Explicit pick-row text for a tier range, e.g. "20–35% increased Movement Speed or better".</summary>
+    public string? TierRangeLabel(WantedMod pick, ModTier tier, bool up, string? cls)
+    {
+        if (!pick.IsTierRange) return null;
+        var span = NumericRange(pick, cls);
+        var min = pick.MinValue ?? span?.Min ?? tier.ValueRange?.Min;
+        var max = pick.MaxValue ?? span?.Max ?? tier.ValueRange?.Max;
+        if (min is null || max is null) return null;
+        var precision = span?.Precision ?? tier.Precision;
+        var line = tier.DisplayLines.FirstOrDefault() ?? "";
+        var label = ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
+        // A narrowed ceiling means the pick is no longer "this tier or
+        // better"; the explicit span carries the mode by itself.
+        var naturalMax = span?.Max ?? tier.ValueRange?.Max;
+        var keepsBetterTiers = naturalMax is null || pick.MaxValue is null ||
+                               pick.MaxValue >= naturalMax - 1e-9;
+        return up && keepsBetterTiers ? label + " or better" : label;
+    }
+
     /// <summary>Canonical claim identity for an exclusion in a scope.</summary>
     public string? ExcludeClaimKey(string exc, string? cls) =>
         _excludeClaims.GetOrAdd(

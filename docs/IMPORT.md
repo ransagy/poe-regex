@@ -72,8 +72,8 @@ lines that can win fragment selection, so they need a separate corpus and
 target-model review. Flasks, jewels, maps, currency, and unique-only text
 remain outside the normal-equipment MVP.
 
-PoE1 exclusions are emitted as `"!term"` (the bang is inside the quotes);
-PoE2 keeps `!"term"`. The per-game `QuerySyntax` profile is used by compile,
+Exclusions are emitted as `"!term"` (the bang is inside the quotes) for
+both games. The per-game `QuerySyntax` profile is used by compile,
 paste composition, explain, query import/reconstruction, item matching, and
 the block ruler.
 

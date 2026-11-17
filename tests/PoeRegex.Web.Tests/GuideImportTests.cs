@@ -55,7 +55,7 @@ public class GuideImportTests
         result.Branches.Should().Contain(b =>
             b.Kind == GuideBranchKind.Exclusion && b.Text.Contains("!(uiv)"));
         result.Workbench!.Excludes.Should().Contain(RawExclusion.Encode("(uiv)"));
-        result.CompiledQuery.Should().Contain("!\"(uiv)\"");
+        result.CompiledQuery.Should().Contain("\"!(uiv)\"");
         var movement = result.Branches.Single(b => b.Text == "mov");
         movement.Picks.Should().NotBeEmpty();
         movement.Candidates.Select(c => c.Key).Should().Contain("MovementVelocity");
@@ -74,7 +74,7 @@ public class GuideImportTests
         exclusion.Text.Should().Be("!parry|bow|scept|quiver|raise|spear|mace|talisman");
         result.Workbench!.Excludes.Should().Contain(
             RawExclusion.Encode("parry|bow|scept|quiver|raise|spear|mace|talisman"));
-        result.CompiledQuery.Should().Contain("!\"parry|bow|scept|quiver|raise|spear|mace|talisman\"");
+        result.CompiledQuery.Should().Contain("\"!parry|bow|scept|quiver|raise|spear|mace|talisman\"");
 
         var state = new WorkbenchState();
         result.Workbench.ApplyTo(state);
@@ -108,7 +108,7 @@ public class GuideImportTests
         result.CompiledQuery.Should().MatchRegex(
             "\"[^\"]*Item Class: \\(am\\|ri\\|be\\|Cross\\)[^\"]*\"");
         result.CompiledQuery.Should().Contain(
-            "!\"Item Class: (One Hand Maces|Bows|Quivers)\"");
+            "\"!Item Class: (One Hand Maces|Bows|Quivers)\"");
 
         var state = new WorkbenchState();
         result.Workbench.ApplyTo(state);
@@ -182,7 +182,7 @@ public class GuideImportTests
     {
         var query = Engine.CompilePicks(
             [], [RawExclusion.Encode("parry|bow|scept")], false, null).Query;
-        query.Should().Be("!\"parry|bow|scept\"");
+        query.Should().Be("\"!parry|bow|scept\"");
 
         var reconstructed = Reconstruction.ReconstructWorkbench(query);
 

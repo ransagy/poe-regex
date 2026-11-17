@@ -35,7 +35,9 @@ public sealed record WantedMod(
     string ModId,
     IReadOnlyList<string>? Names = null,
     IReadOnlyList<string>? VariantModIds = null,
-    double? MinValue = null)
+    double? MinValue = null,
+    double? MaxValue = null,
+    IReadOnlyList<string>? RangeModIds = null)
 {
     /// <summary>Computed; kept out of snapshots (plain picks would carry
     /// `IsNamePick:false` noise on every entry).</summary>
@@ -46,17 +48,26 @@ public sealed record WantedMod(
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsRawText => RawText.IsRaw(ModId);
 
-    /// <summary>Exact-pick identity: same anchor, names, and family variants in order (the minimum is a setting, not identity).</summary>
+    /// <summary>One combined family+range fragment covering <see cref="RangeModIds"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsTierRange => RangeModIds is { Count: > 0 };
+
+    /// <summary>Exact-pick identity: same anchor, names, family variants, and range tiers in order (the numeric filter is a setting, not identity).</summary>
     public bool SamePick(WantedMod other) =>
         ModId == other.ModId &&
         (Names ?? []).SequenceEqual(other.Names ?? [], StringComparer.Ordinal) &&
-        (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal);
+        (VariantModIds ?? []).SequenceEqual(other.VariantModIds ?? [], StringComparer.Ordinal) &&
+        (RangeModIds ?? []).SequenceEqual(other.RangeModIds ?? [], StringComparer.Ordinal);
 
     /// <summary>The engine builds digit ranges from an int, and a floor of zero or less filters nothing.</summary>
     public static bool IsValidMinValue(double value) => value is > 0 and <= int.MaxValue;
 
+    /// <summary>Upper bounds share the same positive-int shape as floors.</summary>
+    public static bool IsValidMaxValue(double value) => value is > 0 and <= int.MaxValue;
+
     public bool Equals(WantedMod? other) =>
-        other is not null && SamePick(other) && MinValue == other.MinValue;
+        other is not null && SamePick(other) &&
+        MinValue == other.MinValue && MaxValue == other.MaxValue;
 
     public override int GetHashCode()
     {
@@ -64,7 +75,9 @@ public sealed record WantedMod(
         hash.Add(ModId, StringComparer.Ordinal);
         foreach (var name in Names ?? []) hash.Add(name, StringComparer.Ordinal);
         foreach (var id in VariantModIds ?? []) hash.Add(id, StringComparer.Ordinal);
+        foreach (var id in RangeModIds ?? []) hash.Add(id, StringComparer.Ordinal);
         hash.Add(MinValue);
+        hash.Add(MaxValue);
         return hash.ToHashCode();
     }
 
@@ -79,9 +92,16 @@ public sealed record WantedMod(
         if (IsRawText)
             return [new PoeRegex.Core.ModifierRequirement(RawText.Decode(ModId), IsRegex: true)];
         if (IsNamePick) return Names!.Select(n => new PoeRegex.Core.ModifierRequirement(n));
+        if (IsTierRange)
+            return
+            [
+                new PoeRegex.Core.ModifierRequirement(
+                    ModId, MinValue, MaxValue: MaxValue, RangeModIds: RangeModIds)
+            ];
         if (VariantModIds is { Count: > 0 })
-            return VariantModIds.Select(id => new PoeRegex.Core.ModifierRequirement(id, MinValue));
-        return [new PoeRegex.Core.ModifierRequirement(ModId, MinValue)];
+            return VariantModIds.Select(id =>
+                new PoeRegex.Core.ModifierRequirement(id, MinValue, MaxValue: MaxValue));
+        return [new PoeRegex.Core.ModifierRequirement(ModId, MinValue, MaxValue: MaxValue)];
     }
 }
 
@@ -301,11 +321,26 @@ public sealed class WorkbenchState
     /// <summary>Sets or clears a plain pick's minimum value in place, so the pick keeps its position.</summary>
     public bool SetMinValue(string? slot, WantedMod pick, double? minValue)
     {
-        if (minValue is { } v && !WantedMod.IsValidMinValue(v)) minValue = null;
         var list = CriteriaFor(slot).Included;
         var i = list.FindIndex(m => m.SamePick(pick));
-        if (i < 0 || list[i].IsNamePick || list[i].MinValue == minValue) return false;
-        list[i] = list[i] with { MinValue = minValue };
+        return SetRange(slot, pick, minValue, i >= 0 ? list[i].MaxValue : pick.MaxValue);
+    }
+
+    /// <summary>Sets or clears a plain/range pick's numeric filter in place.</summary>
+    public bool SetRange(string? slot, WantedMod pick, double? minValue, double? maxValue)
+    {
+        if (minValue is { } min && !WantedMod.IsValidMinValue(min)) minValue = null;
+        if (maxValue is { } max && !WantedMod.IsValidMaxValue(max)) maxValue = null;
+        // An inverted span matches nothing; clear both rather than silently
+        // swapping what the user typed.
+        if (minValue is { } lo && maxValue is { } hi && lo > hi)
+            minValue = maxValue = null;
+        var list = CriteriaFor(slot).Included;
+        var i = list.FindIndex(m => m.SamePick(pick));
+        if (i < 0 || list[i].IsNamePick ||
+            (list[i].MinValue == minValue && list[i].MaxValue == maxValue))
+            return false;
+        list[i] = list[i] with { MinValue = minValue, MaxValue = maxValue };
         Notify();
         return true;
     }

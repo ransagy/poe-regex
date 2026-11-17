@@ -26,7 +26,7 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 - Tests: 118 core + 444 web + 52 data-build pass.
 - Browser smoke: the top-bar switch shows full game names on desktop and compact labels on phones; the title stays visible (wrapped on small screens); a
   dimmed loading overlay appears while PoE1 data loads; switching shows 23
-  PoE1 classes; PoE1 exclusions compile as `"!term"`; PoE2 keeps `!"term"`;
+  PoE1 classes; both games compile exclusions as `"!term"`;
   picks round-trip per game; a reload with PoE1 as the last game restores the
   overlay, engine, state, and query. PoE1 data is fetched lazily on first
   switch and is not in the install-time precache.
@@ -35,6 +35,25 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   switch).
 - Perf at 1920×1080: boot p50 1265 ms / p95 1333 ms (budget 2500 ms); long
   tasks 14 over 50 ms, 0 over 200 ms, max 91 ms.
+
+## PoE2 tier ranges (prototype)
+
+- A tier action chooses the shorter of the affix-name set and one combined
+  family+range fragment; the pick row shows the explicit range, and the
+  breakdown shows the compiled term.
+- Min/max boxes appear only for ranged numeric stats. Fixed-value and
+  non-numeric picks hide both; integer stats use whole numbers and decimal
+  stats keep the displayed precision.
+- The range fragment is proven against the catalog: every matched line must
+  be an allowed pattern and its first roll must sit inside the requested
+  intervals. A range endpoint in `roll(low-high)` cannot satisfy the roll.
+- Tests cover boots movement speed (fixed tiers), body/helmet maximum life
+  (integer ranges), body armour life regeneration (decimal advanced range),
+  and both exclusion shapes.
+- Current Release suite: 126 core + 454 web + 53 data-build; the published
+  PWA shell boots and reloads offline with the new picker.
+- Perf smoke (published Release, one run): boot 1392 ms; picker expand 28 ms;
+  advanced family pick 84 ms; longest task 90 ms, none over 200 ms.
 
 ## Performance
 
@@ -135,8 +154,10 @@ out of scope; therefore there are **no manual in-game acceptance checks**.
 
 ## Accepted limitations
 
-- Hybrid affixes that share a stat line can match either affix; quoted AND
-  terms and range pinning are parked.
+- Hybrid affixes that share a stat line can match either affix. Range pinning
+  is implemented for single-line numeric tiers and family picks through one
+  combined family+range fragment; multi-line hybrid range pinning remains
+  parked.
 - Two slots of the same class fall back from all-of to any-of with a visible
   warning.
 - Implicit-only base families are class-level and their import lines stay

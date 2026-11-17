@@ -83,14 +83,15 @@ outer loop. It runs at data-build time, never in the browser.
   It exposes table lookup, class anchors, explain/matching lines, and
   threshold validation. It does not search for fragments.
 - `QuerySyntax` owns the per-game dialect: quoted terms, the exclusion shape
-  (`!"term"` for PoE2, `"!term"` for PoE1), the 250-character limit, custom
+  (`"!term"` for both games), the 250-character limit, custom
   keywords, escaping, tokenization, and `\b` validation. `Poe2Syntax` is the
   PoE2-named facade; `EngineCorpus.Syntax` selects the loaded game.
 - `QuerySpecification { ItemClass?, IncludedModifiers, RequiredGroups, ExcludedModifiers,
   Keywords, AllowOverflow }`; each modifier is a catalog mod id or free text,
-  optionally with `MinValue`.
+  optionally with `MinValue`/`MaxValue`, or `RangeModIds` for one combined
+  tier-range fragment.
 - `PoeRegexCompiler(corpus)` composes a query from table lookups and
-  threshold patterns. `PasteComposer(corpus)` composes multi-slot pastes.
+  threshold/range patterns. `PasteComposer(corpus)` composes multi-slot pastes.
 - `CompileResult { Query, Length, Limit, Diagnostics, Exceeded }`.
   `RegexLengthOverflowException` is thrown unless `AllowOverflow = true`.
 - `ICatalogSource` abstracts the catalog source; `EmbeddedCatalogSource` is
@@ -100,18 +101,24 @@ outer loop. It runs at data-build time, never in the browser.
 
 ## 5. Grammar & Assembly
 
-- **G1 fragment grammar:** literal pieces at any position, zero to three
-  wildcards (`.`, `.*`, `.+`), optional `^`/`$`, and optional leading
+- **G1 fragment grammar (exact table):** literal pieces at any position, zero
+  to three wildcards (`.`, `.*`, `.+`), optional `^`/`$`, and optional leading
   `\d`/`\d+`. No lookahead, character classes, alternation, or backreferences.
+  Runtime range fragments are a separate, catalog-proven form: they may use
+  character classes/ranges and alternation, and the value-aware proof rejects
+  any candidate that matches a disallowed pattern or an out-of-span roll.
 - **Semantics:** one quoted term is line-local; matching is case-insensitive.
+  A family+range constraint stays in one quoted term: separate terms are
+  ANDed across the whole item, so a bare range term would match another line.
 - **Target text:** the in-game search matches the advanced item text.
   Ranged stats show `roll(min-max)`, fixed stats show the plain value; normal
   display is presentation only. The table declares
   `targetModel: advanced-ranges-v1`, and the engine rejects a mismatched table.
 - **Assembly:** class anchor first (when present), one quoted block with `|`
-  alternation over included fragments, separate `!"term"` exclusion blocks,
+  alternation over included fragments, separate `"!term"` exclusion blocks,
   and quoted keyword blocks, joined by spaces. Spaces inside a quote are
-  literal; unquoted whitespace separates ANDed blocks.
+  literal; unquoted whitespace separates ANDed blocks. A tier range is one
+  combined fragment (family text plus value class), never a separate term.
 - **Exactness:** the table is the only source of stat fragments. Each entry
   was proven shortest for its scope under G1 against the modeled corpus and
   safety fixtures.
@@ -121,9 +128,19 @@ outer loop. It runs at data-build time, never in the browser.
 - Table lookup per stat line; choose the shortest table form across a hybrid
   mod's lines and between class/global scopes.
 - `MinValue` builds a digit-range alternation from the catalog value span and
-  re-validates it against real display shapes.
+  re-validates it against real display shapes. `MaxValue` (with or without a
+  floor) builds a bounded range; a floor alone keeps the shipped "this or
+  higher" behavior.
+- Tier ranges use one combined fragment: the first roll placeholder in the
+  advanced display shape is replaced with the shortest safe value class, and
+  the candidate is proven against the catalog by pattern **and** first-roll
+  value. The family text tail is anchored so a range endpoint inside
+  `roll(low-high)` cannot stand in for the roll.
+- Candidate generation tries exact values, digit classes, fixed-width ranges,
+  alternations, and decimal forms; the shortest proven candidate wins.
 - Common-prefix factorization via a trie reduces multi-mod alternations.
-- Output is deterministic.
+- Output is deterministic; range candidates and catalog proofs are cached per
+  pattern/span/scope.
 - The proof boundary: exact table forms are line-local and strict; unmodeled
   unique/socketable/base text remains outside the safety corpus.
 

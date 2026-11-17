@@ -102,14 +102,14 @@ public class PickerPolishTests
     }
 
     [Fact]
-    public void PickBreakdown_ShowsMinOnlyWhenItChangesTheFragment()
+    public void PickBreakdown_ShowsMinMaxOnlyForRangedNumericPicks()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var state = new WorkbenchState();
-        state.AddInclude(null, new WantedMod("IncreasedLife6")); // supports a min
+        state.AddInclude(null, new WantedMod("IncreasedLife6")); // real range
+        state.AddInclude(null, new WantedMod("MovementVelocity1")); // fixed value
         state.AddInclude(null, new WantedMod("MovementVelocity1", ["Runner's"])); // name pick
-        state.AddInclude(null, new WantedMod("AllResistances1")); // min would be ignored
         var model = new SearchModel(engine, state);
         model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
 
@@ -118,10 +118,59 @@ public class PickerPolishTests
             .Add(x => x.State, state));
 
         cut.FindAll(".bd-row.inc").Should().HaveCount(3);
-        cut.FindAll(".bd-min").Should().HaveCount(1);
+        cut.FindAll(".bd-min").Should().HaveCount(2, "one min and one max for the ranged life pick");
         cut.Find("#min-global-IncreasedLife6").Should().NotBeNull();
+        cut.Find("#max-global-IncreasedLife6").Should().NotBeNull();
         cut.FindAll(".bd-min.ignored").Should().BeEmpty();
         cut.FindAll(".bd-min.noop").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PickBreakdown_ShowsVisibleRangeFallback()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var state = new WorkbenchState();
+        // All resistances has a real span but its family fragment already
+        // covers every roll, so a min cannot change the compiled text.
+        state.AddInclude(null, new WantedMod("AllResistances1", MinValue: 4));
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.FindAll(".bd-min").Should().HaveCount(2);
+        cut.Find(".bd-warn").TextContent.Should().Contain("range not enforceable");
+    }
+
+    [Fact]
+    public void PickBreakdown_TierRange_ShowsRangeLabelAndMinMax()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var family = ModFamilies.Group(engine.ModsForClass("Body Armour"))
+            .First(f => f.Key == "IncreasedLife");
+        var tier = family.Tiers.Single(t => t.Name == "Virile");
+        var pick = engine.TierRangePick(family, tier, up: true)!;
+        var state = new WorkbenchState();
+        state.AddInclude(null, pick);
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var label = cut.Find(".bd-row.inc .bd-text").TextContent;
+        label.Should().Contain("100–214");
+        label.Should().Contain("or better");
+        cut.FindAll(".bd-min").Should().HaveCount(2);
+        cut.Find("#min-global-" + pick.ModId + "-r").Should().NotBeNull();
+        cut.Find("#max-global-" + pick.ModId + "-r").Should().NotBeNull();
+        cut.FindAll(".bd-warn").Should().BeEmpty(
+            "the tier's own min/max are natural bounds, not an ignored filter");
     }
 
     [Fact]
@@ -287,7 +336,8 @@ public class PickerPolishTests
             .Add(x => x.State, state));
 
         cut.Find("#min-ring1-IncreasedLife6").Should().NotBeNull();
-        cut.FindAll(".bd-min").Should().HaveCount(1);
+        cut.Find("#max-ring1-IncreasedLife6").Should().NotBeNull();
+        cut.FindAll(".bd-min").Should().HaveCount(2);
     }
 
     [Fact]

@@ -267,9 +267,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   foreign corpus (`data/catalogs/poe1.vendor-corpus.json`) plus the captured
   `data/catalogs/poe1.safety-items.txt` item. Class anchors are at least two
   characters and are quiet over socket lines, so `Gl` cannot be satisfied by
-  `Sockets: G`. PoE1 exclusions use `"!term"` (the bang is inside
-  the quotes), unlike PoE2's `!"term"`; compile, paste, explain, import, item
-  matching, and the block ruler all use the loaded game's `QuerySyntax`.
+  `Sockets: G`. Exclusions use `"!term"` (the bang is inside the quotes) for
+  both games; compile, paste, explain, import, item matching, and the block
+  ruler all use the loaded game's `QuerySyntax`.
   The shared common-picks shortlist resolves by family key where a PoE2 pick
   has a close PoE1 equivalent (life, resistances, attributes, defence,
   movement speed, regeneration, cast speed, spell damage), so the picker still
@@ -314,18 +314,21 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   (an item needs each; per slot, each block is `": (other classes)|frag"`).
   Two slots of the same class still share one block, so all of falls back to
   any of there and the section says so. "None of" lists exclusions (each its
-  own `!"…"` block; in advanced they apply to every slot, and `All gear`
+  own `"!…"` block; in advanced they apply to every slot, and `All gear`
   exclusions carry over). Identical exclusion fragments collapse to one
   block; a search cannot be both included and excluded. Mods/tiers that
   compile to the same query share one selection: the active one carries the
-  chip, the others stay visible as `covered` with a `⇄` switch button. Plain
-  single-line picks with a number take a
-  `min` value (floors the first number, compiled by the engine's threshold
-  fragment against the advanced `roll(min-max)` text, so it costs far more
-  than the plain fragment; when the engine cannot carry the floor safely it
-  falls back and the input turns red). Hovering a block, segment, pick, or
-  section highlights the matching parts. A tier pick shows the quoted affix
-  name, `or better` when it carries higher tiers, and the tier's range.
+  chip, the others stay visible as `covered` with a `⇄` switch button. Picks
+  with a real numeric range take `min` and `max` values: both boxes appear
+  only when the stat can roll inside its span, fixed-value and non-numeric
+  picks hide both, integer stats accept whole numbers, and decimal stats keep
+  the game's displayed precision. The range is compiled into the same quoted
+  fragment as the family text, so it targets the first roll and cannot be
+  satisfied by a range endpoint in `roll(low-high)`. Hovering a block,
+  segment, pick, or section highlights the matching parts. A tier pick
+  auto-selects the shorter of the affix-name set and one combined range
+  fragment; the pick row shows the explicit range (for example
+  `20–35% increased Movement Speed or better`) and the tier's range.
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.
 - `SavedPicksMenu`: `Saved picks` saves the current picks under a name
@@ -375,8 +378,9 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   accuracy prefix share the accuracy line), any fragment of that line
   recalls both — a single quoted term cannot require two different item
   lines, so hybrid picks match either affix. Leaving it as is was a
-  maintainer call (the alternatives — quoted AND terms or range pinning —
-  were reviewed and parked).
+  maintainer call (the alternatives — quoted AND terms or multi-line range
+  pinning — were reviewed and parked; single-line numeric range pinning ships
+  as one combined family+range fragment).
 - Item matching for highlight/dim and tooltip verdicts runs on the item's
   full copied advanced description: the `Item Class:` line, parsed/mapped
   lines, and the `{ … Modifier "Name" (Tier: n) — tags }` captions — the
@@ -447,8 +451,9 @@ Acceptance criteria and current measurements:
   can open with a stray blurb such as a lowercase `sockets`): the parser
   drops it instead of showing it as a base-stat line. Text with no
   `Item Class:` is parsed as one item; all lines are base lines.
-- Each pick in Your picks has a `min` input. A numeric floor compiles as
-  near-whole-line text (often 10× the plain fragment), so the input sits next
-  to the pick's cost; tier picks remain the cheaper way to limit rolls.
+- Each ranged pick in Your picks has min and max boxes. The range compiles
+  into the same combined fragment as the family text, so it targets the first
+  roll; the boxes sit next to the pick's cost. Fixed-value picks show neither
+  box, and tier picks remain the cheaper way to limit fixed-tier rolls.
 - Publish is the unoptimized interpreter build (25 MB `wwwroot`); browser AOT
   needs the `wasm-tools` workload (requires sudo to install).

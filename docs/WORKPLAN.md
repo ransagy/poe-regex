@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-13._
+_Last updated: 2026-11-17._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -53,6 +53,16 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
+- Tier ranges: a tier action auto-selects the shorter of the affix-name set
+  and one combined family+range fragment; the pick row shows the explicit
+  range (for example `20–35% increased Movement Speed or better`). The range
+  is proven against the catalog: every matched line must be an allowed
+  pattern and its first roll must sit inside the requested intervals.
+  Min/max boxes appear only for ranged numeric stats; fixed-value and
+  non-numeric picks hide both. Integer stats use whole numbers, decimal stats
+  keep the game's displayed precision (including extra digits such as 2.03 in
+  a 1.5–2.5 stat), and the range stays in the same quoted fragment as the
+  family text. PoE2 exclusions use `"!term"` like PoE1.
 - Common picks: the pre-typing shortlist is data-driven from
   `data/common-picks.json`. `classes` is a runtime scope, so Helmet minion
   levels and Gloves attack-only added damage stay out of All gear while the
@@ -112,7 +122,7 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 - Import: normal/magic/rare equipment, fractured headers, corruption
   implicits, annotations, and `— Unscalable Value`; influenced, eldritch,
   crafted, and veiled sources are rejected with clear messages.
-- Syntax: PoE1 exclusions are `"!term"`; the per-game `QuerySyntax` profile
+- Syntax: exclusions are `"!term"`; the per-game `QuerySyntax` profile
   is used by compile, paste, explain, import/reconstruction, and matching.
 - Gems are MVP+1: copied gem text includes explanatory lines that can skew
   fragment selection. Flasks, jewels, influenced mods, crafts, and league

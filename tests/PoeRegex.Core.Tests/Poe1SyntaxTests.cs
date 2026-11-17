@@ -50,10 +50,10 @@ public class Poe1SyntaxTests
     }
 
     [Fact]
-    public void ExclusionShape_DiffersPerGame()
+    public void ExclusionShape_IsInsideQuotesForBothGames()
     {
         QuerySyntax.Poe1.FormatExclusion("reflect").Should().Be("\"!reflect\"");
-        QuerySyntax.Poe2.FormatExclusion("reflect").Should().Be("!\"reflect\"");
+        QuerySyntax.Poe2.FormatExclusion("reflect").Should().Be("\"!reflect\"");
         QuerySyntax.ForGame("poe1").Game.Should().Be("poe1");
         QuerySyntax.ForGame("poe2").Game.Should().Be("poe2");
         QuerySyntax.ForGame(null).Should().BeSameAs(QuerySyntax.Poe2);
@@ -71,11 +71,11 @@ public class Poe1SyntaxTests
     }
 
     [Fact]
-    public void Tokenize_PoE2KeepsBangOutsideQuotes()
+    public void Tokenize_PoE2ReadsInsideQuotes()
     {
-        var tokens = QuerySyntax.Poe2.Tokenize("\"a\" !\"b\" \"!c\"");
+        var tokens = QuerySyntax.Poe2.Tokenize("\"a\" \"!b\" \"c\"");
 
-        tokens.Should().Equal(("a", false), ("b", true), ("!c", false));
+        tokens.Should().Equal(("a", false), ("b", true), ("c", false));
     }
 
     [Fact]

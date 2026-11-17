@@ -200,9 +200,23 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
+                    var upRange = inc.IsTierRange && tier is not null && IsUpRangePick(tier, inc);
+                    if (inc.IsTierRange && tier is not null &&
+                        Engine.TierRangeLabel(inc, tier, upRange, cls) is { } rangeLabel)
+                        label = rangeLabel;
                     var source = SourceFor(inc);
-                    var minIgnored = inc.MinValue is not null && frag is not null
-                        && frag == Model.PickFragment(inc with { MinValue = null }, cls);
+                    var numeric = Engine.NumericRange(inc, cls) is { IsRanged: true } span ? span : null;
+                    // The natural bound is the stat's own span; clearing it
+                    // changes nothing by design, so it is not a fallback.
+                    var minIgnored = inc.MinValue is { } minValue && frag is not null &&
+                        (numeric is null || minValue > numeric.Min + 1e-9) &&
+                        frag == Model.PickFragment(inc with { MinValue = null }, cls);
+                    var maxIgnored = inc.MaxValue is { } maxValue && frag is not null &&
+                        (numeric is null || maxValue < numeric.Max - 1e-9) &&
+                        frag == Model.PickFragment(inc with { MaxValue = null }, cls);
+                    var rangeUnavailable = inc.IsNamePick && inc.Names!.Count > 1 &&
+                        tier is not null && family is not null &&
+                        !Engine.TierRangeAvailable(family, tier, up: true, cls);
                     var busy = _minBusy?.SamePick(inc) == true;
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
@@ -222,16 +236,35 @@
                             {
                                 <span class="bd-detail">@tier.DisplayLabel</span>
                             }
+                            @if (rangeUnavailable)
+                            {
+                                <span class="bd-detail bd-warn">tier names (no safe range)</span>
+                            }
+                            @if (numeric is not null && (minIgnored || maxIgnored))
+                            {
+                                <span class="bd-detail bd-warn">range not enforceable; using the family fragment</span>
+                            }
                         </span>
-                        @if (!ReadOnly && AcceptsMin(inc, cls))
+                        @if (!ReadOnly && numeric is not null)
                         {
-                            <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="numeric" min="0" step="1"
-                                   id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
-                                   aria-busy="@(busy ? "true" : "false")"
-                                   value="@inc.MinValue?.ToString(CultureInfo.InvariantCulture)"
-                                   title="@(busy ? "Applying the minimum…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher (a longer fragment)")"
-                                   aria-label="@($"Minimum value for {label}")"
-                                   @onchange="e => SetMin(slot, inc, cls, e)" />
+                            var step = numeric.Precision > 0 ? "any" : "1";
+                            var mode = numeric.Precision > 0 ? "decimal" : "numeric";
+                            <span class="bd-range">
+                                <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
+                                       id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
+                                       aria-busy="@(busy ? "true" : "false")"
+                                       value="@FormatRangeValue(inc.MinValue)"
+                                       title="@(busy ? "Applying the range…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher")"
+                                       aria-label="@($"Minimum value for {label}")"
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: true)" />
+                                <input class="bd-min @(maxIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
+                                       id="max-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "max")" autocomplete="off"
+                                       aria-busy="@(busy ? "true" : "false")"
+                                       value="@FormatRangeValue(inc.MaxValue)"
+                                       title="@(busy ? "Applying the range…" : maxIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or lower")"
+                                       aria-label="@($"Maximum value for {label}")"
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: false)" />
+                            </span>
                         }
                         else
                         {
@@ -435,14 +468,11 @@
         }
     };
 
-    /// <summary>
-    /// Prefer the shipped capability table so the box appears immediately and
-    /// drawing a chip never triggers the value corpus. A missing table entry
-    /// falls back to the live probe only after the scope is warm.
-    /// </summary>
-    private bool AcceptsMin(WantedMod pick, string? cls) =>
-        Engine.PrecomputedMinCapability(pick, cls)
-        ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
+    private static bool IsUpRangePick(ModTier tier, WantedMod pick) =>
+        pick.RangeModIds is { Count: > 0 } ids && ids.Count > tier.MemberIds.Count;
+
+    private static string? FormatRangeValue(double? value) =>
+        value?.ToString("0.############", CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
         family is { IsUnion: true } or { IsDesecrated: true } or { IsImplicit: true }
@@ -496,20 +526,27 @@
             : (string.Join(" / ", factions), "source-desecrated");
     }
 
-    private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
+    private async Task SetRange(
+        string? slot, WantedMod pick, string? cls, ChangeEventArgs e, bool min)
     {
         var text = e.Value?.ToString()?.Trim();
-        double? value = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
-            ? Math.Floor(v)
-            : null;
+        double? value = null;
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0)
+        {
+            // Integer stats display whole numbers; decimal stats keep the
+            // game's precision (2.03 stays 2.03).
+            value = Engine.NumericRange(pick, cls) is { Precision: 0 } ? Math.Floor(v) : v;
+        }
+        var lo = min ? value : pick.MinValue;
+        var hi = min ? pick.MaxValue : value;
         // Paint the working state before the (possibly first-use) compile, so
-        // the first minimum never looks like a frozen input.
+        // the first range entry never looks like a frozen input.
         _minBusy = pick;
         await InvokeAsync(StateHasChanged);
-        // A min typed before the background warm-up finishes waits for the
+        // A value typed before the background warm-up finishes waits for the
         // chunked corpus load instead of blocking the UI thread.
         await Engine.PrewarmValuePathAsync(cls);
-        State.SetMinValue(slot, pick, value);
+        State.SetRange(slot, pick, lo, hi);
         _minBusy = null;
         await InvokeAsync(StateHasChanged);
     }
@@ -536,6 +573,7 @@
     private static string ChipKey(WantedMod pick) => pick switch
     {
         { IsNamePick: true } => $"{pick.ModId}-n-{string.Join('-', pick.Names!)}".Replace(' ', '_'),
+        { IsTierRange: true } => $"{pick.ModId}-r",
         { VariantModIds.Count: > 0 } => $"{pick.ModId}-v",
         _ => pick.ModId,
     };

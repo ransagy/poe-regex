@@ -46,7 +46,7 @@ public class CompilerTests
 
         result.Query.Should().StartWith("\": Ri\" ");
         result.Query.IndexOf("\": Ri\"", StringComparison.Ordinal).Should()
-            .BeLessThan(result.Query.IndexOf("!\"reflect\"", StringComparison.Ordinal));
+            .BeLessThan(result.Query.IndexOf("\"!reflect\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class CompilerTests
             ExcludedModifiers = [new ModifierRequirement("reflect")],
         });
 
-        result.Query.Should().Contain("!\"reflect\"");
+        result.Query.Should().Contain("\"!reflect\"");
     }
 
     [Fact]
