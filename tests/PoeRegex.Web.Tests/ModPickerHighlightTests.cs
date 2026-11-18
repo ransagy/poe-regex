@@ -75,6 +75,144 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void BootsMovementSpeed_NonConsecutiveTiers_StayDiscrete()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity4").Click();
+
+        var picks = state.CriteriaFor("boots").Included;
+        picks.Should().HaveCount(2, "15 and 25 are not a consecutive tier run");
+        picks.Select(p => p.MinValue).Should().BeEquivalentTo([15d, 25d]);
+        picks.Should().OnlyContain(p => p.RangeModIds!.Count == 1);
+
+        var query = engine.CompilePicks(picks, [], false, "Boots").Query;
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "25% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "20% increased Movement Speed"])
+            .Match.Should().BeFalse("the gap tier was not selected");
+
+        var tier2 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2");
+        var tier3 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        var tier4 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity4");
+        TierRow(cut, tier2).ClassList.Should().Contain("picked");
+        TierRow(cut, tier3).ClassList.Should().NotContain("picked")
+            .And.NotContain("range-covered");
+        TierRow(cut, tier4).ClassList.Should().Contain("picked");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ConsecutiveRun_MergesAndMarksEveryTier()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find("#pick-tier-MovementVelocity4").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(3);
+        pick.MinValue.Should().Be(15);
+        pick.MaxValue.Should().Be(25);
+
+        var tier3 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        TierRow(cut, tier3).ClassList.Should().Contain("range-covered");
+        var tier5 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity5");
+        TierRow(cut, tier5).ClassList.Should().NotContain("range-covered");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactOnBoundedRange_SwitchesToExact()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.RangeModIds.Should().Equal(["MovementVelocity3"]);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(20);
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_UpOnBoundedRange_ReplacesItWithUpPick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find("#pick-tier-up-MovementVelocity3").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_FamilyPickReplacesBoundedRange()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find($"#pick-inc-{family.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.RangeModIds.Should().BeNull();
+        pick.VariantModIds.Should().NotBeNull();
+        pick.VariantModIds.Should().HaveCount(family.MemberIds.Count);
+    }
+
+    [Fact]
     public void BootsMovementSpeed_UpButton_AddsOneCombinedRangePick()
     {
         using var ctx = Context();

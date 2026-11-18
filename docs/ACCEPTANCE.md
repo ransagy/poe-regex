@@ -70,17 +70,30 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 - Adjacent tiers stay exact: Athlete's+Fecund (120–174) does not match
   Vigorous rolls 175–179. The proof checks every displayed roll in an
   allowed catalog span, not only the representative high-roll line.
+- Non-consecutive exact tiers stay discrete: 15+25 is two picks, not a
+  15–25 range, and the gap tier stays unselected. Consecutive runs still
+  coalesce, and a bounded range marks every tier it covers.
+- Range labels use the discrete value set when tiers have a gap
+  (`15 or 25% increased Movement Speed`); a dash is used only for a
+  consecutive tier run. Min/max controls are hidden for a gapped tier set,
+  since a min filter would fill the gap and drop the lower tier.
+- Fixed-value ranges compile from the exact catalog roll set: 15–35 becomes
+  `15|[23][05]`, not `(15|20|25|30|35)`. The loose `[1-3][05]` is rejected
+  because it would include 10.
+- A range narrowed inside one tier still compiles: 120–130 in Athlete's
+  120–149 matches 120–130 and rejects 131–149. The proof checks synthesized
+  in-range rolls, not only the representative high-roll line.
 - Tests cover boots movement speed (fixed tiers), body/helmet maximum life
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 132 core + 473 web + 53 data-build; the published
+- Current Release suite: 133 core + 482 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot 1379–1413 ms; picker expand
-  24 ms; advanced family pick 69 ms; first cross-class range pick 281 ms
-  (subsequent picks 33–98 ms); 10-slot paste update 69 ms; class change
-  79 ms; longest task 272 ms. Only the first cross-class range exceeds
-  200 ms, and only once per session.
+  24 ms; advanced family pick 70 ms; first cross-class range pick ~290 ms
+  (subsequent picks 33–98 ms); 10-slot paste update 70 ms; class change
+  84 ms; longest task ~290 ms. The first cross-class range and the first
+  ring pick are the only actions above 200 ms in the smoke.
 
 ## Performance
 
@@ -100,10 +113,10 @@ Release wwwroot, headless Chromium, cache disabled.
 | import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
 Advanced per-slot picks: **33–98 ms** after the first cross-class range;
-the first cross-class range is **281 ms** because it builds the global
-safety corpus. Long tasks across two runs: **19 over 50 ms, 2 over 200 ms,
-max 272 ms**. The two over-200 tasks are that same first cross-class range,
-one per run.
+the first cross-class range is **~290 ms** because it builds the global
+safety corpus. Long tasks across two runs: **21 over 50 ms, 4 over 200 ms,
+max ~290 ms**. The over-200 tasks are the first cross-class range and the
+first ring pick.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about 1.4 s,
 still under the 2.5 s budget. Bulk add, builder open, explain, and import are

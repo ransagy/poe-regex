@@ -43,6 +43,79 @@ public static class RangeRegex
             .ToList();
     }
 
+    /// <summary>
+    /// Exact value regexes for a finite set of integer rolls. Builds a digit
+    /// trie over the values, merges siblings with identical subtrees, and
+    /// compresses consecutive digits into ranges. The result matches exactly
+    /// the supplied values, so a fixed-tier family can compile as
+    /// <c>15|[23][05]</c> instead of an alternation of every tier.
+    /// </summary>
+    public static IReadOnlyList<string> ExactIntegerCandidates(IReadOnlyList<long> values)
+    {
+        var distinct = values
+            .Where(value => value >= 0)
+            .Distinct()
+            .OrderBy(value => value)
+            .ToList();
+        if (distinct.Count == 0) return [];
+
+        var alternatives = new List<string>();
+        foreach (var group in distinct.GroupBy(value =>
+                     value.ToString(CultureInfo.InvariantCulture).Length))
+        {
+            var root = new DigitNode();
+            foreach (var value in group)
+            {
+                var node = root;
+                foreach (var ch in value.ToString(CultureInfo.InvariantCulture))
+                {
+                    if (!node.Children.TryGetValue(ch, out var child))
+                        node.Children[ch] = child = new DigitNode();
+                    node = child;
+                }
+            }
+            alternatives.AddRange(RenderDigitNode(root));
+        }
+        return alternatives.Count == 0
+            ? []
+            : [string.Join("|", alternatives)];
+    }
+
+    private sealed class DigitNode
+    {
+        public Dictionary<char, DigitNode> Children { get; } = new();
+    }
+
+    private static List<string> RenderDigitNode(DigitNode node)
+    {
+        if (node.Children.Count == 0) return [""];
+        var children = node.Children
+            .Select(child => (Digit: child.Key, Alternatives: RenderDigitNode(child.Value)))
+            .ToList();
+        var result = new List<string>();
+        foreach (var group in children.GroupBy(
+                     child => string.Join("\u0001", child.Alternatives),
+                     StringComparer.Ordinal))
+        {
+            var prefix = DigitSet(group.Select(child => child.Digit));
+            foreach (var alternative in group.First().Alternatives)
+                result.Add(prefix + alternative);
+        }
+        return result;
+    }
+
+    private static string DigitSet(IEnumerable<char> digits)
+    {
+        var values = digits
+            .Select(digit => digit - '0')
+            .Distinct()
+            .OrderBy(value => value)
+            .ToList();
+        if (values.Count == 1) return ((char)('0' + values[0])).ToString();
+        if (values.Count == 10) return @"\d";
+        return "[" + DigitRuns(values) + "]";
+    }
+
     /// <summary>True when the candidate matches every representative value in the intervals.</summary>
     public static bool MatchesIntervals(
         string candidate, IReadOnlyList<(double Lo, double Hi)> intervals, int precision)

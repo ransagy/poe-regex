@@ -28,6 +28,21 @@ public class RangeRegexTests
     }
 
     [Fact]
+    public void ExactIntegerCandidates_UseTrieRangesAndSkipGaps()
+    {
+        var candidates = RangeRegex.ExactIntegerCandidates(
+            [15, 20, 25, 30, 35]);
+
+        candidates.Should().ContainSingle().Which.Should().Be("15|[23][05]");
+        var regex = new System.Text.RegularExpressions.Regex(
+            "^(?:" + candidates[0] + ")$");
+        foreach (var value in new[] { 15, 20, 25, 30, 35 })
+            regex.IsMatch(value.ToString()).Should().BeTrue();
+        foreach (var value in new[] { 10, 16, 24, 36, 40 })
+            regex.IsMatch(value.ToString()).Should().BeFalse();
+    }
+
+    [Fact]
     public void IntegerCandidates_CompressConsecutiveDigits()
     {
         var candidates = RangeRegex.Candidates([(120, 179)], 0);

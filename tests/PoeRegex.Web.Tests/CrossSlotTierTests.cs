@@ -82,9 +82,12 @@ public class CrossSlotTierTests
         paste.Groups.Should().HaveCount(2,
             "Belt/Body/Helmet exact Athlete's cannot union with Gloves 120–174 without over-matching Fecund");
 
-        // Gloves has no Fecund tier, so its wider range is safe there.
+        // Gloves has no Fecund tier, so the exact-set planner keeps its
+        // group at the rolls the class can actually display.
         ItemMatcher.Match(paste.Query,
-            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeTrue();
+            ["Item Class: Gloves", Line("IncreasedLife9")]).Match.Should().BeTrue();
+        ItemMatcher.Match(paste.Query,
+            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeFalse();
         // Belt/Body/Helmet asked for exact Athlete's; Fecund must not match.
         ItemMatcher.Match(paste.Query,
             ["Item Class: Body Armours", Line("IncreasedLife10")]).Match.Should().BeFalse();
@@ -114,10 +117,11 @@ public class CrossSlotTierTests
         ItemMatcher.Match(paste.Query,
             ["Item Class: Gloves", Line("IncreasedLife9")]).Match.Should().BeTrue();
         ItemMatcher.Match(paste.Query,
-            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeTrue();
+            ["Item Class: Gloves", Line("IncreasedLife10")]).Match.Should().BeFalse(
+            "Fecund is not a Gloves tier; the exact-set planner omits it");
         ItemMatcher.Match(paste.Query,
             ["Item Class: Gloves", Line("IncreasedLife8")]).Match.Should().BeFalse(
-            "the Gloves group is 120–174, not the whole life family");
+            "the Gloves group is 120–149, not the whole life family");
     }
 
     [Fact]

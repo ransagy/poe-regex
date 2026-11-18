@@ -45,6 +45,44 @@ public class TierRangeTests
     }
 
     [Fact]
+    public void BootsMovementSpeed_SecondTierUp_CompressesFixedValues()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.OrderBy(t => t.RequiredLevel).ElementAt(1);
+        var pick = Engine.BestTierPick(fam, tier, up: true, cls: "Boots");
+
+        pick.Should().NotBeNull();
+        var query = Engine.CompilePicks([pick!], [], matchAll: false, itemClass: "Boots").Query;
+        query.Should().Contain("15|[23][05]");
+        query.Should().NotContain("15|20|25|30|35");
+
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "35% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "10% increased Movement Speed"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Boots", "40% increased Movement Speed"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_NonConsecutivePick_LabelListsTheValues()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2");
+        var pick = new WantedMod(
+            "MovementVelocity2",
+            MinValue: 15,
+            MaxValue: 25,
+            RangeModIds: ["MovementVelocity2", "MovementVelocity4"]);
+
+        Engine.PickIntervals(pick, "Boots").Should().HaveCount(2);
+        Engine.TierRangeLabel(pick, tier, "Boots")
+            .Should().Be("15 or 25% increased Movement Speed");
+    }
+
+    [Fact]
     public void BootsMovementSpeed_ExactTier_PrefersTheRangeOverTheName()
     {
         var fam = Family("Boots", "MovementVelocity");
@@ -124,6 +162,27 @@ public class TierRangeTests
         ItemMatcher.Match(query, ["Item Class: Body Armours", "+175(175-189) to maximum Life"])
             .Match.Should().BeFalse("Vigorous 175–179 is outside Athlete's+Fecund");
         ItemMatcher.Match(query, ["Item Class: Body Armours", "+179(175-189) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BodyLife_NarrowedWithinTier_MatchesOnlyTheFilter()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 130,
+            RangeModIds: ["IncreasedLife9"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+120 to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+130(120-149) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+131(120-149) to maximum Life"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+149(120-149) to maximum Life"])
             .Match.Should().BeFalse();
     }
 

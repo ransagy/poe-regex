@@ -165,7 +165,8 @@ public static class ConstraintCanonicalizer
         return (Canonicalize(requirements, itemClass, corpus), raw);
     }
 
-    public static IReadOnlyList<ValueInterval> MergeIntervals(IEnumerable<ValueInterval> intervals)
+    public static IReadOnlyList<ValueInterval> MergeIntervals(
+        IEnumerable<ValueInterval> intervals, double step = 0)
     {
         var ordered = intervals
             .Where(i => i.Hi >= i.Lo)
@@ -183,7 +184,7 @@ public static class ConstraintCanonicalizer
             var last = result[^1];
             // Only merge overlapping/adjacent spans. Discrete tiers such as
             // 20 and 25 stay separate, so the canonical set is lossless.
-            if (current.Lo <= last.Hi + 1e-9)
+            if (current.Lo <= last.Hi + step + 1e-9)
                 result[^1] = new ValueInterval(last.Lo, Math.Max(last.Hi, current.Hi));
             else
                 result.Add(current);

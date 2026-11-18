@@ -228,7 +228,10 @@ decimal stats keep the displayed precision and accept extra fractional digits
 
 `CompactionEngine.PlanMany` is the single entry point: it canonicalizes the
 requirements into `StatConstraint`s, merges exact tiers/“or better”/family
-picks into one interval set, and plans each family once. Full-family coverage
+picks into one interval set, and plans each family once. For integer stats it
+also synthesizes an exact candidate from the catalog rolls in the intervals;
+a fixed-tier range such as 15–35 becomes `15|[23][05]`, and the catalog proof
+still rejects any candidate that matches an out-of-range roll. Full-family coverage
 uses the exact table fragment; a multi-value subset prefers the proven range;
 a single-value family keeps the shortest form. The result is independent of
 requirement order.

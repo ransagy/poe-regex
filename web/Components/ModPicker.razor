@@ -215,6 +215,13 @@
                                                     ? CoveredTierHint(covering)
                                                     : null;
                                                 var upDisabled = coveredByUp && !upSelected;
+                                                var rangePick = crit.Included.FirstOrDefault(p =>
+                                                    p.IsTierRange && TierPicked(tier, p));
+                                                var rangeCovered = rangePick is not null &&
+                                                    !coveredByUp && !includedTier;
+                                                var rangeLabel = rangePick is not null
+                                                    ? ClaimLabel(rangePick, tier)
+                                                    : null;
                                                 var tierExclusionTerm = TierExclusionTerm(fam, tier);
                                                 var tierExcludedHere = crit.Excluded.Count > 0 &&
                                                     TierExclusionTerms(fam, tier, crit.Excluded).Count > 0;
@@ -233,6 +240,7 @@
                                                 {
                                                     if (includedTier) tierStateClass += "picked ";
                                                     if (coveredByUp) tierStateClass += "covered up-covered ";
+                                                    if (rangeCovered) tierStateClass += "covered range-covered ";
                                                     if (tierCoveredClaim) tierStateClass += "covered ";
                                                     if (excludedTier) tierStateClass += "excluded";
                                                 }
@@ -252,6 +260,10 @@
                                                         else if (coveredByUp && !upSelected)
                                                         {
                                                             <span class="covered-note" title="@coveredHint">≥ covered</span>
+                                                        }
+                                                        else if (rangeCovered)
+                                                        {
+                                                            <span class="covered-note" title="@CoveredRangeHint(rangeLabel)">range</span>
                                                         }
                                                     }
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
@@ -599,6 +611,7 @@
             TierExplicitPicks(fam, t, crit.Included).Count > 0 ||
             TierUpPicks(fam, t, crit.Included).Count > 0 ||
             UpCoveringTier(fam, t, crit.Included) is not null ||
+            crit.Included.Any(p => TierPicked(t, p)) ||
             TierExclusionTerms(fam, t, crit.Excluded)
                 .Except(familyExcludes, StringComparer.Ordinal)
                 .Any());
@@ -616,6 +629,7 @@
             TierExplicitPicks(fam, t, crit.Included).Count > 0 ||
             TierUpPicks(fam, t, crit.Included).Count > 0 ||
             UpCoveringTier(fam, t, crit.Included) is not null ||
+            crit.Included.Any(p => TierPicked(t, p)) ||
             TierExcluded(fam, t, crit.Excluded)).ToList();
         return tiers.Count > 0 ? tiers : fam.Tiers.ToList();
     }
@@ -654,13 +668,21 @@
     private static bool TierPicked(ModTier tier, WantedMod pick)
     {
         if (pick.IsTierRange)
-            return pick.RangeModIds!.Count == tier.MemberIds.Count &&
-                   pick.RangeModIds.All(tier.MemberIds.Contains);
+            return tier.MemberIds.All(pick.RangeModIds!.Contains);
         if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 }) return false;
         if (tier.MemberIds.Contains(pick.ModId)) return true;
         return pick.IsNamePick && tier.Name.Length > 0 &&
                pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
     }
+
+    /// <summary>Range picks that include this tier, whether bounded or up.</summary>
+    private List<WantedMod> RangePicksCoveringTier(
+        ModFamily fam, ModTier tier, IReadOnlyList<WantedMod> included) =>
+        included
+            .Where(pick => pick.IsTierRange &&
+                           PickTouchesFamily(fam, pick, fam.MemberIds) &&
+                           tier.MemberIds.All(pick.RangeModIds!.Contains))
+            .ToList();
 
     /// <summary>Whole-family picks, matched by family identity rather than exact equality.</summary>
     private List<WantedMod> FamilyPicks(ModFamily fam, IReadOnlyList<WantedMod> included)
@@ -741,7 +763,17 @@
     {
         if (!pick.IsTierRange) return false;
         var anchor = fam.Tiers.FirstOrDefault(t => t.Anchor.Id == pick.ModId);
-        return anchor is not null && pick.RangeModIds!.Count > anchor.MemberIds.Count;
+        if (anchor is null) return false;
+        // "Or better" is exactly the complete set of tiers at or above the
+        // anchor. A partial or non-consecutive set is a bounded range, not an
+        // up pick, even though it has more IDs than the anchor tier.
+        var expected = fam.Tiers
+            .Where(t => t.RequiredLevel >= anchor.RequiredLevel)
+            .SelectMany(t => t.Members)
+            .Select(m => m.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        return pick.RangeModIds!.Count == expected.Count &&
+               pick.RangeModIds.All(expected.Contains);
     }
 
     private static ModTier? UpAnchorTier(ModFamily fam, WantedMod pick)
@@ -782,6 +814,11 @@
 
     private static string CoveredTierHint(ModTier coveringTier) =>
         $"Covered by \"{TierLabel(coveringTier)}\" or better; remove that choice to edit this tier.";
+
+    private static string CoveredRangeHint(string? label) =>
+        label is null
+            ? "Included by a range pick; remove that choice to edit this tier."
+            : $"Included by {label}; remove that choice to edit this tier.";
 
     private static IReadOnlyList<string> TierLines(ModFamily fam, ModTier tier) =>
         fam.IsUnion || fam.IsDesecrated || fam.IsImplicit || fam.IsCorrupted
@@ -1050,6 +1087,12 @@
     private void ToggleFamilyInclude(ModFamily fam)
     {
         var crit = ScopeCriteria();
+        foreach (var range in crit.Included
+                     .Where(p => p.IsTierRange &&
+                                 PickTouchesFamily(fam, p, fam.MemberIds))
+                     .ToList())
+            State.RemoveInclude(Scope, range);
+        crit = ScopeCriteria();
         var pick = fam.Pick();
         var key = FamilyClaimKey(fam);
         if (key is null)
@@ -1092,6 +1135,11 @@
         RemoveClaimExcludes(Engine, crit, key);
         if (!claimedHere)
         {
+            foreach (var range in crit.Included
+                         .Where(p => p.IsTierRange &&
+                                     PickTouchesFamily(fam, p, fam.MemberIds))
+                         .ToList())
+                State.RemoveInclude(Scope, range);
             var includeKey = FamilyClaimKey(fam);
             RemoveClaimIncludes(Engine, crit, includeKey);
             if (includeKey != key) RemoveClaimIncludes(Engine, crit, key);
@@ -1128,6 +1176,18 @@
         }
 
         if (UpCoveringTier(fam, tier, crit.Included) is not null) return; // undo or-better first
+        var coveringRanges = RangePicksCoveringTier(fam, tier, crit.Included)
+            .Where(p => !IsUpRangePick(fam, p) &&
+                        p.RangeModIds!.Count > tier.MemberIds.Count)
+            .ToList();
+        if (coveringRanges.Count > 0)
+        {
+            foreach (var range in coveringRanges)
+                State.RemoveInclude(Scope, range);
+            AddExactTierPick(fam, pick);
+            Refresh();
+            return;
+        }
         var existing = TierExplicitPicks(fam, tier, crit.Included);
         if (existing.Count > 0)
         {
@@ -1166,19 +1226,18 @@
                                    PickTouchesFamily(fam, p, fam.MemberIds)))
             return;
 
-        var coveredTiers = fam.Tiers
-            .Where(t => rangePicks.Any(p => p.RangeModIds!.Any(t.MemberIds.Contains)))
-            .ToList();
-        if (coveredTiers.Count == 0) return;
-
-        // A user-narrowed range keeps its own filter; only natural tier
-        // ranges are safe to coalesce.
+        var tierIndex = fam.Tiers
+            .Select((tier, index) => (tier, index))
+            .ToDictionary(x => x.tier.Anchor.Id, x => x.index, StringComparer.Ordinal);
+        var entries = new List<(WantedMod Pick, List<ModTier> Tiers, int Start, int End)>();
         foreach (var rangePick in rangePicks)
         {
             var covered = fam.Tiers
                 .Where(t => rangePick.RangeModIds!.Any(t.MemberIds.Contains))
                 .ToList();
             if (covered.Count == 0) return;
+            // A user-narrowed range keeps its own filter; only natural tier
+            // ranges are safe to coalesce.
             var lines = covered.SelectMany(t => t.Members)
                 .SelectMany(m => m.StatLines).ToList();
             if (lines.Count == 0) return;
@@ -1186,34 +1245,61 @@
             var naturalMax = lines.Max(line => line.MaxValue);
             if (rangePick.MinValue is { } min && Math.Abs(min - naturalMin) > 1e-9) return;
             if (rangePick.MaxValue is { } max && Math.Abs(max - naturalMax) > 1e-9) return;
+
+            var indices = covered
+                .Select(t => tierIndex.TryGetValue(t.Anchor.Id, out var index) ? index : -1)
+                .Where(index => index >= 0)
+                .OrderBy(index => index)
+                .ToList();
+            if (indices.Count != covered.Count) return;
+            // A discrete set is not a continuous range. Leave it alone rather
+            // than filling the gap between the selected tiers.
+            if (indices[^1] - indices[0] + 1 != indices.Count) return;
+            entries.Add((rangePick, covered, indices[0], indices[^1]));
         }
+
+        entries.Sort((left, right) => left.Start.CompareTo(right.Start));
+        var runs = new List<List<(WantedMod Pick, List<ModTier> Tiers, int Start, int End)>>();
+        foreach (var entry in entries)
+        {
+            if (runs.Count > 0 && entry.Start <= runs[^1][^1].End + 1)
+                runs[^1].Add(entry);
+            else
+                runs.Add([entry]);
+        }
+        if (runs.All(run => run.Count == 1)) return;
 
         State.WithSuppressedNotifications(() =>
         {
-            foreach (var rangePick in rangePicks)
-                State.RemoveInclude(Scope, rangePick);
-            if (coveredTiers.Count == fam.Tiers.Count)
+            foreach (var entry in entries)
+                State.RemoveInclude(Scope, entry.Pick);
+            foreach (var run in runs)
             {
-                State.AddInclude(Scope, fam.Pick());
-                return;
+                var tiers = run
+                    .SelectMany(entry => entry.Tiers)
+                    .DistinctBy(t => t.Anchor.Id, StringComparer.Ordinal)
+                    .OrderBy(t => tierIndex[t.Anchor.Id])
+                    .ToList();
+                if (tiers.Count == fam.Tiers.Count)
+                {
+                    State.AddInclude(Scope, fam.Pick());
+                    continue;
+                }
+                var anchor = tiers[0];
+                var ids = tiers
+                    .SelectMany(t => t.Members)
+                    .Select(m => m.Id)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToList();
+                var lines = tiers.SelectMany(t => t.Members)
+                    .SelectMany(m => m.StatLines).ToList();
+                State.AddInclude(Scope, new WantedMod(
+                    anchor.Anchor.Id,
+                    MinValue: lines.Min(line => line.MinValue),
+                    MaxValue: lines.Max(line => line.MaxValue),
+                    RangeModIds: ids));
             }
-            var anchor = coveredTiers
-                .OrderBy(t => t.RequiredLevel)
-                .ThenBy(t => t.Anchor.Id, StringComparer.Ordinal)
-                .First();
-            var ids = coveredTiers
-                .SelectMany(t => t.Members)
-                .Select(m => m.Id)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(id => id, StringComparer.Ordinal)
-                .ToList();
-            var lines = coveredTiers.SelectMany(t => t.Members)
-                .SelectMany(m => m.StatLines).ToList();
-            State.AddInclude(Scope, new WantedMod(
-                anchor.Anchor.Id,
-                MinValue: lines.Min(line => line.MinValue),
-                MaxValue: lines.Max(line => line.MaxValue),
-                RangeModIds: ids));
         });
     }
 
@@ -1246,6 +1332,9 @@
         {
             if (UpCoveringTier(fam, tier, crit.Included) is { } covering &&
                 covering.Anchor.Id != tier.Anchor.Id) return;
+            foreach (var range in RangePicksCoveringTier(fam, tier, crit.Included)
+                         .Where(p => !IsUpRangePick(fam, p)))
+                State.RemoveInclude(Scope, range);
             foreach (var p in FamilyUpPicks(fam, crit.Included))
                 State.RemoveInclude(Scope, p);
             // Selecting "this or better" covers every tier at or above the
@@ -1286,6 +1375,10 @@
         }
 
         if (UpCoveringTier(fam, tier, crit.Included) is not null) return; // undo or-better first
+        if (RangePicksCoveringTier(fam, tier, crit.Included)
+                .Any(p => !IsUpRangePick(fam, p) &&
+                          p.RangeModIds!.Count > tier.MemberIds.Count))
+            return; // undo the bounded range first
         var existing = TierExclusionTerms(fam, tier, crit.Excluded);
         if (existing.Count > 0)
         {

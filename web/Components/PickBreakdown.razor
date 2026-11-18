@@ -122,6 +122,20 @@
     private WantedMod? _minBusy;
     private int? _hotAnyOfIndex;
 
+    private static bool HasTierGap(ModFamily family, WantedMod pick)
+    {
+        if (!pick.IsTierRange || pick.RangeModIds is not { Count: > 1 } ids)
+            return false;
+        var indices = family.Tiers
+            .Select((tier, index) => (tier, index))
+            .Where(x => ids.Any(id => x.tier.MemberIds.Contains(id)))
+            .Select(x => x.index)
+            .OrderBy(index => index)
+            .ToList();
+        return indices.Count > 1 &&
+               indices[^1] - indices[0] + 1 != indices.Count;
+    }
+
     private bool HasPicks => State.Mode == "advanced"
         ? State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0 ||
           ImportedAnyOf().Count > 0 || ImportedExclusions().Count > 0
@@ -212,7 +226,7 @@
                     if (fullFamilyRange)
                         label = SearchModel.FamilyText(families, mods, inc.ModId, Engine);
                     else if (inc.IsTierRange && tier is not null &&
-                             Engine.TierRangeLabel(inc, tier, cls) is { } rangeLabel)
+                             Engine.TierRangeLabel(inc, tier, cls, family) is { } rangeLabel)
                         label = rangeLabel;
                     var source = SourceFor(inc);
                     var numeric = inc.IsNamePick && inc.Names!.Count == 1 &&
@@ -221,9 +235,11 @@
                         Engine.TierRangeAvailable(family, tier, up: false, cls)
                         ? new EngineService.NumericSpan(
                             tierRange.Min, tierRange.Max, tier.Precision)
-                        : Engine.NumericRange(inc, cls) is { IsRanged: true } span
-                            ? span
-                            : null;
+                        : family is not null && HasTierGap(family, inc)
+                            ? null
+                            : Engine.NumericRange(inc, cls) is { IsRanged: true } span
+                                ? span
+                                : null;
                     // The natural bound is the stat's own span; clearing it
                     // changes nothing by design, so it is not a fallback.
                     var minIgnored = inc.MinValue is { } minValue && frag is not null &&

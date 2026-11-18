@@ -179,6 +179,32 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_NonConsecutiveTierRange_HidesMinMaxAndListsValues()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var pick = new WantedMod(
+            "MovementVelocity2",
+            MinValue: 15,
+            MaxValue: 25,
+            RangeModIds: ["MovementVelocity2", "MovementVelocity4"]);
+        var state = new WorkbenchState();
+        state.AddInclude(null, pick);
+        var model = new SearchModel(engine, state);
+        model.Update(engine.CompilePicks(state.Global.Included, [], false, null), null);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        cut.Find(".bd-row.inc .bd-text").TextContent
+            .Should().Contain("15 or 25% increased Movement Speed");
+        cut.FindAll(".bd-min").Should().BeEmpty(
+            "a min filter would fill the gap between non-consecutive tiers");
+        cut.FindAll(".bd-max").Should().BeEmpty();
+    }
+
+    [Fact]
     public void PickBreakdown_FirstTierOrBetter_UsesTheFamilyLabel()
     {
         using var ctx = Context();

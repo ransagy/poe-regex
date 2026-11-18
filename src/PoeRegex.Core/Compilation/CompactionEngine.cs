@@ -167,8 +167,36 @@ public sealed class CompactionEngine
         string? itemClass,
         IReadOnlyCollection<string> allowedPatterns)
     {
-        var candidates = RangeRegex.Candidates(intervals, precision);
+        var candidates = RangeRegex.Candidates(intervals, precision).ToList();
         if (candidates.Count == 0) return null;
+
+        // A finite set of catalog rolls can be compiled exactly from a digit
+        // trie. This is the universal path for fixed-tier families: 15–35
+        // becomes 15|[23][05], while the loose [1-3][05] would include 10 and
+        // is rejected by the proof.
+        HashSet<string>? exactCandidates = null;
+        if (precision == 0)
+        {
+            var allowedValues = AllowedIntegerValues(allowedPatterns, intervals, itemClass);
+            if (allowedValues.Count > 0)
+            {
+                var exact = RangeRegex.ExactIntegerCandidates(allowedValues);
+                if (exact.Count > 0)
+                {
+                    exactCandidates = new HashSet<string>(exact, StringComparer.Ordinal);
+                    foreach (var candidate in exact)
+                    {
+                        if (!candidates.Contains(candidate))
+                            candidates.Add(candidate);
+                    }
+                    candidates = candidates
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(candidate => candidate.Length)
+                        .ThenBy(candidate => candidate, StringComparer.Ordinal)
+                        .ToList();
+                }
+            }
+        }
 
         var ranged = intervals.Any(x => x.Hi > x.Lo);
         var shapes = _corpus.DisplayPatternsFor(pattern, itemClass)
@@ -199,7 +227,8 @@ public sealed class CompactionEngine
         {
             foreach (var candidate in candidates)
             {
-                if (!RangeRegex.MatchesIntervals(candidate, intervals, precision)) continue;
+                if (exactCandidates?.Contains(candidate) != true &&
+                    !RangeRegex.MatchesIntervals(candidate, intervals, precision)) continue;
                 var forms = BuildRangeForms(shape, candidate, anyNumber, familyFragment)
                     .OrderBy(fragment => fragment.Length)
                     .ThenBy(fragment => fragment, StringComparer.Ordinal)
@@ -207,7 +236,10 @@ public sealed class CompactionEngine
                 var safe = false;
                 foreach (var fragment in forms)
                 {
-                    if (!CatalogRangeSafe(fragment, allowedPatterns, intervals, itemClass)) continue;
+                    if (!CatalogRangeSafe(
+                            fragment, allowedPatterns, intervals, itemClass,
+                            exactCandidates?.Contains(candidate) == true))
+                        continue;
                     if (best is null || fragment.Length < best.Length) best = fragment;
                     safe = true;
                     break;
@@ -329,18 +361,35 @@ public sealed class CompactionEngine
         string fragment,
         IReadOnlyCollection<string> allowedPatterns,
         IReadOnlyList<(double Lo, double Hi)> intervals,
-        string? itemClass)
+        string? itemClass,
+        bool exact = false)
     {
         var regex = new Regex(
             fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         // The representative catalog line shows the high roll. A value class
         // that also matches lower rolls of the next tier would pass the
         // line scan, so reject any allowed span whose out-of-range rolls the
-        // fragment matches before doing the (more expensive) full scan.
-        if (HasOutOfIntervalRoll(regex, allowedPatterns, intervals, itemClass))
-            return false;
-
+        // fragment matches. The same walk proves the fragment matches at
+        // least one in-range roll, which keeps a narrowed range valid even
+        // when no representative line sits inside it.
         var matchedAny = false;
+        if (exact)
+        {
+            // A trie candidate only matches values that were collected from
+            // the allowed spans, so it cannot overmatch. Check one in-range
+            // roll per span for shape completeness without walking every
+            // value.
+            if (!MatchesAnyAllowedRoll(regex, allowedPatterns, intervals, itemClass))
+                return false;
+            matchedAny = true;
+        }
+        else
+        {
+            var (unsafeRoll, matchedRoll) =
+                CheckCatalogRolls(regex, allowedPatterns, intervals, itemClass);
+            if (unsafeRoll) return false;
+            matchedAny = matchedRoll;
+        }
         foreach (var (pattern, real) in CatalogLines(itemClass))
         {
             if (!regex.IsMatch(real)) continue;
@@ -353,11 +402,55 @@ public sealed class CompactionEngine
     }
 
     /// <summary>
-    /// True when the fragment matches a roll inside an allowed catalog span
-    /// that the requested intervals do not cover. The representative line is
-    /// the high roll; this checks every displayed value in the span.
+    /// Integer rolls the allowed patterns can actually display inside the
+    /// requested intervals. Used to synthesize an exact value regex; the
+    /// catalog proof still validates the final fragment.
     /// </summary>
-    private bool HasOutOfIntervalRoll(
+    private IReadOnlyList<long> AllowedIntegerValues(
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        var values = new SortedSet<long>();
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    var lo = (long)Math.Ceiling(line.MinValue - 1e-9);
+                    var hi = (long)Math.Floor(line.MaxValue + 1e-9);
+                    if (hi - lo > 5000) continue;
+                    for (var value = lo; value <= hi; value++)
+                    {
+                        if (InIntervals(value, intervals)) values.Add(value);
+                        if (values.Count > 5000) return [];
+                    }
+                }
+            }
+        }
+        return values.ToList();
+    }
+
+    private static bool OverlapsIntervals(
+        IReadOnlyList<(double Lo, double Hi)> intervals, double lo, double hi) =>
+        intervals.Any(interval =>
+            lo <= interval.Hi + 1e-9 && interval.Lo <= hi + 1e-9);
+
+    /// <summary>
+    /// True when the fragment matches at least one in-range roll in an allowed
+    /// span. Samples the first in-range value per span, which is enough to
+    /// prove the shape is real without walking every value.
+    /// </summary>
+    private bool MatchesAnyAllowedRoll(
         Regex regex,
         IReadOnlyCollection<string> allowedPatterns,
         IReadOnlyList<(double Lo, double Hi)> intervals,
@@ -377,8 +470,7 @@ public sealed class CompactionEngine
                     if (line.MaxValue < line.MinValue ||
                         (line.MinValue == 0 && line.MaxValue == 0))
                         continue;
-                    if (InIntervals(line.MinValue, intervals) &&
-                        InIntervals(line.MaxValue, intervals))
+                    if (!OverlapsIntervals(intervals, line.MinValue, line.MaxValue))
                         continue;
                     var precision = Math.Max(
                         RangeRegex.PrecisionOf(line.MinValue),
@@ -386,17 +478,66 @@ public sealed class CompactionEngine
                     var advanced = AdvancedStatLine.For(line);
                     foreach (var value in SpanSamples(line.MinValue, line.MaxValue, precision))
                     {
-                        if (InIntervals(value, intervals)) continue;
+                        if (!InIntervals(value, intervals)) continue;
                         if (regex.IsMatch(ReplaceFirstNumber(line.Line, value, precision)))
                             return true;
                         if (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
                             regex.IsMatch(ReplaceFirstNumber(advanced, value, precision)))
                             return true;
+                        break;
                     }
                 }
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Walks every displayed roll in the allowed catalog spans. Returns
+    /// unsafe when the fragment matches an out-of-range roll, and matched
+    /// when it matches at least one in-range roll. The representative line
+    /// is the high roll, so a narrowed range needs the synthesized values.
+    /// </summary>
+    private (bool Unsafe, bool Matched) CheckCatalogRolls(
+        Regex regex,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        var matched = false;
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    var precision = Math.Max(
+                        RangeRegex.PrecisionOf(line.MinValue),
+                        RangeRegex.PrecisionOf(line.MaxValue));
+                    var advanced = AdvancedStatLine.For(line);
+                    foreach (var value in SpanSamples(line.MinValue, line.MaxValue, precision))
+                    {
+                        var plain = ReplaceFirstNumber(line.Line, value, precision);
+                        var ranged = ReplaceFirstNumber(advanced, value, precision);
+                        var hit = regex.IsMatch(plain) ||
+                                  (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
+                                   regex.IsMatch(ranged));
+                        if (!hit) continue;
+                        if (!InIntervals(value, intervals)) return (true, matched);
+                        matched = true;
+                    }
+                }
+            }
+        }
+        return (false, matched);
     }
 
     private static IEnumerable<double> SpanSamples(double lo, double hi, int precision)

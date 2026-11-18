@@ -30,6 +30,8 @@ public sealed class EngineService
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
     private ConcurrentDictionary<string, Lazy<CompileResult>> _compileCache = new(StringComparer.Ordinal);
     private ConcurrentDictionary<string, Lazy<MultiPasteResult>> _combineCache = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<IReadOnlyList<ValueInterval>>> _pickIntervals = new();
+    private ConcurrentDictionary<(string ModId, string? Class), Lazy<ModFamily?>> _familyByMod = new();
     private PasteComposer _pasteComposer = null!;
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
     private volatile IReadOnlyList<ItemClassEntry>? _inGameClasses;
@@ -59,6 +61,8 @@ public sealed class EngineService
         _pasteComposer = new PasteComposer(_corpus, validateRecall: false);
         _compileCache = new(StringComparer.Ordinal);
         _combineCache = new(StringComparer.Ordinal);
+        _pickIntervals = new();
+        _familyByMod = new();
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -578,6 +582,39 @@ public sealed class EngineService
         return terms.Count == 0 ? null : string.Join("\u0001", terms);
     }
 
+    /// <summary>
+    /// The discrete value spans a pick actually allows. This is the canonical
+    /// interval view the picker and labels use; unlike Min/Max it keeps gaps
+    /// between non-consecutive tiers.
+    /// </summary>
+    public IReadOnlyList<ValueInterval> PickIntervals(WantedMod pick, string? cls)
+    {
+        var cached = _pickIntervals.GetOrAdd(
+            (pick, cls),
+            key => new Lazy<IReadOnlyList<ValueInterval>>(() =>
+            {
+                if (key.Pick.IsNamePick || key.Pick.IsRawText) return [];
+                var constraints = ConstraintCanonicalizer.Canonicalize(
+                    key.Pick.Requirements().ToList(), key.Class, _corpus);
+                return ConstraintCanonicalizer.MergeIntervals(
+                    constraints.SelectMany(constraint => constraint.Intervals));
+            }));
+        return cached.Value;
+    }
+
+    /// <summary>The family containing this pick's anchor in the scope, if any.</summary>
+    public ModFamily? FamilyFor(WantedMod pick, string? cls) =>
+        cls is null
+            ? null
+            : _familyByMod.GetOrAdd((pick.ModId, cls), key =>
+                new Lazy<ModFamily?>(() =>
+                {
+                    var mod = FindMod(key.ModId);
+                    if (mod is null) return null;
+                    return ModFamilies.CachedGroup(ModsForClass(key.Class!))
+                        .FirstOrDefault(family => family.MemberIds.Contains(mod.Id));
+                })).Value;
+
     /// <summary>Numeric span of a plain/family/tier-range pick, or null when it has no real range.</summary>
     public sealed record NumericSpan(double Min, double Max, int Precision)
     {
@@ -713,7 +750,8 @@ public sealed class EngineService
     }
 
     /// <summary>Explicit pick-row text for a tier range, e.g. "20–35% increased Movement Speed".</summary>
-    public string? TierRangeLabel(WantedMod pick, ModTier tier, string? cls)
+    public string? TierRangeLabel(
+        WantedMod pick, ModTier tier, string? cls, ModFamily? family = null)
     {
         if (!pick.IsTierRange) return null;
         var span = NumericRange(pick, cls);
@@ -722,6 +760,26 @@ public sealed class EngineService
         if (min is null || max is null) return null;
         var precision = span?.Precision ?? tier.Precision;
         var line = tier.DisplayLines.FirstOrDefault() ?? "";
+
+        // A dash is only honest when the selected tiers are consecutive in
+        // the family. A 15+25 pick keeps its gap and lists the values.
+        family ??= FamilyFor(pick, cls);
+        if (family is not null && pick.RangeModIds is { Count: > 0 } ids)
+        {
+            var indices = family.Tiers
+                .Select((familyTier, index) => (familyTier, index))
+                .Where(x => ids.Any(id => x.familyTier.MemberIds.Contains(id)))
+                .Select(x => x.index)
+                .OrderBy(index => index)
+                .ToList();
+            if (indices.Count > 1 &&
+                indices[^1] - indices[0] + 1 == indices.Count)
+                return ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
+        }
+
+        var intervals = PickIntervals(pick, cls);
+        if (intervals.Count > 1)
+            return ModFamilies.IntervalLabel(line, intervals, precision);
         return ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
     }
 
@@ -756,6 +814,22 @@ public sealed class EngineService
         var max = covered.Max(t => t.ValueRange!.Value.Max);
         if (max <= min) return null;
         var precision = covered.Max(t => t.Precision);
+        var indices = fam.Tiers
+            .Select((familyTier, index) => (familyTier, index))
+            .Where(x => covered.Contains(x.familyTier))
+            .Select(x => x.index)
+            .OrderBy(index => index)
+            .ToList();
+        if (indices.Count > 1 &&
+            indices[^1] - indices[0] + 1 != indices.Count)
+        {
+            var intervals = covered
+                .Where(t => t.ValueRange is not null)
+                .Select(t => new ValueInterval(
+                    t.ValueRange!.Value.Min, t.ValueRange.Value.Max))
+                .ToList();
+            return ModFamilies.IntervalLabel(line, intervals, precision);
+        }
         return ModFamilies.RangeLabel(line, min, max, precision);
     }
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
 
@@ -685,6 +686,29 @@ public static class ModFamilies
         if (!match.Success) return line;
         var text = FormatNumber(min, precision);
         if (max > min) text += "–" + FormatNumber(max, precision);
+        return line[..match.Index] + text + line[(match.Index + match.Length)..];
+    }
+
+    /// <summary>
+    /// Replaces the first numeric span with a discrete value list when the
+    /// intervals have gaps: `15 or 25% increased Movement Speed`. Adjacent
+    /// intervals are merged first, so a continuous range still uses a dash.
+    /// </summary>
+    public static string IntervalLabel(
+        string line, IReadOnlyList<ValueInterval> intervals, int precision)
+    {
+        // Adjacent integer spans (120–149 and 150–174) are one continuous
+        // range for display. At decimal precision, adjacent steps merge too.
+        var step = precision <= 0 ? 1 : Math.Pow(10, -precision);
+        var merged = ConstraintCanonicalizer.MergeIntervals(intervals, step);
+        if (merged.Count == 0) return line;
+        var match = Regex.Match(line, @"\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?");
+        if (!match.Success) return line;
+        var text = string.Join(" or ", merged.Select(interval =>
+            FormatNumber(interval.Lo, precision) +
+            (interval.Hi > interval.Lo + 1e-9
+                ? "–" + FormatNumber(interval.Hi, precision)
+                : "")));
         return line[..match.Index] + text + line[(match.Index + match.Length)..];
     }
 

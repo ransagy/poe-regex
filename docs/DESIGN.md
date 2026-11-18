@@ -97,6 +97,11 @@ outer loop. It runs at data-build time, never in the browser.
   planner: full-family table fragment, proven range, or single-value form.
   Exact/up/family selections of the same tiers produce the same query,
   independent of selection order.
+- `EngineService.PickIntervals` exposes the canonical discrete intervals
+  for a UI pick. Labels and tier marks use it, so a non-consecutive set
+  keeps its gaps instead of collapsing to min–max. Exact tier picks merge
+  only within consecutive family runs; bounded ranges mark every covered
+  tier and are replaced cleanly by exact/up/family actions.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic
   key and reuses one `PasteComposer` per game session, so a re-render does
   not re-plan unchanged slots. Range proofs use unsorted per-scope proof
@@ -165,6 +170,10 @@ outer loop. It runs at data-build time, never in the browser.
   and min/max; cross-slot union merges the same anchor range only when the
   extra span does not exist for the narrower class. Different or gapped
   ranges stay separate.
+- A finite integer roll set is synthesized through a digit trie (identical
+  subtrees merged, consecutive digits compressed). For a fixed-tier family
+  this turns 15–35 into `15|[23][05]`; the catalog proof still rejects any
+  candidate that matches a roll outside the requested intervals.
 - Candidate generation tries exact values, digit classes, fixed-width ranges,
   alternations, and decimal forms; the shortest proven candidate wins.
 - Common-prefix factorization via a trie reduces multi-mod alternations.
