@@ -101,7 +101,9 @@ outer loop. It runs at data-build time, never in the browser.
   for a UI pick. Labels and tier marks use it, so a non-consecutive set
   keeps its gaps instead of collapsing to min–max. Exact tier picks merge
   only within consecutive family runs; bounded ranges mark every covered
-  tier and are replaced cleanly by exact/up/family actions.
+  tier and lock tier actions until the range is removed. A full-family range
+  owns the family claim, natural bounds render as empty, and a family pick
+  converts to a range pick on the first min/max entry.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic
   key and reuses one `PasteComposer` per game session, so a re-render does
   not re-plan unchanged slots. Range proofs use unsorted per-scope proof

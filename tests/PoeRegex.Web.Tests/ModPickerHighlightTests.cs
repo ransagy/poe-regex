@@ -144,7 +144,55 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void BootsMovementSpeed_ExactOnBoundedRange_SwitchesToExact()
+    public void BootsMovementSpeed_HighestTier_CanBeToggledOff()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        var button = cut.Find("#pick-tier-MovementVelocity6");
+        button.HasAttribute("disabled").Should().BeFalse(
+            "the highest tier is exact, not an or-better anchor");
+        button.Click();
+
+        state.CriteriaFor("boots").Included.Should().ContainSingle()
+            .Which.MaxValue.Should().Be(35);
+
+        cut.Find("#pick-tier-MovementVelocity6").Click();
+        state.CriteriaFor("boots").Included.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_FullFamilyRange_OwnsTheFamilyRow()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var first = family.Tiers.OrderBy(t => t.RequiredLevel).First();
+        var pick = engine.BestTierPick(family, first, up: true, "Boots")!;
+        var state = new WorkbenchState();
+        state.AddInclude("boots", pick);
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var button = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        button.TextContent.Should().Be("✓");
+        button.GetAttribute("aria-pressed").Should().Be("true");
+
+        button.Click();
+        state.CriteriaFor("boots").Included.Should().BeEmpty(
+            "a full-family range toggles the family off, not into a duplicate family pick");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactOnBoundedRange_IsLockedUntilRangeRemoved()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -158,16 +206,19 @@ public class ModPickerHighlightTests
         if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
         cut.Find("#pick-tier-MovementVelocity2").Click();
         cut.Find("#pick-tier-MovementVelocity3").Click();
-        cut.Find("#pick-tier-MovementVelocity3").Click();
+        var exact = cut.Find("#pick-tier-MovementVelocity3");
+        exact.HasAttribute("disabled").Should().BeTrue(
+            "the bounded range must be removed before editing a covered tier");
+        exact.Click();
 
         var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
-        pick.RangeModIds.Should().Equal(["MovementVelocity3"]);
-        pick.MinValue.Should().Be(20);
+        pick.RangeModIds.Should().HaveCount(2);
+        pick.MinValue.Should().Be(15);
         pick.MaxValue.Should().Be(20);
     }
 
     [Fact]
-    public void BootsMovementSpeed_UpOnBoundedRange_ReplacesItWithUpPick()
+    public void BootsMovementSpeed_UpOnBoundedRange_IsLockedUntilRangeRemoved()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
@@ -181,12 +232,15 @@ public class ModPickerHighlightTests
         if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
         cut.Find("#pick-tier-MovementVelocity2").Click();
         cut.Find("#pick-tier-MovementVelocity3").Click();
-        cut.Find("#pick-tier-up-MovementVelocity3").Click();
+        var up = cut.Find("#pick-tier-up-MovementVelocity3");
+        up.HasAttribute("disabled").Should().BeTrue(
+            "the bounded range must be removed before changing the tier action");
+        up.Click();
 
         var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
-        pick.RangeModIds.Should().HaveCount(4);
-        pick.MinValue.Should().Be(20);
-        pick.MaxValue.Should().Be(35);
+        pick.RangeModIds.Should().HaveCount(2);
+        pick.MinValue.Should().Be(15);
+        pick.MaxValue.Should().Be(20);
     }
 
     [Fact]

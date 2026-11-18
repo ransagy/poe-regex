@@ -301,14 +301,14 @@
                                 <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
                                        id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
                                        aria-busy="@(busy ? "true" : "false")"
-                                       value="@FormatRangeValue(inc.MinValue)"
+                                       value="@FormatRangeValue(fullFamilyRange ? null : inc.MinValue)"
                                        title="@(busy ? "Applying the range…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher")"
                                        aria-label="@($"Minimum value for {label}")"
                                        @onchange="e => SetRange(slot, inc, cls, e, min: true, family, tier)" />
                                 <input class="bd-min @(maxIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
                                        id="max-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "max")" autocomplete="off"
                                        aria-busy="@(busy ? "true" : "false")"
-                                       value="@FormatRangeValue(inc.MaxValue)"
+                                       value="@FormatRangeValue(fullFamilyRange ? null : inc.MaxValue)"
                                        title="@(busy ? "Applying the range…" : maxIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or lower")"
                                        aria-label="@($"Maximum value for {label}")"
                                        @onchange="e => SetRange(slot, inc, cls, e, min: false, family, tier)" />
@@ -586,6 +586,27 @@
         }
         var lo = min ? value : pick.MinValue;
         var hi = min ? pick.MaxValue : value;
+
+        // A family pick with a numeric filter becomes a range pick in place,
+        // so its label, tier marks, and actions use the same representation
+        // as any other range.
+        if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 } &&
+            family is not null && (lo is not null || hi is not null))
+        {
+            var rangePick = new WantedMod(
+                pick.ModId,
+                MinValue: lo,
+                MaxValue: hi,
+                RangeModIds: family.MemberIds
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToList());
+            _minBusy = pick;
+            await InvokeAsync(StateHasChanged);
+            State.ReplaceInclude(slot, pick, rangePick);
+            _minBusy = null;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
 
         // An exact ranged tier can keep its short affix-name form until the
         // user actually filters; the first min/max entry converts it to the

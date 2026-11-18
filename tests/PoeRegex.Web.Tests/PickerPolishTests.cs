@@ -179,6 +179,51 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_FamilyAndFirstTierUp_ShowSameNaturalBounds()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var family = ModFamilies.Group(engine.ModsForClass("Boots"))
+            .First(f => f.Key == "MovementVelocity");
+        var first = family.Tiers.OrderBy(t => t.RequiredLevel).First();
+        var picks = new[]
+        {
+            family.Pick(),
+            engine.BestTierPick(family, first, up: true, "Boots")!,
+        };
+
+        var labels = new List<string>();
+        var fragments = new List<string>();
+        foreach (var pick in picks)
+        {
+            var state = new WorkbenchState();
+            state.SetMode("advanced");
+            state.SelectSlot("boots");
+            state.AddInclude("boots", pick);
+            var paste = engine.Combine(
+                [("boots (Boots)", "Boots",
+                    (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],
+                [], allowOverflow: true);
+            var model = new SearchModel(engine, state);
+            model.Update(null, paste);
+            var cut = ctx.Render<PickBreakdown>(p => p
+                .Add(x => x.Model, model)
+                .Add(x => x.State, state));
+
+            labels.Add(cut.Find(".bd-row.inc .bd-text").TextContent);
+            fragments.Add(cut.Find(".bd-frag").TextContent);
+            var rangeInputs = cut.FindAll(".bd-min");
+            rangeInputs.Should().HaveCount(2);
+            rangeInputs.Should().OnlyContain(input =>
+                string.IsNullOrEmpty(input.GetAttribute("value")),
+                "natural bounds are not a filter");
+        }
+
+        labels[0].Should().Be(labels[1]);
+        fragments[0].Should().Be(fragments[1]);
+    }
+
+    [Fact]
     public void PickBreakdown_NonConsecutiveTierRange_HidesMinMaxAndListsValues()
     {
         using var ctx = Context();
@@ -260,6 +305,9 @@ public class PickerPolishTests
 
         var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
         pick.MinValue.Should().Be(20);
+        pick.IsTierRange.Should().BeTrue(
+            "the family pick converts to the canonical range on the first filter");
+        pick.RangeModIds.Should().HaveCount(boots.MemberIds.Count);
         var query = engine.Combine(
             [("boots (Boots)", "Boots",
                 (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],

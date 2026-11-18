@@ -73,6 +73,14 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
 - Non-consecutive exact tiers stay discrete: 15+25 is two picks, not a
   15–25 range, and the gap tier stays unselected. Consecutive runs still
   coalesce, and a bounded range marks every tier it covers.
+- The highest tier is exact, not an “or better” anchor: its exact button
+  toggles off normally. A full-family range owns the family row and toggles
+  off like a family pick; family and first-tier “or better” show the same
+  natural bounds (empty, not a filter).
+- Entering a min/max on a family pick converts it to the canonical range
+  pick, so its label, tier marks, and actions stay range-aware.
+- Bounded-range covered tiers keep their exact/up/exclude actions disabled
+  until the range is removed, instead of silently replacing it.
 - Range labels use the discrete value set when tiers have a gap
   (`15 or 25% increased Movement Speed`); a dash is used only for a
   consecutive tier run. Min/max controls are hidden for a gapped tier set,
@@ -87,7 +95,7 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 482 web + 53 data-build; the published
+- Current Release suite: 133 core + 485 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot 1379–1413 ms; picker expand
   24 ms; advanced family pick 70 ms; first cross-class range pick ~290 ms
