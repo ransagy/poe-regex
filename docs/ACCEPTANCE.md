@@ -64,11 +64,17 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   Multiple exact tiers in one slot coalesce to one valid range before grouping.
 - Token-aware factoring never cuts inside character classes/groups; a
   malformed split such as `1[(234]...` cannot be emitted.
+- Value classes compress runs of consecutive digits (`[234567]` becomes
+  `[2-7]`) and omit parentheses when there is no alternation, so a combined
+  life range is `\+1[2-7]\d.*fe` rather than `\+(1[234567]\d).*fe$`.
+- Adjacent tiers stay exact: Athlete's+Fecund (120–174) does not match
+  Vigorous rolls 175–179. The proof checks every displayed roll in an
+  allowed catalog span, not only the representative high-roll line.
 - Tests cover boots movement speed (fixed tiers), body/helmet maximum life
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 131 core + 471 web + 53 data-build; the published
+- Current Release suite: 132 core + 473 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot 1379–1413 ms; picker expand
   24 ms; advanced family pick 69 ms; first cross-class range pick 281 ms

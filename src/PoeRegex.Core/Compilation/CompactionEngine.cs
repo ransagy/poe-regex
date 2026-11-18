@@ -236,7 +236,12 @@ public sealed class CompactionEngine
         var prefix = EscapeShape(shape[..idx]);
         var suffix = EscapeShape(shape[(idx + 1)..], anyNumber);
         var tail = TailAfterRangeGroup(shape, idx, anyNumber);
-        var value = "(" + valueRegex + ")";
+        // Parentheses are only needed when the value regex alternates. A
+        // pure concatenation such as `1[2-7]\d` can sit directly in the
+        // prefix/suffix, which keeps the compiled query shorter.
+        var value = valueRegex.Contains('|', StringComparison.Ordinal)
+            ? "(" + valueRegex + ")"
+            : valueRegex;
 
         var forms = new List<string>(4)
         {
@@ -317,6 +322,9 @@ public sealed class CompactionEngine
         return sb.ToString();
     }
 
+    private static readonly Regex FirstNumber = new(
+        @"[-+]?\d+(?:\.\d+)?", RegexOptions.CultureInvariant);
+
     private bool CatalogRangeSafe(
         string fragment,
         IReadOnlyCollection<string> allowedPatterns,
@@ -325,6 +333,13 @@ public sealed class CompactionEngine
     {
         var regex = new Regex(
             fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        // The representative catalog line shows the high roll. A value class
+        // that also matches lower rolls of the next tier would pass the
+        // line scan, so reject any allowed span whose out-of-range rolls the
+        // fragment matches before doing the (more expensive) full scan.
+        if (HasOutOfIntervalRoll(regex, allowedPatterns, intervals, itemClass))
+            return false;
+
         var matchedAny = false;
         foreach (var (pattern, real) in CatalogLines(itemClass))
         {
@@ -335,6 +350,82 @@ public sealed class CompactionEngine
             if (!InIntervals(value, intervals)) return false;
         }
         return matchedAny;
+    }
+
+    /// <summary>
+    /// True when the fragment matches a roll inside an allowed catalog span
+    /// that the requested intervals do not cover. The representative line is
+    /// the high roll; this checks every displayed value in the span.
+    /// </summary>
+    private bool HasOutOfIntervalRoll(
+        Regex regex,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    if (InIntervals(line.MinValue, intervals) &&
+                        InIntervals(line.MaxValue, intervals))
+                        continue;
+                    var precision = Math.Max(
+                        RangeRegex.PrecisionOf(line.MinValue),
+                        RangeRegex.PrecisionOf(line.MaxValue));
+                    var advanced = AdvancedStatLine.For(line);
+                    foreach (var value in SpanSamples(line.MinValue, line.MaxValue, precision))
+                    {
+                        if (InIntervals(value, intervals)) continue;
+                        if (regex.IsMatch(ReplaceFirstNumber(line.Line, value, precision)))
+                            return true;
+                        if (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
+                            regex.IsMatch(ReplaceFirstNumber(advanced, value, precision)))
+                            return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static IEnumerable<double> SpanSamples(double lo, double hi, int precision)
+    {
+        if (hi < lo) yield break;
+        var step = precision <= 0 ? 1 : Math.Pow(10, -precision);
+        var steps = (hi - lo) / step;
+        if (steps > 2000)
+        {
+            yield return lo;
+            yield return hi;
+            yield return Math.Round((lo + hi) / 2, precision);
+            yield break;
+        }
+        var count = (int)Math.Round(steps);
+        for (var i = 0; i <= count; i++)
+            yield return Math.Round(lo + i * step, precision);
+    }
+
+    private static string ReplaceFirstNumber(string text, double value, int precision)
+    {
+        var match = FirstNumber.Match(text);
+        if (!match.Success) return text;
+        var formatted = precision <= 0
+            ? Math.Round(value).ToString("0", CultureInfo.InvariantCulture)
+            : value.ToString("0." + new string('#', precision), CultureInfo.InvariantCulture);
+        if (match.Value.StartsWith('+') && !formatted.StartsWith('+'))
+            formatted = "+" + formatted;
+        return text[..match.Index] + formatted + text[(match.Index + match.Length)..];
     }
 
     private IReadOnlyList<(string Pattern, string Real)> CatalogLines(string? itemClass) =>

@@ -85,6 +85,49 @@ public class TierRangeTests
     }
 
     [Fact]
+    public void BodyLife_ShortRange_CompressesDigitsAndDropsRedundantGroup()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 179,
+            RangeModIds: ["IncreasedLife9", "IncreasedLife10", "IncreasedLife11"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        query.Should().Contain("1[2-7]\\d");
+        query.Should().NotContain("[234567]");
+        query.Should().NotContain("(1[2-7]");
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+120 to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+179(175-189) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+119 to maximum Life"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+180(175-189) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BodyLife_AdjacentTiers_DoNotMatchTheNextTier()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 174,
+            RangeModIds: ["IncreasedLife9", "IncreasedLife10"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+174(150-174) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+175(175-189) to maximum Life"])
+            .Match.Should().BeFalse("Vigorous 175–179 is outside Athlete's+Fecund");
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+179(175-189) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
     public void BodyLifeRegen_TierRange_MatchesRolledPrecision()
     {
         var family = ModFamilies.Group(Engine.ModsForClass("Body Armour"))

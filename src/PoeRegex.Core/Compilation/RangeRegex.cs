@@ -249,7 +249,33 @@ public static class RangeRegex
             else if (digits.Count == 1)
                 sb.Append((char)('0' + digits[0]));
             else
-                sb.Append('[').Append(string.Concat(digits.Select(d => (char)('0' + d)))).Append(']');
+                sb.Append('[').Append(DigitRuns(digits)).Append(']');
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Compress consecutive digits into character-class ranges. A run of
+    /// three or more is shorter as <c>a-b</c>; two digits stay literal
+    /// because <c>ab</c> is shorter than <c>a-b</c>. This is an exact set
+    /// transformation, so the catalog proof sees the same matches.
+    /// </summary>
+    private static string DigitRuns(IReadOnlyList<int> digits)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < digits.Count;)
+        {
+            var j = i;
+            while (j + 1 < digits.Count && digits[j + 1] == digits[j] + 1)
+                j++;
+            if (j - i + 1 >= 3)
+                sb.Append((char)('0' + digits[i]))
+                    .Append('-')
+                    .Append((char)('0' + digits[j]));
+            else
+                for (var k = i; k <= j; k++)
+                    sb.Append((char)('0' + digits[k]));
+            i = j + 1;
         }
         return sb.ToString();
     }
@@ -290,37 +316,52 @@ public static class RangeRegex
     private static List<string> TightRange(long lo, long hi, int width)
     {
         if (width <= 0) return [""];
-        if (lo == 0 && hi == Pow10(width) - 1)
+        var max = Pow10(width) - 1;
+        if (lo == 0 && hi == max)
             return [RepeatDigit(width)];
+        if (lo == hi)
+            return [lo.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0')];
+
         var loStr = lo.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
         var hiStr = hi.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
-        if (loStr[0] == hiStr[0])
-        {
-            var restLo = lo - (loStr[0] - '0') * Pow10(width - 1);
-            var restHi = hi - (hiStr[0] - '0') * Pow10(width - 1);
-            return TightRange(restLo, restHi, width - 1)
-                .Select(rest => loStr[0] + rest)
-                .ToList();
-        }
-
-        var result = new List<string>();
         var loDigit = loStr[0] - '0';
         var hiDigit = hiStr[0] - '0';
         var loRest = lo - loDigit * Pow10(width - 1);
         var hiRest = hi - hiDigit * Pow10(width - 1);
-
-        result.AddRange(TightRange(loRest, Pow10(width - 1) - 1, width - 1)
-            .Select(rest => loStr[0] + rest));
-        if (loDigit + 1 <= hiDigit - 1)
+        if (loDigit == hiDigit)
         {
-            var middle = loDigit + 1 == hiDigit - 1
-                ? ((char)('0' + loDigit + 1)).ToString()
-                : $"[{loDigit + 1}-{hiDigit - 1}]";
-            result.Add(middle + RepeatDigit(width - 1));
+            return TightRange(loRest, hiRest, width - 1)
+                .Select(rest => loStr[0] + rest)
+                .ToList();
         }
-        result.AddRange(TightRange(0, hiRest, width - 1)
-            .Select(rest => hiStr[0] + rest));
+        if (width == 1)
+            return [DigitSpan(loDigit, hiDigit)];
+
+        var fullRest = Pow10(width - 1) - 1;
+        var loFull = loRest == 0;
+        var hiFull = hiRest == fullRest;
+        var result = new List<string>();
+        // A boundary group with a full remainder is just a digit, so it can
+        // join the middle range: 20..74 becomes [2-6]\d | 7[0-4], not
+        // 2\d | [3-6]\d | 7[0-4].
+        if (!loFull)
+            result.AddRange(TightRange(loRest, fullRest, width - 1)
+                .Select(rest => loStr[0] + rest));
+        var middleLo = loFull ? loDigit : loDigit + 1;
+        var middleHi = hiFull ? hiDigit : hiDigit - 1;
+        if (middleLo <= middleHi)
+            result.Add(DigitSpan(middleLo, middleHi) + RepeatDigit(width - 1));
+        if (!hiFull)
+            result.AddRange(TightRange(0, hiRest, width - 1)
+                .Select(rest => hiStr[0] + rest));
         return result;
+    }
+
+    private static string DigitSpan(int lo, int hi)
+    {
+        if (lo == hi) return ((char)('0' + lo)).ToString();
+        if (lo == 0 && hi == 9) return @"\d";
+        return $"[{lo}-{hi}]";
     }
 
     private static IEnumerable<string> DecimalCandidates(

@@ -28,6 +28,19 @@ public class RangeRegexTests
     }
 
     [Fact]
+    public void IntegerCandidates_CompressConsecutiveDigits()
+    {
+        var candidates = RangeRegex.Candidates([(120, 179)], 0);
+
+        candidates.Should().Contain("1[2-7]\\d");
+        RangeRegex.MatchesIntervals("1[2-7]\\d", [(120, 179)], 0).Should().BeTrue();
+        System.Text.RegularExpressions.Regex.IsMatch(
+            "119", "^(?:1[2-7]\\d)$").Should().BeFalse();
+        System.Text.RegularExpressions.Regex.IsMatch(
+            "180", "^(?:1[2-7]\\d)$").Should().BeFalse();
+    }
+
+    [Fact]
     public void IntegerCandidates_CrossDigitWidth_CombineWidths()
     {
         var candidates = RangeRegex.Candidates([(9, 12)], 0);

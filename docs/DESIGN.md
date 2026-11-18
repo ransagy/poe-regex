@@ -147,15 +147,18 @@ outer loop. It runs at data-build time, never in the browser.
   "25% increased Movement Speed while Sprinting".
 - Tier ranges use one combined fragment: the first roll placeholder in the
   advanced display shape is replaced with the shortest safe value class, and
-  the candidate is proven against the catalog by pattern **and** first-roll
-  value. The family text tail is anchored so a range endpoint inside
+  the candidate is proven against the catalog by pattern and by every
+  displayed roll in an allowed span, not only the representative high roll.
+  The family text tail is anchored so a range endpoint inside
   `roll(low-high)` cannot stand in for the roll. Tier picks in a multi-value
   family are range-first for exact and up tiers; a single-value family keeps
   the shorter affix-name form. Full-family coverage uses the table fragment,
   so the first tier’s “or better” and the family pick are the same query.
 - Factoring is token-aware: fragments containing classes or groups are left
   unfactored rather than risk a malformed split such as `1[(234]...`; literal
-  prefixes still factor.
+  prefixes still factor. Value classes compress consecutive digits into
+  ranges and only add a group when the value alternates, so `1[234567]\d`
+  becomes `1[2-7]\d` and a pure concatenation is not wrapped.
 - Multi-slot paste criteria group by semantic key. Each slot is
   canonicalized first, so multiple exact tiers of one family become one range
   requirement. A tier range keys by stat pattern, clamped covered intervals,

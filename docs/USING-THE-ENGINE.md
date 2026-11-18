@@ -217,7 +217,9 @@ new ModifierRequirement(
     RangeModIds: ["IncreasedLife8", "IncreasedLife9", "IncreasedLife10"])
 ```
 
-The range candidate uses character classes/ranges/alternations when shorter.
+The range candidate uses character classes/ranges/alternations when shorter;
+consecutive digits collapse into ranges (`1[2-7]\d`), and a pure
+concatenation is not wrapped in parentheses.
 Every matched catalog line must have an allowed pattern and its first roll
 must sit inside the requested intervals; a range endpoint in
 `roll(low-high)` cannot satisfy the roll. Integer stats use whole numbers;
