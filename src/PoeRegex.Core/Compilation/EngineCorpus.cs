@@ -35,6 +35,9 @@ public sealed class EngineCorpus
     private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _globalByLiteral =
         new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<(string Pattern, string Real)>? _globalLines;
+    private readonly Lazy<IReadOnlyList<(string Pattern, string Real)>> _proofGlobal;
+    private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<(string Pattern, string Real)>>> _proofByClass =
+        new(StringComparer.Ordinal);
     private Dictionary<string, List<VendorLine>>? _vendorByClass;
     private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
@@ -352,6 +355,7 @@ public sealed class EngineCorpus
         _modsByPattern = new(BuildModsByPattern, LazyThreadSafetyMode.ExecutionAndPublication);
         _globalByPattern = new(() => GroupByPattern(RealLinesGlobal()),
             LazyThreadSafetyMode.ExecutionAndPublication);
+        _proofGlobal = new(() => BuildProofLines(null), LazyThreadSafetyMode.ExecutionAndPublication);
         var table = fragments ??
             (string.Equals(catalog.Game, "poe2", StringComparison.OrdinalIgnoreCase)
                 ? FragmentTables.ForCurrentGame
@@ -535,11 +539,33 @@ public sealed class EngineCorpus
     /// </summary>
     public IReadOnlyList<string> DisplayPatternsFor(string pattern, string? itemClass)
     {
-        var lines = itemClass is null
-            ? _globalByPattern.Value.GetValueOrDefault(pattern) ?? []
-            : TryGetClassIndex(itemClass, out var ci)
-                ? ci.LinesWithPattern(pattern)
-                : [];
+        if (itemClass is null)
+        {
+            // Global display shapes come from the catalog's own forms. The
+            // previous path grouped the entire global corpus (including every
+            // vendor line) just to read one pattern's shapes, which made the
+            // first cross-class range a multi-second task in the browser.
+            var shapes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var mod in ModsWithPattern(pattern))
+            {
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    foreach (var real in RealForms(line))
+                    {
+                        var normalized = CatalogLineNormalizer.Normalize(real);
+                        if (!string.Equals(normalized, pattern, StringComparison.Ordinal))
+                            shapes.Add(normalized);
+                    }
+                }
+            }
+            return shapes.OrderBy(x => x, StringComparer.Ordinal).ToList();
+        }
+
+        var lines = TryGetClassIndex(itemClass, out var ci)
+            ? ci.LinesWithPattern(pattern)
+            : [];
         return lines
             .Select(x => CatalogLineNormalizer.Normalize(x.Real))
             .Where(x => !string.Equals(x, pattern, StringComparison.Ordinal))
@@ -666,6 +692,55 @@ public sealed class EngineCorpus
     /// map to a catalog mod; the full vendor/stash corpus is much larger and
     /// belongs to the safety oracle, not the reverse lookup.
     /// </summary>
+    /// <summary>
+    /// Catalog lines for regex safety proofs. Same lines as
+    /// <see cref="ExplainLines"/> but unsorted: the proof only iterates, and
+    /// sorting tens of thousands of tuples was the first-use long task in the
+    /// browser. Cached per scope.
+    /// </summary>
+    public IReadOnlyList<(string Pattern, string Real)> ProofLines(string? itemClass) =>
+        itemClass is null
+            ? _proofGlobal.Value
+            : _proofByClass.GetOrAdd(
+                itemClass,
+                id => new Lazy<IReadOnlyList<(string Pattern, string Real)>>(
+                    () => BuildProofLines(id), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+
+    private IReadOnlyList<(string Pattern, string Real)> BuildProofLines(string? itemClass)
+    {
+        var seen = new HashSet<(string Pattern, string Real)>();
+        var lines = new List<(string Pattern, string Real)>();
+        void Add(string pattern, string real)
+        {
+            if (seen.Add((pattern, real))) lines.Add((pattern, real));
+        }
+
+        foreach (var mod in _inGameMods)
+        {
+            if (itemClass is not null &&
+                !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                continue;
+            foreach (var sl in mod.StatLines)
+                foreach (var real in RealForms(sl)) Add(sl.Pattern, real);
+        }
+        foreach (var line in UniversalLines)
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        if (itemClass is null)
+        {
+            foreach (var cls in _inGameCatalogClasses)
+            {
+                var line = $"Item Class: {cls.Name}";
+                Add(CatalogLineNormalizer.Normalize(line), line);
+            }
+        }
+        else if (FindItemClass(itemClass) is { } cls)
+        {
+            var line = $"Item Class: {cls.Name}";
+            Add(CatalogLineNormalizer.Normalize(line), line);
+        }
+        return lines;
+    }
+
     public IReadOnlyList<(string Pattern, string Real)> ExplainLines(string? itemClass)
     {
         var mods = itemClass is null
@@ -735,11 +810,25 @@ public sealed class EngineCorpus
         return _modsByPattern.Value.TryGetValue(pattern, out var mods) ? mods : [];
     }
 
-    private Dictionary<string, List<ModEntry>> BuildModsByPattern() =>
-        _inGameMods
-            .SelectMany(m => m.StatLines.Select(sl => (Mod: m, Pattern: sl.Pattern)))
-            .GroupBy(x => x.Pattern, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.Mod).Distinct().ToList(), StringComparer.Ordinal);
+    private Dictionary<string, List<ModEntry>> BuildModsByPattern()
+    {
+        // Hand-built on purpose: this index is the first thing a paste with
+        // tier ranges touches, and LINQ GroupBy/Distinct made that first use
+        // a multi-second task in the browser. Mods are visited once, so a
+        // repeated pattern within one mod is always the previous entry.
+        var result = new Dictionary<string, List<ModEntry>>(StringComparer.Ordinal);
+        foreach (var mod in _inGameMods)
+        {
+            foreach (var line in mod.StatLines)
+            {
+                if (!result.TryGetValue(line.Pattern, out var list))
+                    result[line.Pattern] = list = [];
+                if (list.Count == 0 || !string.Equals(list[^1].Id, mod.Id, StringComparison.Ordinal))
+                    list.Add(mod);
+            }
+        }
+        return result;
+    }
 
     /// <summary>
     /// Shortest fingerprint for a mod line on a given item class. Uses the

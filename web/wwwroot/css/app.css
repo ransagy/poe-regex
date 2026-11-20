@@ -741,6 +741,7 @@ input:disabled { opacity: 0.5; }
 .bd-label .bd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .bd-label .mod-source { flex: none; }
 .bd-detail { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-warn { color: var(--ember); white-space: normal; }
 .bd-row.exc .bd-label { color: var(--exc-ink); }
 .bd-row.imported .bd-label { font-family: var(--mono); }
 .bd-row.imported:not(.exc) .bd-label { color: var(--ember); }
@@ -752,7 +753,8 @@ input:disabled { opacity: 0.5; }
 .bd-frag.missing { font-family: var(--sans); color: var(--no); background: none; }
 .bd-n { text-align: right; font-size: 0.78rem; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bd-unit { font-size: 0.7rem; color: var(--faint); }
-.bd-min { width: 3rem; height: 1.6rem; padding: 0 0.35rem; font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
+.bd-range { display: inline-flex; align-items: center; gap: 0.2rem; }
+.bd-min { width: 2.8rem; height: 1.6rem; padding: 0 0.3rem; font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
 .bd-min::placeholder { text-align: right; }
 .bd-min.noop { color: var(--muted); }
 .bd-min.working { opacity: 0.55; }

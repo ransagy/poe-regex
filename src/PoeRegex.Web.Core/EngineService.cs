@@ -28,6 +28,11 @@ public sealed class EngineService
     private readonly ConcurrentDictionary<(string Exclusion, string? Class), Lazy<string?>> _excludeClaims = new();
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClass = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<ModEntry>> _modsByClassSet = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<string, Lazy<CompileResult>> _compileCache = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<string, Lazy<MultiPasteResult>> _combineCache = new(StringComparer.Ordinal);
+    private ConcurrentDictionary<(WantedMod Pick, string? Class), Lazy<IReadOnlyList<ValueInterval>>> _pickIntervals = new();
+    private ConcurrentDictionary<(string ModId, string? Class), Lazy<ModFamily?>> _familyByMod = new();
+    private PasteComposer _pasteComposer = null!;
     private volatile IReadOnlyList<ItemClassEntry>? _playableClasses;
     private volatile IReadOnlyList<ItemClassEntry>? _inGameClasses;
     private volatile IReadOnlyList<ModEntry>? _playableMods;
@@ -53,6 +58,11 @@ public sealed class EngineService
         _compiler = new PoeRegexCompiler(_corpus);
         _compaction = new CompactionEngine(_corpus);
         _explainer = new Explainer(_corpus);
+        _pasteComposer = new PasteComposer(_corpus, validateRecall: false);
+        _compileCache = new(StringComparer.Ordinal);
+        _combineCache = new(StringComparer.Ordinal);
+        _pickIntervals = new();
+        _familyByMod = new();
         _playableClassIds = new Lazy<HashSet<string>>(() =>
         {
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -336,16 +346,63 @@ public sealed class EngineService
         string? itemClass = null,
         IEnumerable<string>? keywords = null,
         bool allowOverflow = false,
-        IEnumerable<IEnumerable<ModifierRequirement>>? requiredGroups = null) =>
-        _compiler.Compile(new QuerySpecification
-        {
-            ItemClass = itemClass,
-            IncludedModifiers = includes.ToList(),
-            RequiredGroups = requiredGroups?.Select(g => (IReadOnlyList<ModifierRequirement>)g.ToList()).ToList() ?? [],
-            ExcludedModifiers = excludes.ToList(),
-            Keywords = keywords?.ToList() ?? [],
-            AllowOverflow = allowOverflow,
-        });
+        IEnumerable<IEnumerable<ModifierRequirement>>? requiredGroups = null)
+    {
+        var included = includes.ToList();
+        var excluded = excludes.ToList();
+        var keywordList = keywords?.ToList() ?? [];
+        var groups = requiredGroups?
+            .Select(g => (IReadOnlyList<ModifierRequirement>)g.ToList()).ToList() ?? [];
+        var key = CompileKey(included, excluded, keywordList, groups, itemClass, allowOverflow);
+        return _compileCache.GetOrAdd(
+            key,
+            _ => new Lazy<CompileResult>(() => _compiler.Compile(new QuerySpecification
+            {
+                ItemClass = itemClass,
+                IncludedModifiers = included,
+                RequiredGroups = groups,
+                ExcludedModifiers = excluded,
+                Keywords = keywordList,
+                AllowOverflow = allowOverflow,
+            }))).Value;
+    }
+
+    private static string CompileKey(
+        IReadOnlyList<ModifierRequirement> includes,
+        IReadOnlyList<ModifierRequirement> excludes,
+        IReadOnlyList<string> keywords,
+        IReadOnlyList<IReadOnlyList<ModifierRequirement>> requiredGroups,
+        string? itemClass,
+        bool allowOverflow) =>
+        (itemClass is null ? "\0" : "\u0001" + itemClass) + "\u0001" +
+        (allowOverflow ? "1" : "0") + "\u0001" +
+        string.Join("\u0003", includes.Select(RequirementKey)) + "\u0004" +
+        string.Join("\u0003", excludes.Select(RequirementKey)) + "\u0004" +
+        string.Join("\u0003", keywords) + "\u0004" +
+        string.Join("\u0005", requiredGroups.Select(
+            group => string.Join("\u0003", group.Select(RequirementKey))));
+
+    private static string RequirementKey(ModifierRequirement requirement)
+    {
+        var min = requirement.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var max = requirement.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
+            ? string.Join(",", rangeIds)
+            : "";
+        return (requirement.IsRegex ? "r" : "m") + "\u0002" +
+               requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+    }
+
+    private static string PickKey(WantedMod pick)
+    {
+        var min = pick.MinValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        var max = pick.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        return pick.ModId + "\u0002" +
+               string.Join(",", pick.Names ?? []) + "\u0002" +
+               string.Join(",", pick.VariantModIds ?? []) + "\u0002" +
+               min + "\u0002" + max + "\u0002" +
+               string.Join(",", pick.RangeModIds ?? []);
+    }
 
     /// <summary>Compiles picks the way a slot asks for them: one any-of block, or one block per pick when every pick is required.</summary>
     public CompileResult CompilePicks(
@@ -525,6 +582,257 @@ public sealed class EngineService
         return terms.Count == 0 ? null : string.Join("\u0001", terms);
     }
 
+    /// <summary>
+    /// The discrete value spans a pick actually allows. This is the canonical
+    /// interval view the picker and labels use; unlike Min/Max it keeps gaps
+    /// between non-consecutive tiers.
+    /// </summary>
+    public IReadOnlyList<ValueInterval> PickIntervals(WantedMod pick, string? cls)
+    {
+        var cached = _pickIntervals.GetOrAdd(
+            (pick, cls),
+            key => new Lazy<IReadOnlyList<ValueInterval>>(() =>
+            {
+                if (key.Pick.IsNamePick || key.Pick.IsRawText) return [];
+                var constraints = ConstraintCanonicalizer.Canonicalize(
+                    key.Pick.Requirements().ToList(), key.Class, _corpus);
+                return ConstraintCanonicalizer.MergeIntervals(
+                    constraints.SelectMany(constraint => constraint.Intervals));
+            }));
+        return cached.Value;
+    }
+
+    /// <summary>The family containing this pick's anchor in the scope, if any.</summary>
+    public ModFamily? FamilyFor(WantedMod pick, string? cls) =>
+        cls is null
+            ? null
+            : _familyByMod.GetOrAdd((pick.ModId, cls), key =>
+                new Lazy<ModFamily?>(() =>
+                {
+                    var mod = FindMod(key.ModId);
+                    if (mod is null) return null;
+                    return ModFamilies.CachedGroup(ModsForClass(key.Class!))
+                        .FirstOrDefault(family => family.MemberIds.Contains(mod.Id));
+                })).Value;
+
+    /// <summary>Numeric span of a plain/family/tier-range pick, or null when it has no real range.</summary>
+    public sealed record NumericSpan(double Min, double Max, int Precision)
+    {
+        public bool IsRanged => Max > Min;
+    }
+
+    /// <summary>
+    /// The catalog roll span a pick can filter. A pick with a single value or
+    /// no number returns null, so the workbench shows neither min nor max;
+    /// a fixed-tier family that covers several values still gets a span.
+    /// </summary>
+    public NumericSpan? NumericRange(WantedMod pick, string? itemClass)
+    {
+        if (pick.IsNamePick || pick.IsRawText) return null;
+        var ids = pick.RangeModIds is { Count: > 0 } rangeIds
+            ? rangeIds
+            : pick.VariantModIds is { Count: > 0 } variantIds
+                ? variantIds
+                : [pick.ModId];
+        var mods = ids.Select(FindMod).Where(m => m is not null).ToList();
+        if (mods.Count == 0) return null;
+        var lines = mods.SelectMany(m => m!.StatLines).ToList();
+        if (lines.Count == 0) return null;
+
+        // The gate is the pick's value span, not whether each tier can roll
+        // inside itself. A fixed-tier family such as movement speed still
+        // covers 10/15/…/35, so it takes a min/max; a single fixed value
+        // (+1 skills, one exact tier) has nothing to narrow.
+        var values = lines
+            .Where(line => line.MaxValue >= line.MinValue &&
+                           (line.MinValue != 0 || line.MaxValue != 0))
+            .SelectMany(line => new[] { line.MinValue, line.MaxValue })
+            .Distinct()
+            .ToList();
+        if (values.Count <= 1) return null;
+        var min = values.Min();
+        var max = values.Max();
+        if (max <= min) return null;
+        var precision = lines.Max(line => Math.Max(
+            PrecisionOf(line.MinValue), PrecisionOf(line.MaxValue)));
+        return new NumericSpan(min, max, precision);
+    }
+
+    private static int PrecisionOf(double value)
+    {
+        var text = value.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture);
+        var dot = text.IndexOf('.');
+        return dot < 0 ? 0 : text.Length - dot - 1;
+    }
+
+    /// <summary>
+    /// Tier-up and multi-value exact tiers are range-first when a safe range
+    /// exists; a single-value family keeps the shorter affix-name form.
+    /// Returns null when the caller should use its fallback
+    /// (desecrated/implicit/union tiers).
+    /// </summary>
+    public WantedMod? BestTierPick(ModFamily fam, ModTier tier, bool up, string? cls)
+    {
+        if (fam.Source is "desecrated" or "implicit" or "corrupted" or "augment" or "bonded")
+            return null;
+        if (fam.IsUnion || tier.Name.Length == 0) return null;
+        var rangePick = TierRangePick(fam, tier, up);
+        if (rangePick is null) return null;
+        var rangeTerms = PickTerms(rangePick, cls);
+        if (rangeTerms.Count == 0) return null;
+        // Multi-value families are range-first for exact and up tiers: the
+        // representation is predictable, min/max is available, and the
+        // exact pick matches the "or better" form. A single-value family
+        // (+1 Skills, one fixed tier) keeps the shorter name form.
+        if (up || HasMultipleValues(fam)) return rangePick;
+        var namePick = new WantedMod(tier.Anchor.Id, [tier.Name]);
+        var nameTerms = PickTerms(namePick, cls);
+        if (nameTerms.Count == 0) return rangePick;
+        var rangeCost = string.Join("|", rangeTerms).Length;
+        var nameCost = string.Join("|", nameTerms).Length;
+        return rangeCost <= nameCost ? rangePick : namePick;
+    }
+
+    /// <summary>
+    /// True when the family can produce more than one numeric value. Such a
+    /// family uses the range form even for an exact tier, so individual
+    /// movement-speed/life tiers match the "or better" representation.
+    /// </summary>
+    private static bool HasMultipleValues(ModFamily fam)
+    {
+        var values = new HashSet<double>();
+        foreach (var tier in fam.Tiers)
+        {
+            if (tier.ValueRange is not { } range) continue;
+            if (range.Max > range.Min) return true;
+            if (range.Min != 0) values.Add(range.Min);
+        }
+        return values.Count > 1;
+    }
+
+    /// <summary>The one combined range pick for a tier action.</summary>
+    public WantedMod? TierRangePick(ModFamily fam, ModTier tier, bool up)
+    {
+        var covered = up
+            ? fam.Tiers.Where(t => t.RequiredLevel >= tier.RequiredLevel).ToList()
+            : [tier];
+        var ids = covered
+            .SelectMany(t => t.Members)
+            .Select(m => m.Id)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0) return null;
+        // A hybrid tier has more than one stat line; a single combined
+        // family+range fragment cannot represent it, so keep the affix-name
+        // form instead of claiming the whole family's search.
+        if (covered.Any(t => t.Members.Any(m => m.StatLines.Count != 1)))
+            return null;
+        var lines = covered
+            .SelectMany(t => t.Members)
+            .SelectMany(m => m.StatLines)
+            .ToList();
+        if (lines.Count == 0 || lines.Any(line => line.MaxValue < line.MinValue)) return null;
+        var min = lines.Min(line => line.MinValue);
+        var max = lines.Max(line => line.MaxValue);
+        return new WantedMod(
+            tier.Anchor.Id,
+            MinValue: min,
+            MaxValue: max,
+            RangeModIds: ids);
+    }
+
+    /// <summary>True when a tier action has a safe combined range fragment.</summary>
+    public bool TierRangeAvailable(ModFamily fam, ModTier tier, bool up, string? cls)
+    {
+        var pick = TierRangePick(fam, tier, up);
+        return pick is not null && PickFragment(pick, cls) is not null;
+    }
+
+    /// <summary>Explicit pick-row text for a tier range, e.g. "20–35% increased Movement Speed".</summary>
+    public string? TierRangeLabel(
+        WantedMod pick, ModTier tier, string? cls, ModFamily? family = null)
+    {
+        if (!pick.IsTierRange) return null;
+        var span = NumericRange(pick, cls);
+        var min = pick.MinValue ?? span?.Min ?? tier.ValueRange?.Min;
+        var max = pick.MaxValue ?? span?.Max ?? tier.ValueRange?.Max;
+        if (min is null || max is null) return null;
+        var precision = span?.Precision ?? tier.Precision;
+        var line = tier.DisplayLines.FirstOrDefault() ?? "";
+
+        // A dash is only honest when the selected tiers are consecutive in
+        // the family. A 15+25 pick keeps its gap and lists the values.
+        family ??= FamilyFor(pick, cls);
+        if (family is not null && pick.RangeModIds is { Count: > 0 } ids)
+        {
+            var indices = family.Tiers
+                .Select((familyTier, index) => (familyTier, index))
+                .Where(x => ids.Any(id => x.familyTier.MemberIds.Contains(id)))
+                .Select(x => x.index)
+                .OrderBy(index => index)
+                .ToList();
+            if (indices.Count > 1 &&
+                indices[^1] - indices[0] + 1 == indices.Count)
+                return ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
+        }
+
+        var intervals = PickIntervals(pick, cls);
+        if (intervals.Count > 1)
+            return ModFamilies.IntervalLabel(line, intervals, precision);
+        return ModFamilies.RangeLabel(line, min.Value, max.Value, precision);
+    }
+
+    /// <summary>
+    /// The range covered by a tier-or-better name set, used as a compact
+    /// equivalence hint in the pick row. Computed from tier metadata, so it
+    /// never compiles a fragment.
+    /// </summary>
+    public string? TierCoveredRangeLabel(ModFamily fam, ModTier tier)
+    {
+        if (tier.Name.Length == 0) return null;
+        if (tier.DisplayLines.Count != 1) return null;
+        var line = tier.DisplayLines[0];
+        // Only a single numeric span can be replaced unambiguously; a hybrid
+        // "Adds X to Y" line would produce a misleading equivalence.
+        if (System.Text.RegularExpressions.Regex.Matches(
+                line, @"\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?").Count != 1)
+            return null;
+        var covered = fam.Tiers
+            .Where(t => t.RequiredLevel >= tier.RequiredLevel)
+            .ToList();
+        if (covered.Count <= 1) return null;
+        // Only hint when every covered tier has the same stat shape; a
+        // singular/plural or hybrid variant would make one line misleading.
+        var shape = tier.ShapeLines.FirstOrDefault();
+        if (shape is null || covered.Any(t =>
+                t.ShapeLines.Count != 1 ||
+                !string.Equals(t.ShapeLines[0], shape, StringComparison.Ordinal)))
+            return null;
+        if (covered.Any(t => t.ValueRange is null)) return null;
+        var min = covered.Min(t => t.ValueRange!.Value.Min);
+        var max = covered.Max(t => t.ValueRange!.Value.Max);
+        if (max <= min) return null;
+        var precision = covered.Max(t => t.Precision);
+        var indices = fam.Tiers
+            .Select((familyTier, index) => (familyTier, index))
+            .Where(x => covered.Contains(x.familyTier))
+            .Select(x => x.index)
+            .OrderBy(index => index)
+            .ToList();
+        if (indices.Count > 1 &&
+            indices[^1] - indices[0] + 1 != indices.Count)
+        {
+            var intervals = covered
+                .Where(t => t.ValueRange is not null)
+                .Select(t => new ValueInterval(
+                    t.ValueRange!.Value.Min, t.ValueRange.Value.Max))
+                .ToList();
+            return ModFamilies.IntervalLabel(line, intervals, precision);
+        }
+        return ModFamilies.RangeLabel(line, min, max, precision);
+    }
+
     /// <summary>Canonical claim identity for an exclusion in a scope.</summary>
     public string? ExcludeClaimKey(string exc, string? cls) =>
         _excludeClaims.GetOrAdd(
@@ -568,19 +876,40 @@ public sealed class EngineService
         IEnumerable<(string Label, string ClassId, IEnumerable<WantedMod> Includes, bool MatchAll)> slots,
         IEnumerable<string> excludes,
         bool allowOverflow = false,
-        IEnumerable<string>? externalIncludes = null) =>
-        new PasteComposer(_corpus, validateRecall: false).Compose(
-            slots.Select(s => s.MatchAll && s.Includes.Any()
-                ? new PasteSlotCriterion(
-                    s.ClassId, [], s.Label,
-                    s.Includes.Select(m => (IReadOnlyList<ModifierRequirement>)m.Requirements().ToList()).ToList())
-                : new PasteSlotCriterion(
-                    s.ClassId,
-                    s.Includes.SelectMany(m => m.Requirements()).ToList(),
-                    s.Label)).ToList(),
-            excludes.Select(ExclusionRequirement),
-            allowOverflow,
-            externalIncludes);
+        IEnumerable<string>? externalIncludes = null)
+    {
+        var slotList = slots.Select(s => (
+            s.Label, s.ClassId, Includes: s.Includes.ToList(), s.MatchAll)).ToList();
+        var excluded = excludes.ToList();
+        var keywords = externalIncludes?.ToList() ?? [];
+        var key = CombineKey(slotList, excluded, keywords, allowOverflow);
+        return _combineCache.GetOrAdd(
+            key,
+            _ => new Lazy<MultiPasteResult>(() => _pasteComposer.Compose(
+                slotList.Select(s => s.MatchAll && s.Includes.Count > 0
+                    ? new PasteSlotCriterion(
+                        s.ClassId, [], s.Label,
+                        s.Includes.Select(m => (IReadOnlyList<ModifierRequirement>)m.Requirements().ToList()).ToList())
+                    : new PasteSlotCriterion(
+                        s.ClassId,
+                        s.Includes.SelectMany(m => m.Requirements()).ToList(),
+                        s.Label)).ToList(),
+                excluded.Select(ExclusionRequirement),
+                allowOverflow,
+                keywords))).Value;
+    }
+
+    private static string CombineKey(
+        IReadOnlyList<(string Label, string ClassId, List<WantedMod> Includes, bool MatchAll)> slots,
+        IReadOnlyList<string> excludes,
+        IReadOnlyList<string> keywords,
+        bool allowOverflow) =>
+        (allowOverflow ? "1" : "0") + "\u0001" +
+        string.Join("\u0004", slots.Select(slot =>
+            slot.Label + "\u0002" + slot.ClassId + "\u0002" + (slot.MatchAll ? "1" : "0") +
+            "\u0002" + string.Join("\u0003", slot.Includes.Select(PickKey)))) +
+        "\u0005" + string.Join("\u0003", excludes) +
+        "\u0005" + string.Join("\u0003", keywords);
 
     /// <summary>
     /// Explain is the one intentionally expensive action. Results are cached

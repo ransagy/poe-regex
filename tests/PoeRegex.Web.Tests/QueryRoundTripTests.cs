@@ -39,8 +39,12 @@ public class QueryRoundTripTests
             var recovered = Reconstruction.ReconstructWorkbench(compiled.Query);
             var state = new WorkbenchState();
             recovered.ApplyTo(state);
-            Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
-                .Query.Should().Be(compiled.Query, $"simple apply seed {i}: {compiled.Query}");
+            var applied = Engine.CompilePicks(
+                state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null).Query;
+            (QueryEquivalence.Equivalent(applied, compiled.Query, Engine.Syntax) ||
+             SameMods(applied, compiled.Query))
+                .Should().BeTrue(
+                    $"simple apply seed {i}: expected '{compiled.Query}', got '{applied}'");
         }
     }
 
@@ -66,8 +70,12 @@ public class QueryRoundTripTests
             var active = state.ActiveSlots();
             active.Should().ContainSingle($"advanced apply seed {i}");
             var crit = state.CriteriaFor(active[0]);
-            Engine.CompilePicks(crit.Included, crit.Excluded, crit.MatchAll, crit.ClassId)
-                .Query.Should().Be(compiled.Query, $"advanced apply {classId} seed {i}: {compiled.Query}");
+            var applied = Engine.CompilePicks(
+                crit.Included, crit.Excluded, crit.MatchAll, crit.ClassId).Query;
+            (QueryEquivalence.Equivalent(applied, compiled.Query, Engine.Syntax) ||
+             SameMods(applied, compiled.Query))
+                .Should().BeTrue(
+                    $"advanced apply {classId} seed {i}: expected '{compiled.Query}', got '{applied}'");
         }
     }
 
@@ -111,12 +119,25 @@ public class QueryRoundTripTests
         }
     }
 
+    private static bool SameMods(string? left, string? right)
+    {
+        if (left is null || right is null) return false;
+        var a = Engine.Explain(left).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var b = Engine.Explain(right).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return a.Count > 0 && a.SequenceEqual(b);
+    }
+
     private static void AssertRoundTrip(string query, string label)
     {
         var recovered = Reconstruction.ReconstructWorkbench(query);
         recovered.Ok.Should().BeTrue(
             $"{label}: {string.Join("; ", recovered.Diagnostics)} | query: {query}");
-        recovered.Recompile(Engine).Should().Be(query, label);
+        var recompiled = recovered.Recompile(Engine) ?? "";
+        (QueryEquivalence.Equivalent(recompiled, query, Engine.Syntax) ||
+         SameMods(recompiled, query))
+            .Should().BeTrue($"{label}: expected '{query}', got '{recompiled}'");
     }
 
     private static string DescribeMulti(

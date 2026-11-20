@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
 
@@ -70,6 +71,15 @@ public sealed record ModTier(string Name, IReadOnlyList<ModEntry> Members, int R
 
     /// <summary>Stable tier merge key inside a family.</summary>
     public string MergeKey { get; init; } = "";
+
+    /// <summary>Roll span of this tier when every member is one numeric stat line.</summary>
+    public (double Min, double Max)? ValueRange { get; init; }
+
+    /// <summary>Decimal places used by the tier's displayed values.</summary>
+    public int Precision { get; init; }
+
+    /// <summary>True when the tier's roll can vary inside its span.</summary>
+    public bool IsRanged => ValueRange is { } range && range.Max > range.Min;
 
     /// <summary>Empty for normal explicit affixes; "desecrated" for Abyss
     /// desecrated mods, "implicit" for base implicits.</summary>
@@ -333,12 +343,15 @@ public static class ModFamilies
                         .ThenBy(m => m.Id, StringComparer.Ordinal)
                         .ToList();
                     var anchor = tierMembers[0];
+                    var range = NumericRangeOf(tierMembers);
                     return new ModTier(anchor.Name ?? "", tierMembers, g.Min(m => m.RequiredLevel))
                     {
                         Source = anchor.Source,
                         DisplayLabel = DisplayLabelFor(tierMembers),
                         MergeKey = TierKey(anchor),
                         SearchText = SearchTextOf(tierMembers),
+                        ValueRange = range?.Range,
+                        Precision = range?.Precision ?? 0,
                     };
                 })
                 .OrderBy(t => t.RequiredLevel)
@@ -465,6 +478,7 @@ public static class ModFamilies
                         .ThenBy(m => m.Id, StringComparer.Ordinal)
                         .ToList();
                     var anchor = tierMembers[0];
+                    var range = NumericRangeOf(tierMembers);
                     return new ModTier(anchor.Name ?? "", tierMembers, tierMembers.Min(m => m.RequiredLevel))
                     {
                         Source = anchor.Source,
@@ -475,6 +489,8 @@ public static class ModFamilies
                         SearchText = string.Join("\n", g
                             .Select(t => t.SearchText)
                             .Distinct(StringComparer.Ordinal)),
+                        ValueRange = range?.Range,
+                        Precision = range?.Precision ?? 0,
                     };
                 })
                 .OrderBy(t => t.RequiredLevel)
@@ -661,6 +677,66 @@ public static class ModFamilies
     /// Tier label: the affix name for normal tiers, or every distinct range
     /// label for a desecrated or implicit tier merged across ranges.
     /// </summary>
+    /// <summary>Replace the first number in a display line with the pick's explicit range.</summary>
+    public static string RangeLabel(string line, double min, double max, int precision)
+    {
+        // A tier display line can already be a span ("+100–119 to maximum
+        // Life"); replace the whole first span, not just its low endpoint.
+        var match = Regex.Match(line, @"\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?");
+        if (!match.Success) return line;
+        var text = FormatNumber(min, precision);
+        if (max > min) text += "–" + FormatNumber(max, precision);
+        return line[..match.Index] + text + line[(match.Index + match.Length)..];
+    }
+
+    /// <summary>
+    /// Replaces the first numeric span with a discrete value list when the
+    /// intervals have gaps: `15 or 25% increased Movement Speed`. Adjacent
+    /// intervals are merged first, so a continuous range still uses a dash.
+    /// </summary>
+    public static string IntervalLabel(
+        string line, IReadOnlyList<ValueInterval> intervals, int precision)
+    {
+        // Adjacent integer spans (120–149 and 150–174) are one continuous
+        // range for display. At decimal precision, adjacent steps merge too.
+        var step = precision <= 0 ? 1 : Math.Pow(10, -precision);
+        var merged = ConstraintCanonicalizer.MergeIntervals(intervals, step);
+        if (merged.Count == 0) return line;
+        var match = Regex.Match(line, @"\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?");
+        if (!match.Success) return line;
+        var text = string.Join(" or ", merged.Select(interval =>
+            FormatNumber(interval.Lo, precision) +
+            (interval.Hi > interval.Lo + 1e-9
+                ? "–" + FormatNumber(interval.Hi, precision)
+                : "")));
+        return line[..match.Index] + text + line[(match.Index + match.Length)..];
+    }
+
+    private static string FormatNumber(double value, int precision) =>
+        precision <= 0
+            ? value.ToString("0", CultureInfo.InvariantCulture)
+            : value.ToString("0." + new string('#', precision), CultureInfo.InvariantCulture);
+
+    private static ((double Min, double Max) Range, int Precision)? NumericRangeOf(
+        IReadOnlyList<ModEntry> members)
+    {
+        var lines = members.SelectMany(m => m.StatLines).ToList();
+        if (lines.Count == 0) return null;
+        if (lines.Any(line => line.MaxValue < line.MinValue)) return null;
+        var min = lines.Min(line => line.MinValue);
+        var max = lines.Max(line => line.MaxValue);
+        var precision = lines.Max(line => Math.Max(
+            PrecisionOf(line.MinValue), PrecisionOf(line.MaxValue)));
+        return ((min, max), precision);
+    }
+
+    private static int PrecisionOf(double value)
+    {
+        var text = value.ToString("0.############", CultureInfo.InvariantCulture);
+        var dot = text.IndexOf('.');
+        return dot < 0 ? 0 : text.Length - dot - 1;
+    }
+
     private static string DisplayLabelFor(IReadOnlyList<ModEntry> members)
     {
         var anchor = members[0];

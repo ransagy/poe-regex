@@ -18,8 +18,8 @@ public sealed class QuerySyntax
     private static readonly char[] RegexMeta =
         ['\\', '.', '+', '*', '?', '(', ')', '[', ']', '{', '}', '^', '$', '|'];
 
-    /// <summary>PoE2: a leading bang before the quoted term (<c>!"term"</c>).</summary>
-    public static QuerySyntax Poe2 { get; } = new("poe2", exclusionInsideQuotes: false);
+    /// <summary>PoE2: the bang lives inside the quotes (<c>"!term"</c>).</summary>
+    public static QuerySyntax Poe2 { get; } = new("poe2", exclusionInsideQuotes: true);
 
     /// <summary>PoE1: the bang lives inside the quotes (<c>"!term"</c>).</summary>
     public static QuerySyntax Poe1 { get; } = new("poe1", exclusionInsideQuotes: true);

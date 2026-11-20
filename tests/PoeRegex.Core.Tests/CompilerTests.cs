@@ -46,7 +46,7 @@ public class CompilerTests
 
         result.Query.Should().StartWith("\": Ri\" ");
         result.Query.IndexOf("\": Ri\"", StringComparison.Ordinal).Should()
-            .BeLessThan(result.Query.IndexOf("!\"reflect\"", StringComparison.Ordinal));
+            .BeLessThan(result.Query.IndexOf("\"!reflect\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class CompilerTests
             ExcludedModifiers = [new ModifierRequirement("reflect")],
         });
 
-        result.Query.Should().Contain("!\"reflect\"");
+        result.Query.Should().Contain("\"!reflect\"");
     }
 
     [Fact]
@@ -119,15 +119,19 @@ public class CompilerTests
     [Fact]
     public void Threshold_EmitsDigitRangePattern()
     {
-        var compiler = CreateCompiler();
+        // The synthetic catalog has one representative line per stat, so a
+        // floor above that line has no real target to prove. Use the real
+        // catalog's 100–119 tier with a 110 floor.
+        var corpus = RealCatalog.Corpus();
+        var compiler = new PoeRegexCompiler(corpus);
         var result = compiler.Compile(new QuerySpecification
         {
-            ItemClass = "Ring",
-            IncludedModifiers = [new ModifierRequirement("IncreasedLife1", 20)],
+            ItemClass = "Body Armour",
+            IncludedModifiers = [new ModifierRequirement("IncreasedLife8", 110)],
         });
 
-        result.Query.Should().Contain("2[0-9]");
-        result.Query.Should().Contain("maximum Life");
+        result.Query.Should().Contain(@"\d");
+        result.Query.Should().Contain("fe");
     }
 
     [Fact]

@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using PoeRegex.Core.Data;
 using PoeRegex.Core.Search;
 
@@ -10,6 +13,13 @@ namespace PoeRegex.Core.Compilation;
 public sealed class CompactionEngine
 {
     private readonly EngineCorpus _corpus;
+    private readonly ConcurrentDictionary<string, Lazy<string?>> _rangeCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<string>>> _planCache =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<StatConstraint>>> _constraintCache =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _catalogLines =
+        new(StringComparer.Ordinal);
 
     public CompactionEngine(EngineCorpus corpus)
     {
@@ -23,6 +33,9 @@ public sealed class CompactionEngine
     /// </summary>
     public string? SelectFragment(ModifierRequirement requirement, string? itemClass)
     {
+        if (requirement.RangeModIds is { Count: > 0 })
+            return BuildTierRangeFragment(requirement, itemClass);
+
         var mod = _corpus.FindMod(requirement.Value);
         if (mod is null) return null;
         if (mod.StatLines.Count == 0) return null;
@@ -51,15 +64,722 @@ public sealed class CompactionEngine
         }
         if (best is null || bestLine is null) return null;
 
+        if (requirement.MaxValue is not null)
+            return BuildBoundedFragment(bestLine, requirement.MinValue, requirement.MaxValue, itemClass, best);
         if (requirement.MinValue is not null)
             return BuildThresholdFragment(bestLine, requirement.MinValue.Value, itemClass, best);
         return best;
+    }
+
+    /// <summary>
+    /// One combined family+range fragment for a tier pick. Every covered tier
+    /// must share one stat pattern; the catalog proof then checks both the
+    /// pattern and the actual roll value, so a value class that also matches a
+    /// worse tier is rejected.
+    /// </summary>
+    private string? BuildTierRangeFragment(ModifierRequirement requirement, string? itemClass)
+    {
+        var lines = new List<StatLineEntry>();
+        string? pattern = null;
+        foreach (var id in requirement.RangeModIds!)
+        {
+            var mod = _corpus.FindMod(id);
+            if (mod is null || mod.StatLines.Count != 1) return null;
+            var line = mod.StatLines[0];
+            if (pattern is null) pattern = line.Pattern;
+            else if (!string.Equals(pattern, line.Pattern, StringComparison.Ordinal)) return null;
+            lines.Add(line);
+        }
+        if (pattern is null || lines.Count == 0) return null;
+
+        var intervals = lines
+            .Select(line => (Lo: line.MinValue, Hi: line.MaxValue))
+            .Where(x => x.Hi >= x.Lo)
+            .ToList();
+        intervals = Clamp(intervals, requirement.MinValue, requirement.MaxValue);
+        if (intervals.Count == 0) return null;
+
+        var precision = lines.Max(line => Math.Max(
+            RangeRegex.PrecisionOf(line.MinValue), RangeRegex.PrecisionOf(line.MaxValue)));
+        return CachedRangeFragment(
+            pattern, intervals, precision, itemClass, [pattern]);
+    }
+
+    /// <summary>Max-only or min+max filter on one catalog line.</summary>
+    private string? BuildBoundedFragment(
+        StatLineEntry line, double? minValue, double? maxValue, string? itemClass, string fallbackFp)
+    {
+        if (line.Pattern.IndexOf(SuffixIndex.DigitPlaceholder) < 0) return fallbackFp;
+        if (minValue is null && maxValue is null) return fallbackFp;
+
+        // A min without a max keeps the shipped "this or higher" behavior:
+        // every better tier stays matchable instead of clipping at this
+        // line's own maximum.
+        if (minValue is not null && maxValue is null)
+            return BuildThresholdFragment(line, minValue.Value, itemClass, fallbackFp);
+
+        var lo = Math.Max(line.MinValue, minValue ?? line.MinValue);
+        var hi = Math.Min(line.MaxValue, maxValue ?? line.MaxValue);
+        if (hi < lo) return null;
+
+        var precision = Math.Max(
+            RangeRegex.PrecisionOf(line.MinValue), RangeRegex.PrecisionOf(line.MaxValue));
+        return CachedRangeFragment(
+            line.Pattern, [(lo, hi)], precision, itemClass, [line.Pattern]) ?? fallbackFp;
+    }
+
+    private string? CachedRangeFragment(
+        string pattern,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        int precision,
+        string? itemClass,
+        IReadOnlyCollection<string> allowedPatterns)
+    {
+        var key = string.Join(
+            "\u0001",
+            pattern,
+            itemClass ?? "",
+            precision.ToString(CultureInfo.InvariantCulture),
+            string.Join(
+                ",",
+                intervals
+                    .OrderBy(x => x.Lo)
+                    .ThenBy(x => x.Hi)
+                    .Select(x => x.Lo.ToString("R", CultureInfo.InvariantCulture) + "-" +
+                                 x.Hi.ToString("R", CultureInfo.InvariantCulture))),
+            string.Join(",", allowedPatterns.OrderBy(x => x, StringComparer.Ordinal)));
+        return _rangeCache.GetOrAdd(
+            key,
+            _ => new Lazy<string?>(() =>
+                BuildRangeFragment(pattern, intervals, precision, itemClass, allowedPatterns))).Value;
+    }
+
+    /// <summary>
+    /// Builds one fragment that replaces the first roll placeholder with the
+    /// shortest candidate value class and proves it against the catalog: every
+    /// matched line must be an allowed pattern and its first roll must be
+    /// inside the requested intervals.
+    /// </summary>
+    private string? BuildRangeFragment(
+        string pattern,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        int precision,
+        string? itemClass,
+        IReadOnlyCollection<string> allowedPatterns)
+    {
+        var candidates = RangeRegex.Candidates(intervals, precision).ToList();
+        if (candidates.Count == 0) return null;
+
+        // A finite set of catalog rolls can be compiled exactly from a digit
+        // trie. This is the universal path for fixed-tier families: 15–35
+        // becomes 15|[23][05], while the loose [1-3][05] would include 10 and
+        // is rejected by the proof.
+        HashSet<string>? exactCandidates = null;
+        if (precision == 0)
+        {
+            var allowedValues = AllowedIntegerValues(allowedPatterns, intervals, itemClass);
+            if (allowedValues.Count > 0)
+            {
+                var exact = RangeRegex.ExactIntegerCandidates(allowedValues);
+                if (exact.Count > 0)
+                {
+                    exactCandidates = new HashSet<string>(exact, StringComparer.Ordinal);
+                    foreach (var candidate in exact)
+                    {
+                        if (!candidates.Contains(candidate))
+                            candidates.Add(candidate);
+                    }
+                    candidates = candidates
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(candidate => candidate.Length)
+                        .ThenBy(candidate => candidate, StringComparer.Ordinal)
+                        .ToList();
+                }
+            }
+        }
+
+        var ranged = intervals.Any(x => x.Hi > x.Lo);
+        var shapes = _corpus.DisplayPatternsFor(pattern, itemClass)
+            .Where(shape => shape.Contains(SuffixIndex.DigitPlaceholder))
+            .Where(shape => ranged
+                ? shape.Contains('(', StringComparison.Ordinal)
+                : !shape.Contains('(', StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        // A ranged stat's advanced copy text carries the roll as
+        // `2.03(1.5-2.5)`. A plain-shape fragment would miss every advanced
+        // item, so only range-aware shapes are eligible there. A fixed tier
+        // must use the plain shape even when another mod shares its pattern
+        // and has a ranged variant.
+        if (shapes.Count == 0) shapes.Add(pattern);
+
+        var anyNumber = precision > 0 ? @"\d+(?:\.\d+)?" : @"\d+";
+        var familyFragment = Lookup(pattern, itemClass);
+        if (itemClass is not null)
+        {
+            var global = Lookup(pattern, null);
+            if (global is not null &&
+                (familyFragment is null || global.Length < familyFragment.Length))
+                familyFragment = global;
+        }
+        string? best = null;
+        foreach (var shape in shapes)
+        {
+            foreach (var candidate in candidates)
+            {
+                if (exactCandidates?.Contains(candidate) != true &&
+                    !RangeRegex.MatchesIntervals(candidate, intervals, precision)) continue;
+                var forms = BuildRangeForms(shape, candidate, anyNumber, familyFragment)
+                    .OrderBy(fragment => fragment.Length)
+                    .ThenBy(fragment => fragment, StringComparer.Ordinal)
+                    .ToList();
+                var safe = false;
+                foreach (var fragment in forms)
+                {
+                    if (!CatalogRangeSafe(
+                            fragment, allowedPatterns, intervals, itemClass,
+                            exactCandidates?.Contains(candidate) == true))
+                        continue;
+                    if (best is null || fragment.Length < best.Length) best = fragment;
+                    safe = true;
+                    break;
+                }
+                // Candidates are shortest-first; once this shape has a safe
+                // form, a longer value class cannot produce a shorter result.
+                if (safe) break;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Forms tried for one shape and value class:
+    /// the full display shape (anchored and not), a prefix-anchored
+    /// <c>range.*tail</c> form, and the same with the shipped family
+    /// fragment as the tail. The prefix keeps the range on the first roll,
+    /// so an advanced range endpoint (1.5 in <c>2.03(1.5-2.5)</c>) cannot
+    /// satisfy it.
+    /// </summary>
+    private static IReadOnlyList<string> BuildRangeForms(
+        string shape, string valueRegex, string anyNumber, string? familyFragment)
+    {
+        var idx = shape.IndexOf(SuffixIndex.DigitPlaceholder);
+        if (idx < 0) return [];
+        var prefix = EscapeShape(shape[..idx]);
+        var suffix = EscapeShape(shape[(idx + 1)..], anyNumber);
+        var tail = TailAfterRangeGroup(shape, idx, anyNumber);
+        // Parentheses are only needed when the value regex alternates. A
+        // pure concatenation such as `1[2-7]\d` can sit directly in the
+        // prefix/suffix, which keeps the compiled query shorter.
+        var value = valueRegex.Contains('|', StringComparison.Ordinal)
+            ? "(" + valueRegex + ")"
+            : valueRegex;
+
+        var forms = new List<string>(4)
+        {
+            prefix + value + suffix + "$",
+            prefix + value + suffix,
+            prefix + value + ".*" + tail,
+        };
+        if (!string.IsNullOrEmpty(familyFragment) &&
+            !familyFragment.StartsWith(@"\.", StringComparison.Ordinal))
+        {
+            forms.Add(prefix + value + ".*" + familyFragment);
+        }
+        // The shipped fragment can carry the line prefix and a wildcard
+        // (`\+.*fe`), so it cannot always follow a range. Its literal tail
+        // can: `\+(range).*fe` is the shape the in-game checks validated.
+        if (LiteralTail(familyFragment) is { } literalTail)
+            forms.Add(prefix + value + ".*" + literalTail);
+        return forms.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>Trailing literal run of a fragment, with an optional anchor.</summary>
+    private static string? LiteralTail(string? fragment)
+    {
+        if (string.IsNullOrEmpty(fragment) || fragment.Contains('|')) return null;
+        var anchored = fragment.EndsWith('$');
+        var end = anchored ? fragment.Length - 1 : fragment.Length;
+        var start = end;
+        while (start > 0 &&
+               (char.IsAsciiLetterOrDigit(fragment[start - 1]) ||
+                fragment[start - 1] is ' ' or '%' or '\''))
+        {
+            start--;
+        }
+        if (end - start < 2) return null;
+        return fragment[start..end] + (anchored ? "$" : "");
+    }
+
+    /// <summary>The literal stat tail after the first advanced (low-high) group.</summary>
+    private static string TailAfterRangeGroup(string shape, int firstPlaceholder, string anyNumber)
+    {
+        var start = firstPlaceholder + 1;
+        if (start < shape.Length && shape[start] == '(')
+        {
+            var depth = 0;
+            for (var i = start; i < shape.Length; i++)
+            {
+                if (shape[i] == '(') depth++;
+                else if (shape[i] == ')')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        start = i + 1;
+                        break;
+                    }
+                }
+            }
+        }
+        return EscapeShape(shape[start..], anyNumber);
+    }
+
+    private static string EscapeShape(string text, string? anyNumber = null)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in text)
+        {
+            if (c == SuffixIndex.DigitPlaceholder)
+            {
+                sb.Append(anyNumber ?? @"\d+");
+            }
+            else
+            {
+                if (Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
+                    sb.Append('\\');
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static readonly Regex FirstNumber = new(
+        @"[-+]?\d+(?:\.\d+)?", RegexOptions.CultureInvariant);
+
+    private bool CatalogRangeSafe(
+        string fragment,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass,
+        bool exact = false)
+    {
+        var regex = new Regex(
+            fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        // The representative catalog line shows the high roll. A value class
+        // that also matches lower rolls of the next tier would pass the
+        // line scan, so reject any allowed span whose out-of-range rolls the
+        // fragment matches. The same walk proves the fragment matches at
+        // least one in-range roll, which keeps a narrowed range valid even
+        // when no representative line sits inside it.
+        var matchedAny = false;
+        if (exact)
+        {
+            // A trie candidate only matches values that were collected from
+            // the allowed spans, so it cannot overmatch. Check one in-range
+            // roll per span for shape completeness without walking every
+            // value.
+            if (!MatchesAnyAllowedRoll(regex, allowedPatterns, intervals, itemClass))
+                return false;
+            matchedAny = true;
+        }
+        else
+        {
+            var (unsafeRoll, matchedRoll) =
+                CheckCatalogRolls(regex, allowedPatterns, intervals, itemClass);
+            if (unsafeRoll) return false;
+            matchedAny = matchedRoll;
+        }
+        foreach (var (pattern, real) in CatalogLines(itemClass))
+        {
+            if (!regex.IsMatch(real)) continue;
+            matchedAny = true;
+            if (!allowedPatterns.Contains(pattern)) return false;
+            if (!TryFirstNumber(real, out var value)) return false;
+            if (!InIntervals(value, intervals)) return false;
+        }
+        return matchedAny;
+    }
+
+    /// <summary>
+    /// Integer rolls the allowed patterns can actually display inside the
+    /// requested intervals. Used to synthesize an exact value regex; the
+    /// catalog proof still validates the final fragment.
+    /// </summary>
+    private IReadOnlyList<long> AllowedIntegerValues(
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        var values = new SortedSet<long>();
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    var lo = (long)Math.Ceiling(line.MinValue - 1e-9);
+                    var hi = (long)Math.Floor(line.MaxValue + 1e-9);
+                    if (hi - lo > 5000) continue;
+                    for (var value = lo; value <= hi; value++)
+                    {
+                        if (InIntervals(value, intervals)) values.Add(value);
+                        if (values.Count > 5000) return [];
+                    }
+                }
+            }
+        }
+        return values.ToList();
+    }
+
+    private static bool OverlapsIntervals(
+        IReadOnlyList<(double Lo, double Hi)> intervals, double lo, double hi) =>
+        intervals.Any(interval =>
+            lo <= interval.Hi + 1e-9 && interval.Lo <= hi + 1e-9);
+
+    /// <summary>
+    /// True when the fragment matches at least one in-range roll in an allowed
+    /// span. Samples the first in-range value per span, which is enough to
+    /// prove the shape is real without walking every value.
+    /// </summary>
+    private bool MatchesAnyAllowedRoll(
+        Regex regex,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    if (!OverlapsIntervals(intervals, line.MinValue, line.MaxValue))
+                        continue;
+                    var precision = Math.Max(
+                        RangeRegex.PrecisionOf(line.MinValue),
+                        RangeRegex.PrecisionOf(line.MaxValue));
+                    var advanced = AdvancedStatLine.For(line);
+                    foreach (var value in SpanSamples(line.MinValue, line.MaxValue, precision))
+                    {
+                        if (!InIntervals(value, intervals)) continue;
+                        if (regex.IsMatch(ReplaceFirstNumber(line.Line, value, precision)))
+                            return true;
+                        if (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
+                            regex.IsMatch(ReplaceFirstNumber(advanced, value, precision)))
+                            return true;
+                        break;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Walks every displayed roll in the allowed catalog spans. Returns
+    /// unsafe when the fragment matches an out-of-range roll, and matched
+    /// when it matches at least one in-range roll. The representative line
+    /// is the high roll, so a narrowed range needs the synthesized values.
+    /// </summary>
+    private (bool Unsafe, bool Matched) CheckCatalogRolls(
+        Regex regex,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        var matched = false;
+        foreach (var pattern in allowedPatterns)
+        {
+            foreach (var mod in _corpus.ModsWithPattern(pattern))
+            {
+                if (itemClass is not null &&
+                    !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                    continue;
+                foreach (var line in mod.StatLines)
+                {
+                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                        continue;
+                    if (line.MaxValue < line.MinValue ||
+                        (line.MinValue == 0 && line.MaxValue == 0))
+                        continue;
+                    var precision = Math.Max(
+                        RangeRegex.PrecisionOf(line.MinValue),
+                        RangeRegex.PrecisionOf(line.MaxValue));
+                    var advanced = AdvancedStatLine.For(line);
+                    foreach (var value in SpanSamples(line.MinValue, line.MaxValue, precision))
+                    {
+                        var plain = ReplaceFirstNumber(line.Line, value, precision);
+                        var ranged = ReplaceFirstNumber(advanced, value, precision);
+                        var hit = regex.IsMatch(plain) ||
+                                  (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
+                                   regex.IsMatch(ranged));
+                        if (!hit) continue;
+                        if (!InIntervals(value, intervals)) return (true, matched);
+                        matched = true;
+                    }
+                }
+            }
+        }
+        return (false, matched);
+    }
+
+    private static IEnumerable<double> SpanSamples(double lo, double hi, int precision)
+    {
+        if (hi < lo) yield break;
+        var step = precision <= 0 ? 1 : Math.Pow(10, -precision);
+        var steps = (hi - lo) / step;
+        if (steps > 2000)
+        {
+            yield return lo;
+            yield return hi;
+            yield return Math.Round((lo + hi) / 2, precision);
+            yield break;
+        }
+        var count = (int)Math.Round(steps);
+        for (var i = 0; i <= count; i++)
+            yield return Math.Round(lo + i * step, precision);
+    }
+
+    private static string ReplaceFirstNumber(string text, double value, int precision)
+    {
+        var match = FirstNumber.Match(text);
+        if (!match.Success) return text;
+        var formatted = precision <= 0
+            ? Math.Round(value).ToString("0", CultureInfo.InvariantCulture)
+            : value.ToString("0." + new string('#', precision), CultureInfo.InvariantCulture);
+        if (match.Value.StartsWith('+') && !formatted.StartsWith('+'))
+            formatted = "+" + formatted;
+        return text[..match.Index] + formatted + text[(match.Index + match.Length)..];
+    }
+
+    private IReadOnlyList<(string Pattern, string Real)> CatalogLines(string? itemClass) =>
+        _catalogLines.GetOrAdd(
+            itemClass is null ? "\0" : "\u0001" + itemClass,
+            _ => _corpus.ProofLines(itemClass));
+
+    private static bool TryFirstNumber(string text, out double value)
+    {
+        value = 0;
+        var match = Regex.Match(text, @"[-+]?\d+(?:\.\d+)?", RegexOptions.CultureInvariant);
+        return match.Success && double.TryParse(
+            match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static bool InIntervals(double value, IReadOnlyList<(double Lo, double Hi)> intervals)
+    {
+        foreach (var (lo, hi) in intervals)
+            if (value >= lo - 1e-9 && value <= hi + 1e-9) return true;
+        return false;
+    }
+
+    private static List<(double Lo, double Hi)> Clamp(
+        IReadOnlyList<(double Lo, double Hi)> intervals, double? min, double? max)
+    {
+        var result = new List<(double Lo, double Hi)>();
+        foreach (var (lo, hi) in intervals)
+        {
+            var a = min is { } mn ? Math.Max(lo, mn) : lo;
+            var b = max is { } mx ? Math.Min(hi, mx) : hi;
+            if (b >= a) result.Add((a, b));
+        }
+        return result;
     }
 
     private string? Lookup(string pattern, string? itemClass) =>
         _corpus.TryPrecomputedFragment(pattern, itemClass, out var fragment)
             ? fragment
             : null;
+
+    /// <summary>One chosen representation and the capability that produced it.</summary>
+    public sealed record PlannedFragment(string Text, string Kind);
+
+    /// <summary>
+    /// Canonicalize a pick list and plan each stat family once. This is the
+    /// single entry point for the compiler: four exact tiers, an “or better”
+    /// pick, and the family pick become the same canonical constraint.
+    /// </summary>
+    public IReadOnlyList<string> PlanMany(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = PlanKey(requirements, itemClass);
+        return _planCache.GetOrAdd(
+            key,
+            _ => new Lazy<IReadOnlyList<string>>(
+                () => ComputePlanMany(requirements, itemClass))).Value;
+    }
+
+    /// <summary>Canonicalize with a cache; the paste composer calls this per slot.</summary>
+    public IReadOnlyList<StatConstraint> Canonicalize(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = PlanKey(requirements, itemClass);
+        return _constraintCache.GetOrAdd(
+            key,
+            _ => new Lazy<IReadOnlyList<StatConstraint>>(
+                () => ConstraintCanonicalizer.Canonicalize(
+                    requirements, itemClass, _corpus))).Value;
+    }
+
+    private (IReadOnlyList<StatConstraint> Constraints, IReadOnlyList<ModifierRequirement> Raw)
+        SplitCached(IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var raw = requirements
+            .Where(requirement => requirement.IsRegex ||
+                                  _corpus.FindMod(requirement.Value) is null)
+            .ToList();
+        return (Canonicalize(requirements, itemClass), raw);
+    }
+
+    private IReadOnlyList<string> ComputePlanMany(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var (constraints, raw) = SplitCached(requirements, itemClass);
+        var result = new List<string>();
+        foreach (var constraint in constraints)
+        {
+            var planned = PlanConstraint(constraint, itemClass);
+            if (planned is not null)
+            {
+                result.Add(planned.Text);
+                continue;
+            }
+            // Hybrid/multi-pattern constraints keep the old per-member
+            // fallback so a family pick still ORs every variant's proven
+            // table fragment, not just the anchor's line.
+            var fallbackFragments = constraint.MemberIds
+                .Select(id => SelectFragment(new ModifierRequirement(id), itemClass))
+                .Where(IsCleanFragment)
+                .Select(fragment => fragment!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            result.AddRange(fallbackFragments);
+        }
+        foreach (var requirement in raw)
+            result.Add(requirement.IsRegex
+                ? requirement.Value
+                : _corpus.Syntax.EscapeLiteral(requirement.Value));
+        return result;
+    }
+
+    private static string PlanKey(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var parts = requirements.Select(requirement =>
+        {
+            var min = requirement.MinValue?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+            var max = requirement.MaxValue?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+            var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
+                ? string.Join(",", rangeIds.OrderBy(id => id, StringComparer.Ordinal))
+                : "";
+            return (requirement.IsRegex ? "r" : "m") + "\u0002" +
+                   requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+        });
+        // Keep input order in the key: the canonicalizer already sorts the
+        // planned constraints, but raw regex terms keep their order in the
+        // emitted block. Sorting here would let reversed raw inputs share a
+        // cached result.
+        return (itemClass is null ? "\0" : "\u0001" + itemClass) + "\u0001" +
+               string.Join("\u0001", parts);
+    }
+
+    /// <summary>
+    /// Plan one canonical constraint. Full-family coverage uses the exact
+    /// table fragment; a multi-value tier/filter prefers the range form; a
+    /// single-value family uses the shortest proven form.
+    /// </summary>
+    public PlannedFragment? PlanConstraint(StatConstraint constraint, string? itemClass)
+    {
+        if (constraint.Patterns.Count != 1) return null;
+        var pattern = constraint.Patterns[0];
+
+        var familyFragment = Lookup(pattern, itemClass);
+        if (itemClass is not null)
+        {
+            var global = Lookup(pattern, null);
+            if (global is not null &&
+                (familyFragment is null || global.Length < familyFragment.Length))
+                familyFragment = global;
+        }
+        if (!IsCleanFragment(familyFragment)) familyFragment = null;
+        if (constraint.Intervals.Count == 0)
+            return familyFragment is null
+                ? null
+                : new PlannedFragment(familyFragment, "family");
+
+        // A full-family multi-tier pick uses the table fragment without
+        // building a range. A single-tier family range still needs the
+        // precise range form.
+        var needsRangeForFullFamily = constraint.IsFullFamily &&
+            constraint.PreferRange &&
+            constraint.FamilyHasMultipleValues &&
+            constraint.MemberIds.Count == 1;
+        if (constraint.IsFullFamily && familyFragment is not null &&
+            !needsRangeForFullFamily)
+            return new PlannedFragment(familyFragment, "family");
+        // A plain pick with a table fragment keeps the exact-table baseline;
+        // only filters and tier selections pay for range generation. A plain
+        // pick with no table entry fails closed instead of silently inventing
+        // a live range.
+        if (!constraint.PreferRange)
+            return familyFragment is null
+                ? null
+                : new PlannedFragment(familyFragment, "family");
+
+        var precision = constraint.Intervals
+            .SelectMany(interval => new[]
+            {
+                RangeRegex.PrecisionOf(interval.Lo),
+                RangeRegex.PrecisionOf(interval.Hi)
+            })
+            .DefaultIfEmpty(0)
+            .Max();
+        var intervals = constraint.Intervals.Select(i => (i.Lo, i.Hi)).ToList();
+        var range = BuildRangeFragment(
+            pattern, intervals, precision, itemClass, [pattern]);
+        if (!IsCleanFragment(range)) range = null;
+
+        if (constraint.IsFullFamily)
+        {
+            if (needsRangeForFullFamily && range is not null)
+                return new PlannedFragment(range, "range");
+            if (familyFragment is not null)
+                return new PlannedFragment(familyFragment, "family");
+            if (range is not null)
+                return new PlannedFragment(range, "range");
+        }
+
+        if (constraint.PreferRange && constraint.FamilyHasMultipleValues && range is not null)
+            return new PlannedFragment(range, "range");
+
+        var candidates = new List<PlannedFragment>();
+        if (range is not null) candidates.Add(new PlannedFragment(range, "range"));
+        if (familyFragment is not null) candidates.Add(new PlannedFragment(familyFragment, "family"));
+        return candidates
+            .Where(candidate => IsCleanFragment(candidate.Text))
+            .OrderBy(candidate => candidate.Text.Length)
+            .ThenBy(candidate => candidate.Text, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    private static bool IsCleanFragment(string? text) =>
+        text is not null && text.IndexOf('\n') < 0 && text.IndexOf('\r') < 0;
 
     private bool IsFragmentSafe(string? itemClass, string fragment, string pattern)
     {
@@ -74,64 +794,40 @@ public sealed class CompactionEngine
     }
 
     /// <summary>
-    /// Builds a fragment matching values >= minValue by replacing the value token
-    /// in the line's pattern with a digit-range alternation, then re-validating
-    /// uniqueness on the class corpus against real copy text.
+    /// Builds a fragment matching values >= minValue. The upper bound is the
+    /// pattern's own maximum, so the range builder can anchor the family tail
+    /// and prove the actual roll values; a plain "digit range + rest of line"
+    /// fragment also matches longer lines such as "25% increased Movement
+    /// Speed while Sprinting" and was silently falling back.
     /// </summary>
     private string? BuildThresholdFragment(StatLineEntry line, double minValue, string? itemClass, string fallbackFp)
     {
         var pattern = line.Pattern;
         if (pattern.IndexOf(SuffixIndex.DigitPlaceholder) < 0) return fallbackFp;
 
-        var digitRange = DigitRangeRegex.Build((int)Math.Ceiling(minValue));
-        if (digitRange is null) return fallbackFp;
+        var maxValue = MaxPatternValue(pattern, itemClass);
+        if (maxValue <= 0) maxValue = line.MaxValue;
+        if (maxValue < minValue) return null;
 
-        var shapes = _corpus.DisplayPatternsFor(pattern, itemClass)
-            .Where(x => x.Contains('(', StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        // Prefer a range-aware shape when one exists: the compact catalog
-        // pattern would silently fail on every advanced ranged item.
-        string? best = null;
-        foreach (var shape in shapes)
-        {
-            var fragment = BuildThresholdFromPattern(shape, digitRange);
-            if (fragment is null) continue;
-            if (!IsFragmentSafe(itemClass, fragment, pattern)) continue;
-            if (best is null || fragment.Length < best.Length) best = fragment;
-        }
-        if (best is not null) return best;
-
-        var plain = BuildThresholdFromPattern(pattern, digitRange);
-        if (plain is not null && IsFragmentSafe(itemClass, plain, pattern)) return plain;
-        return fallbackFp;
+        var precision = Math.Max(
+            RangeRegex.PrecisionOf(line.MinValue), RangeRegex.PrecisionOf(line.MaxValue));
+        var fragment = BuildRangeFragment(
+            pattern, [(minValue, maxValue)], precision, itemClass, [pattern]);
+        return fragment ?? fallbackFp;
     }
 
-    private static string? BuildThresholdFromPattern(string pattern, string digitRange)
+    /// <summary>Largest catalog roll for a pattern in the selected scope.</summary>
+    private double MaxPatternValue(string pattern, string? itemClass)
     {
-        var idx = pattern.IndexOf(SuffixIndex.DigitPlaceholder);
-        if (idx < 0) return null;
-        var sb = new System.Text.StringBuilder();
-        for (var i = 0; i < pattern.Length; i++)
-        {
-            if (i == idx)
-            {
-                sb.Append("(").Append(digitRange).Append(')');
-            }
-            else if (pattern[i] == SuffixIndex.DigitPlaceholder)
-            {
-                // Other rolls and tier-span endpoints can be multi-digit.
-                sb.Append(@"\d+");
-            }
-            else
-            {
-                var c = pattern[i];
-                if (System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), @"[\\.+*?()\[\]{}$|]"))
-                    sb.Append('\\');
-                sb.Append(c);
-            }
-        }
-        return sb.ToString();
+        var values = _corpus.ModsWithPattern(pattern)
+            .Where(mod => itemClass is null ||
+                          mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+            .SelectMany(mod => mod.StatLines)
+            .Where(stat => string.Equals(stat.Pattern, pattern, StringComparison.Ordinal))
+            .Select(stat => stat.MaxValue)
+            .Where(value => value > 0)
+            .ToList();
+        return values.Count == 0 ? 0 : values.Max();
     }
 
     /// <summary>
@@ -178,6 +874,15 @@ public sealed class CompactionEngine
                 result.Add(new FactoredAlternative(items[0], sources[items[0]]));
                 continue;
             }
+            // Character classes and groups are multi-character tokens. A
+            // character-based prefix split can cut inside them and produce
+            // invalid regex such as `1[(234]\d...`. Leave those alternatives
+            // unfactored rather than risk a malformed query.
+            if (items.Any(ContainsStructuredRegex))
+            {
+                result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
+                continue;
+            }
             var prefix = LongestCommonPrefix(items);
             var suffixes = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
                 ? items.Select(s => s.Substring(prefix.Length)).ToList()
@@ -211,6 +916,9 @@ public sealed class CompactionEngine
         }
         return result;
     }
+
+    private static bool ContainsStructuredRegex(string fragment) =>
+        fragment.IndexOfAny(['[', ']', '(', ')', '{', '}', '|']) >= 0;
 
     private static bool EndsWithOddBackslash(string s)
     {

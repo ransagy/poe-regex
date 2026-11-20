@@ -8,6 +8,7 @@ public static class SnapshotValidator
     public const int MaxSavedPickName = 100;
     private const int MaxPicks = 256;
     private const int MaxNames = 64;
+    private const int MaxRangeModIds = 256;
     private const int MaxTestItems = 64;
 
     public static bool IsValid([NotNullWhen(true)] SavedPick? savedPick) =>
@@ -39,7 +40,12 @@ public static class SnapshotValidator
         pick is not null
         && IsText(pick.ModId)
         && IsTextList(pick.Names) && IsTextList(pick.VariantModIds)
-        && (pick.MinValue is not { } min || (!pick.IsNamePick && WantedMod.IsValidMinValue(min)));
+        && (pick.RangeModIds is null ||
+            (pick.RangeModIds.Count <= MaxRangeModIds && pick.RangeModIds.All(IsText)))
+        && !(pick.IsNamePick && pick.RangeModIds is { Count: > 0 })
+        && (pick.MinValue is not { } min || (!pick.IsNamePick && WantedMod.IsValidMinValue(min)))
+        && (pick.MaxValue is not { } max || (!pick.IsNamePick && WantedMod.IsValidMaxValue(max)))
+        && (pick.MinValue is not { } lo || pick.MaxValue is not { } hi || lo <= hi);
 
     private static bool IsTextList(IReadOnlyList<string>? list) =>
         list is null || (list.Count <= MaxNames && list.All(IsText));

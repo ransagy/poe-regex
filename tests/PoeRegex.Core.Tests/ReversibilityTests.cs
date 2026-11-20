@@ -201,7 +201,7 @@ public class ReversibilityTests
             var ids = ModIds(explained);
             ids.Should().Contain(source.Id, $"exclusion query '{result.Query}' must keep the source mod {source.Id}");
 
-            var m = Regex.Match(result.Query, @"!""([^""]*)""");
+            var m = Regex.Match(result.Query, @"""!([^""]*)""");
             if (m.Success)
             {
                 var term = m.Groups[1].Value;

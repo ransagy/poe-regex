@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-13._
+_Last updated: 2026-11-17._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -53,6 +53,28 @@ Current planned and parked work. Behavior is documented in
   there explains multi-effect searches, covered rows, duplicate merging, and
   exclusions. Includes and exclusions are mutually exclusive per search;
   duplicate exclusion fragments collapse in the compiler.
+- Tier ranges: a canonical `StatConstraint`/planner normalizes exact tiers,
+  “or better”, family picks, and min/max into one lossless interval set.
+  Multi-value families use one combined family+range fragment for exact and
+  up tiers; a single-value family (`+1 Skills`) keeps the shorter affix-name
+  form. Four exact tiers, Stallion’s or better, and the same tier set compile
+  identically and independent of pick order; first-tier “or better” equals
+  the family pick. The pick row shows the
+  explicit range (for example `20–35% increased Movement Speed`); a legacy
+  name-up row shows the compact equivalent range
+  (`= 20–35% increased Movement Speed`). The range is proven against the
+  catalog: every matched line must be an allowed pattern and its first roll
+  must sit inside the requested intervals. Min/max boxes appear when the
+  pick covers more than one numeric value; a single fixed value (one fixed
+  tier or `+1 Skills`) hides both, and a legacy exact ranged name pick
+  converts to its range pick on the first filter. Integer stats use whole
+  numbers, decimal stats keep the game's displayed precision (including
+  extra digits such as 2.03 in a 1.5–2.5 stat), and the range stays in the
+  same quoted fragment as the family text. Cross-slot tier ranges group by
+  covered intervals and min/max, including exact+up unions when the extra
+  span does not exist for the narrower class; otherwise the groups stay
+  separate. Factoring never splits character classes/groups. PoE2 exclusions
+  use `"!term"` like PoE1.
 - Common picks: the pre-typing shortlist is data-driven from
   `data/common-picks.json`. `classes` is a runtime scope, so Helmet minion
   levels and Gloves attack-only added damage stay out of All gear while the
@@ -112,7 +134,7 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 - Import: normal/magic/rare equipment, fractured headers, corruption
   implicits, annotations, and `— Unscalable Value`; influenced, eldritch,
   crafted, and veiled sources are rejected with clear messages.
-- Syntax: PoE1 exclusions are `"!term"`; the per-game `QuerySyntax` profile
+- Syntax: exclusions are `"!term"`; the per-game `QuerySyntax` profile
   is used by compile, paste, explain, import/reconstruction, and matching.
 - Gems are MVP+1: copied gem text includes explanatory lines that can skew
   fragment selection. Flasks, jewels, influenced mods, crafts, and league

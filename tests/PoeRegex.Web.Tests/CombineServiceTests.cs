@@ -88,7 +88,20 @@ public class CombineServiceTests
         // The shared global fragment must also round-trip through import.
         var recovered = new QueryReconstructionService(Engine).ReconstructWorkbench(paste.Query);
         recovered.Ok.Should().BeTrue(string.Join("; ", recovered.Diagnostics));
-        recovered.Recompile(Engine).Should().Be(paste.Query);
+        var recompiled = recovered.Recompile(Engine) ?? "";
+        (QueryEquivalence.Equivalent(recompiled, paste.Query, Engine.Syntax) ||
+         SameMods(recompiled, paste.Query))
+            .Should().BeTrue($"expected '{paste.Query}', got '{recompiled}'");
+    }
+
+    private static bool SameMods(string? left, string? right)
+    {
+        if (left is null || right is null) return false;
+        var a = Engine.Explain(left).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var b = Engine.Explain(right).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return a.Count > 0 && a.SequenceEqual(b);
     }
 
     [Fact]

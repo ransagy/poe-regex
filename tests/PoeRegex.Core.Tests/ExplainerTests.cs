@@ -63,7 +63,7 @@ public class ExplainerTests
     public void Exclusion_DropsMatchedMods()
     {
         var (_, explainer) = Create();
-        var result = explainer.Explain("\" m\" !\"tr\"", "Ring");
+        var result = explainer.Explain("\" m\" \"!tr\"", "Ring");
 
         // "tr" matches the Strength line, so Strength1 must be excluded.
         result.Mods.Select(m => m.Id).Should().Contain("IncreasedLife1");
@@ -95,7 +95,7 @@ public class ExplainerTests
     public void Output_IsDeterministic()
     {
         var (_, explainer) = Create();
-        var query = "\" m\" !\"tr\" \":\"";
+        var query = "\" m\" \"!tr\" \":\"";
 
         var a = explainer.Explain(query, "Ring");
         var b = explainer.Explain(query, "Ring");

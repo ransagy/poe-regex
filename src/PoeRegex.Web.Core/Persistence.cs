@@ -125,10 +125,19 @@ public sealed record WorkbenchSnapshot(
         state.TestItems.AddRange(placed);
     }
 
-    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them, and any floor out of range.</summary>
+    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them, and any floor/ceiling out of range.</summary>
     private static IEnumerable<WantedMod> Picks(WorkbenchSnapshot snap, IEnumerable<WantedMod> picks) =>
         picks.Where(m => m.ModId.Length > 0)
-            .Select(m => m.MinValue is { } min && (snap.Version < 4 || !WantedMod.IsValidMinValue(min)) ? m with { MinValue = null } : m);
+            .Select(m =>
+            {
+                var min = m.MinValue;
+                var max = m.MaxValue;
+                if (min is { } lo && (snap.Version < 4 || !WantedMod.IsValidMinValue(lo))) min = null;
+                if (max is { } hi && !WantedMod.IsValidMaxValue(hi)) max = null;
+                if (min is { } a && max is { } b && a > b)
+                    min = max = null;
+                return m with { MinValue = min, MaxValue = max };
+            });
 
     /// <summary>True when any already-placed item shares a cell with this one.</summary>
     private static bool Overlaps(IReadOnlyList<TestItem> placed, TestItem item)

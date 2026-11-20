@@ -45,6 +45,317 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-{tier.Anchor.Id}").ParentElement!;
 
     [Fact]
+    public void BootsMovementSpeed_FourExactTiers_CoalesceToOneRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        foreach (var id in new[]
+                 {
+                     "MovementVelocity3", "MovementVelocity4",
+                     "MovementVelocity5", "MovementVelocity6",
+                 })
+        {
+            cut.Find($"#pick-tier-{id}").Click();
+        }
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_NonConsecutiveTiers_StayDiscrete()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity4").Click();
+
+        var picks = state.CriteriaFor("boots").Included;
+        picks.Should().HaveCount(2, "15 and 25 are not a consecutive tier run");
+        picks.Select(p => p.MinValue).Should().BeEquivalentTo([15d, 25d]);
+        picks.Should().OnlyContain(p => p.RangeModIds!.Count == 1);
+
+        var query = engine.CompilePicks(picks, [], false, "Boots").Query;
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "25% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "20% increased Movement Speed"])
+            .Match.Should().BeFalse("the gap tier was not selected");
+
+        var tier2 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2");
+        var tier3 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        var tier4 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity4");
+        TierRow(cut, tier2).ClassList.Should().Contain("picked");
+        TierRow(cut, tier3).ClassList.Should().NotContain("picked")
+            .And.NotContain("range-covered");
+        TierRow(cut, tier4).ClassList.Should().Contain("picked");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ConsecutiveRun_MergesAndMarksEveryTier()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find("#pick-tier-MovementVelocity4").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(3);
+        pick.MinValue.Should().Be(15);
+        pick.MaxValue.Should().Be(25);
+
+        var tier3 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        TierRow(cut, tier3).ClassList.Should().Contain("range-covered");
+        var tier5 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity5");
+        TierRow(cut, tier5).ClassList.Should().NotContain("range-covered");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_HighestTier_CanBeToggledOff()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        var button = cut.Find("#pick-tier-MovementVelocity6");
+        button.HasAttribute("disabled").Should().BeFalse(
+            "the highest tier is exact, not an or-better anchor");
+        button.Click();
+
+        state.CriteriaFor("boots").Included.Should().ContainSingle()
+            .Which.MaxValue.Should().Be(35);
+
+        cut.Find("#pick-tier-MovementVelocity6").Click();
+        state.CriteriaFor("boots").Included.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_FullFamilyRange_OwnsTheFamilyRow()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var first = family.Tiers.OrderBy(t => t.RequiredLevel).First();
+        var pick = engine.BestTierPick(family, first, up: true, "Boots")!;
+        var state = new WorkbenchState();
+        state.AddInclude("boots", pick);
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var button = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        button.TextContent.Should().Be("⇄",
+            "all tiers are selected, but as an up range, not the family pick");
+        button.GetAttribute("aria-pressed").Should().Be("false");
+
+        button.Click();
+        var familyPick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        familyPick.IsTierRange.Should().BeFalse();
+        familyPick.VariantModIds.Should().NotBeNull("the family row converts to the family pick");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactOnBoundedRange_AddsExclusion()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        var exact = cut.Find("#pick-tier-MovementVelocity3");
+        exact.HasAttribute("disabled").Should().BeFalse();
+        exact.TextContent.Should().Be("−");
+        exact.Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.RangeModIds.Should().HaveCount(2);
+        pick.MinValue.Should().Be(15);
+        pick.MaxValue.Should().Be(20);
+        state.CriteriaFor("boots").Excluded.Should().Contain(
+            family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3").Name,
+            "the range stays and the tier is removed with an exclusion");
+
+        cut.Find("#pick-tier-MovementVelocity3").TextContent.Should().Be("+");
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        state.CriteriaFor("boots").Excluded.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExcludeOnBoundedRange_KeepsRangeAndAddsExclusion()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        var exclude = cut.Find("#pick-tier-exc-MovementVelocity3");
+        exclude.HasAttribute("disabled").Should().BeFalse();
+        exclude.Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Included.Should().ContainSingle(
+            "the bounded range stays; the exclusion removes the tier");
+        crit.Included[0].RangeModIds.Should().HaveCount(2);
+        crit.Excluded.Should().Contain(
+            family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3").Name);
+        TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3"))
+            .ClassList.Should().Contain("excluded");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_UpOnBoundedRange_FillsTheSuffix()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        var up = cut.Find("#pick-tier-up-MovementVelocity3");
+        up.HasAttribute("disabled").Should().BeFalse();
+        up.Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Included.Should().HaveCount(2,
+            "the existing 15–20 range stays and the missing 25–35 tiers are added");
+        crit.Excluded.Should().BeEmpty();
+        var query = engine.CompilePicks(crit.Included, crit.Excluded, false, "Boots").Query;
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "35% increased Movement Speed"])
+            .Match.Should().BeTrue();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_FamilyPickReplacesBoundedRange()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity3").Click();
+        cut.Find($"#pick-inc-{family.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.RangeModIds.Should().BeNull();
+        pick.VariantModIds.Should().NotBeNull();
+        pick.VariantModIds.Should().HaveCount(family.MemberIds.Count);
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_UpButton_AddsOneCombinedRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Name == "Stallion's");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+        pick.Names.Should().BeNull();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactButton_AddsTheShorterRangePick()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Name == "Stallion's");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.IsTierRange.Should().BeTrue();
+        pick.RangeModIds.Should().ContainSingle();
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(20);
+    }
+
+    [Fact]
     public void DesecratedFamily_ShowsPlainGreenSourceText()
     {
         using var ctx = Context();
@@ -267,17 +578,22 @@ public class ModPickerHighlightTests
             "the chosen tier's active ≥ button carries the selection");
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.QuerySelectorAll(".state-badge").Should().BeEmpty();
-        coveredRow.TextContent.Should().Contain("≥ covered");
-        var rightOrder = coveredRow.QuerySelectorAll(".covered-note, .tier-name").ToList();
-        rightOrder.Should().HaveCount(2);
-        rightOrder[0].ClassList.Should().Contain("covered-note");
-        rightOrder[1].ClassList.Should().Contain("tier-name",
-            "the tier name is the rightmost text before the actions");
-
+        coveredRow.QuerySelector(".covered-note").Should().BeNull(
+            "the active ≥ button carries the suffix state on every covered tier");
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
-        coveredExact.HasAttribute("disabled").Should().BeTrue();
-        coveredExact.GetAttribute("aria-disabled").Should().Be("true");
-        coveredExact.GetAttribute("title").Should().Contain("Covered by").And.Contain("or better");
+        coveredExact.HasAttribute("disabled").Should().BeFalse();
+        coveredExact.TextContent.Should().Be("−");
+        coveredExact.GetAttribute("title").Should().Contain("Remove");
+
+        var coveredUpTier = covered.Skip(1)
+            .FirstOrDefault(t => family.NamesFrom(t).Count > 1);
+        if (coveredUpTier is not null)
+        {
+            var coveredUp = cut.Find($"#pick-tier-up-{coveredUpTier.Anchor.Id}");
+            coveredUp.HasAttribute("disabled").Should().BeFalse();
+            coveredUp.GetAttribute("aria-pressed").Should().Be("true",
+                "the whole suffix is selected from every tier in it");
+        }
     }
 
     [Fact]
@@ -504,6 +820,132 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void FamilyPick_TierExactAddsExclusionAndFamilyClearsIt()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers[family.Tiers.Count / 2];
+        state.AddInclude("helmet", family.Pick());
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+
+        var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
+        exact.TextContent.Should().Be("−");
+        exact.Click();
+
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle(pick => pick.VariantModIds != null && pick.VariantModIds.Count > 0);
+        crit.Excluded.Should().Contain(tier.Name);
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.TextContent.Should().Be("+");
+        include.GetAttribute("aria-pressed").Should().Be("false");
+
+        include.Click();
+        state.CriteriaFor("helmet").Excluded.Should().BeEmpty();
+        cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("✓");
+        state.CriteriaFor("helmet").Included.Should()
+            .ContainSingle(pick => pick.VariantModIds != null && pick.VariantModIds.Count > 0);
+    }
+
+    [Fact]
+    public void AllExactTiers_StayARangeUntilFamilyRowClicked()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        foreach (var tier in family.Tiers.OrderBy(t => t.RequiredLevel))
+            cut.Find($"#pick-tier-{tier.Anchor.Id}").Click();
+
+        var range = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        range.IsTierRange.Should().BeTrue(
+            "all tiers picked individually stay a range, not the family pick");
+        range.RangeModIds.Should().HaveCount(family.MemberIds.Count);
+
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.TextContent.Should().Be("⇄");
+        include.GetAttribute("aria-pressed").Should().Be("false");
+        include.Click();
+
+        var familyPick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        familyPick.IsTierRange.Should().BeFalse();
+        familyPick.VariantModIds.Should().NotBeNull(
+            "the family row is the explicit conversion");
+    }
+
+    [Fact]
+    public void FilteredRange_TierExactKeepsFilterAndAddsExclusion()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity5");
+        var range = new WantedMod(
+            "MovementVelocity3",
+            MinValue: 25,
+            MaxValue: 35,
+            RangeModIds:
+            [
+                "MovementVelocity3", "MovementVelocity4",
+                "MovementVelocity5", "MovementVelocity6",
+            ]);
+        var state = new WorkbenchState();
+        state.AddInclude("boots", range);
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").Click();
+
+        var pick = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        pick.MinValue.Should().Be(25);
+        pick.MaxValue.Should().Be(35);
+        pick.RangeModIds.Should().HaveCount(4);
+        state.CriteriaFor("boots").Excluded.Should().Contain(tier.Name);
+    }
+
+    [Fact]
+    public void FamilyPick_TierUpAddsSuffixExclusionsAndClearsThem()
+    {
+        using var ctx = Context();
+        var (_, mods, state) = AdvancedPickler(ctx, out var family);
+        var tier = family.Tiers.First(t =>
+            family.NamesFrom(t).Count > 1 &&
+            family.Tiers.Select((familyTier, index) => (familyTier, index))
+                .First(x => x.familyTier.Anchor.Id == t.Anchor.Id).index <
+            family.Tiers.Count - 1);
+        state.AddInclude("helmet", family.Pick());
+
+        var cut = Render(ctx, state, mods, "helmet");
+        Expand(cut, family);
+        var up = cut.Find($"#pick-tier-up-{tier.Anchor.Id}");
+        up.Click();
+
+        var crit = state.CriteriaFor("helmet");
+        crit.Included.Should().ContainSingle(pick => pick.VariantModIds != null && pick.VariantModIds.Count > 0);
+        crit.Excluded.Should().NotBeEmpty();
+        var suffixNames = family.Tiers
+            .Where(t => t.RequiredLevel >= tier.RequiredLevel)
+            .Select(t => t.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        crit.Excluded.Should().OnlyContain(term => suffixNames.Contains(term));
+        cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("+");
+
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+        state.CriteriaFor("helmet").Excluded.Should().BeEmpty();
+        cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("✓");
+    }
+
+    [Fact]
     public void FamilyIncluded_TierExcluded_ShowsBothStatesAndCounts()
     {
         using var ctx = Context();
@@ -519,7 +961,10 @@ public class ModPickerHighlightTests
         familyRow.ClassList.Should().Contain("picked");
         familyRow.QuerySelectorAll(".state-badge").Should().BeEmpty();
         familyRow.TextContent.Should().Contain("1 excluded", "the family summary keeps both counts");
-        cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
+        var include = cut.Find($"#pick-inc-{family.Anchor.Id}");
+        include.GetAttribute("aria-pressed").Should().Be("false",
+            "the family pick is active, but a tier exclusion makes the effective set partial");
+        include.TextContent.Should().Be("+");
 
         var tierRow = TierRow(cut, tier);
         tierRow.ClassList.Should().Contain("excluded");
@@ -527,6 +972,11 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").TextContent.Should().Be("⊘");
         tierRow.ClassList.Should().NotContain("picked",
             "a whole-family pick does not count as that tier being picked");
+
+        include.Click();
+        state.CriteriaFor("helmet").Excluded.Should().BeEmpty(
+            "selecting the family again clears tier exclusions");
+        cut.Find($"#pick-inc-{family.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("true");
     }
 
     [Fact]
@@ -647,7 +1097,8 @@ public class ModPickerHighlightTests
         exact.Click();
 
         crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count == 1 && pick.Names[0] == tier.Name);
+            pick.ModId == tier.Anchor.Id &&
+            (pick.IsTierRange || (pick.IsNamePick && pick.Names!.Count == 1)));
         crit.Excluded.Should().BeEmpty();
         exact.GetAttribute("aria-pressed").Should().Be("true");
         exact.TextContent.Should().Be("✓");
@@ -659,7 +1110,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void TierUp_RemovesExactAndExclude_AndMarksOnlyAnchorUpButton()
+    public void TierUp_FillsSuffixAndClearsExclusions()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -675,42 +1126,41 @@ public class ModPickerHighlightTests
         var up = cut.Find($"#pick-tier-up-{tier.Anchor.Id}");
         up.Click();
 
-        crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+        crit.Included.Should().HaveCountGreaterThanOrEqualTo(2,
+            "the exact pick stays and the missing suffix tiers are added");
         crit.Excluded.Should().BeEmpty();
         up.GetAttribute("aria-pressed").Should().Be("true");
         up.ClassList.Should().Contain("active");
-        up.TextContent.Should().Be("≥");
         up.GetAttribute("title").Should().Contain("or better");
         up.HasAttribute("disabled").Should().BeFalse();
 
         var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
-        exact.GetAttribute("aria-pressed").Should().Be("false");
-        exact.HasAttribute("disabled").Should().BeTrue("the chosen tier is covered too");
-        exact.GetAttribute("aria-disabled").Should().Be("true");
-        exact.GetAttribute("title").Should().Contain("Covered by").And.Contain("or better");
-        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
+        exact.HasAttribute("disabled").Should().BeFalse();
+        exact.TextContent.Should().Be("✓");
+        cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeFalse();
 
-        TierRow(cut, tier).ClassList.Should().Contain("covered");
-        TierRow(cut, tier).ClassList.Should().NotContain("picked");
-        TierRow(cut, tier).QuerySelector(".covered-note").Should().BeNull();
+        TierRow(cut, tier).ClassList.Should().Contain("picked",
+            "the exact pick stays; the missing suffix tiers are added separately");
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.ClassList.Should().Contain("covered");
-        coveredRow.ClassList.Should().NotContain("picked");
-        coveredRow.TextContent.Should().Contain("≥ covered");
+        coveredRow.QuerySelector(".covered-note").Should().BeNull();
         var coveredUpTier = covered.Skip(1)
             .FirstOrDefault(t => family.NamesFrom(t).Count > 1);
         if (coveredUpTier is not null)
         {
             var coveredUp = cut.Find($"#pick-tier-up-{coveredUpTier.Anchor.Id}");
-            coveredUp.HasAttribute("disabled").Should().BeTrue("higher covered tiers are not editable");
+            coveredUp.HasAttribute("disabled").Should().BeFalse(
+                "every covered tier can toggle its suffix");
+            coveredUp.GetAttribute("aria-pressed").Should().Be("true");
         }
         TierRow(cut, family.Tiers[0]).ClassList.Should().NotContain("covered",
             "tiers below the chosen one are not covered");
 
-        up.Click(); // active selection toggles off
-        crit.Included.Should().BeEmpty();
-        TierRow(cut, tier).ClassList.Should().NotContain("covered");
+        up.Click(); // active suffix toggles off with exclusions
+        crit.Excluded.Should().NotBeEmpty();
+        crit.Included.Should().HaveCountGreaterThanOrEqualTo(2,
+            "the existing exact pick and the up range stay; the suffix is excluded");
+        TierRow(cut, tier).ClassList.Should().Contain("excluded");
     }
 
     [Fact]
@@ -774,7 +1224,41 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void TierUp_ClearsHigherTierIncludesAndExclusions()
+    public void TierUp_OnCoveredTier_AddsSuffixExclusions()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var tier = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        var names = family.NamesFrom(tier);
+        var state = new WorkbenchState();
+        state.AddInclude("boots", new WantedMod(tier.Anchor.Id, names));
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        var coveredTier = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity4");
+        var up = cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}");
+        up.HasAttribute("disabled").Should().BeFalse();
+        up.Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Included.Should().ContainSingle(
+            "the original or-better pick stays; the suffix is excluded");
+        crit.Excluded.Should().Contain(coveredTier.Name);
+        TierRow(cut, coveredTier).ClassList.Should().Contain("excluded");
+        TierRow(cut, tier).ClassList.Should().NotContain("excluded",
+            "tiers below the clicked tier stay selected");
+
+        cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").Click();
+        state.CriteriaFor("boots").Excluded.Should().BeEmpty();
+        TierRow(cut, coveredTier).ClassList.Should().NotContain("excluded");
+    }
+
+    [Fact]
+    public void TierUp_ClearsHigherTierExclusionsAndKeepsIncludes()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -796,15 +1280,15 @@ public class ModPickerHighlightTests
         Expand(cut, family);
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
 
-        crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.Names!.Count > 1 && pick.ModId == tier.Anchor.Id);
+        crit.Included.Should().HaveCountGreaterThanOrEqualTo(2,
+            "the existing higher exact pick stays and the missing suffix tiers are added");
         crit.Excluded.Should().BeEmpty();
-        TierRow(cut, includedHigher).ClassList.Should().NotContain("picked");
+        TierRow(cut, includedHigher).ClassList.Should().Contain("picked");
         TierRow(cut, excludedHigher).ClassList.Should().NotContain("excluded");
     }
 
     [Fact]
-    public void TierExclude_RemovesExact_WhenNotCovered()
+    public void TierExclude_AddsExclusionAndKeepsExactInclude()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -817,11 +1301,13 @@ public class ModPickerHighlightTests
         var exclude = cut.Find($"#pick-tier-exc-{tier.Anchor.Id}");
         exclude.Click();
 
-        crit.Included.Should().BeEmpty();
+        crit.Included.Should().ContainSingle(
+            "the exact include stays; the exclusion removes it from the effective set");
         crit.Excluded.Should().Contain(tier.Name);
         exclude.GetAttribute("aria-pressed").Should().Be("true");
         exclude.TextContent.Should().Be("⊘");
         cut.Find($"#pick-tier-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").TextContent.Should().Be("+");
         cut.Find($"#pick-tier-up-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
         TierRow(cut, tier).ClassList.Should().Contain("excluded");
         TierRow(cut, tier).ClassList.Should().NotContain("picked");
@@ -849,7 +1335,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void CoveredTier_ExactAndExcludeAreDisabledAndNoOp()
+    public void CoveredTier_ExactAndExcludeAddAndClearExclusion()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -863,36 +1349,27 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods, "helmet");
         Expand(cut, family);
 
-        var anchorLabel = tier.Name.Length > 0 ? tier.Name : tier.Anchor.Id;
         var higherExact = cut.Find($"#pick-tier-{higher.Anchor.Id}");
         var higherExclude = cut.Find($"#pick-tier-exc-{higher.Anchor.Id}");
-        higherExact.HasAttribute("disabled").Should().BeTrue();
-        higherExact.GetAttribute("aria-disabled").Should().Be("true");
-        higherExact.GetAttribute("title").Should().Contain($"Covered by \"{anchorLabel}\" or better");
-        higherExclude.HasAttribute("disabled").Should().BeTrue();
-        higherExclude.GetAttribute("aria-label").Should().Contain("remove that choice to edit this tier");
-        var higherUpTier = covered.Skip(1).FirstOrDefault(t => family.NamesFrom(t).Count > 1);
-        if (higherUpTier is not null)
-            cut.Find($"#pick-tier-up-{higherUpTier.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
+        higherExact.HasAttribute("disabled").Should().BeFalse();
+        higherExact.TextContent.Should().Be("−");
+        higherExact.GetAttribute("title").Should().Contain("Remove");
+        higherExclude.HasAttribute("disabled").Should().BeFalse();
 
         higherExact.Click();
-        higherExclude.Click();
-        crit.Included.Should().ContainSingle("covered tiers must not add no-op picks");
-        crit.Excluded.Should().BeEmpty();
-        TierRow(cut, higher).ClassList.Should().NotContain("picked");
-        TierRow(cut, higher).ClassList.Should().NotContain("excluded");
+        crit.Included.Should().ContainSingle("the up/name range stays");
+        crit.Excluded.Should().Contain(higher.Name,
+            "exact on a covered tier removes it with an exclusion");
+        TierRow(cut, higher).ClassList.Should().Contain("excluded");
 
-        // The lower tier stays editable; choosing its or-better replaces the
-        // higher choice and leaves the old covered tier disabled.
-        var lower = family.Tiers[0];
-        var lowerUp = cut.Find($"#pick-tier-up-{lower.Anchor.Id}");
-        lowerUp.HasAttribute("disabled").Should().BeFalse();
-        lowerUp.Click();
-        crit.Included.Should().ContainSingle(pick =>
-            pick.IsNamePick && pick.ModId == lower.Anchor.Id);
-        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").GetAttribute("aria-pressed").Should().Be("false");
-        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
-        cut.Find($"#pick-tier-{higher.Anchor.Id}").HasAttribute("disabled").Should().BeTrue();
+        cut.Find($"#pick-tier-exc-{higher.Anchor.Id}").Click();
+        crit.Excluded.Should().BeEmpty();
+        TierRow(cut, higher).ClassList.Should().NotContain("excluded");
+        cut.Find($"#pick-tier-{higher.Anchor.Id}").TextContent.Should().Be("−");
+
+        cut.Find($"#pick-tier-exc-{higher.Anchor.Id}").Click();
+        crit.Excluded.Should().Contain(higher.Name);
+        TierRow(cut, higher).ClassList.Should().Contain("excluded");
     }
 
     [Fact]

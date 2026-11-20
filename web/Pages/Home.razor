@@ -327,9 +327,6 @@
             _tabRef.Dispose();
             _tabRef = null;
         }
-        // Warm the value-threshold corpus after the first paint so the first
-        // minimum is immediate; see PrewarmValuePath.
-        ScheduleValuePrewarm();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -478,9 +475,6 @@
         Recompute();
         _ = Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
         InvokeAsync(StateHasChanged);
-        // After the pick paints, warm the value path for the scope so the
-        // first min entry is immediate.
-        ScheduleValuePrewarm();
     }
 
     /// <summary>
