@@ -74,13 +74,20 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   15–25 range, and the gap tier stays unselected. Consecutive runs still
   coalesce, and a bounded range marks every tier it covers.
 - The highest tier is exact, not an “or better” anchor: its exact button
-  toggles off normally. A full-family range owns the family row and toggles
-  off like a family pick; family and first-tier “or better” show the same
-  natural bounds (empty, not a filter).
+  toggles off normally. A full-family range shows ⇄ on the family row and
+  converts to the family pick when clicked; first-tier “or better” stays an
+  up range until the family row is used. Family and first-tier “or better”
+  show the same natural bounds (empty, not a filter).
 - Entering a min/max on a family pick converts it to the canonical range
   pick, so its label, tier marks, and actions stay range-aware.
-- Bounded-range covered tiers keep their exact/up/exclude actions disabled
-  until the range is removed, instead of silently replacing it.
+- Tier actions are never locked by the representation. Exact/up on an
+  included tier add exclusions and keep the existing range/up/family/name
+  pick; exact/up on an excluded tier clear the exclusion; exclude toggles
+  the exclusion. Adding missing tiers adds new picks without rewriting the
+  player’s existing picks. Existing min/max filters stay on their picks.
+- All tiers picked individually stay a range; only the family row converts
+  them to the family pick. A family pick with tier exclusions is partial and
+  the family row selects all (clears the exclusions).
 - Range labels use the discrete value set when tiers have a gap
   (`15 or 25% increased Movement Speed`); a dash is used only for a
   consecutive tier run. Min/max controls are hidden for a gapped tier set,
@@ -95,12 +102,12 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 485 web + 53 data-build; the published
+- Current Release suite: 133 core + 491 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, two runs): boot 1379–1413 ms; picker expand
-  24 ms; advanced family pick 70 ms; first cross-class range pick ~290 ms
-  (subsequent picks 33–98 ms); 10-slot paste update 70 ms; class change
-  84 ms; longest task ~290 ms. The first cross-class range and the first
+- Perf smoke (published Release, two runs): boot 1.4–1.7 s; picker expand
+  ~25 ms; advanced family pick ~88 ms; first cross-class range pick ~320 ms
+  (subsequent picks 38–125 ms); 10-slot paste update ~86 ms; class change
+  ~100 ms; longest task ~320 ms. The first cross-class range and the first
   ring pick are the only actions above 200 ms in the smoke.
 
 ## Performance
@@ -112,22 +119,22 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1408 ms | 1428 ms | < 2500 ms |
+| boot to interactive | 1680 ms | 1729 ms | < 2500 ms |
 | bulk add `++` | 46 ms | 48 ms | < 50 ms |
 | mode: advanced | 53 ms | 87 ms | < 50 ms |
 | builder open | 49 ms | 53 ms | < 50 ms |
-| 10-slot paste update | 69 ms | 72 ms | < 50 ms |
+| 10-slot paste update | 86 ms | 90 ms | < 50 ms |
 | explain cold | 99 ms | 114 ms | < 500 ms |
 | import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
-Advanced per-slot picks: **33–98 ms** after the first cross-class range;
-the first cross-class range is **~290 ms** because it builds the global
-safety corpus. Long tasks across two runs: **21 over 50 ms, 4 over 200 ms,
-max ~290 ms**. The over-200 tasks are the first cross-class range and the
+Advanced per-slot picks: **38–125 ms** after the first cross-class range;
+the first cross-class range is **~320 ms** because it builds the global
+safety corpus. Long tasks across two runs: **28 over 50 ms, 4 over 200 ms,
+max ~320 ms**. The over-200 tasks are the first cross-class range and the
 first ring pick.
 
-The PoE1 profile, lazy data loader, and game rail raised boot to about 1.4 s,
-still under the 2.5 s budget. Bulk add, builder open, explain, and import are
+The PoE1 profile, lazy data loader, and game rail raised boot to about
+1.4–1.7 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are
 within their targets; mode advanced and some per-slot picks remain slightly
 over the 50 ms target, consistent with the existing per-slot variance. The
 budget is a target, not a hard failure. Compile and combine results are
