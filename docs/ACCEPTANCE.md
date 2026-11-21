@@ -80,14 +80,16 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   show the same natural bounds (empty, not a filter).
 - Entering a min/max on a family pick converts it to the canonical range
   pick, so its label, tier marks, and actions stay range-aware.
-- Exact and exclude are never locked by the representation. Exact on an
-  included tier adds a single-tier exclusion and keeps the existing
-  range/up/family/name pick; exact on an excluded tier clears the exclusion;
-  exclude toggles the exclusion. The up button is active only on its actual
-  anchor and undoes that up pick. Covered up tiers can move the anchor;
-  a suffix already covered by a family/range shows a disabled hint instead
-  of being rewritten. Undo never creates suffix exclusions. Existing min/max
-  filters stay on their picks.
+- Exact and exclude are never locked by the representation. Exact toggles
+  one tier’s inclusion: on a range/up/family-covered tier it splits/trims
+  that pick around the tier; on an exact tier it removes it; on an excluded
+  tier it clears the exclusion; on an unselected tier it adds an exact tier.
+  Exclude is the only tier action that adds an exclusion. The up button is
+  active only on its actual anchor and undoes that up pick. A covered up
+  tier removes the suffix from that tier upward; a partial suffix is replaced
+  by one up pick; a suffix already covered by a family/range shows a disabled
+  hint instead of being rewritten. Exact/up never create exclusions.
+  Existing min/max filters are copied across splits/trims.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
   the family row selects all (clears the exclusions).
@@ -105,7 +107,7 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 492 web + 53 data-build; the published
+- Current Release suite: 133 core + 493 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot 1370–1383 ms; picker
   expand ~26 ms; advanced family pick ~73 ms; first cross-class range pick

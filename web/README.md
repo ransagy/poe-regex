@@ -331,13 +331,15 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   family keeps the shorter affix-name form. Same-family exact tiers coalesce
   into one range chip, and a full-family range uses the family label, so
   four exact tiers, “Stallion’s or better”, and the family pick are the same
-  search. Exact/exclude are additive per tier: exact on an included tier
-  adds a single-tier exclusion, exclude keeps the range/up/family/name pick,
-  and missing tiers are added as new picks. The up button is anchor-only:
-  it undoes its up pick, moves the anchor when a lower up pick covers the
-  tier, and shows a hint instead of rewriting a family/range that already
-  covers the suffix. All tiers picked individually stay a range until the
-  family row converts them to the family pick. The pick row shows the explicit range (for example
+  search. Exact toggles one tier: on a covered tier it splits/trims the
+  range/up/family around it, on an excluded tier it clears the exclusion,
+  and on an unselected tier it adds exact. Exclude is the only tier action
+  that creates exclusions. The up button is anchor-only: the anchor undoes
+  its up pick, a covered up tier removes the suffix from there upward, a
+  partial suffix is replaced by one up pick, and a family/range-covered
+  suffix shows a hint instead of being rewritten. All tiers picked
+  individually stay a range until the family row converts them to the
+  family pick. The pick row shows the explicit range (for example
   `20–35% increased Movement Speed`); a legacy name-up row shows the compact
   equivalent range (`= 20–35% increased Movement Speed`). Cross-slot ranges
   union only when the extra span does not exist for the narrower class.

@@ -100,14 +100,15 @@ outer loop. It runs at data-build time, never in the browser.
 - `EngineService.PickIntervals` exposes the canonical discrete intervals
   for a UI pick. Labels and tier marks use it, so a non-consecutive set
   keeps its gaps instead of collapsing to min–max. Exact tier picks merge
-  only within consecutive family runs. Exact/exclude are additive per tier:
-  exact on an included tier adds a single-tier exclusion, exact on an
-  excluded tier clears it, and existing ranges/up/name picks and filters
-  stay. The up button is anchor-only: it removes its up pick when active,
-  moves the anchor when a lower up pick covers the tier, and is disabled
-  with a hint when a family/range already covers the suffix. Undo never
-  creates suffix exclusions. All-tier selections stay as the player built
-  them; the family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
+  only within consecutive family runs. Exact toggles one tier: on a covered
+  tier it splits/trims the range/up/family around it; on an excluded tier it
+  clears the exclusion; on an unselected tier it adds exact. Exclude is the
+  only tier action that creates exclusions. The up button is anchor-only:
+  the anchor removes its up pick, a covered up tier removes the suffix from
+  there upward, a partial suffix is replaced by one up pick, and a
+  family/range-covered suffix is disabled with a hint. Exact/up never create
+  suffix exclusions. All-tier selections stay as the player built them; the
+  family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
   to a range pick on the first min/max entry.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic
   key and reuses one `PasteComposer` per game session, so a re-render does
