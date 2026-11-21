@@ -122,6 +122,28 @@
     private WantedMod? _minBusy;
     private int? _hotAnyOfIndex;
 
+    private static bool CoversTier(WantedMod pick, ModTier tier)
+    {
+        if (pick.IsTierRange)
+            return tier.MemberIds.All(pick.RangeModIds!.Contains);
+        if (pick.IsNamePick)
+            return tier.Name.Length > 0 &&
+                   pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
+        if (pick.VariantModIds is { Count: > 0 } variants)
+            return tier.MemberIds.All(variants.Contains);
+        return tier.MemberIds.Contains(pick.ModId);
+    }
+
+    private static bool TierExcluded(
+        ModFamily family, ModTier tier, IReadOnlyList<string> excluded)
+    {
+        if (excluded.Count == 0) return false;
+        if (tier.Name.Length > 0 &&
+            excluded.Contains(tier.Name, StringComparer.Ordinal))
+            return true;
+        return tier.MemberIds.Any(id => excluded.Contains(id, StringComparer.Ordinal));
+    }
+
     private static bool HasTierGap(ModFamily family, WantedMod pick)
     {
         if (!pick.IsTierRange || pick.RangeModIds is not { Count: > 1 } ids)
@@ -261,6 +283,16 @@
                         inc.Names.All(naturalNames.Contains)
                         ? Engine.TierCoveredRangeLabel(family, tier)
                         : null;
+                    var coveredExcluded = family is null
+                        ? []
+                        : family.Tiers
+                            .Where(t => CoversTier(inc, t) &&
+                                        TierExcluded(family, t, crit.Excluded))
+                            .Select(t => t.DisplayLabel.Length > 0
+                                ? t.DisplayLabel
+                                : t.Anchor.Id)
+                            .Distinct(StringComparer.Ordinal)
+                            .ToList();
                     var busy = _minBusy?.SamePick(inc) == true;
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
@@ -291,6 +323,10 @@
                             @if (numeric is not null && (minIgnored || maxIgnored))
                             {
                                 <span class="bd-detail bd-warn">range not enforceable; using the family fragment</span>
+                            }
+                            @if (coveredExcluded.Count > 0)
+                            {
+                                <span class="bd-detail bd-warn" title="Tiers excluded from this pick">excludes @string.Join(", ", coveredExcluded)</span>
                             }
                         </span>
                         @if (!ReadOnly && numeric is not null)

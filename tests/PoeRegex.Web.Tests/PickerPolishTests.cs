@@ -224,6 +224,40 @@ public class PickerPolishTests
     }
 
     [Fact]
+    public void PickBreakdown_RangeWithTierExclusion_ShowsExclusionNote()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var family = ModFamilies.Group(engine.ModsForClass("Boots"))
+            .First(f => f.Key == "MovementVelocity");
+        var tier3 = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
+        var range = new WantedMod(
+            "MovementVelocity3",
+            MinValue: 20,
+            MaxValue: 25,
+            RangeModIds: ["MovementVelocity3", "MovementVelocity4"]);
+        var state = new WorkbenchState();
+        state.SetMode("advanced");
+        state.SelectSlot("boots");
+        state.AddInclude("boots", range);
+        state.AddExclude("boots", tier3.Name);
+        var paste = engine.Combine(
+            [("boots (Boots)", "Boots",
+                (IEnumerable<WantedMod>)state.CriteriaFor("boots").Included, false)],
+            state.CriteriaFor("boots").Excluded, allowOverflow: true);
+        var model = new SearchModel(engine, state);
+        model.Update(null, paste);
+
+        var cut = ctx.Render<PickBreakdown>(p => p
+            .Add(x => x.Model, model)
+            .Add(x => x.State, state));
+
+        var row = cut.Find(".bd-row.inc").TextContent;
+        row.Should().Contain("excludes");
+        row.Should().Contain(tier3.DisplayLabel);
+    }
+
+    [Fact]
     public void PickBreakdown_NonConsecutiveTierRange_HidesMinMaxAndListsValues()
     {
         using var ctx = Context();

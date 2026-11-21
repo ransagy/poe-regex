@@ -578,8 +578,7 @@ public class ModPickerHighlightTests
             "the chosen tier's active ≥ button carries the selection");
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.QuerySelectorAll(".state-badge").Should().BeEmpty();
-        coveredRow.QuerySelector(".covered-note").Should().BeNull(
-            "the active ≥ button carries the suffix state on every covered tier");
+        coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Contain("≥ covered");
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeFalse();
         coveredExact.TextContent.Should().Be("−");
@@ -591,8 +590,9 @@ public class ModPickerHighlightTests
         {
             var coveredUp = cut.Find($"#pick-tier-up-{coveredUpTier.Anchor.Id}");
             coveredUp.HasAttribute("disabled").Should().BeFalse();
-            coveredUp.GetAttribute("aria-pressed").Should().Be("true",
-                "the whole suffix is selected from every tier in it");
+            coveredUp.GetAttribute("aria-pressed").Should().Be("false",
+                "only the actual anchor is active");
+            coveredUp.GetAttribute("title").Should().Contain("move the anchor");
         }
     }
 
@@ -914,7 +914,7 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void FamilyPick_TierUpAddsSuffixExclusionsAndClearsThem()
+    public void FamilyPick_TierUp_IsDisabledWithHint()
     {
         using var ctx = Context();
         var (_, mods, state) = AdvancedPickler(ctx, out var family);
@@ -928,20 +928,14 @@ public class ModPickerHighlightTests
         var cut = Render(ctx, state, mods, "helmet");
         Expand(cut, family);
         var up = cut.Find($"#pick-tier-up-{tier.Anchor.Id}");
+        up.HasAttribute("disabled").Should().BeTrue(
+            "the family pick already covers the suffix; no surprise rewrite");
+        up.GetAttribute("title").Should().Contain("Already covered");
         up.Click();
 
         var crit = state.CriteriaFor("helmet");
         crit.Included.Should().ContainSingle(pick => pick.VariantModIds != null && pick.VariantModIds.Count > 0);
-        crit.Excluded.Should().NotBeEmpty();
-        var suffixNames = family.Tiers
-            .Where(t => t.RequiredLevel >= tier.RequiredLevel)
-            .Select(t => t.Name)
-            .ToHashSet(StringComparer.Ordinal);
-        crit.Excluded.Should().OnlyContain(term => suffixNames.Contains(term));
-        cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("+");
-
-        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
-        state.CriteriaFor("helmet").Excluded.Should().BeEmpty();
+        crit.Excluded.Should().BeEmpty();
         cut.Find($"#pick-inc-{family.Anchor.Id}").TextContent.Should().Be("✓");
     }
 
@@ -1140,27 +1134,27 @@ public class ModPickerHighlightTests
         cut.Find($"#pick-tier-exc-{tier.Anchor.Id}").HasAttribute("disabled").Should().BeFalse();
 
         TierRow(cut, tier).ClassList.Should().Contain("picked",
-            "the exact pick stays; the missing suffix tiers are added separately");
+            "the exact pick stays; the up pick is the explicit suffix anchor");
         var coveredRow = TierRow(cut, covered[^1]);
         coveredRow.ClassList.Should().Contain("covered");
-        coveredRow.QuerySelector(".covered-note").Should().BeNull();
+        coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Contain("≥ covered");
         var coveredUpTier = covered.Skip(1)
             .FirstOrDefault(t => family.NamesFrom(t).Count > 1);
         if (coveredUpTier is not null)
         {
             var coveredUp = cut.Find($"#pick-tier-up-{coveredUpTier.Anchor.Id}");
             coveredUp.HasAttribute("disabled").Should().BeFalse(
-                "every covered tier can toggle its suffix");
-            coveredUp.GetAttribute("aria-pressed").Should().Be("true");
+                "a covered up tier can move the anchor");
+            coveredUp.GetAttribute("aria-pressed").Should().Be("false");
         }
         TierRow(cut, family.Tiers[0]).ClassList.Should().NotContain("covered",
             "tiers below the chosen one are not covered");
 
-        up.Click(); // active suffix toggles off with exclusions
-        crit.Excluded.Should().NotBeEmpty();
-        crit.Included.Should().HaveCountGreaterThanOrEqualTo(2,
-            "the existing exact pick and the up range stay; the suffix is excluded");
-        TierRow(cut, tier).ClassList.Should().Contain("excluded");
+        up.Click(); // undo the up pick, leaving the exact pick
+        crit.Excluded.Should().BeEmpty("undoing an up pick does not create exclusions");
+        crit.Included.Should().ContainSingle(
+            "the original exact pick remains after the up anchor is removed");
+        TierRow(cut, tier).ClassList.Should().NotContain("excluded");
     }
 
     [Fact]
@@ -1245,16 +1239,20 @@ public class ModPickerHighlightTests
         up.Click();
 
         var crit = state.CriteriaFor("boots");
-        crit.Included.Should().ContainSingle(
-            "the original or-better pick stays; the suffix is excluded");
-        crit.Excluded.Should().Contain(coveredTier.Name);
-        TierRow(cut, coveredTier).ClassList.Should().Contain("excluded");
-        TierRow(cut, tier).ClassList.Should().NotContain("excluded",
-            "tiers below the clicked tier stay selected");
+        crit.Included.Should().HaveCount(2,
+            "the lower part is preserved as a range and the new anchor is an up pick");
+        crit.Excluded.Should().BeEmpty("moving the anchor does not create exclusions");
+        cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").GetAttribute("aria-pressed")
+            .Should().Be("true", "the new anchor is active");
+        TierRow(cut, coveredTier).ClassList.Should().NotContain("excluded");
+        TierRow(cut, tier).ClassList.Should().Contain("picked",
+            "the old lower tier is preserved");
 
         cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").Click();
+        var remaining = state.CriteriaFor("boots").Included.Should().ContainSingle().Subject;
+        remaining.MinValue.Should().Be(20);
+        remaining.MaxValue.Should().Be(20);
         state.CriteriaFor("boots").Excluded.Should().BeEmpty();
-        TierRow(cut, coveredTier).ClassList.Should().NotContain("excluded");
     }
 
     [Fact]

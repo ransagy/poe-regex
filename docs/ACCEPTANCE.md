@@ -80,11 +80,14 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   show the same natural bounds (empty, not a filter).
 - Entering a min/max on a family pick converts it to the canonical range
   pick, so its label, tier marks, and actions stay range-aware.
-- Tier actions are never locked by the representation. Exact/up on an
-  included tier add exclusions and keep the existing range/up/family/name
-  pick; exact/up on an excluded tier clear the exclusion; exclude toggles
-  the exclusion. Adding missing tiers adds new picks without rewriting the
-  player’s existing picks. Existing min/max filters stay on their picks.
+- Exact and exclude are never locked by the representation. Exact on an
+  included tier adds a single-tier exclusion and keeps the existing
+  range/up/family/name pick; exact on an excluded tier clears the exclusion;
+  exclude toggles the exclusion. The up button is active only on its actual
+  anchor and undoes that up pick. Covered up tiers can move the anchor;
+  a suffix already covered by a family/range shows a disabled hint instead
+  of being rewritten. Undo never creates suffix exclusions. Existing min/max
+  filters stay on their picks.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
   the family row selects all (clears the exclusions).
@@ -102,13 +105,13 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 491 web + 53 data-build; the published
+- Current Release suite: 133 core + 492 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, two runs): boot 1.4–1.7 s; picker expand
-  ~25 ms; advanced family pick ~88 ms; first cross-class range pick ~320 ms
-  (subsequent picks 38–125 ms); 10-slot paste update ~86 ms; class change
-  ~100 ms; longest task ~320 ms. The first cross-class range and the first
-  ring pick are the only actions above 200 ms in the smoke.
+- Perf smoke (published Release, two runs): boot 1370–1383 ms; picker
+  expand ~26 ms; advanced family pick ~73 ms; first cross-class range pick
+  ~278 ms (subsequent picks 34–93 ms); 10-slot paste update ~68 ms; class
+  change ~84 ms; longest task ~271 ms. The first cross-class range and the
+  first ring pick are the only actions above 200 ms in the smoke.
 
 ## Performance
 
@@ -119,22 +122,22 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1680 ms | 1729 ms | < 2500 ms |
+| boot to interactive | 1370 ms | 1383 ms | < 2500 ms |
 | bulk add `++` | 46 ms | 48 ms | < 50 ms |
 | mode: advanced | 53 ms | 87 ms | < 50 ms |
 | builder open | 49 ms | 53 ms | < 50 ms |
-| 10-slot paste update | 86 ms | 90 ms | < 50 ms |
+| 10-slot paste update | 68 ms | 72 ms | < 50 ms |
 | explain cold | 99 ms | 114 ms | < 500 ms |
 | import parse 5 items | 41 ms | 48 ms | < 100 ms |
 
-Advanced per-slot picks: **38–125 ms** after the first cross-class range;
-the first cross-class range is **~320 ms** because it builds the global
-safety corpus. Long tasks across two runs: **28 over 50 ms, 4 over 200 ms,
-max ~320 ms**. The over-200 tasks are the first cross-class range and the
+Advanced per-slot picks: **34–93 ms** after the first cross-class range;
+the first cross-class range is **~278 ms** because it builds the global
+safety corpus. Long tasks across two runs: **21 over 50 ms, 4 over 200 ms,
+max ~271 ms**. The over-200 tasks are the first cross-class range and the
 first ring pick.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
-1.4–1.7 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are
+1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are
 within their targets; mode advanced and some per-slot picks remain slightly
 over the 50 ms target, consistent with the existing per-slot variance. The
 budget is a target, not a hard failure. Compile and combine results are
