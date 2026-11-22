@@ -210,7 +210,8 @@ public class ModPickerHighlightTests
         cut.Find("#pick-tier-MovementVelocity3").Click();
         var exact = cut.Find("#pick-tier-MovementVelocity3");
         exact.HasAttribute("disabled").Should().BeFalse();
-        exact.TextContent.Should().Be("−");
+        exact.TextContent.Should().Be("+",
+            "the include action keeps the add glyph; clicking still splits the range");
         exact.Click();
 
         var crit = state.CriteriaFor("boots");
@@ -581,7 +582,8 @@ public class ModPickerHighlightTests
         coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Contain("≥ covered");
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeFalse();
-        coveredExact.TextContent.Should().Be("−");
+        coveredExact.TextContent.Should().Be("+",
+            "a covered up tier is not an explicit exact pick");
         coveredExact.ClassList.Should().NotContain("active",
             "covered actions are neutral; the covered text carries the state");
         coveredExact.ClassList.Should().Contain("remove");
@@ -836,7 +838,8 @@ public class ModPickerHighlightTests
         Expand(cut, family);
 
         var exact = cut.Find($"#pick-tier-{tier.Anchor.Id}");
-        exact.TextContent.Should().Be("−");
+        exact.TextContent.Should().Be("+",
+            "the family-covered tier is not an explicit exact pick");
         exact.Click();
 
         var crit = state.CriteriaFor("helmet");
@@ -1178,7 +1181,7 @@ public class ModPickerHighlightTests
             "the suffix is one up pick; the old exact pick is subsumed");
         up.GetAttribute("aria-pressed").Should().Be("true");
         up.HasAttribute("disabled").Should().BeFalse();
-        cut.Find($"#pick-tier-{tier.Anchor.Id}").TextContent.Should().Be("−",
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").TextContent.Should().Be("+",
             "the up pick covers the tier; it is no longer an explicit exact pick");
 
         up.Click();
@@ -1424,7 +1427,8 @@ public class ModPickerHighlightTests
         var higherExact = cut.Find($"#pick-tier-{higher.Anchor.Id}");
         var higherExclude = cut.Find($"#pick-tier-exc-{higher.Anchor.Id}");
         higherExact.HasAttribute("disabled").Should().BeFalse();
-        higherExact.TextContent.Should().Be("−");
+        higherExact.TextContent.Should().Be("+",
+            "the name-up pick covers the tier; the include action stays an add glyph");
         higherExact.GetAttribute("title").Should().Contain("Remove");
 
         higherExact.Click();

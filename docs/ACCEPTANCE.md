@@ -91,9 +91,12 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   by one up pick; a suffix already covered by a family/range shows a disabled
   hint instead of being rewritten. Exact/up never create exclusions.
   Existing min/max filters are copied across splits/trims and to a replaced
-  up pick. Covered action buttons stay neutral; only the explicit exact/up/
-  exclude pick is active, and hover or keyboard focus previews the affected
-  tier names and covered notes in add/remove colors.
+  up pick. The include action keeps its `+` glyph on a covered tier; the
+  exclude action keeps `−`, so the two never share a glyph. Covered action
+  buttons stay neutral; only the explicit exact/up/exclude pick is active,
+  and hover or keyboard focus previews the whole affected row plus the
+  family status ("x picked", "covered", "excluded") in add/remove colors,
+  with a soft tint, inset accent, and underline as non-color cues.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
   the family row selects all (clears the exclusions).

@@ -338,9 +338,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   its up pick, a covered up tier makes that tier the new anchor and drops
   the old lower part unless it is separately picked, a partial suffix is
   replaced by one up pick, and a family/range-covered suffix shows a hint
-  instead of being rewritten. Covered action buttons stay neutral; hovering
-  or focusing one previews the tier names and covered notes it will add or
-  remove, using the same add/remove colors. All tiers picked
+  instead of being rewritten. The include action keeps its `+` glyph on a
+  covered tier; the exclude action keeps `−`, so the two never share a
+  glyph. Covered action buttons stay neutral; hovering or focusing one
+  previews the whole affected row and the family status ("x picked",
+  "covered", "excluded") in add/remove colors, with a soft tint, inset
+  accent, and underline as non-color cues. All tiers picked
   individually stay a range until the family row converts them to the
   family pick. The pick row shows the explicit range (for example
   `20–35% increased Movement Speed`); a legacy name-up row shows the compact

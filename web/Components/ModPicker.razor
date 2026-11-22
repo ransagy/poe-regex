@@ -311,7 +311,7 @@
                                                                 title="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
                                                                 aria-label="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
                                                                 aria-pressed="@(explicitTier && !excludedTier ? "true" : "false")"
-                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : tierClaimedHere ? "✓" : tierCoveredClaim ? "⇄" : includedTier ? "−" : "+")</button>
+                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : tierClaimedHere ? "✓" : tierCoveredClaim ? "⇄" : "+")</button>
                                                         @if (upNames.Count > 1)
                                                         {
                                                             <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(canReplaceHere ? "replace" : "") @(!upSelected && !canReplaceHere && !upDisabled ? "add" : "")"

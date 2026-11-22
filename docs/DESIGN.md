@@ -109,7 +109,11 @@ outer loop. It runs at data-build time, never in the browser.
   separately picked), a partial suffix is replaced by one up pick, and a
   family/range-covered suffix is disabled with a hint. A single min/max
   filter on the old up pick is copied to the replacement. Exact/up never
-  create suffix exclusions. All-tier selections stay as the player built them; the
+  create suffix exclusions. The include action always shows `+` unless the
+  tier is an explicit exact pick (`✓`) or a covered claim (`⇄`); `−` belongs
+  to exclude only. Hover/focus previews the affected row and family status
+  with add/remove colors plus a tint, inset accent, and underline, so the
+  cue is not color-only. All-tier selections stay as the player built them; the
   family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
   to a range pick on the first min/max entry.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic
