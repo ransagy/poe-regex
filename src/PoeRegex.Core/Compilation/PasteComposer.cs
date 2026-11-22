@@ -47,9 +47,15 @@ public sealed class PasteComposer
     private readonly bool _validateRecall;
 
     public PasteComposer(EngineCorpus corpus, bool validateRecall = true)
+        : this(corpus, new CompactionEngine(corpus), validateRecall)
+    {
+    }
+
+    public PasteComposer(
+        EngineCorpus corpus, CompactionEngine compaction, bool validateRecall = true)
     {
         _corpus = corpus;
-        _compaction = new CompactionEngine(corpus);
+        _compaction = compaction;
         _explainer = new Explainer(corpus);
         _validateRecall = validateRecall;
     }

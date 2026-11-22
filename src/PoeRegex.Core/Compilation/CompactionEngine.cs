@@ -20,6 +20,9 @@ public sealed class CompactionEngine
         new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyList<(string Pattern, string Real)>> _catalogLines =
         new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string Fragment, string? Class, string? Literal), Lazy<ProofMatches>> _proofMatches = new();
+    private readonly ConcurrentDictionary<(string Fragment, string? Class, string Allowed), IReadOnlyList<double>> _rollHits = new();
+    private readonly ConcurrentDictionary<string, (bool Unsafe, bool Matched)> _rollResults = new(StringComparer.Ordinal);
 
     public CompactionEngine(EngineCorpus corpus)
     {
@@ -230,17 +233,18 @@ public sealed class CompactionEngine
                 if (exactCandidates?.Contains(candidate) != true &&
                     !RangeRegex.MatchesIntervals(candidate, intervals, precision)) continue;
                 var forms = BuildRangeForms(shape, candidate, anyNumber, familyFragment)
-                    .OrderBy(fragment => fragment.Length)
-                    .ThenBy(fragment => fragment, StringComparer.Ordinal)
+                    .OrderBy(form => form.Text.Length)
+                    .ThenBy(form => form.Text, StringComparer.Ordinal)
                     .ToList();
                 var safe = false;
-                foreach (var fragment in forms)
+                foreach (var form in forms)
                 {
                     if (!CatalogRangeSafe(
-                            fragment, allowedPatterns, intervals, itemClass,
-                            exactCandidates?.Contains(candidate) == true))
+                            form.Text, allowedPatterns, intervals, itemClass,
+                            exactCandidates?.Contains(candidate) == true,
+                            form.Literal))
                         continue;
-                    if (best is null || fragment.Length < best.Length) best = fragment;
+                    if (best is null || form.Text.Length < best.Length) best = form.Text;
                     safe = true;
                     break;
                 }
@@ -252,6 +256,9 @@ public sealed class CompactionEngine
         return best;
     }
 
+    /// <summary>A range form and a literal every matching line must contain.</summary>
+    private readonly record struct RangeForm(string Text, string? Literal);
+
     /// <summary>
     /// Forms tried for one shape and value class:
     /// the full display shape (anchored and not), a prefix-anchored
@@ -260,7 +267,7 @@ public sealed class CompactionEngine
     /// so an advanced range endpoint (1.5 in <c>2.03(1.5-2.5)</c>) cannot
     /// satisfy it.
     /// </summary>
-    private static IReadOnlyList<string> BuildRangeForms(
+    private static IReadOnlyList<RangeForm> BuildRangeForms(
         string shape, string valueRegex, string anyNumber, string? familyFragment)
     {
         var idx = shape.IndexOf(SuffixIndex.DigitPlaceholder);
@@ -275,23 +282,47 @@ public sealed class CompactionEngine
             ? "(" + valueRegex + ")"
             : valueRegex;
 
-        var forms = new List<string>(4)
+        var forms = new List<RangeForm>(4)
         {
-            prefix + value + suffix + "$",
-            prefix + value + suffix,
-            prefix + value + ".*" + tail,
+            new(prefix + value + suffix + "$", CleanLiteral(suffix)),
+            new(prefix + value + suffix, CleanLiteral(suffix)),
+            new(prefix + value + ".*" + tail, CleanLiteral(tail)),
         };
         if (!string.IsNullOrEmpty(familyFragment) &&
             !familyFragment.StartsWith(@"\.", StringComparison.Ordinal))
         {
-            forms.Add(prefix + value + ".*" + familyFragment);
+            forms.Add(new(prefix + value + ".*" + familyFragment, null));
         }
         // The shipped fragment can carry the line prefix and a wildcard
         // (`\+.*fe`), so it cannot always follow a range. Its literal tail
         // can: `\+(range).*fe` is the shape the in-game checks validated.
         if (LiteralTail(familyFragment) is { } literalTail)
-            forms.Add(prefix + value + ".*" + literalTail);
-        return forms.Distinct(StringComparer.Ordinal).ToList();
+            forms.Add(new(prefix + value + ".*" + literalTail, CleanLiteral(literalTail)));
+        return forms
+            .GroupBy(form => form.Text, StringComparer.Ordinal)
+            .Select(group => new RangeForm(
+                group.Key,
+                group.Select(form => form.Literal)
+                    .FirstOrDefault(literal => literal is not null)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// A literal run that every match of a form must contain, or null when
+    /// the text has regex metacharacters. Used to narrow the proof scan.
+    /// </summary>
+    private static string? CleanLiteral(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return null;
+        var trimmed = text.TrimEnd('$');
+        if (trimmed.Length < 3) return null;
+        foreach (var c in trimmed)
+        {
+            if (!char.IsLetterOrDigit(c) &&
+                c is not (' ' or '%' or '\'' or '/' or ',' or '-' or ':' or '_'))
+                return null;
+        }
+        return trimmed;
     }
 
     /// <summary>Trailing literal run of a fragment, with an optional anchor.</summary>
@@ -357,15 +388,17 @@ public sealed class CompactionEngine
     private static readonly Regex FirstNumber = new(
         @"[-+]?\d+(?:\.\d+)?", RegexOptions.CultureInvariant);
 
+    private sealed record ProofMatches(
+        bool Ok, IReadOnlyList<(string Pattern, double Value)> Lines);
+
     private bool CatalogRangeSafe(
         string fragment,
         IReadOnlyCollection<string> allowedPatterns,
         IReadOnlyList<(double Lo, double Hi)> intervals,
         string? itemClass,
-        bool exact = false)
+        bool exact = false,
+        string? literal = null)
     {
-        var regex = new Regex(
-            fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         // The representative catalog line shows the high roll. A value class
         // that also matches lower rolls of the next tier would pass the
         // line scan, so reject any allowed span whose out-of-range rolls the
@@ -379,6 +412,8 @@ public sealed class CompactionEngine
             // the allowed spans, so it cannot overmatch. Check one in-range
             // roll per span for shape completeness without walking every
             // value.
+            var regex = new Regex(
+                fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (!MatchesAnyAllowedRoll(regex, allowedPatterns, intervals, itemClass))
                 return false;
             matchedAny = true;
@@ -386,19 +421,49 @@ public sealed class CompactionEngine
         else
         {
             var (unsafeRoll, matchedRoll) =
-                CheckCatalogRolls(regex, allowedPatterns, intervals, itemClass);
+                CachedCheckCatalogRolls(fragment, allowedPatterns, intervals, itemClass);
             if (unsafeRoll) return false;
             matchedAny = matchedRoll;
         }
-        foreach (var (pattern, real) in CatalogLines(itemClass))
+        // No allowed roll matched: the fragment cannot represent the range,
+        // and any disallowed proof-line hit would reject it anyway.
+        if (!matchedAny) return false;
+        var proof = _proofMatches.GetOrAdd(
+            (fragment, itemClass, literal),
+            key => new Lazy<ProofMatches>(() => BuildProofMatches(
+                key.Fragment, key.Class, key.Literal))).Value;
+        if (!proof.Ok) return false;
+        matchedAny |= proof.Lines.Count > 0;
+        foreach (var (pattern, value) in proof.Lines)
         {
-            if (!regex.IsMatch(real)) continue;
-            matchedAny = true;
             if (!allowedPatterns.Contains(pattern)) return false;
-            if (!TryFirstNumber(real, out var value)) return false;
             if (!InIntervals(value, intervals)) return false;
         }
         return matchedAny;
+    }
+
+    /// <summary>
+    /// Catalog lines a fragment matches, with their first roll. The match
+    /// set depends only on the fragment and scope, so interval and filter
+    /// variants reuse it instead of rescanning the proof corpus.
+    /// </summary>
+    private ProofMatches BuildProofMatches(
+        string fragment, string? itemClass, string? literal)
+    {
+        var regex = new Regex(
+            fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var proofLines = literal is null
+            ? CatalogLines(itemClass)
+            : _corpus.ProofLinesWithLiteral(itemClass, literal);
+        var lines = new List<(string Pattern, double Value)>();
+        foreach (var (pattern, real) in proofLines)
+        {
+            if (!regex.IsMatch(real)) continue;
+            if (!TryFirstNumber(real, out var value))
+                return new ProofMatches(false, []);
+            lines.Add((pattern, value));
+        }
+        return new ProofMatches(true, lines);
     }
 
     /// <summary>
@@ -493,18 +558,78 @@ public sealed class CompactionEngine
     }
 
     /// <summary>
+    /// Cached roll proof by fragment, scope, allowed patterns, and intervals.
+    /// A safe form's hit values are reused for later interval unions; an
+    /// unsafe form keeps the early exit and is only cached for the exact
+    /// interval set that rejected it.
+    /// </summary>
+    private (bool Unsafe, bool Matched) CachedCheckCatalogRolls(
+        string fragment,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass)
+    {
+        var allowedKey = string.Join(
+            ",", allowedPatterns.OrderBy(x => x, StringComparer.Ordinal));
+        var resultKey = string.Join(
+            "\u0001",
+            fragment,
+            itemClass ?? "",
+            allowedKey,
+            string.Join(
+                ",",
+                intervals
+                    .OrderBy(x => x.Lo)
+                    .ThenBy(x => x.Hi)
+                    .Select(x => x.Lo.ToString("R", CultureInfo.InvariantCulture) + "-" +
+                                 x.Hi.ToString("R", CultureInfo.InvariantCulture))));
+        if (_rollResults.TryGetValue(resultKey, out var cached)) return cached;
+
+        if (!_rollHits.TryGetValue((fragment, itemClass, allowedKey), out var hits))
+        {
+            var (unsafeRoll, matchedRoll, foundHits) = CheckCatalogRolls(
+                new Regex(fragment, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),
+                allowedPatterns, intervals, itemClass);
+            if (unsafeRoll)
+            {
+                var unsafeResult = (true, matchedRoll);
+                _rollResults[resultKey] = unsafeResult;
+                return unsafeResult;
+            }
+            hits = foundHits!;
+            _rollHits[(fragment, itemClass, allowedKey)] = hits;
+        }
+
+        var matched = false;
+        foreach (var value in hits)
+        {
+            if (!InIntervals(value, intervals))
+            {
+                var unsafeResult = (true, matched);
+                _rollResults[resultKey] = unsafeResult;
+                return unsafeResult;
+            }
+            matched = true;
+        }
+        var result = (false, matched);
+        _rollResults[resultKey] = result;
+        return result;
+    }
+
+    /// <summary>
     /// Walks every displayed roll in the allowed catalog spans. Returns
     /// unsafe when the fragment matches an out-of-range roll, and matched
     /// when it matches at least one in-range roll. The representative line
     /// is the high roll, so a narrowed range needs the synthesized values.
     /// </summary>
-    private (bool Unsafe, bool Matched) CheckCatalogRolls(
+    private (bool Unsafe, bool Matched, List<double>? Hits) CheckCatalogRolls(
         Regex regex,
         IReadOnlyCollection<string> allowedPatterns,
         IReadOnlyList<(double Lo, double Hi)> intervals,
         string? itemClass)
     {
         var matched = false;
+        var hits = new List<double>();
         foreach (var pattern in allowedPatterns)
         {
             foreach (var mod in _corpus.ModsWithPattern(pattern))
@@ -531,13 +656,14 @@ public sealed class CompactionEngine
                                   (!string.Equals(advanced, line.Line, StringComparison.Ordinal) &&
                                    regex.IsMatch(ranged));
                         if (!hit) continue;
-                        if (!InIntervals(value, intervals)) return (true, matched);
+                        if (!InIntervals(value, intervals)) return (true, matched, null);
                         matched = true;
+                        hits.Add(value);
                     }
                 }
             }
         }
-        return (false, matched);
+        return (false, matched, hits);
     }
 
     private static IEnumerable<double> SpanSamples(double lo, double hi, int precision)

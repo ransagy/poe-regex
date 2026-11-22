@@ -234,12 +234,12 @@
                                                 var coveredHint = coveringTier is { } covering
                                                     ? CoveredTierHint(covering)
                                                     : null;
-                                                var canRemoveFromHere = coveringTier is not null &&
+                                                var canReplaceHere = coveringTier is not null &&
                                                     !upSelected &&
                                                     coveringTier.Anchor.Id != tier.Anchor.Id;
                                                 var upDisabled = tierIndex < 0 ||
                                                     tierIndex >= fam.Tiers.Count - 1 ||
-                                                    (suffixEffective && !upSelected && !canRemoveFromHere);
+                                                    (suffixEffective && !upSelected && !canReplaceHere);
                                                 var rangePick = crit.Included.FirstOrDefault(p =>
                                                     p.IsTierRange && TierPicked(tier, p));
                                                 var rangeCovered = rangePick is not null &&
@@ -307,22 +307,22 @@
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (!fam.IsAugmentLike)
                                                     {
-                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(includedTier && !excludedTier ? "active" : "") @(tierCoveredClaim ? "switch" : "")"
+                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(explicitTier && !excludedTier ? "active" : "") @(includedTier && !excludedTier ? "remove" : "add") @(tierCoveredClaim ? "switch" : "")"
                                                                 title="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
                                                                 aria-label="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
-                                                                aria-pressed="@(includedTier && !excludedTier ? "true" : "false")"
+                                                                aria-pressed="@(explicitTier && !excludedTier ? "true" : "false")"
                                                                 @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : tierClaimedHere ? "✓" : tierCoveredClaim ? "⇄" : includedTier ? "−" : "+")</button>
                                                         @if (upNames.Count > 1)
                                                         {
-                                                            <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(!upDisabled && (suffixPartial || canRemoveFromHere) && !upSelected ? "partial" : "")"
+                                                            <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(canReplaceHere ? "replace" : "") @(!upSelected && !canReplaceHere && !upDisabled ? "add" : "")"
                                                                     disabled="@upDisabled"
                                                                     aria-disabled="@(upDisabled ? "true" : "false")"
-                                                                    title="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canRemoveFromHere, upDisabled)"
-                                                                    aria-label="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canRemoveFromHere, upDisabled)"
+                                                                    title="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled)"
+                                                                    aria-label="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled)"
                                                                     aria-pressed="@(upSelected ? "true" : "false")"
                                                                     @onclick="() => ToggleTierUp(fam, tier)">≥</button>
                                                         }
-                                                        <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(tierExcludedHere ? "active" : "") @(tierExcludedCovered ? "switch" : "")"
+                                                        <button id="pick-tier-exc-@tier.Anchor.Id" class="exc @(tierExcludedHere ? "active" : "") @(tierExcludedHere ? "reinclude" : "exclude") @(tierExcludedCovered ? "switch" : "")"
                                                                 title="@TierExcludeActionTitle(tier, tierExcludedHere, tierExcludedCovered, null)"
                                                                 aria-label="@TierExcludeActionTitle(tier, tierExcludedHere, tierExcludedCovered, null)"
                                                                 aria-pressed="@(tierExcludedHere ? "true" : "false")"
@@ -1032,7 +1032,7 @@
     }
 
     private static string CoveredTierHint(ModTier coveringTier) =>
-        $"Covered by \"{TierLabel(coveringTier)}\" or better; use ≥ to remove from this tier up, or exact/exclude to edit this tier.";
+        $"Covered by \"{TierLabel(coveringTier)}\" or better; use ≥ to make this tier the anchor, or exact/exclude to edit this tier.";
 
     private static string CoveredRangeHint(string? label) =>
         label is null
@@ -1256,13 +1256,13 @@
 
     private static string TierUpActionTitle(
         ModTier tier, IReadOnlyList<string> names, bool selected, bool partial,
-        bool canRemoveFromHere, bool disabled)
+        bool canReplaceHere, bool disabled)
     {
         var label = TierLabel(tier);
         if (selected)
             return $"Selected: \"{label}\" or better. Remove this up pick.";
-        if (canRemoveFromHere)
-            return $"This tier or better is selected. Use ≥ to remove the suffix from \"{label}\" upward.";
+        if (canReplaceHere)
+            return $"This tier or better is selected. Use ≥ to make \"{label}\" the anchor.";
         if (disabled)
             return $"Already covered by the current range/family. Use exact/exclude to edit a tier.";
         if (partial)
@@ -1559,21 +1559,19 @@
             }
         }
 
-        // A covered tier of a lower up pick removes the suffix from this
-        // tier upward, keeping the lower run.
+        // A covered tier of a lower up pick replaces that up selection:
+        // this tier becomes the anchor and the lower part of the old up is
+        // dropped. Separate lower picks stay.
         var covering = UpCoveringTier(fam, tier, crit.Included);
         if (covering is not null && covering.Anchor.Id != tier.Anchor.Id)
         {
-            State.WithSuppressedNotifications(() =>
+            var coveringPicks = TierUpPicks(fam, covering, crit.Included);
+            if (coveringPicks.Count > 0)
             {
-                RemoveIndicesFromIncludes(
-                    fam,
-                    Enumerable.Range(index, fam.Tiers.Count - index).ToHashSet(),
-                    crit);
-                MergeExactTierRanges(fam);
-            });
-            Refresh();
-            return;
+                ReplaceUpSelection(fam, coveringPicks, tier, crit);
+                Refresh();
+                return;
+            }
         }
 
         if (SuffixEffective(fam, index, included, excluded))
@@ -1581,6 +1579,49 @@
 
         State.WithSuppressedNotifications(() => SetSuffix(fam, index, crit));
         Refresh();
+    }
+
+    private void ReplaceUpSelection(
+        ModFamily fam, IReadOnlyList<WantedMod> coverings, ModTier tier, SlotCriteria crit)
+    {
+        var index = TierIndex(fam, tier);
+        if (index < 0) return;
+        var filters = coverings
+            .Select(pick => HasCustomFilter(fam, pick)
+                ? (Min: pick.MinValue, Max: pick.MaxValue)
+                : (Min: (double?)null, Max: (double?)null))
+            .Distinct()
+            .ToList();
+        var suffixTiers = fam.Tiers.Skip(index).ToList();
+        var newUp = Engine.BestTierPick(fam, tier, up: true, ScopeClassId)
+            ?? BuildRangePickForTiers(fam, suffixTiers);
+        if (filters.Count == 1 &&
+            (filters[0].Min is not null || filters[0].Max is not null))
+            newUp = newUp with { MinValue = filters[0].Min, MaxValue = filters[0].Max };
+
+        State.WithSuppressedNotifications(() =>
+        {
+            foreach (var pick in coverings) State.RemoveInclude(Scope, pick);
+            foreach (var subsumed in UpPicksAtOrAbove(fam, index, crit.Included))
+            {
+                if (coverings.Contains(subsumed)) continue;
+                State.RemoveInclude(Scope, subsumed);
+            }
+            foreach (var suffixTier in suffixTiers)
+                RemoveTierExclusions(fam, suffixTier);
+            State.AddInclude(Scope, newUp);
+        });
+    }
+
+    private List<WantedMod> UpPicksAtOrAbove(
+        ModFamily fam, int index, IReadOnlyList<WantedMod> included)
+    {
+        var memberIds = fam.MemberIds;
+        return included
+            .Where(pick => IsUpPick(fam, pick, memberIds) &&
+                           UpAnchorTier(fam, pick) is { } anchor &&
+                           TierIndex(fam, anchor) >= index)
+            .ToList();
     }
 
     private void ToggleTierExclude(ModFamily fam, ModTier tier)

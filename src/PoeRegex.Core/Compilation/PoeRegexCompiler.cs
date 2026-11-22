@@ -12,9 +12,14 @@ public sealed class PoeRegexCompiler
     private readonly CompactionEngine _compaction;
 
     public PoeRegexCompiler(EngineCorpus corpus)
+        : this(corpus, new CompactionEngine(corpus))
+    {
+    }
+
+    public PoeRegexCompiler(EngineCorpus corpus, CompactionEngine compaction)
     {
         _corpus = corpus;
-        _compaction = new CompactionEngine(corpus);
+        _compaction = compaction;
     }
 
     public CompileResult Compile(QuerySpecification spec)

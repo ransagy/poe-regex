@@ -582,6 +582,9 @@ public class ModPickerHighlightTests
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeFalse();
         coveredExact.TextContent.Should().Be("−");
+        coveredExact.ClassList.Should().NotContain("active",
+            "covered actions are neutral; the covered text carries the state");
+        coveredExact.ClassList.Should().Contain("remove");
         coveredExact.GetAttribute("title").Should().Contain("Remove");
 
         var coveredUpTier = covered.Skip(1)
@@ -592,7 +595,9 @@ public class ModPickerHighlightTests
             coveredUp.HasAttribute("disabled").Should().BeFalse();
             coveredUp.GetAttribute("aria-pressed").Should().Be("false",
                 "only the actual anchor is active");
-            coveredUp.GetAttribute("title").Should().Contain("remove the suffix");
+            coveredUp.ClassList.Should().Contain("replace")
+                .And.NotContain("active");
+            coveredUp.GetAttribute("title").Should().Contain("make");
         }
     }
 
@@ -1242,37 +1247,87 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
-    public void TierUp_OnCoveredTier_RemovesSuffixFromThere()
+    public void TierUp_OnCoveredTier_ReplacesTheAnchor()
     {
         using var ctx = Context();
         var engine = ctx.Services.GetRequiredService<EngineService>();
         var mods = engine.ModsForClass("Boots");
         var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
         var tier = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3");
-        var names = family.NamesFrom(tier);
         var state = new WorkbenchState();
-        state.AddInclude("boots", new WantedMod(tier.Anchor.Id, names));
         var cut = Render(ctx, state, mods, "boots");
 
         cut.Find("#mod-search").Input("Movement Speed");
         var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
         if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find($"#pick-tier-up-{tier.Anchor.Id}").Click();
+
         var coveredTier = family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity4");
         var up = cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}");
         up.HasAttribute("disabled").Should().BeFalse();
         up.GetAttribute("aria-pressed").Should().Be("false");
+        up.ClassList.Should().Contain("replace")
+            .And.NotContain("active", "a covered action is not the active pick");
         up.Click();
 
         var crit = state.CriteriaFor("boots");
-        crit.Excluded.Should().BeEmpty("up removal does not create exclusions");
-        var lower = crit.Included.Should().ContainSingle().Subject;
-        lower.MaxValue.Should().Be(20, "only the lower part of the suffix remains");
-        TierRow(cut, coveredTier).ClassList.Should().NotContain("covered");
-
-        cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").Click();
-        crit.Included.Should().HaveCount(2, "the lower run stays and the suffix returns");
+        crit.Excluded.Should().BeEmpty("replacing the anchor does not create exclusions");
+        var replaced = crit.Included.Should().ContainSingle().Subject;
+        replaced.MinValue.Should().Be(25);
+        replaced.MaxValue.Should().Be(35);
+        replaced.RangeModIds.Should().BeEquivalentTo(
+            ["MovementVelocity4", "MovementVelocity5", "MovementVelocity6"]);
         cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").GetAttribute("aria-pressed")
             .Should().Be("true");
+        TierRow(cut, tier).ClassList.Should().NotContain("covered",
+            "the lower part of the old up selection is dropped");
+
+        cut.Find($"#pick-tier-up-{coveredTier.Anchor.Id}").Click();
+        state.CriteriaFor("boots").Included.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FilteredUp_TierUpOnCoveredTier_CopiesTheFilter()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var up = new WantedMod(
+            "MovementVelocity3",
+            MinValue: 30,
+            MaxValue: 35,
+            RangeModIds:
+            [
+                "MovementVelocity3", "MovementVelocity4",
+                "MovementVelocity5", "MovementVelocity6",
+            ]);
+        var state = new WorkbenchState();
+        state.AddInclude("boots", up);
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-up-MovementVelocity4").Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Excluded.Should().BeEmpty();
+        var replaced = crit.Included.Should().ContainSingle().Subject;
+        replaced.MinValue.Should().Be(30, "the old up pick's floor is copied");
+        replaced.MaxValue.Should().Be(35);
+        replaced.RangeModIds.Should().BeEquivalentTo(
+            ["MovementVelocity4", "MovementVelocity5", "MovementVelocity6"]);
+
+        var query = engine.CompilePicks(crit.Included, crit.Excluded, false, "Boots").Query;
+        foreach (var value in new[] { 30, 35 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeTrue($"{value}% is inside the copied filter");
+        }
+        ItemMatcher.Match(query, ["Item Class: Boots", "25% increased Movement Speed"])
+            .Match.Should().BeFalse("the old lower tier stays outside the filter");
     }
 
     [Fact]

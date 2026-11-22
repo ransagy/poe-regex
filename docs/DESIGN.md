@@ -104,18 +104,24 @@ outer loop. It runs at data-build time, never in the browser.
   tier it splits/trims the range/up/family around it; on an excluded tier it
   clears the exclusion; on an unselected tier it adds exact. Exclude is the
   only tier action that creates exclusions. The up button is anchor-only:
-  the anchor removes its up pick, a covered up tier removes the suffix from
-  there upward, a partial suffix is replaced by one up pick, and a
-  family/range-covered suffix is disabled with a hint. Exact/up never create
-  suffix exclusions. All-tier selections stay as the player built them; the
+  the anchor removes its up pick, a covered up tier replaces that up pick
+  with this tier as the new anchor (the old lower part drops unless it is
+  separately picked), a partial suffix is replaced by one up pick, and a
+  family/range-covered suffix is disabled with a hint. A single min/max
+  filter on the old up pick is copied to the replacement. Exact/up never
+  create suffix exclusions. All-tier selections stay as the player built them; the
   family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
   to a range pick on the first min/max entry.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic
-  key and reuses one `PasteComposer` per game session, so a re-render does
-  not re-plan unchanged slots. Range proofs use unsorted per-scope proof
-  lines, global display shapes come from catalog forms instead of grouping
-  the whole vendor corpus, and the pattern index is hand-built. These are
-  representation-neutral performance changes, not alternate matching paths.
+  key and shares one `CompactionEngine` across the compiler, service, and
+  paste composer, so a re-render or a paste does not re-plan or re-prove
+  unchanged constraints. Range proofs use unsorted per-scope proof
+  lines, a clean literal tail narrows the proof scan to lines containing
+  that tail, and matched proof lines and safe roll hits are cached across
+  interval unions. Global display shapes come from catalog forms instead of
+  grouping the whole vendor corpus, and the pattern index is hand-built.
+  These are representation-neutral performance changes, not alternate
+  matching paths.
 - `PoeRegexCompiler(corpus)` composes a query from table lookups and
   threshold/range patterns. `PasteComposer(corpus)` composes multi-slot pastes.
 - `CompileResult { Query, Length, Limit, Diagnostics, Exceeded }`.

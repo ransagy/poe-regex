@@ -335,9 +335,12 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   range/up/family around it, on an excluded tier it clears the exclusion,
   and on an unselected tier it adds exact. Exclude is the only tier action
   that creates exclusions. The up button is anchor-only: the anchor undoes
-  its up pick, a covered up tier removes the suffix from there upward, a
-  partial suffix is replaced by one up pick, and a family/range-covered
-  suffix shows a hint instead of being rewritten. All tiers picked
+  its up pick, a covered up tier makes that tier the new anchor and drops
+  the old lower part unless it is separately picked, a partial suffix is
+  replaced by one up pick, and a family/range-covered suffix shows a hint
+  instead of being rewritten. Covered action buttons stay neutral; hovering
+  or focusing one previews the tier names and covered notes it will add or
+  remove, using the same add/remove colors. All tiers picked
   individually stay a range until the family row converts them to the
   family pick. The pick row shows the explicit range (for example
   `20–35% increased Movement Speed`); a legacy name-up row shows the compact

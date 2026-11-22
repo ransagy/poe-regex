@@ -38,6 +38,8 @@ public sealed class EngineCorpus
     private readonly Lazy<IReadOnlyList<(string Pattern, string Real)>> _proofGlobal;
     private readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<(string Pattern, string Real)>>> _proofByClass =
         new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string? Class, string Literal), IReadOnlyList<(string Pattern, string Real)>> _proofByLiteral =
+        new();
     private Dictionary<string, List<VendorLine>>? _vendorByClass;
     private readonly ConcurrentDictionary<string, bool> _classTermQuiet = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _classTermExact = new(StringComparer.Ordinal);
@@ -705,6 +707,21 @@ public sealed class EngineCorpus
                 itemClass,
                 id => new Lazy<IReadOnlyList<(string Pattern, string Real)>>(
                     () => BuildProofLines(id), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+
+    /// <summary>
+    /// Proof lines containing a mandatory literal. A range form with a clean
+    /// literal tail can only match lines containing that tail, so the proof
+    /// scan can skip the rest of the corpus.
+    /// </summary>
+    public IReadOnlyList<(string Pattern, string Real)> ProofLinesWithLiteral(
+        string? itemClass, string literal)
+    {
+        if (literal.Length < 3) return ProofLines(itemClass);
+        return _proofByLiteral.GetOrAdd((itemClass, literal), key =>
+            ProofLines(key.Class)
+                .Where(line => line.Real.Contains(key.Literal, StringComparison.OrdinalIgnoreCase))
+                .ToList());
+    }
 
     private IReadOnlyList<(string Pattern, string Real)> BuildProofLines(string? itemClass)
     {

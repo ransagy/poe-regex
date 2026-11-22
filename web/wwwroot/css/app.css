@@ -575,8 +575,10 @@ input:disabled { opacity: 0.5; }
 .suggest-row > button.active { color: var(--mod); background: var(--mod-soft); border-color: var(--mod); }
 .suggest-row > button.exc { color: var(--faint); }
 .suggest-row > button.exc.active { color: var(--no); background: var(--no-soft); border-color: var(--no); }
-.suggest-row > button.switch { color: var(--mod); font-weight: 700; border-color: var(--line-strong); }
-.suggest-row > button.exc.switch { color: var(--no); }
+/* Covered/claim-switch actions are neutral at rest; the row's covered
+   text and tier-name color carry the state. Only explicit picks are active. */
+.suggest-row > button.switch { color: var(--muted); font-weight: 700; border-color: transparent; }
+.suggest-row > button.exc.switch { color: var(--muted); }
 .suggest-row > button:disabled { color: var(--faint); cursor: not-allowed; border-color: transparent; opacity: 0.5; }
 .suggest-row > button.btn { width: 1.75rem; height: 1.75rem; }
 .suggest-row > button.btn:disabled { color: var(--faint); }
@@ -597,7 +599,52 @@ input:disabled { opacity: 0.5; }
         color: var(--no); background: var(--no-soft);
         border-color: rgba(236, 122, 101, 0.5);
     }
+    /* Tier actions stay neutral until they are the explicit pick; the preview
+       colors the affected tier names/notes instead of the button the user did
+       not press. */
+    .suggest-row.tier-row > button:not(.active):hover:not(:disabled),
+    .suggest-row > button.switch:hover:not(:disabled),
+    .suggest-row > button.up.replace:hover:not(:disabled) {
+        color: var(--muted); background: transparent; border-color: transparent;
+    }
     .fam-toggle:hover .fam-caret { color: var(--text); }
+}
+
+/* Action preview: color the affected tier names / covered notes on hover or
+   keyboard focus. Buttons themselves stay neutral; only the target rows
+   change color. CSS-only, so no Blazor re-render. */
+.tier-list .tier-row:has(.inc.remove:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.inc.remove:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.exc.exclude:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.exc.exclude:is(:hover, :focus-visible)) .covered-note {
+    color: var(--no);
+}
+
+.tier-list .tier-row:has(.inc.add:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.inc.add:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.exc.reinclude:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.exc.reinclude:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.up.add:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.up.add:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.up.add:is(:hover, :focus-visible)) ~ .tier-row .tier-name,
+.tier-list .tier-row:has(.up.add:is(:hover, :focus-visible)) ~ .tier-row .covered-note {
+    color: var(--mod);
+}
+
+.tier-list .tier-row:has(.up.active:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.up.active:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.up.active:is(:hover, :focus-visible)) ~ .tier-row:not(.picked) .tier-name,
+.tier-list .tier-row:has(.up.active:is(:hover, :focus-visible)) ~ .tier-row:not(.picked) .covered-note,
+.tier-list .tier-row.up-covered:not(.picked):has(~ .tier-row .up.replace:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row.up-covered:not(.picked):has(~ .tier-row .up.replace:is(:hover, :focus-visible)) .covered-note {
+    color: var(--no);
+}
+
+.tier-list .tier-row:has(.up.replace:is(:hover, :focus-visible)) .tier-name,
+.tier-list .tier-row:has(.up.replace:is(:hover, :focus-visible)) .covered-note,
+.tier-list .tier-row:has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row .tier-name,
+.tier-list .tier-row:has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row .covered-note {
+    color: var(--mod);
 }
 
 /* ---------- Search string ---------- */

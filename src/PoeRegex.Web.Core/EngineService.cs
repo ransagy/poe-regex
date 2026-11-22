@@ -55,10 +55,10 @@ public sealed class EngineService
     public void LoadGame(GameData data)
     {
         _corpus = new EngineCorpus(data.Catalog, data.Fragments, data.Vendor, data.Safety);
-        _compiler = new PoeRegexCompiler(_corpus);
         _compaction = new CompactionEngine(_corpus);
+        _compiler = new PoeRegexCompiler(_corpus, _compaction);
         _explainer = new Explainer(_corpus);
-        _pasteComposer = new PasteComposer(_corpus, validateRecall: false);
+        _pasteComposer = new PasteComposer(_corpus, _compaction, validateRecall: false);
         _compileCache = new(StringComparer.Ordinal);
         _combineCache = new(StringComparer.Ordinal);
         _pickIntervals = new();

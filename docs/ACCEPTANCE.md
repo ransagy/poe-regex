@@ -1,6 +1,6 @@
 # Acceptance
 
-_Last measured: 2026-11-13; 3.30 catalog counts updated 2026-11-15._
+_Last measured: 2026-11-22; 3.30 catalog counts updated 2026-11-15._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
@@ -86,10 +86,14 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   tier it clears the exclusion; on an unselected tier it adds an exact tier.
   Exclude is the only tier action that adds an exclusion. The up button is
   active only on its actual anchor and undoes that up pick. A covered up
-  tier removes the suffix from that tier upward; a partial suffix is replaced
+  tier replaces that up pick with this tier as the anchor, dropping the old
+  lower part unless it is separately picked; a partial suffix is replaced
   by one up pick; a suffix already covered by a family/range shows a disabled
   hint instead of being rewritten. Exact/up never create exclusions.
-  Existing min/max filters are copied across splits/trims.
+  Existing min/max filters are copied across splits/trims and to a replaced
+  up pick. Covered action buttons stay neutral; only the explicit exact/up/
+  exclude pick is active, and hover or keyboard focus previews the affected
+  tier names and covered notes in add/remove colors.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
   the family row selects all (clears the exclusions).
@@ -107,13 +111,15 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 493 web + 53 data-build; the published
+- Current Release suite: 133 core + 494 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, two runs): boot 1370–1383 ms; picker
-  expand ~26 ms; advanced family pick ~73 ms; first cross-class range pick
-  ~278 ms (subsequent picks 34–93 ms); 10-slot paste update ~68 ms; class
-  change ~84 ms; longest task ~271 ms. The first cross-class range and the
-  first ring pick are the only actions above 200 ms in the smoke.
+- Perf smoke (published Release, two runs): boot 1340–1343 ms; picker
+  expand ~26 ms; advanced family pick ~70 ms; first cross-class range pick
+  ~127 ms (subsequent picks 31–96 ms); first ring pick ~209 ms because it
+  builds that slot's cross-slot union; 10-slot paste update ~70 ms; class
+  change ~84 ms; longest task ~161 ms with no task above 200 ms. Range
+  proofs cache matched catalog lines and safe roll hits, so adding another
+  slot to a cross-slot union re-checks the proof instead of rescanning it.
 
 ## Performance
 
@@ -124,38 +130,41 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1370 ms | 1383 ms | < 2500 ms |
-| bulk add `++` | 46 ms | 48 ms | < 50 ms |
-| mode: advanced | 53 ms | 87 ms | < 50 ms |
-| builder open | 49 ms | 53 ms | < 50 ms |
-| 10-slot paste update | 68 ms | 72 ms | < 50 ms |
-| explain cold | 99 ms | 114 ms | < 500 ms |
-| import parse 5 items | 41 ms | 48 ms | < 100 ms |
+| boot to interactive | 1340 ms | 1343 ms | < 2500 ms |
+| bulk add `++` | 47 ms | 48 ms | < 50 ms |
+| mode: advanced | 75 ms | 84 ms | < 50 ms |
+| builder open | 50 ms | 55 ms | < 50 ms |
+| 10-slot paste update | 70 ms | 71 ms | < 50 ms |
+| explain cold | 92 ms | 94 ms | < 500 ms |
+| import parse 5 items | 38 ms | 38 ms | < 100 ms |
 
-Advanced per-slot picks: **34–93 ms** after the first cross-class range;
-the first cross-class range is **~278 ms** because it builds the global
-safety corpus. Long tasks across two runs: **21 over 50 ms, 4 over 200 ms,
-max ~271 ms**. The over-200 tasks are the first cross-class range and the
-first ring pick.
+Advanced per-slot picks: **31–96 ms** after the first cross-class range;
+the first cross-class range is **~127 ms** because it builds the global
+safety corpus, and the first ring pick is **~209 ms** because it adds that
+slot to a new cross-slot union. Long tasks across two runs: **22 over 50 ms,
+0 over 200 ms, max ~161 ms**.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are
 within their targets; mode advanced and some per-slot picks remain slightly
 over the 50 ms target, consistent with the existing per-slot variance. The
 budget is a target, not a hard failure. Compile and combine results are
-cached by semantic key, one `PasteComposer` is reused per session, global
-display shapes come from catalog forms, and the range proof uses unsorted
-proof lines; those changes removed the 1.9 s first-pick and 0.7 s class-change
-long tasks.
+cached by semantic key, one `CompactionEngine` and `PasteComposer` are
+reused per session, global display shapes come from catalog forms, the range
+proof uses unsorted proof lines, a clean literal tail narrows the proof scan,
+and matched proof lines and safe roll hits are cached across interval unions;
+those changes removed the 1.9 s first-pick and 0.7 s class-change long tasks.
 
 ### Narrow and low-end
 
 ```text
-900×1200: boot 1249 ms · bulk add 42 ms · advanced picks 40–88 ms
-          explain 97 ms · import 39 ms · max long task 90 ms
+900×1200: boot 1373 ms · bulk add 48 ms · advanced picks 39–128 ms
+          first ring pick 211 ms · explain 95 ms · import 37 ms
+          max long task 169 ms
 
-4× CPU:   boot 5.6 s · bulk add 244 ms · advanced picks 129–329 ms
-          explain 422 ms · import 166 ms · max long task 541 ms
+4× CPU:   boot 6.0 s · bulk add 247 ms · advanced picks 141–382 ms
+          first ring pick 733 ms · explain 720 ms · import 147 ms
+          max long task 689 ms
 ```
 
 The 4× CPU sample is one run on the current host and is informational; rerun
