@@ -242,18 +242,13 @@
                                                     (suffixEffective && !upSelected && !canReplaceHere);
                                                 var rangePick = crit.Included.FirstOrDefault(p =>
                                                     p.IsTierRange && TierPicked(tier, p));
-                                                var rangeAnchor = rangePick is not null && !coveredByUp &&
-                                                    string.Equals(rangePick.ModId, tier.Anchor.Id,
+                                                var rangeTier = rangePick is not null && !coveredByUp;
+                                                var rangeAnchor = rangeTier &&
+                                                    string.Equals(rangePick!.ModId, tier.Anchor.Id,
                                                         StringComparison.Ordinal);
-                                                var rangeCovered = rangePick is not null &&
-                                                    !coveredByUp && !rangeAnchor && !explicitTier;
                                                 var rangeLabel = rangePick is not null
                                                     ? ClaimLabel(rangePick, tier, fam)
                                                     : null;
-                                                var exactCoveredLabel = tierCoveredClaim && !rangeAnchor
-                                                    ? tierCoveredLabel
-                                                    : null;
-                                                var upRange = rangePick is not null && !coveredByUp && !upSelected;
                                                 var tierExclusionTerm = TierExclusionTerm(fam, tier);
                                                 var tierExcludedHere = crit.Excluded.Count > 0 &&
                                                     TierExclusionTerms(fam, tier, crit.Excluded).Count > 0;
@@ -263,6 +258,12 @@
                                                 var tierExcludedClaim = tierExclusionKey is not null &&
                                                     PickClaims.FindExcludes(crit, Engine, ScopeClassId, tierExclusionKey).Count > 0;
                                                 var excludedTier = tierExcludedHere || tierExcludedClaim;
+                                                var exactSelected = (explicitTier || rangeTier || coveredByUp) &&
+                                                    !excludedTier;
+                                                var exactCoveredLabel = tierCoveredClaim && !exactSelected
+                                                    ? tierCoveredLabel
+                                                    : null;
+                                                var upRange = rangeTier && !upSelected && !excludedTier;
                                                 var tierExcludedCovered = excludedTier && !tierExcludedHere;
                                                 var familyCovered = familyPickActive &&
                                                     includedTier && !excludedTier;
@@ -280,9 +281,9 @@
                                                     {
                                                         if (explicitTier || rangeAnchor) tierStateClass += "picked ";
                                                         if (coveredByUp) tierStateClass += "covered up-covered ";
-                                                        if (rangeCovered) tierStateClass += "covered range-covered ";
+                                                        if (rangeTier) tierStateClass += "covered range-covered ";
                                                         if (familyCovered) tierStateClass += "covered family-covered ";
-                                                        if (tierCoveredClaim) tierStateClass += "covered ";
+                                                        if (tierCoveredClaim && !exactSelected) tierStateClass += "covered ";
                                                     }
                                                 }
                                                 <li class="suggest-row tier-row @tierStateClass">
@@ -294,7 +295,7 @@
                                                     </span>
                                                     @if (!fam.IsAugmentLike && !excludedTier)
                                                     {
-                                                        @if (tierCoveredClaim && !rangeAnchor)
+                                                        @if (tierCoveredClaim && !exactSelected)
                                                         {
                                                             <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
                                                         }
@@ -302,7 +303,7 @@
                                                         {
                                                             <span class="covered-note" title="@coveredHint">≥ covered</span>
                                                         }
-                                                        else if (rangeCovered)
+                                                        else if (rangeTier)
                                                         {
                                                             <span class="covered-note" title="@CoveredRangeHint(rangeLabel)">range</span>
                                                         }
@@ -315,11 +316,11 @@
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (!fam.IsAugmentLike)
                                                     {
-                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @((explicitTier || rangeAnchor) && !excludedTier ? "active" : "") @(includedTier && !excludedTier ? "remove" : "add") @((tierCoveredClaim && !rangeAnchor) || rangeCovered ? "switch" : "")"
+                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(exactSelected ? "active" : "") @(includedTier && !excludedTier ? "remove" : "add") @(tierCoveredClaim && !exactSelected ? "switch" : "")"
                                                                 title="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, exactCoveredLabel)"
                                                                 aria-label="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, exactCoveredLabel)"
-                                                                aria-pressed="@((explicitTier || rangeAnchor) && !excludedTier ? "true" : "false")"
-                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : (tierClaimedHere || rangeAnchor) ? "✓" : (tierCoveredClaim || rangeCovered) ? "⇄" : "+")</button>
+                                                                aria-pressed="@(exactSelected ? "true" : "false")"
+                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : exactSelected ? "✓" : tierCoveredClaim ? "⇄" : "+")</button>
                                                         @if (upNames.Count > 1)
                                                         {
                                                             <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(canReplaceHere ? "replace" : "") @(!upSelected && !canReplaceHere && !upDisabled ? (upRange ? "range" : "add") : "")"

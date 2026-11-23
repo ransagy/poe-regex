@@ -101,14 +101,16 @@ public class ModPickerHighlightTests
         higher.ModId.Should().Be("MovementVelocity5");
 
         var anchor = cut.Find("#pick-tier-MovementVelocity2");
-        anchor.TextContent.Should().Be("✓", "the lower range's first tier is its anchor");
+        anchor.TextContent.Should().Be("✓", "every selected range tier shows the check");
         anchor.GetAttribute("aria-pressed").Should().Be("true");
-        TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2"))
-            .ClassList.Should().Contain("picked");
+        var anchorRow = TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2"));
+        anchorRow.ClassList.Should().Contain("picked").And.Contain("range-covered");
+        anchorRow.QuerySelector(".covered-note")!.TextContent.Should().Be("range");
 
         var covered = cut.Find("#pick-tier-MovementVelocity3");
-        covered.TextContent.Should().Be("⇄", "the range-covered tier shows the switch state");
-        covered.ClassList.Should().Contain("switch");
+        covered.TextContent.Should().Be("✓", "the range-covered tier is selected too");
+        covered.GetAttribute("aria-pressed").Should().Be("true");
+        covered.ClassList.Should().Contain("active").And.NotContain("switch");
         var coveredRow = TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3"));
         coveredRow.ClassList.Should().Contain("range-covered");
         coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Be("range");
@@ -116,10 +118,66 @@ public class ModPickerHighlightTests
         var upAnchor = cut.Find("#pick-tier-up-MovementVelocity5");
         upAnchor.GetAttribute("aria-pressed").Should().Be("true");
         upAnchor.ClassList.Should().Contain("active");
+        var upAnchorExact = cut.Find("#pick-tier-MovementVelocity5");
+        upAnchorExact.TextContent.Should().Be("✓", "the up anchor is selected");
+        upAnchorExact.GetAttribute("aria-pressed").Should().Be("true");
+        var upCoveredExact = cut.Find("#pick-tier-MovementVelocity6");
+        upCoveredExact.TextContent.Should().Be("✓", "up-covered tiers are selected");
+        upCoveredExact.GetAttribute("aria-pressed").Should().Be("true");
         TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity6"))
             .ClassList.Should().Contain("up-covered");
 
         cut.Find("#pick-tier-MovementVelocity4").TextContent.Should().Be("+");
+    }
+
+    [Fact]
+    public void TierUp_RemoveCheetahs_ShowsBothRangeAnchors()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-up-MovementVelocity3").Click();
+        cut.Find("#pick-tier-MovementVelocity5").Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Excluded.Should().BeEmpty();
+        crit.Included.Should().HaveCount(2);
+        var lower = crit.Included.Single(p =>
+            p.RangeModIds!.SequenceEqual(["MovementVelocity3", "MovementVelocity4"]));
+        lower.ModId.Should().Be("MovementVelocity3");
+        var higher = crit.Included.Single(p => p.RangeModIds!.SequenceEqual(["MovementVelocity6"]));
+        higher.ModId.Should().Be("MovementVelocity6");
+
+        foreach (var id in new[] { "MovementVelocity3", "MovementVelocity4" })
+        {
+            var exact = cut.Find($"#pick-tier-{id}");
+            exact.TextContent.Should().Be("✓", "every selected range tier shows the check");
+            exact.GetAttribute("aria-pressed").Should().Be("true");
+            var row = TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == id));
+            row.ClassList.Should().Contain("range-covered");
+            row.QuerySelector(".covered-note")!.TextContent.Should().Be("range");
+        }
+        cut.Find("#pick-tier-MovementVelocity3").ClassList.Should().Contain("active")
+            .And.NotContain("switch");
+        cut.Find("#pick-tier-MovementVelocity4").ClassList.Should().Contain("active")
+            .And.NotContain("switch");
+        cut.Find("#pick-tier-up-MovementVelocity3").ClassList.Should().Contain("range");
+        cut.Find("#pick-tier-up-MovementVelocity4").ClassList.Should().Contain("range");
+
+        var hellion = cut.Find("#pick-tier-MovementVelocity6");
+        hellion.TextContent.Should().Be("✓", "the higher single-tier range is selected");
+        hellion.GetAttribute("aria-pressed").Should().Be("true");
+        TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity6"))
+            .ClassList.Should().Contain("picked").And.Contain("range-covered");
+
+        cut.Find("#pick-tier-MovementVelocity5").TextContent.Should().Be("+");
     }
 
     [Fact]
@@ -261,9 +319,10 @@ public class ModPickerHighlightTests
         anchor.GetAttribute("aria-pressed").Should().Be("true");
         var exact = cut.Find("#pick-tier-MovementVelocity3");
         exact.HasAttribute("disabled").Should().BeFalse();
-        exact.TextContent.Should().Be("⇄",
-            "a range-covered tier shows the switch state; clicking still splits the range");
-        exact.ClassList.Should().Contain("switch");
+        exact.TextContent.Should().Be("✓",
+            "a range-covered tier is selected; clicking still splits the range");
+        exact.GetAttribute("aria-pressed").Should().Be("true");
+        exact.ClassList.Should().Contain("active").And.NotContain("switch");
         exact.Click();
 
         var crit = state.CriteriaFor("boots");
@@ -634,10 +693,10 @@ public class ModPickerHighlightTests
         coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Contain("≥ covered");
         var coveredExact = cut.Find($"#pick-tier-{covered[^1].Anchor.Id}");
         coveredExact.HasAttribute("disabled").Should().BeFalse();
-        coveredExact.TextContent.Should().Be("+",
-            "a covered up tier is not an explicit exact pick");
-        coveredExact.ClassList.Should().NotContain("active",
-            "covered actions are neutral; the covered text carries the state");
+        coveredExact.TextContent.Should().Be("✓",
+            "every selected up-covered tier shows the check");
+        coveredExact.ClassList.Should().Contain("active");
+        coveredExact.GetAttribute("aria-pressed").Should().Be("true");
         coveredExact.ClassList.Should().Contain("remove");
         coveredExact.GetAttribute("title").Should().Contain("Remove");
 
@@ -1233,8 +1292,10 @@ public class ModPickerHighlightTests
             "the suffix is one up pick; the old exact pick is subsumed");
         up.GetAttribute("aria-pressed").Should().Be("true");
         up.HasAttribute("disabled").Should().BeFalse();
-        cut.Find($"#pick-tier-{tier.Anchor.Id}").TextContent.Should().Be("+",
-            "the up pick covers the tier; it is no longer an explicit exact pick");
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").TextContent.Should().Be("✓",
+            "the up pick selects the tier, so it shows the check");
+        cut.Find($"#pick-tier-{tier.Anchor.Id}").GetAttribute("aria-pressed")
+            .Should().Be("true");
 
         up.Click();
         crit.Included.Should().BeEmpty("undo removes the up pick");
@@ -1479,8 +1540,10 @@ public class ModPickerHighlightTests
         var higherExact = cut.Find($"#pick-tier-{higher.Anchor.Id}");
         var higherExclude = cut.Find($"#pick-tier-exc-{higher.Anchor.Id}");
         higherExact.HasAttribute("disabled").Should().BeFalse();
-        higherExact.TextContent.Should().Be("+",
-            "the name-up pick covers the tier; the include action stays an add glyph");
+        higherExact.TextContent.Should().Be("✓",
+            "the name-up pick selects the tier, so it shows the check");
+        higherExact.ClassList.Should().Contain("active");
+        higherExact.GetAttribute("aria-pressed").Should().Be("true");
         higherExact.GetAttribute("title").Should().Contain("Remove");
 
         higherExact.Click();

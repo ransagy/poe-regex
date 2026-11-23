@@ -565,9 +565,6 @@ input:disabled { opacity: 0.5; }
     font-size: 0.84rem; color: var(--muted);
 }
 .tier-row .suggest-line { font-size: 0.86rem; color: var(--text); }
-.suggest-row.tier-row > button.up.range:not(.active):not(:disabled) {
-    border-color: var(--line-strong); color: var(--muted);
-}
 .preview-hint {
     display: none; flex: none; margin-left: 0.1rem;
     color: var(--muted); font-size: 0.72rem; font-weight: 600; white-space: nowrap;

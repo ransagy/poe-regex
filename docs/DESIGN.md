@@ -109,11 +109,12 @@ outer loop. It runs at data-build time, never in the browser.
   separately picked), a partial suffix is replaced by one up pick, and a
   family/range-covered suffix is disabled with a hint. A single min/max
   filter on the old up pick is copied to the replacement. Exact/up never
-  create suffix exclusions. The include action keeps `+` on an up-covered
-  tier, shows `✓` on an explicit exact or range anchor, and `⇄` on a tier
-  covered by a claim or range; `−` belongs to exclude only. A range pick
-  marks its first tier as the anchor and the rest as range-covered; its up
-  button shows a range state. Hover/focus tints the affected row and family
+  create suffix exclusions. Every selected tier shows `✓` — explicit exact,
+  range-covered, and up-covered alike; `+` is only for an unselected tier,
+  and `⇄` only for a genuine covered claim where clicking switches to that
+  tier. `−` belongs to exclude only. Range tiers keep the plain `range` note,
+  up-covered tiers keep `≥ covered`, and the range `≥` button is a normal add
+  action with a range title. Hover/focus tints the affected row and family
   status and shows a plain inline action hint (`+ add`, `− remove`,
   `⊘ exclude`, `⇄ switch`/`replace`) on the row with the action. Add is mod,
   remove/change is ember, exclude is no. No badges, rings, or underlines.

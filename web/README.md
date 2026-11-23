@@ -338,13 +338,15 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   its up pick, a covered up tier makes that tier the new anchor and drops
   the old lower part unless it is separately picked, a partial suffix is
   replaced by one up pick, and a family/range-covered suffix shows a hint
-  instead of being rewritten. The include action keeps `+` on an up-covered
-  tier, shows `✓` on an explicit exact or range anchor, and `⇄` on a tier
-  covered by a claim or range; `−` belongs to exclude only. Covered action
-  buttons stay neutral; hovering or focusing one tints the affected row and
-  the family status ("x picked", "covered", "excluded") and shows a plain
-  inline hint (`+ add`, `− remove`, `⊘ exclude`, `⇄ switch`/`replace`) on the
-  row with the action. No badges, rings, or underlines. All tiers picked
+  instead of being rewritten. Every selected tier shows `✓` — explicit exact,
+  range-covered, and up-covered alike; `+` is only for an unselected tier,
+  and `⇄` only for a genuine covered claim where clicking switches to that
+  tier. `−` belongs to exclude only. Range tiers keep the plain `range` note,
+  up-covered tiers keep `≥ covered`, and the range `≥` button is a normal add
+  action with a range title. Hovering or focusing an action tints the affected
+  row and the family status ("x picked", "covered", "excluded") and shows a
+  plain inline hint (`+ add`, `− remove`, `⊘ exclude`, `⇄ switch`/`replace`)
+  on the row with the action. No badges, rings, or underlines. All tiers picked
   individually stay a range until the family row converts them to the
   family pick. The pick row shows the explicit range (for example
   `20–35% increased Movement Speed`); a legacy name-up row shows the compact
