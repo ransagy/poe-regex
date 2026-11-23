@@ -109,11 +109,15 @@ outer loop. It runs at data-build time, never in the browser.
   separately picked), a partial suffix is replaced by one up pick, and a
   family/range-covered suffix is disabled with a hint. A single min/max
   filter on the old up pick is copied to the replacement. Exact/up never
-  create suffix exclusions. The include action always shows `+` unless the
-  tier is an explicit exact pick (`✓`) or a covered claim (`⇄`); `−` belongs
-  to exclude only. Hover/focus previews the affected row and family status
-  with add/remove colors plus a soft tint and thin inset ring, so the
-  cue is not color-only. All-tier selections stay as the player built them; the
+  create suffix exclusions. The include action keeps `+` on an up-covered
+  tier, shows `✓` on an explicit exact or range anchor, and `⇄` on a tier
+  covered by a claim or range; `−` belongs to exclude only. A range pick
+  marks its first tier as the anchor and the rest as range-covered; its up
+  button shows a range state. Hover/focus tints the affected row and family
+  status and shows a plain inline action hint (`+ add`, `− remove`,
+  `⊘ exclude`, `⇄ switch`/`replace`) on the row with the action. Add is mod,
+  remove/change is ember, exclude is no. No badges, rings, or underlines.
+  All-tier selections stay as the player built them; the
   family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
   to a range pick on the first min/max entry.
 - `EngineService` caches whole `Compile` and `Combine` results by semantic

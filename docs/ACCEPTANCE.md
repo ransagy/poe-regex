@@ -1,6 +1,6 @@
 # Acceptance
 
-_Last measured: 2026-11-22; 3.30 catalog counts updated 2026-11-15._
+_Last measured: 2026-11-23; 3.30 catalog counts updated 2026-11-15._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
@@ -91,15 +91,21 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   by one up pick; a suffix already covered by a family/range shows a disabled
   hint instead of being rewritten. Exact/up never create exclusions.
   Existing min/max filters are copied across splits/trims and to a replaced
-  up pick. The include action keeps its `+` glyph on a covered tier; the
-  exclude action keeps `−`, so the two never share a glyph. Covered action
-  buttons stay neutral; only the explicit exact/up/exclude pick is active,
-  and hover or keyboard focus previews the whole affected row plus the
-  family status ("x picked", "covered", "excluded") in add/remove colors,
-  with a soft tint and thin inset ring as non-color cues.
+  up pick. The include action keeps `+` on an up-covered tier, shows `✓` on
+  an explicit exact or range anchor, and `⇄` on a tier covered by a claim or
+  range; `−` belongs to exclude only. Covered action buttons stay neutral;
+  only the explicit exact/up/exclude pick is active, and hover or keyboard
+  focus tints the whole affected row plus the family status ("x picked",
+  "covered", "excluded") and shows a plain inline action hint (`+ add`,
+  `− remove`, `⊘ exclude`, `⇄ switch`/`replace`) on the row with the action.
+  No badges, rings, or underlines.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
-  the family row selects all (clears the exclusions).
+  the family row selects all (clears the exclusions). A range pick marks its
+  first tier as the anchor (`✓`, picked) and the rest as `⇄` range-covered;
+  the up button shows a range state instead of a plain add. After unpicking a
+  middle tier from an up pick, the lower run shows this range anchor and the
+  higher run keeps its up anchor.
 - Range labels use the discrete value set when tiers have a gap
   (`15 or 25% increased Movement Speed`); a dash is used only for a
   consecutive tier run. Min/max controls are hidden for a gapped tier set,
@@ -114,13 +120,13 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 133 core + 494 web + 53 data-build; the published
+- Current Release suite: 133 core + 495 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
-- Perf smoke (published Release, two runs): boot 1340–1343 ms; picker
-  expand ~26 ms; advanced family pick ~70 ms; first cross-class range pick
-  ~127 ms (subsequent picks 31–96 ms); first ring pick ~209 ms because it
-  builds that slot's cross-slot union; 10-slot paste update ~70 ms; class
-  change ~84 ms; longest task ~161 ms with no task above 200 ms. Range
+- Perf smoke (published Release, two runs): boot ~1.4 s (p95 ~1.6 s);
+  picker expand ~27 ms; advanced family pick ~74 ms; first cross-class range
+  pick ~136 ms (subsequent picks 33–102 ms); first ring pick ~215 ms because
+  it builds that slot's cross-slot union; 10-slot paste update ~71 ms; class
+  change ~80 ms; longest task ~171 ms with no task above 200 ms. Range
   proofs cache matched catalog lines and safe roll hits, so adding another
   slot to a cross-slot union re-checks the proof instead of rescanning it.
 
@@ -133,19 +139,19 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1340 ms | 1343 ms | < 2500 ms |
-| bulk add `++` | 47 ms | 48 ms | < 50 ms |
-| mode: advanced | 75 ms | 84 ms | < 50 ms |
-| builder open | 50 ms | 55 ms | < 50 ms |
-| 10-slot paste update | 70 ms | 71 ms | < 50 ms |
-| explain cold | 92 ms | 94 ms | < 500 ms |
-| import parse 5 items | 38 ms | 38 ms | < 100 ms |
+| boot to interactive | 1404 ms | 1592 ms | < 2500 ms |
+| bulk add `++` | 44 ms | 50 ms | < 50 ms |
+| mode: advanced | 64 ms | 84 ms | < 50 ms |
+| builder open | 50 ms | 58 ms | < 50 ms |
+| 10-slot paste update | 71 ms | 72 ms | < 50 ms |
+| explain cold | 93 ms | 125 ms | < 500 ms |
+| import parse 5 items | 41 ms | 51 ms | < 100 ms |
 
-Advanced per-slot picks: **31–96 ms** after the first cross-class range;
-the first cross-class range is **~127 ms** because it builds the global
-safety corpus, and the first ring pick is **~209 ms** because it adds that
-slot to a new cross-slot union. Long tasks across two runs: **22 over 50 ms,
-0 over 200 ms, max ~161 ms**.
+Advanced per-slot picks: **33–102 ms** after the first cross-class range;
+the first cross-class range is **~136 ms** because it builds the global
+safety corpus, and the first ring pick is **~215 ms** because it adds that
+slot to a new cross-slot union. Long tasks across two runs: **26 over 50 ms,
+0 over 200 ms, max ~171 ms**.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are

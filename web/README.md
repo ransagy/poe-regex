@@ -338,16 +338,20 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
   its up pick, a covered up tier makes that tier the new anchor and drops
   the old lower part unless it is separately picked, a partial suffix is
   replaced by one up pick, and a family/range-covered suffix shows a hint
-  instead of being rewritten. The include action keeps its `+` glyph on a
-  covered tier; the exclude action keeps `−`, so the two never share a
-  glyph. Covered action buttons stay neutral; hovering or focusing one
-  previews the whole affected row and the family status ("x picked",
-  "covered", "excluded") in add/remove colors, with a soft tint and thin
-  inset ring as non-color cues. All tiers picked
+  instead of being rewritten. The include action keeps `+` on an up-covered
+  tier, shows `✓` on an explicit exact or range anchor, and `⇄` on a tier
+  covered by a claim or range; `−` belongs to exclude only. Covered action
+  buttons stay neutral; hovering or focusing one tints the affected row and
+  the family status ("x picked", "covered", "excluded") and shows a plain
+  inline hint (`+ add`, `− remove`, `⊘ exclude`, `⇄ switch`/`replace`) on the
+  row with the action. No badges, rings, or underlines. All tiers picked
   individually stay a range until the family row converts them to the
   family pick. The pick row shows the explicit range (for example
   `20–35% increased Movement Speed`); a legacy name-up row shows the compact
-  equivalent range (`= 20–35% increased Movement Speed`). Cross-slot ranges
+  equivalent range (`= 20–35% increased Movement Speed`). A range pick marks
+  its first tier as the anchor (`✓`, picked) and its other tiers as `⇄`
+  range-covered; the up button shows a range state instead of looking like a
+  plain add. Cross-slot ranges
   union only when the extra span does not exist for the narrower class.
   Clicking a slot name focuses it. Over budget, the full string stays, the
   count turns red, the bar marks the 250 limit, and copy stays enabled.

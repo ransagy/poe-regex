@@ -75,6 +75,54 @@ public class ModPickerHighlightTests
     }
 
     [Fact]
+    public void TierUp_MiddleTierUnpick_ShowsRangeAndUpAnchors()
+    {
+        using var ctx = Context();
+        var engine = ctx.Services.GetRequiredService<EngineService>();
+        var mods = engine.ModsForClass("Boots");
+        var family = ModFamilies.Group(mods).First(f => f.Key == "MovementVelocity");
+        var state = new WorkbenchState();
+        var cut = Render(ctx, state, mods, "boots");
+
+        cut.Find("#mod-search").Input("Movement Speed");
+        var toggle = cut.Find($"#fam-toggle-{family.Anchor.Id}");
+        if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
+        cut.Find("#pick-tier-up-MovementVelocity2").Click();
+        cut.Find("#pick-tier-MovementVelocity4").Click();
+
+        var crit = state.CriteriaFor("boots");
+        crit.Excluded.Should().BeEmpty();
+        crit.Included.Should().HaveCount(2);
+        var lower = crit.Included.Single(p =>
+            p.RangeModIds!.SequenceEqual(["MovementVelocity2", "MovementVelocity3"]));
+        lower.ModId.Should().Be("MovementVelocity2");
+        var higher = crit.Included.Single(p =>
+            p.RangeModIds!.SequenceEqual(["MovementVelocity5", "MovementVelocity6"]));
+        higher.ModId.Should().Be("MovementVelocity5");
+
+        var anchor = cut.Find("#pick-tier-MovementVelocity2");
+        anchor.TextContent.Should().Be("✓", "the lower range's first tier is its anchor");
+        anchor.GetAttribute("aria-pressed").Should().Be("true");
+        TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2"))
+            .ClassList.Should().Contain("picked");
+
+        var covered = cut.Find("#pick-tier-MovementVelocity3");
+        covered.TextContent.Should().Be("⇄", "the range-covered tier shows the switch state");
+        covered.ClassList.Should().Contain("switch");
+        var coveredRow = TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity3"));
+        coveredRow.ClassList.Should().Contain("range-covered");
+        coveredRow.QuerySelector(".covered-note")!.TextContent.Should().Be("range");
+
+        var upAnchor = cut.Find("#pick-tier-up-MovementVelocity5");
+        upAnchor.GetAttribute("aria-pressed").Should().Be("true");
+        upAnchor.ClassList.Should().Contain("active");
+        TierRow(cut, family.Tiers.Single(t => t.Anchor.Id == "MovementVelocity6"))
+            .ClassList.Should().Contain("up-covered");
+
+        cut.Find("#pick-tier-MovementVelocity4").TextContent.Should().Be("+");
+    }
+
+    [Fact]
     public void BootsMovementSpeed_NonConsecutiveTiers_StayDiscrete()
     {
         using var ctx = Context();
@@ -208,10 +256,14 @@ public class ModPickerHighlightTests
         if (toggle.GetAttribute("aria-expanded") != "true") toggle.Click();
         cut.Find("#pick-tier-MovementVelocity2").Click();
         cut.Find("#pick-tier-MovementVelocity3").Click();
+        var anchor = cut.Find("#pick-tier-MovementVelocity2");
+        anchor.TextContent.Should().Be("✓", "the range anchor is the explicit pick");
+        anchor.GetAttribute("aria-pressed").Should().Be("true");
         var exact = cut.Find("#pick-tier-MovementVelocity3");
         exact.HasAttribute("disabled").Should().BeFalse();
-        exact.TextContent.Should().Be("+",
-            "the include action keeps the add glyph; clicking still splits the range");
+        exact.TextContent.Should().Be("⇄",
+            "a range-covered tier shows the switch state; clicking still splits the range");
+        exact.ClassList.Should().Contain("switch");
         exact.Click();
 
         var crit = state.CriteriaFor("boots");

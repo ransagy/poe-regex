@@ -242,11 +242,18 @@
                                                     (suffixEffective && !upSelected && !canReplaceHere);
                                                 var rangePick = crit.Included.FirstOrDefault(p =>
                                                     p.IsTierRange && TierPicked(tier, p));
+                                                var rangeAnchor = rangePick is not null && !coveredByUp &&
+                                                    string.Equals(rangePick.ModId, tier.Anchor.Id,
+                                                        StringComparison.Ordinal);
                                                 var rangeCovered = rangePick is not null &&
-                                                    !coveredByUp && !explicitTier;
+                                                    !coveredByUp && !rangeAnchor && !explicitTier;
                                                 var rangeLabel = rangePick is not null
                                                     ? ClaimLabel(rangePick, tier, fam)
                                                     : null;
+                                                var exactCoveredLabel = tierCoveredClaim && !rangeAnchor
+                                                    ? tierCoveredLabel
+                                                    : null;
+                                                var upRange = rangePick is not null && !coveredByUp && !upSelected;
                                                 var tierExclusionTerm = TierExclusionTerm(fam, tier);
                                                 var tierExcludedHere = crit.Excluded.Count > 0 &&
                                                     TierExclusionTerms(fam, tier, crit.Excluded).Count > 0;
@@ -271,7 +278,7 @@
                                                     }
                                                     else
                                                     {
-                                                        if (explicitTier) tierStateClass += "picked ";
+                                                        if (explicitTier || rangeAnchor) tierStateClass += "picked ";
                                                         if (coveredByUp) tierStateClass += "covered up-covered ";
                                                         if (rangeCovered) tierStateClass += "covered range-covered ";
                                                         if (familyCovered) tierStateClass += "covered family-covered ";
@@ -287,7 +294,7 @@
                                                     </span>
                                                     @if (!fam.IsAugmentLike && !excludedTier)
                                                     {
-                                                        @if (tierCoveredClaim)
+                                                        @if (tierCoveredClaim && !rangeAnchor)
                                                         {
                                                             <span class="covered-note" title="@CoveredTitle(tierCoveredLabel)">covered</span>
                                                         }
@@ -304,21 +311,22 @@
                                                             <span class="covered-note" title="Included by the family pick">family</span>
                                                         }
                                                     }
+                                                    <span class="preview-hint" aria-hidden="true"></span>
                                                     <span class="tier-name" title="@TierLabel(tier)">@TierLabel(tier)</span>
                                                     @if (!fam.IsAugmentLike)
                                                     {
-                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @(explicitTier && !excludedTier ? "active" : "") @(includedTier && !excludedTier ? "remove" : "add") @(tierCoveredClaim ? "switch" : "")"
-                                                                title="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
-                                                                aria-label="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, tierCoveredLabel)"
-                                                                aria-pressed="@(explicitTier && !excludedTier ? "true" : "false")"
-                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : tierClaimedHere ? "✓" : tierCoveredClaim ? "⇄" : "+")</button>
+                                                        <button id="pick-tier-@tier.Anchor.Id" class="inc @((explicitTier || rangeAnchor) && !excludedTier ? "active" : "") @(includedTier && !excludedTier ? "remove" : "add") @((tierCoveredClaim && !rangeAnchor) || rangeCovered ? "switch" : "")"
+                                                                title="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, exactCoveredLabel)"
+                                                                aria-label="@TierExactActionTitle(tier, includedTier, excludedTier, tierClaimedHere, exactCoveredLabel)"
+                                                                aria-pressed="@((explicitTier || rangeAnchor) && !excludedTier ? "true" : "false")"
+                                                                @onclick="() => ToggleTierExact(fam, tier)">@(excludedTier ? "+" : (tierClaimedHere || rangeAnchor) ? "✓" : (tierCoveredClaim || rangeCovered) ? "⇄" : "+")</button>
                                                         @if (upNames.Count > 1)
                                                         {
-                                                            <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(canReplaceHere ? "replace" : "") @(!upSelected && !canReplaceHere && !upDisabled ? "add" : "")"
+                                                            <button id="pick-tier-up-@tier.Anchor.Id" class="up @(upSelected ? "active" : "") @(canReplaceHere ? "replace" : "") @(!upSelected && !canReplaceHere && !upDisabled ? (upRange ? "range" : "add") : "")"
                                                                     disabled="@upDisabled"
                                                                     aria-disabled="@(upDisabled ? "true" : "false")"
-                                                                    title="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled)"
-                                                                    aria-label="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled)"
+                                                                    title="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled, upRange)"
+                                                                    aria-label="@TierUpActionTitle(tier, upNames, upSelected, suffixPartial, canReplaceHere, upDisabled, upRange)"
                                                                     aria-pressed="@(upSelected ? "true" : "false")"
                                                                     @onclick="() => ToggleTierUp(fam, tier)">≥</button>
                                                         }
@@ -1256,7 +1264,7 @@
 
     private static string TierUpActionTitle(
         ModTier tier, IReadOnlyList<string> names, bool selected, bool partial,
-        bool canReplaceHere, bool disabled)
+        bool canReplaceHere, bool disabled, bool rangeState)
     {
         var label = TierLabel(tier);
         if (selected)
@@ -1265,6 +1273,8 @@
             return $"This tier or better is selected. Use ≥ to make \"{label}\" the anchor.";
         if (disabled)
             return $"Already covered by the current range/family. Use exact/exclude to edit a tier.";
+        if (rangeState)
+            return $"Included by a range. Use ≥ to select \"{label}\" or better.";
         if (partial)
             return $"\"{label}\" or better is partially selected. Add the missing tiers.";
         return $"\"{label}\" — this tier or better. Add: {string.Join(", ", names.Where(n => !string.Equals(n, tier.Name, StringComparison.Ordinal)))}";
