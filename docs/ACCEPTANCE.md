@@ -96,7 +96,7 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   buttons stay neutral; only the explicit exact/up/exclude pick is active,
   and hover or keyboard focus previews the whole affected row plus the
   family status ("x picked", "covered", "excluded") in add/remove colors,
-  with a soft tint, inset accent, and underline as non-color cues.
+  with a soft tint and thin inset ring as non-color cues.
 - All tiers picked individually stay a range; only the family row converts
   them to the family pick. A family pick with tier exclusions is partial and
   the family row selects all (clears the exclusions).

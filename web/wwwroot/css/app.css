@@ -599,20 +599,30 @@ input:disabled { opacity: 0.5; }
         color: var(--no); background: var(--no-soft);
         border-color: rgba(236, 122, 101, 0.5);
     }
-    /* Tier actions stay neutral until they are the explicit pick; the row
-       preview carries the add/remove state, while the button keeps a plain
-       hover/focus affordance. */
-    .suggest-row.tier-row > button:not(.active):hover:not(:disabled),
+    /* Add/remove actions take their semantic color on hover only; the button
+       is neutral at rest. Covered/switch actions keep a high-contrast neutral
+       affordance instead of a selection color. */
+    .suggest-row.tier-row > button.inc.add:hover:not(:disabled),
+    .suggest-row.tier-row > button.exc.reinclude:hover:not(:disabled),
+    .suggest-row.tier-row > button.up.add:hover:not(:disabled) {
+        color: var(--mod); background: var(--mod-soft);
+        border-color: rgba(154, 166, 255, 0.5);
+    }
+    .suggest-row.tier-row > button.inc.remove:hover:not(:disabled),
+    .suggest-row.tier-row > button.exc.exclude:hover:not(:disabled) {
+        color: var(--no); background: var(--no-soft);
+        border-color: rgba(236, 122, 101, 0.5);
+    }
     .suggest-row > button.switch:hover:not(:disabled),
     .suggest-row > button.up.replace:hover:not(:disabled) {
-        color: var(--text); background: var(--raised); border-color: var(--line-strong);
+        color: var(--text); background: var(--raised); border-color: var(--text);
     }
     .fam-toggle:hover .fam-caret { color: var(--text); }
 }
 
 /* Action preview: color the whole affected tier row and the family status on
-   hover or keyboard focus. Buttons stay neutral; the row text, tint, accent,
-   and underline carry the preview. CSS-only, so no Blazor re-render. */
+   hover or keyboard focus. Buttons stay neutral; the row text, soft tint, and
+   thin inset ring carry the preview. CSS-only, so no Blazor re-render. */
 .tier-list .tier-row:is(
     :has(:is(.inc.remove, .exc.exclude):is(:hover, :focus-visible)),
     :has(.up.active:is(:hover, :focus-visible)),
@@ -620,10 +630,7 @@ input:disabled { opacity: 0.5; }
     .up-covered:not(.picked):has(~ .tier-row .up.replace:is(:hover, :focus-visible))
 ) {
     background: var(--no-soft);
-    box-shadow: inset 3px 0 0 var(--no);
-    text-decoration: underline;
-    text-decoration-color: var(--no);
-    text-underline-offset: 2px;
+    box-shadow: inset 0 0 0 1px var(--no);
 }
 .tier-list .tier-row:is(
     :has(:is(.inc.remove, .exc.exclude):is(:hover, :focus-visible)),
@@ -642,10 +649,7 @@ input:disabled { opacity: 0.5; }
     :has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row
 ) {
     background: var(--mod-soft);
-    box-shadow: inset 3px 0 0 var(--mod);
-    text-decoration: underline;
-    text-decoration-color: var(--mod);
-    text-underline-offset: 2px;
+    box-shadow: inset 0 0 0 1px var(--mod);
 }
 .tier-list .tier-row:is(
     :has(:is(.inc.add, .exc.reinclude):is(:hover, :focus-visible)),
@@ -662,29 +666,19 @@ input:disabled { opacity: 0.5; }
 .fam-block:has(> .tier-list :is(.inc.remove, .exc.exclude):is(:hover, :focus-visible)) .fam-row,
 .fam-block:has(> .tier-list .up.active:is(:hover, :focus-visible)) .fam-row {
     background: var(--no-soft);
-    box-shadow: inset 3px 0 0 var(--no);
-    text-decoration: underline;
-    text-decoration-color: var(--no);
-    text-underline-offset: 2px;
+    box-shadow: inset 0 0 0 1px var(--no);
 }
 .fam-block:has(> .tier-list :is(.inc.remove, .exc.exclude):is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note),
 .fam-block:has(> .tier-list .up.active:is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note) {
     color: var(--no);
-    text-decoration: underline;
-    text-underline-offset: 2px;
 }
 
 .fam-block:has(> .tier-list :is(.inc.add, .exc.reinclude, .up.add, .up.replace):is(:hover, :focus-visible)) .fam-row {
     background: var(--mod-soft);
-    box-shadow: inset 3px 0 0 var(--mod);
-    text-decoration: underline;
-    text-decoration-color: var(--mod);
-    text-underline-offset: 2px;
+    box-shadow: inset 0 0 0 1px var(--mod);
 }
 .fam-block:has(> .tier-list :is(.inc.add, .exc.reinclude, .up.add, .up.replace):is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note) {
     color: var(--mod);
-    text-decoration: underline;
-    text-underline-offset: 2px;
 }
 
 /* ---------- Search string ---------- */

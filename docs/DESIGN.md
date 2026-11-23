@@ -112,7 +112,7 @@ outer loop. It runs at data-build time, never in the browser.
   create suffix exclusions. The include action always shows `+` unless the
   tier is an explicit exact pick (`✓`) or a covered claim (`⇄`); `−` belongs
   to exclude only. Hover/focus previews the affected row and family status
-  with add/remove colors plus a tint, inset accent, and underline, so the
+  with add/remove colors plus a soft tint and thin inset ring, so the
   cue is not color-only. All-tier selections stay as the player built them; the
   family row is the explicit conversion to the family pick. Natural bounds render as empty, and a family pick converts
   to a range pick on the first min/max entry.
