@@ -1,6 +1,6 @@
 {
   "game": "poe2",
-  "lastAudited": "2026-11-13",
+  "lastAudited": "2026-11-24",
   "notes": "Inventory of RePoE hosts. used = fetched by tools/PoeRegex.Data.Build fetch. cross-check = development reference only, never shipped. known-unused/not-relevant must still be classified, not silently ignored.",
   "exports": [
     {
@@ -1477,6 +1477,13 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "Assets.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
           "path": "BossSkills.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
@@ -1568,6 +1575,13 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "FlavourText.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
           "path": "Gems.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
@@ -1594,6 +1608,13 @@
           "status": "known-unused",
           "consumer": "none",
           "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "LiquidEmotions.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
         },
         {
           "path": "Minions.json",
@@ -1645,11 +1666,25 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "ModCharm.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB charm mods."
+        },
+        {
           "path": "ModCorrupted.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
           "consumer": "none",
           "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModCorrupted.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB corrupted mods."
         },
         {
           "path": "ModFlask.json",
@@ -1673,6 +1708,13 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "ModIncursionLimb.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB Incursion limb mods."
+        },
+        {
           "path": "ModItem.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
@@ -1692,6 +1734,13 @@
           "status": "known-unused",
           "consumer": "none",
           "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModItemExclusive.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB item-exclusive mods."
         },
         {
           "path": "ModJewel.json",
@@ -1729,11 +1778,25 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "ModRunes.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB rune mods."
+        },
+        {
           "path": "ModScalability.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
           "consumer": "none",
           "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "ModScalability.min.json",
+          "kind": "pob-mods",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB scalability mods."
         },
         {
           "path": "ModVeiled.json",
@@ -1757,13 +1820,6 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
-          "path": "Pantheons.min.json",
-          "kind": "pob-known",
-          "status": "known-unused",
-          "consumer": "none",
-          "notes": "PoB data export; not part of the current catalog."
-        },
-        {
           "path": "QueryMods.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
@@ -1783,6 +1839,13 @@
           "status": "known-unused",
           "consumer": "none",
           "notes": "Non-minified duplicate of a mapped PoB export."
+        },
+        {
+          "path": "QuestRewards.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
         },
         {
           "path": "Rares.json",
@@ -1834,6 +1897,13 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
+          "path": "TradeSiteStats.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
+          "consumer": "none",
+          "notes": "PoB data export; not part of the current catalog."
+        },
+        {
           "path": "VerisiumCrafts.json",
           "kind": "full-format-duplicate",
           "status": "known-unused",
@@ -1848,14 +1918,14 @@
           "notes": "Non-minified duplicate of a mapped PoB export."
         },
         {
-          "path": "Crucible.json",
-          "kind": "pob-poe1-league",
-          "status": "not-relevant",
+          "path": "WorldAreas.min.json",
+          "kind": "pob-known",
+          "status": "known-unused",
           "consumer": "none",
-          "notes": "PoE1 Crucible league data in the PoB PoE2 tree; not used by the pipeline."
+          "notes": "PoB data export; not part of the current catalog."
         },
         {
-          "path": "Crucible.min.json",
+          "path": "Crucible.json",
           "kind": "pob-poe1-league",
           "status": "not-relevant",
           "consumer": "none",
@@ -1869,21 +1939,7 @@
           "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "EnchantmentBelt.min.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "EnchantmentBody.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "EnchantmentBody.min.json",
           "kind": "pob-poe1-enchantments",
           "status": "not-relevant",
           "consumer": "none",
@@ -1897,21 +1953,7 @@
           "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "EnchantmentBoots.min.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "EnchantmentFlask.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "EnchantmentFlask.min.json",
           "kind": "pob-poe1-enchantments",
           "status": "not-relevant",
           "consumer": "none",
@@ -1925,21 +1967,7 @@
           "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "EnchantmentGloves.min.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "EnchantmentHelmet.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "EnchantmentHelmet.min.json",
           "kind": "pob-poe1-enchantments",
           "status": "not-relevant",
           "consumer": "none",
@@ -1953,21 +1981,7 @@
           "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "EnchantmentWeapon.min.json",
-          "kind": "pob-poe1-enchantments",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 enchantment data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "ModJewelAbyss.json",
-          "kind": "pob-poe1-jewels",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 jewel data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "ModJewelAbyss.min.json",
           "kind": "pob-poe1-jewels",
           "status": "not-relevant",
           "consumer": "none",
@@ -1981,21 +1995,7 @@
           "notes": "PoE1 jewel data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "ModJewelCharm.min.json",
-          "kind": "pob-poe1-jewels",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 jewel data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "ModJewelCluster.json",
-          "kind": "pob-poe1-jewels",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 jewel data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "ModJewelCluster.min.json",
           "kind": "pob-poe1-jewels",
           "status": "not-relevant",
           "consumer": "none",
@@ -2009,21 +2009,7 @@
           "notes": "PoE1 master mod data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "ModMaster.min.json",
-          "kind": "pob-poe1-masters",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 master mod data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "ModNecropolis.json",
-          "kind": "pob-poe1-league",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 Necropolis league data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "ModNecropolis.min.json",
           "kind": "pob-poe1-league",
           "status": "not-relevant",
           "consumer": "none",
@@ -2037,21 +2023,7 @@
           "notes": "PoE1 tincture data in the PoB PoE2 tree; not used by the pipeline."
         },
         {
-          "path": "ModTincture.min.json",
-          "kind": "pob-poe1-items",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 tincture data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
           "path": "TattooPassives.json",
-          "kind": "pob-poe1-league",
-          "status": "not-relevant",
-          "consumer": "none",
-          "notes": "PoE1 tattoo data in the PoB PoE2 tree; not used by the pipeline."
-        },
-        {
-          "path": "TattooPassives.min.json",
           "kind": "pob-poe1-league",
           "status": "not-relevant",
           "consumer": "none",
