@@ -154,6 +154,13 @@ safety corpus, and the first ring pick is **~209 ms** because it adds that
 slot to a new cross-slot union. Long tasks across two runs: **22 over 50 ms,
 0 over 200 ms, max ~164 ms**.
 
+Fresh-bench first pick (`advanced → boots → Movement Speed → Runner's or
+better`) measures **~65 ms p50** at 1× CPU with a **~50 ms** max long task,
+and **~260 ms** at 4×. The click still pays the combined-paste plan and the
+picker refresh; the action render is no longer duplicated by the parent's
+state-change render, and single-class anchor validation uses a literal fast
+path.
+
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are
 within their targets; mode advanced and some per-slot picks remain slightly

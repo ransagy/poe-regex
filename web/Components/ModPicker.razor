@@ -207,7 +207,24 @@
                                             @foreach (var tier in fam.Tiers)
                                             {
                                                 var upNames = fam.NamesFrom(tier);
-                                                var tierClaim = crit.Included.Count == 0
+                                                var tierIndex = TierIndex(fam, tier);
+                                                var includedTier = tierIndex >= 0 &&
+                                                    includedIndices.Contains(tierIndex);
+                                                var coveringTier = UpCoveringTier(fam, tier, crit.Included);
+                                                var coveredByUp = coveringTier is not null;
+                                                var rangePick = crit.Included.FirstOrDefault(p =>
+                                                    p.IsTierRange && TierPicked(tier, p));
+                                                var rangeTier = rangePick is not null && !coveredByUp;
+                                                var rangeAnchor = rangeTier &&
+                                                    string.Equals(rangePick!.ModId, tier.Anchor.Id,
+                                                        StringComparison.Ordinal);
+                                                var rangeLabel = rangePick is not null
+                                                    ? ClaimLabel(rangePick, tier, fam)
+                                                    : null;
+                                                // Up/range tiers carry their state directly; skip the
+                                                // per-tier claim compile while the up/range row is warm.
+                                                var tierClaim = crit.Included.Count == 0 || coveredByUp ||
+                                                    rangePick is not null
                                                     ? null
                                                     : TierClaim(fam, tier, crit);
                                                 var tierClaimedHere = tierClaim is not null &&
@@ -216,9 +233,6 @@
                                                 var tierCoveredLabel = tierCoveredClaim
                                                     ? ClaimLabel(tierClaim!, tier, fam)
                                                     : null;
-                                                var tierIndex = TierIndex(fam, tier);
-                                                var includedTier = tierIndex >= 0 &&
-                                                    includedIndices.Contains(tierIndex);
                                                 var explicitTier = tierClaimedHere ||
                                                     TierExplicitPicks(fam, tier, crit.Included).Count > 0;
                                                 var upSelected = tierIndex >= 0 &&
@@ -229,8 +243,6 @@
                                                     Enumerable.Range(tierIndex, fam.Tiers.Count - tierIndex)
                                                         .Any(i => includedIndices.Contains(i) &&
                                                                   !excludedIndices.Contains(i));
-                                                var coveringTier = UpCoveringTier(fam, tier, crit.Included);
-                                                var coveredByUp = coveringTier is not null;
                                                 var coveredHint = coveringTier is { } covering
                                                     ? CoveredTierHint(covering)
                                                     : null;
@@ -240,15 +252,6 @@
                                                 var upDisabled = tierIndex < 0 ||
                                                     tierIndex >= fam.Tiers.Count - 1 ||
                                                     (suffixEffective && !upSelected && !canReplaceHere);
-                                                var rangePick = crit.Included.FirstOrDefault(p =>
-                                                    p.IsTierRange && TierPicked(tier, p));
-                                                var rangeTier = rangePick is not null && !coveredByUp;
-                                                var rangeAnchor = rangeTier &&
-                                                    string.Equals(rangePick!.ModId, tier.Anchor.Id,
-                                                        StringComparison.Ordinal);
-                                                var rangeLabel = rangePick is not null
-                                                    ? ClaimLabel(rangePick, tier, fam)
-                                                    : null;
                                                 var tierExclusionTerm = TierExclusionTerm(fam, tier);
                                                 var tierExcludedHere = crit.Excluded.Count > 0 &&
                                                     TierExclusionTerms(fam, tier, crit.Excluded).Count > 0;
@@ -372,6 +375,9 @@
     public required IReadOnlyList<ModEntry> Mods { get; set; }
 
     private string _search = "";
+    private bool _allowRender;
+    private bool _skipRender;
+    private bool _refreshedSinceParameters;
     private ElementReference _searchInput;
     private IReadOnlyList<ModEntry>? _groupedMods;
     private bool _groupedGlobal;
@@ -463,6 +469,7 @@
         // reference guard matters.
         var global = Scope is null;
         var classId = ScopeClassId;
+        var regrouped = false;
         if (!ReferenceEquals(_groupedMods, Mods) || _groupedGlobal != global ||
             _claimScope != Scope || _claimClass != classId)
         {
@@ -475,16 +482,51 @@
             _allFamilies = ModFamilies.CachedGroup(Mods);
             _familyClaimKeys.Clear();
             _tierClaimKeys.Clear();
+            regrouped = true;
         }
         State.WithSuppressedNotifications(() =>
             PickClaims.Normalize(ScopeCriteria(), Engine, ScopeClassId));
-        Refresh();
+        if (regrouped || !_refreshedSinceParameters)
+        {
+            Refresh();
+        }
+        else
+        {
+            // The action handler already refreshed this picker for the
+            // current state; the parent's re-render is a duplicate.
+            _skipRender = true;
+        }
+        _refreshedSinceParameters = false;
+    }
+
+    /// <summary>
+    /// A picker action refreshes its list, then the parent's state-change
+    /// re-render arrives with the same data. Allow the action render and skip
+    /// the redundant parent-driven one; scope changes and external state
+    /// changes still take the Refresh path in OnParametersSet.
+    /// </summary>
+    protected override bool ShouldRender()
+    {
+        if (_allowRender)
+        {
+            _allowRender = false;
+            _skipRender = false;
+            return true;
+        }
+        if (_skipRender)
+        {
+            _skipRender = false;
+            return false;
+        }
+        return true;
     }
 
     private SlotCriteria ScopeCriteria() => State.CriteriaFor(Scope);
 
     private void Refresh()
     {
+        _allowRender = true;
+        _refreshedSinceParameters = true;
         // The slot's picks may have changed; tier claim keys are cheap to
         // recompute and stale keys would leave covered rows wrong.
         _tierClaimKeys.Clear();

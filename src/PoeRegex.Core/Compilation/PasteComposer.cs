@@ -513,10 +513,19 @@ public sealed class PasteComposer
 
     private void ValidateAnchor(string anchorInner, IReadOnlyList<string> scope, List<CompilerDiagnostic> diagnostics)
     {
+        // The common single-class anchor is a literal ("Boo"). A substring
+        // check is much cheaper than running a regex against every class and
+        // avoids a cold 118-match regex pass on the first paste.
+        var literal = !anchorInner.Any(c => "\\^$.[]{}()*+?|".Contains(c, StringComparison.Ordinal));
+        var regex = literal
+            ? null
+            : new Regex(anchorInner, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         foreach (var cls in _corpus.Catalog.ItemClasses)
         {
             var line = $"Item Class: {cls.Name}";
-            var hit = Regex.IsMatch(line, anchorInner, RegexOptions.IgnoreCase);
+            var hit = literal
+                ? line.Contains(anchorInner, StringComparison.OrdinalIgnoreCase)
+                : regex!.IsMatch(line);
             var wanted = scope.Contains(cls.Id, StringComparer.Ordinal);
             if (wanted && !hit)
             {
