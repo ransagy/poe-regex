@@ -57,6 +57,13 @@ public sealed class FragmentTable
         new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Exact tier-range fragments keyed by <see cref="CompactionEngine.RangePlanKey"/>.
+    /// These remove the first-use range proof from the browser for exact tier
+    /// picks; the runtime planner is still the fallback for missing keys.
+    /// </summary>
+    public Dictionary<string, string> RangeFragments { get; init; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Picks whose min-value probe changes the compiled fragment. Only true
     /// entries are stored; a missing key falls back to the live probe.
     /// </summary>

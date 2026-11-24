@@ -73,6 +73,13 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
     --jobs 2 --timeout 60
   ```
 
+  `matrix-table` now also regenerates the precomputed exact tier ranges
+  (`RangeFragments`). To update an existing table without re-solving, run:
+
+  ```sh
+  dotnet run --project tools/PoeRegex.Data.Build -- tier-ranges
+  ```
+
   Use `--from-scratch` only when the solver, grammar, or corpus changes, not
   for an ordinary catalog refresh; multi-line patterns can otherwise produce
   a line-crossing fragment that the query shape validator rejects.

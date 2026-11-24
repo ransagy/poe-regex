@@ -496,6 +496,21 @@ public sealed class EngineCorpus
         return _fragments.TryGet(itemClass, pattern, out fragment);
     }
 
+    /// <summary>
+    /// Looks up a shipped exact tier-range fragment by
+    /// <see cref="CompactionEngine.RangePlanKey"/>. Missing keys fall back to
+    /// the runtime planner.
+    /// </summary>
+    public bool TryPrecomputedRangeFragment(string key, out string? fragment)
+    {
+        if (_fragments?.RangeFragments is null)
+        {
+            fragment = null;
+            return false;
+        }
+        return _fragments.RangeFragments.TryGetValue(key, out fragment);
+    }
+
     /// <summary>True when the shipped table marks this pick/scope as min-capable.</summary>
     public bool IsPrecomputedMinCapable(string? itemClass, string key) =>
         _fragments?.MinCapable.TryGet(itemClass, key, out var capable) == true && capable;

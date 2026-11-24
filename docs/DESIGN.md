@@ -129,6 +129,9 @@ outer loop. It runs at data-build time, never in the browser.
   that tail, and matched proof lines and safe roll hits are cached across
   interval unions. Global display shapes come from catalog forms instead of
   grouping the whole vendor corpus, and the pattern index is hand-built.
+  Exact tier range fragments are precomputed into the shipped table
+  (`RangeFragments`) by the data build, so the browser skips the first-use
+  range proof and falls back to the runtime planner only for missing keys.
   The picker's action refresh suppresses the parent-driven duplicate render,
   and single-class anchor validation uses a literal fast path. These are
   representation-neutral performance changes, not alternate matching paths.

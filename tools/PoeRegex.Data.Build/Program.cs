@@ -58,6 +58,7 @@ public static class Program
                 "corpus" => Corpus(args[1..]),
                 "matrix-solve" => MatrixSolve(args[1..]),
                 "matrix-table" => MatrixTable(args[1..]),
+                "tier-ranges" => TierRanges(args[1..]),
                 "matrix-proof" => MatrixProof.Run(args[1..]),
                 "matrix-status" => BuildStatus.Run(args[1..]),
                 "solve-exact" => SolveExact(args[1..]),
@@ -82,7 +83,7 @@ public static class Program
 
     private static int Usage(string bad)
     {
-        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | matrix-proof | matrix-status | solve-exact | probe | fetch | poe1-fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status | poe1-compare");
+        Console.Error.WriteLine($"Unknown command '{bad}'. Expected: build | corpus | matrix-solve | matrix-table | tier-ranges | matrix-proof | matrix-status | solve-exact | probe | fetch | poe1-fetch | data-audit | common-picks | poe1-build | poe1-matrix | poe1-status | poe1-compare");
         return 2;
     }
 
@@ -321,6 +322,54 @@ public static class Program
     }
 
     /// <summary>
+    /// Regenerates the precomputed exact tier ranges on an existing table
+    /// without re-solving the matrix.
+    /// </summary>
+    private static int TierRanges(string[] args)
+    {
+        var opts = ParseOptions(args);
+        var catalogPath = GetValue(opts, "--catalog", CatalogPath);
+        var vendorPath = GetValue(opts, "--vendor", VendorPath);
+        var tablePath = GetValue(opts, "--table", TablePath);
+        var corpus = CorpusLoader.Load(catalogPath, vendorPath);
+        if (!File.Exists(tablePath))
+        {
+            Console.Error.WriteLine($"table not found: {tablePath}");
+            return 1;
+        }
+        var existing = JsonSerializer.Deserialize<FragmentTable>(
+            File.ReadAllText(tablePath),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        if (existing is null)
+        {
+            Console.Error.WriteLine($"table could not be read: {tablePath}");
+            return 1;
+        }
+        var ranges = TierRangeBuilder.Build(corpus);
+        var table = new FragmentTable
+        {
+            Game = existing.Game,
+            DataVersion = existing.DataVersion,
+            TargetModel = existing.TargetModel,
+            Global = existing.Global,
+            ByClass = existing.ByClass,
+            ClassAnchors = existing.ClassAnchors,
+            ClassPrefixes = existing.ClassPrefixes,
+            ClassGroups = existing.ClassGroups,
+            GlobalUnresolved = existing.GlobalUnresolved,
+            ByClassUnresolved = existing.ByClassUnresolved,
+            MinCapable = existing.MinCapable,
+            RangeFragments = ranges,
+        };
+        File.WriteAllText(tablePath, JsonSerializer.Serialize(table, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+        }));
+        Console.WriteLine($"tier-ranges: {ranges.Count} fragments -> {tablePath}");
+        return 0;
+    }
+
+    /// <summary>
     /// Applies the exact matrix choices to the shipped table and verifies every
     /// entry against its scope before writing.
     /// </summary>
@@ -475,6 +524,7 @@ public static class Program
             ClassPrefixes = prefixes,
             ClassGroups = groups,
             MinCapable = MinCapabilityBuilder.Build(catalog, corpus, compiler),
+            RangeFragments = TierRangeBuilder.Build(corpus),
         };
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, JsonSerializer.Serialize(table, new JsonSerializerOptions

@@ -131,14 +131,17 @@ public sealed class CompactionEngine
             line.Pattern, [(lo, hi)], precision, itemClass, [line.Pattern]) ?? fallbackFp;
     }
 
-    private string? CachedRangeFragment(
+    /// <summary>
+    /// Stable key for one range-plan input. The data build writes exact
+    /// tier fragments under this key so the browser can skip the first proof.
+    /// </summary>
+    public static string RangePlanKey(
         string pattern,
         IReadOnlyList<(double Lo, double Hi)> intervals,
         int precision,
         string? itemClass,
-        IReadOnlyCollection<string> allowedPatterns)
-    {
-        var key = string.Join(
+        IReadOnlyCollection<string> allowedPatterns) =>
+        string.Join(
             "\u0001",
             pattern,
             itemClass ?? "",
@@ -151,6 +154,17 @@ public sealed class CompactionEngine
                     .Select(x => x.Lo.ToString("R", CultureInfo.InvariantCulture) + "-" +
                                  x.Hi.ToString("R", CultureInfo.InvariantCulture))),
             string.Join(",", allowedPatterns.OrderBy(x => x, StringComparer.Ordinal)));
+
+    private string? CachedRangeFragment(
+        string pattern,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        int precision,
+        string? itemClass,
+        IReadOnlyCollection<string> allowedPatterns)
+    {
+        var key = RangePlanKey(pattern, intervals, precision, itemClass, allowedPatterns);
+        if (_corpus.TryPrecomputedRangeFragment(key, out var precomputed))
+            return precomputed;
         return _rangeCache.GetOrAdd(
             key,
             _ => new Lazy<string?>(() =>
@@ -877,7 +891,7 @@ public sealed class CompactionEngine
             .DefaultIfEmpty(0)
             .Max();
         var intervals = constraint.Intervals.Select(i => (i.Lo, i.Hi)).ToList();
-        var range = BuildRangeFragment(
+        var range = CachedRangeFragment(
             pattern, intervals, precision, itemClass, [pattern]);
         if (!IsCleanFragment(range)) range = null;
 
@@ -937,7 +951,7 @@ public sealed class CompactionEngine
 
         var precision = Math.Max(
             RangeRegex.PrecisionOf(line.MinValue), RangeRegex.PrecisionOf(line.MaxValue));
-        var fragment = BuildRangeFragment(
+        var fragment = CachedRangeFragment(
             pattern, [(minValue, maxValue)], precision, itemClass, [pattern]);
         return fragment ?? fallbackFp;
     }

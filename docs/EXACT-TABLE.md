@@ -71,6 +71,7 @@ Each expanded scope is independently checked for a shorter candidate.
 
 ```text
 724 global patterns · 21 classes · 2480 class fragments · 0 unresolved
+5,074 precomputed exact tier ranges (`RangeFragments`)
 ```
 
 Examples:
