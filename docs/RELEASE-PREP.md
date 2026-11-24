@@ -74,7 +74,8 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   ```
 
   `matrix-table` now also regenerates the precomputed exact tier ranges
-  (`RangeFragments`). To update an existing table without re-solving, run:
+  (`RangeFragments`) and composable tier plans (`TierRangePlans`). To update
+  an existing table without re-solving, run:
 
   ```sh
   dotnet run --project tools/PoeRegex.Data.Build -- tier-ranges

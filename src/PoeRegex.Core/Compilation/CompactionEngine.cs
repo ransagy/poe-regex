@@ -155,6 +155,18 @@ public sealed class CompactionEngine
                                  x.Hi.ToString("R", CultureInfo.InvariantCulture))),
             string.Join(",", allowedPatterns.OrderBy(x => x, StringComparer.Ordinal)));
 
+    /// <summary>
+    /// Data-build proof for a composed tier-union fragment. The per-tier
+    /// value classes are already proven; this catches a bad template or split.
+    /// </summary>
+    public bool ProveRangeFragment(
+        string fragment,
+        IReadOnlyCollection<string> allowedPatterns,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass,
+        bool exact = false) =>
+        CatalogRangeSafe(fragment, allowedPatterns, intervals, itemClass, exact);
+
     private string? CachedRangeFragment(
         string pattern,
         IReadOnlyList<(double Lo, double Hi)> intervals,
@@ -891,8 +903,11 @@ public sealed class CompactionEngine
             .DefaultIfEmpty(0)
             .Max();
         var intervals = constraint.Intervals.Select(i => (i.Lo, i.Hi)).ToList();
-        var range = CachedRangeFragment(
-            pattern, intervals, precision, itemClass, [pattern]);
+        var range = _corpus.TryComposeTierRange(
+                pattern, intervals, itemClass, out var composed) &&
+            IsCleanFragment(composed)
+            ? composed
+            : CachedRangeFragment(pattern, intervals, precision, itemClass, [pattern]);
         if (!IsCleanFragment(range)) range = null;
 
         if (constraint.IsFullFamily)

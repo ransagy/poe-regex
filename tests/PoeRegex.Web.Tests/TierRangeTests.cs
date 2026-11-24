@@ -45,6 +45,25 @@ public class TierRangeTests
     }
 
     [Fact]
+    public void BootsMovementSpeed_TwoExactTiers_ComposeWithoutTheGap()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier2 = fam.Tiers.Single(t => t.Name == "Sprinter's");
+        var tier4 = fam.Tiers.Single(t => t.Name == "Gazelle's");
+        var pick2 = Engine.TierRangePick(fam, tier2, up: false)!;
+        var pick4 = Engine.TierRangePick(fam, tier4, up: false)!;
+
+        var query = Engine.CompilePicks([pick2, pick4], [], false, "Boots").Query;
+        query.Should().Be("\": Boo\" \"[12]5.*eed$\"");
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "25% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "20% increased Movement Speed"])
+            .Match.Should().BeFalse("the gap tier was not selected");
+    }
+
+    [Fact]
     public void BootsMovementSpeed_SecondTierUp_CompressesFixedValues()
     {
         var fam = Family("Boots", "MovementVelocity");

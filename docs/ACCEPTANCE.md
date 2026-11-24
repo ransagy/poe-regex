@@ -121,7 +121,7 @@ update; the 3.30 catalog is sourced from ExileData 3.30.0.2:
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 136 core + 496 web + 53 data-build; the published
+- Current Release suite: 138 core + 497 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -140,28 +140,30 @@ Release wwwroot, headless Chromium, cache disabled.
 
 | Action | p50 | p95 | Budget |
 |---|---:|---:|---:|
-| boot to interactive | 1435 ms | 1482 ms | < 2500 ms |
-| bulk add `++` | 38 ms | 48 ms | < 50 ms |
-| mode: advanced | 80 ms | 88 ms | < 50 ms |
-| builder open | 49 ms | 50 ms | < 50 ms |
-| 10-slot paste update | 66 ms | 71 ms | < 50 ms |
-| explain cold | 91 ms | 114 ms | < 500 ms |
-| import parse 5 items | 36 ms | 44 ms | < 100 ms |
+| boot to interactive | 1427 ms | 1472 ms | < 2500 ms |
+| bulk add `++` | 37 ms | 43 ms | < 50 ms |
+| mode: advanced | 74 ms | 78 ms | < 50 ms |
+| builder open | 49 ms | 55 ms | < 50 ms |
+| 10-slot paste update | 64 ms | 78 ms | < 50 ms |
+| explain cold | 83 ms | 95 ms | < 500 ms |
+| import parse 5 items | 38 ms | 42 ms | < 100 ms |
 
 Advanced per-slot picks: **33–133 ms** after the first cross-class range;
-the first cross-class range is **~125 ms** because it builds the global
-safety corpus, and the first ring pick is **~199 ms** because it adds that
+the first cross-class range is **~130 ms** because it builds the class
+safety corpus, and the first ring pick is **~189 ms** because it adds that
 slot to a new cross-slot union. Long tasks across two runs: **22 over 50 ms,
-0 over 200 ms, max ~151 ms**.
+0 over 200 ms, max ~144 ms**.
 
 Fresh-bench first pick (both `Runner's or better` and the exact `+` on
-Sprinter's) measures **~65 ms p50** at 1× CPU with a **~52 ms** max long
-task, and **~260–300 ms** at 4×. Exact tier range fragments are precomputed
-in the shipped table (`RangeFragments`), so the first exact tier pick no
-longer pays the ~1.4 s runtime range proof. The click still pays the
-combined-paste plan and the picker refresh; the action render is no longer
-duplicated by the parent's state-change render, and single-class anchor
-validation uses a literal fast path.
+Sprinter's) measures **~65–68 ms p50** at 1× CPU with a **~55 ms** max long
+task; a second exact tier composes at **~24 ms** with no long task. At 4×
+the first pick is **~275–300 ms** and the second is **~110–115 ms**. Exact
+tier ranges are precomputed in the shipped table (`RangeFragments`), and
+per-tier value/template plans (`TierRangePlans`) compose any selected tier
+union without another range proof. The click still pays the combined-paste
+plan and the picker refresh; the action render is no longer duplicated by
+the parent's state-change render, and single-class anchor validation uses a
+literal fast path.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are

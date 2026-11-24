@@ -497,6 +497,26 @@ public sealed class EngineCorpus
     }
 
     /// <summary>
+    /// Composes a tier-range fragment from the shipped per-tier value plans.
+    /// The intervals must match the plan's tier spans exactly; otherwise the
+    /// caller falls back to the runtime proof.
+    /// </summary>
+    public bool TryComposeTierRange(
+        string pattern,
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        string? itemClass,
+        out string? fragment)
+    {
+        fragment = null;
+        if (_fragments?.TierRangePlans is null) return false;
+        if (!_fragments.TierRangePlans.TryGetValue(
+                TierRangePlan.Key(pattern, itemClass), out var plan))
+            return false;
+        fragment = TierRangePlan.Compose(plan, intervals);
+        return fragment is not null;
+    }
+
+    /// <summary>
     /// Looks up a shipped exact tier-range fragment by
     /// <see cref="CompactionEngine.RangePlanKey"/>. Missing keys fall back to
     /// the runtime planner.

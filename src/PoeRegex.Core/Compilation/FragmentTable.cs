@@ -64,6 +64,15 @@ public sealed class FragmentTable
     public Dictionary<string, string> RangeFragments { get; init; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Composable tier value plans keyed by <see cref="TierRangePlan.Key"/>.
+    /// Each plan stores a common prefix/suffix template and the proven value
+    /// class for each tier, so any union of those tiers compiles without a
+    /// new range proof.
+    /// </summary>
+    public Dictionary<string, TierRangePlan> TierRangePlans { get; init; } =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Picks whose min-value probe changes the compiled fragment. Only true
     /// entries are stored; a missing key falls back to the live probe.
     /// </summary>
@@ -89,6 +98,74 @@ public sealed class FragmentTable
         if (scope is null) return GlobalUnresolved.GetValueOrDefault(pattern);
         return ByClassUnresolved.TryGetValue(scope, out var map) ? map.GetValueOrDefault(pattern) : null;
     }
+}
+
+/// <summary>
+/// A common range template and the proven value class of each tier. Compose
+/// a union by joining the selected value classes into the template.
+/// </summary>
+public sealed class TierRangePlan
+{
+    /// <summary>Prefix + <c>{0}</c> + suffix, with the value placeholder raw.</summary>
+    public string Template { get; init; } = "";
+    public List<TierRangeValue> Tiers { get; init; } = [];
+
+    public static string Key(string pattern, string? itemClass) =>
+        pattern + "\u0001" + (itemClass ?? "");
+
+    /// <summary>
+    /// Compose the selected tier intervals through the common template.
+    /// Returns null when any interval is not one of the plan's tiers.
+    /// </summary>
+    public static string? Compose(
+        TierRangePlan plan, IReadOnlyList<(double Lo, double Hi)> intervals)
+    {
+        var selected = new List<TierRangeValue>(intervals.Count);
+        foreach (var interval in intervals)
+        {
+            var tier = plan.Tiers.FirstOrDefault(candidate =>
+                Math.Abs(candidate.Lo - interval.Lo) < 1e-9 &&
+                Math.Abs(candidate.Hi - interval.Hi) < 1e-9);
+            if (tier is null) return null;
+            selected.Add(tier);
+        }
+        if (selected.Count == 0) return null;
+
+        var distinct = selected
+            .Select(tier => tier.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        string value;
+        if (selected.All(tier =>
+                Math.Abs(tier.Lo - tier.Hi) < 1e-9 &&
+                Math.Abs(tier.Lo - Math.Round(tier.Lo)) < 1e-9 &&
+                tier.Value.Length > 0 &&
+                tier.Value.All(char.IsDigit)))
+        {
+            var exact = RangeRegex.ExactIntegerCandidates(
+                selected.Select(tier => (long)Math.Round(tier.Lo))
+                    .Distinct()
+                    .OrderBy(value => value)
+                    .ToList());
+            value = exact.Count > 0 ? exact[0] : "";
+        }
+        else
+        {
+            value = distinct.Count == 1 ? distinct[0] : string.Join("|", distinct);
+        }
+        if (value.Length == 0) return null;
+        if (value.Contains('|'))
+            value = "(" + value + ")";
+        return plan.Template.Replace("{0}", value, StringComparison.Ordinal);
+    }
+}
+
+/// <summary>One tier's interval and the value regex proven for it.</summary>
+public sealed class TierRangeValue
+{
+    public double Lo { get; init; }
+    public double Hi { get; init; }
+    public string Value { get; init; } = "";
 }
 
 /// <summary>Picks whose minimum changes the compiled fragment, by scope.</summary>

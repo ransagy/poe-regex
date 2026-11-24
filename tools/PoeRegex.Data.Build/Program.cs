@@ -345,7 +345,8 @@ public static class Program
             Console.Error.WriteLine($"table could not be read: {tablePath}");
             return 1;
         }
-        var ranges = TierRangeBuilder.Build(corpus);
+        var tierData = TierRangeBuilder.Build(corpus);
+        var ranges = tierData.Fragments;
         var table = new FragmentTable
         {
             Game = existing.Game,
@@ -360,12 +361,14 @@ public static class Program
             ByClassUnresolved = existing.ByClassUnresolved,
             MinCapable = existing.MinCapable,
             RangeFragments = ranges,
+            TierRangePlans = tierData.Plans,
         };
         File.WriteAllText(tablePath, JsonSerializer.Serialize(table, new JsonSerializerOptions
         {
             WriteIndented = true,
         }));
-        Console.WriteLine($"tier-ranges: {ranges.Count} fragments -> {tablePath}");
+        Console.WriteLine(
+            $"tier-ranges: {ranges.Count} fragments, {tierData.Plans.Count} tier plans -> {tablePath}");
         return 0;
     }
 
@@ -513,6 +516,7 @@ public static class Program
             corpus, inGameWithMods.Select(c => c.Id).ToList());
 
         var compiler = new PoeRegexCompiler(corpus);
+        var tierData = TierRangeBuilder.Build(corpus);
         var table = new FragmentTable
         {
             Game = catalog.Game,
@@ -524,7 +528,8 @@ public static class Program
             ClassPrefixes = prefixes,
             ClassGroups = groups,
             MinCapable = MinCapabilityBuilder.Build(catalog, corpus, compiler),
-            RangeFragments = TierRangeBuilder.Build(corpus),
+            RangeFragments = tierData.Fragments,
+            TierRangePlans = tierData.Plans,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         File.WriteAllText(outPath, JsonSerializer.Serialize(table, new JsonSerializerOptions
