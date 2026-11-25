@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-17._
+_Last updated: 2026-11-25._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -144,6 +144,12 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
 ## Recently completed
 
+- Both-game data refresh: PoE1 moved back to the root RePoE export at
+  3.30.0.4; PoE2 refreshed to the 2026-11-25 snapshot. Catalogs, corpora,
+  exact tables, proofs, status, and the lazy PoE1 web payload were regenerated
+  together. The release adds PoE1 tier-range plans, drops retired saved-pick
+  ids with a notice, versions the range-aware snapshot schema to v7, and adds
+  a compatibility gate to [`RELEASE-PREP.md`](RELEASE-PREP.md).
 - P2 deployment: all augment target strings mapped; all runes, Soul Cores,
   Idols, Abyssal Eyes, and bonded effects added with cross-source dedup; the
   exact table regenerated with a stability pass. Production serves the merged
@@ -233,7 +239,7 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   searchable when the copied item contains `Bonded: … (rune)`; they are
   Shaman-only in game. Source tags distinguish Rune, Soul Core, Idol, Abyssal
   Eye, and Bonded. Jewels, Congealed Mist, and the socket-count model remain
-  parked. The RePoE inventory and PoB cross-check are documented in
+  parked. The RePoE inventory and PoB export classification are documented in
   [`REPOE-DATA.md`](REPOE-DATA.md).
 - **Unique-item mods** are out of normal-rarity scope. **Essence/veiled**
   records are placeholders with no usable rendered text in the current export.
@@ -256,8 +262,11 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
   permissions, a Worker service token, and a custom-domain bypass app. The
   middleware also provides the `pages.dev` → apex redirect, which Access does
   not.
-- Remove the legacy `poe-regex.recipes.v1` saved-picks key now that the P2
-  release is live.
+- Retire the legacy PoE2 storage keys (`workbench.v1`, `saved-picks.v1`, and
+  the pre-rename `recipes.v1`). They are still read as a compatibility
+  fallback; removing them would drop work for anyone who has not opened the
+  app since the per-game keys shipped. Keep them until a deliberate
+  deprecation window is announced.
 
 ## Acceptance gates
 

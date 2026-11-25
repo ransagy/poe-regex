@@ -12,10 +12,11 @@ machine-readable source of truth is
 |---|---|---|
 | PoE2 game data | <https://repoe-fork.github.io/poe2> | Catalog, corpus, exact table |
 | PoE1 game data | <https://repoe-fork.github.io> (index: `poe1.html`) | Normal-equipment catalog, corpus, exact table |
-| PoB data | <https://repoe-fork.github.io/pob-data/poe2> | Development cross-check only |
+| PoB data | <https://repoe-fork.github.io/pob-data/poe2> | Reference only; not read by the build |
 
-The PoB export is **not shipped**. `ModRunes.min.json` is useful to verify the
-RePoE augment lines, but the catalog is built from RePoE only.
+The PoB export is **not shipped or read by the build**. Augment effects come
+from RePoE `augments.json`. `ModRunes.json` is a non-minified duplicate of a
+mapped export and is classified `known-unused` in the manifest.
 
 ## PoE1 files
 
@@ -117,8 +118,9 @@ for later passes.
 `ModIncursionLimb.min.json`, `ModItemExclusive.min.json`, `ModMap.min.json`,
 `ModScalability.min.json`, `ModVeiled.min.json`, `QueryMods.min.json`,
 `Bases/`, `Skills/`, `StatDescriptions/`, `Uniques/`, and
-`TimelessJewelData/` are mapped in the manifest. Only `ModRunes` is used as a
-development cross-check; no PoB file is committed or embedded.
+`TimelessJewelData/` are mapped in the manifest. No PoB file is used as a
+build input or committed/embedded; duplicate and non-minified entries are
+classified in the manifest rather than silently consumed.
 
 ## Sync procedure
 
