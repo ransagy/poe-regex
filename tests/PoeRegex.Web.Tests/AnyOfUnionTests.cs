@@ -62,6 +62,21 @@ public class AnyOfUnionTests
     }
 
     [Fact]
+    public void MatchAllSlot_DoesNotBlockNormalAnyOfUnion()
+    {
+        var result = Compose("matchall-mixed.json");
+
+        result.Length.Should().Be(246);
+        result.Groups.Should().HaveCount(4);
+        Matches(result, "Boots",
+            "25% increased Movement Speed", "+120 to maximum Life").Should().BeTrue();
+        Match(result, "Body Armours", "+180 to maximum Life").Should().BeTrue();
+        Match(result, "Gloves", "Adds 1 to 3 Fire damage to Attacks").Should().BeTrue();
+        Match(result, "Rings", "Adds 1 to 3 Cold damage to Attacks").Should().BeTrue();
+        Match(result, "Two Hand Maces", "20% increased Physical Damage").Should().BeTrue();
+    }
+
+    [Fact]
     public void Union_DoesNotBroadenANarrowedClassRange()
     {
         var result = Compose("body-narrow-ring-damage.json");
@@ -75,8 +90,12 @@ public class AnyOfUnionTests
     }
 
     private static bool Match(MultiPasteResult result, string itemClass, string line) =>
+        Matches(result, itemClass, line);
+
+    private static bool Matches(
+        MultiPasteResult result, string itemClass, params string[] lines) =>
         ItemMatcher.Match(
             result.Query,
-            [$"Item Class: {itemClass}", line],
+            [$"Item Class: {itemClass}", .. lines],
             Engine.Syntax).Match;
 }

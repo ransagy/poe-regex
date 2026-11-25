@@ -45,6 +45,12 @@ public sealed class PasteComposer
     private readonly CompactionEngine _compaction;
     private readonly Explainer _explainer;
     private readonly bool _validateRecall;
+    private readonly Dictionary<string, IReadOnlyList<StatConstraint>> _canonicalCache =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, GroupPlan?> _mergeCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _unionSafetyCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<ValueInterval>> _classSpansCache =
+        new(StringComparer.Ordinal);
 
     public PasteComposer(EngineCorpus corpus, bool validateRecall = true)
         : this(corpus, new CompactionEngine(corpus), validateRecall)
@@ -130,15 +136,14 @@ public sealed class PasteComposer
 
         var plans = BuildGroupPlans(merged);
         var baseBuild = BuildPlan(
-            plans, scope, anchorInner, excluded, keywords, validateRecall: false);
+            plans, scope, anchorInner, excluded, keywords, _validateRecall);
         var best = baseBuild;
-        IReadOnlyList<GroupPlan> bestPlans = plans;
+        IReadOnlyList<GroupPlan>? bestPlans = null;
         // Budget relief only: under-budget queries keep their exact
         // round-trippable form. Over-budget UI pastes may use a shorter
         // any-of union when the per-class proof accepts it.
         if (allowOverflow &&
-            baseBuild.Query.Length > QuerySyntax.MaxCharacterLimit &&
-            !merged.Any(s => s.MatchAll))
+            baseBuild.Query.Length > QuerySyntax.MaxCharacterLimit)
         {
             var candidates = new List<IReadOnlyList<GroupPlan>> { plans };
             candidates.AddRange(BuildUnionPlans(plans));
@@ -147,9 +152,10 @@ public sealed class PasteComposer
                 var built = BuildPlan(
                     candidate, scope, anchorInner, excluded, keywords,
                     validateRecall: false);
-                if (built.ShapeErrors < best.ShapeErrors ||
-                    (built.ShapeErrors == best.ShapeErrors &&
-                     built.Query.Length < best.Query.Length))
+                if (built.Unresolved <= best.Unresolved &&
+                    (built.ShapeErrors < best.ShapeErrors ||
+                     (built.ShapeErrors == best.ShapeErrors &&
+                      built.Query.Length < best.Query.Length)))
                 {
                     best = built;
                     bestPlans = candidate;
@@ -157,8 +163,10 @@ public sealed class PasteComposer
             }
         }
 
-        var result = BuildPlan(
-            bestPlans, scope, anchorInner, excluded, keywords, _validateRecall);
+        var result = bestPlans is null
+            ? baseBuild
+            : BuildPlan(
+                bestPlans, scope, anchorInner, excluded, keywords, _validateRecall);
         diagnostics.AddRange(result.Diagnostics);
         var limit = QuerySyntax.MaxCharacterLimit;
         if (result.Query.Length > limit && !allowOverflow)
@@ -188,7 +196,8 @@ public sealed class PasteComposer
         string Query,
         IReadOnlyList<PasteGroup> Groups,
         IReadOnlyList<CompilerDiagnostic> Diagnostics,
-        int ShapeErrors);
+        int ShapeErrors,
+        int Unresolved);
 
     private List<GroupPlan> BuildGroupPlans(IReadOnlyList<PasteSlotCriterion> merged)
     {
@@ -216,6 +225,7 @@ public sealed class PasteComposer
     {
         var diagnostics = new List<CompilerDiagnostic>();
         var groups = new List<PasteGroup>();
+        var unresolved = 0;
         var blocks = new List<string> { _corpus.Syntax.Quote(anchorInner) };
         foreach (var plan in plans)
         {
@@ -236,6 +246,7 @@ public sealed class PasteComposer
                     var frag = FragmentFor(req, fragmentScope, diagnostics);
                     if (frag is null)
                     {
+                        unresolved++;
                         diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
                             $"Modifier '{req.Value}' could not be resolved; skipped."));
                         continue;
@@ -299,7 +310,7 @@ public sealed class PasteComposer
             diagnostics.Add(new CompilerDiagnostic(
                 DiagnosticLevel.Warning, "query-shape", shapeError));
         }
-        return new PlanBuild(query, groups, diagnostics, shapeErrors);
+        return new PlanBuild(query, groups, diagnostics, shapeErrors, unresolved);
     }
 
     /// <summary>
@@ -376,7 +387,55 @@ public sealed class PasteComposer
         return false;
     }
 
+    private IReadOnlyList<StatConstraint> Canonicalize(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = RequirementsKey(requirements, itemClass);
+        if (_canonicalCache.TryGetValue(key, out var cached)) return cached;
+        var result = _compaction.Canonicalize(requirements, itemClass);
+        _canonicalCache[key] = result;
+        return result;
+    }
+
     private GroupPlan? MergePlans(IReadOnlyList<GroupPlan> plans)
+    {
+        var key = PlanSetKey(plans);
+        if (_mergeCache.TryGetValue(key, out var cached)) return cached;
+        var result = MergePlansCore(plans);
+        _mergeCache[key] = result;
+        return result;
+    }
+
+    private bool IsUnionSafe(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
+    {
+        var key = PlanSetKey(originalPlans) + "\u0004" + PlanKey(merged);
+        if (_unionSafetyCache.TryGetValue(key, out var cached)) return cached;
+        var result = IsUnionSafeCore(originalPlans, merged);
+        _unionSafetyCache[key] = result;
+        return result;
+    }
+
+    private static string RequirementsKey(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass) =>
+        (itemClass ?? "") + "\u0001" +
+        string.Join("\u0002", requirements.Select(RequirementKeyForCache));
+
+    private static string RequirementKeyForCache(ModifierRequirement requirement) =>
+        (requirement.IsRegex ? "r" : "m") + "\u0001" +
+        requirement.Value + "\u0001" +
+        (requirement.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
+        (requirement.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
+        string.Join(",", (requirement.RangeModIds ?? [])
+            .OrderBy(id => id, StringComparer.Ordinal));
+
+    private static string PlanKey(GroupPlan plan) =>
+        string.Join(",", plan.Targets) + "\u0001" + plan.Label + "\u0001" +
+        string.Join("\u0002", plan.Includes.Select(RequirementKeyForCache));
+
+    private static string PlanSetKey(IReadOnlyList<GroupPlan> plans) =>
+        string.Join("\u0003", plans.Select(PlanKey).OrderBy(key => key, StringComparer.Ordinal));
+
+    private GroupPlan? MergePlansCore(IReadOnlyList<GroupPlan> plans)
     {
         if (plans.Count < 2 || plans.Any(plan => plan.MatchAll)) return null;
         var requirements = plans.SelectMany(plan => plan.Includes).ToList();
@@ -384,7 +443,7 @@ public sealed class PasteComposer
             requirements.Any(req => req.IsRegex || _corpus.FindMod(req.Value) is null))
             return null;
 
-        var constraints = _compaction.Canonicalize(requirements, null);
+        var constraints = Canonicalize(requirements, null);
         if (constraints.Count == 0) return null;
         var merged = new List<ModifierRequirement>(constraints.Count);
         foreach (var constraint in constraints)
@@ -394,7 +453,6 @@ public sealed class PasteComposer
                 MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
                 MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
                 RangeModIds: constraint.MemberIds);
-            if (_compaction.SelectFragment(requirement, null) is null) return null;
             merged.Add(requirement);
         }
 
@@ -408,13 +466,13 @@ public sealed class PasteComposer
                 .OrderBy(label => label, StringComparer.Ordinal)));
     }
 
-    private bool IsUnionSafe(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
+    private bool IsUnionSafeCore(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
     {
         foreach (var plan in originalPlans)
         foreach (var target in plan.Targets)
         {
-            var original = _compaction.Canonicalize(plan.Includes, target);
-            var union = _compaction.Canonicalize(merged.Includes, target);
+            var original = Canonicalize(plan.Includes, target);
+            var union = Canonicalize(merged.Includes, target);
             if (!UnionCoversClass(target, original, union)) return false;
         }
         return true;
@@ -461,6 +519,8 @@ public sealed class PasteComposer
 
     private IReadOnlyList<ValueInterval> ClassSpans(StatConstraint constraint, string itemClass)
     {
+        var key = constraint.FamilyKey + "\u0001" + itemClass;
+        if (_classSpansCache.TryGetValue(key, out var cached)) return cached;
         var family = constraint.MemberIds
             .Select(id => _corpus.FindMod(id))
             .FirstOrDefault(mod => mod is not null)?.Family ?? "";
@@ -480,7 +540,9 @@ public sealed class PasteComposer
                 intervals.Add(new ValueInterval(line.MinValue, line.MaxValue));
             }
         }
-        return ConstraintCanonicalizer.MergeIntervals(intervals);
+        var result = ConstraintCanonicalizer.MergeIntervals(intervals);
+        _classSpansCache[key] = result;
+        return result;
     }
 
     private static IReadOnlyList<ValueInterval> Intersect(
@@ -519,7 +581,7 @@ public sealed class PasteComposer
         if (slot.Includes.Any(req =>
                 req.IsRegex || _corpus.FindMod(req.Value) is null))
             return slot;
-        var constraints = _compaction.Canonicalize(slot.Includes, slot.ItemClass);
+        var constraints = Canonicalize(slot.Includes, slot.ItemClass);
         if (constraints.Count == 0) return slot;
         var requirements = constraints.Select(constraint => new ModifierRequirement(
             constraint.AnchorModId,
