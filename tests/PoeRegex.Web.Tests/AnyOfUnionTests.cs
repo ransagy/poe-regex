@@ -52,6 +52,9 @@ public class AnyOfUnionTests
         result.Length.Should().Be(expectedLength);
         result.Length.Should().BeLessThanOrEqualTo(250);
         result.Groups.Should().HaveCount(2);
+        result.Groups.Should().OnlyContain(group => !group.Label.Contains('('));
+        if (fixture == "ring-damage.json")
+            result.Groups.Select(group => group.Label).Should().Contain("Gloves, Ring");
 
         Match(result, "Boots", "25% increased Movement Speed").Should().BeTrue();
         Match(result, "Boots", "+120 to maximum Life").Should().BeTrue();
@@ -68,6 +71,9 @@ public class AnyOfUnionTests
 
         result.Length.Should().Be(246);
         result.Groups.Should().HaveCount(4);
+        result.Groups.Select(group => group.Label)
+            .Should().Contain("Gloves, Ring")
+            .And.Contain("Belt, Body Armour, Helmet, Two Hand Mace");
         Matches(result, "Boots",
             "25% increased Movement Speed", "+120 to maximum Life").Should().BeTrue();
         Match(result, "Body Armours", "+180 to maximum Life").Should().BeTrue();

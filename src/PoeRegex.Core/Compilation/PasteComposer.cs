@@ -456,14 +456,14 @@ public sealed class PasteComposer
             merged.Add(requirement);
         }
 
+        var targets = plans.SelectMany(plan => plan.Targets)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(target => target, StringComparer.Ordinal)
+            .ToList();
         return new GroupPlan(
-            plans.SelectMany(plan => plan.Targets)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(target => target, StringComparer.Ordinal)
-                .ToList(),
+            targets,
             merged,
-            string.Join(", ", plans.Select(plan => plan.Label)
-                .OrderBy(label => label, StringComparer.Ordinal)));
+            string.Join(", ", targets));
     }
 
     private bool IsUnionSafeCore(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
