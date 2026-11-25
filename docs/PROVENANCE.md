@@ -84,9 +84,10 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
 7. **Reference-only PoB export** — RePoE also hosts a Path of Building data
    export at <https://repoe-fork.github.io/pob-data/poe2>. Its source project,
    Path of Building Community, is MIT-licensed and its generated item data is
-   GGG-owned. This repository uses `ModRunes.min.json` only as a development
-   cross-check for basic rune effects; no PoB file is committed, embedded, or
-   shipped. The manifest records the rest of that export for future work.
+   GGG-owned. No PoB file is read by the build, committed, embedded, or
+   shipped; rune effects come from RePoE `augments.json`. The manifest records
+   the export for provenance, and classifies entries such as `ModRunes.json`
+   as non-minified duplicates (`known-unused`).
 8. **Consumers** — the CLI, the library, and the web workbench read only the
    derived catalog, exact fragment table, vendor corpus, and safety fixtures;
    nothing downloads game data at runtime.
