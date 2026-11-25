@@ -1,6 +1,6 @@
 {
   "Game": "poe2",
-  "DataVersion": "2026-11-08",
+  "DataVersion": "2026-11-25",
   "TargetModel": "advanced-ranges-v1",
   "Global": {
     "Inflict Abyssal Wasting on Hit": "t ab",

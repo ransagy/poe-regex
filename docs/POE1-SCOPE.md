@@ -1,9 +1,8 @@
 # PoE1 introduction — scope and sizing
 
 _Status: normal-equipment MVP shipping with the current release. Current data
-is ExileData PoE1 3.30.0.2 (2026-11-15), used as the secondary source while
-RePoE remains on 3.29.3.6. See [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
-Last updated 2026-11-15._
+is RePoE PoE1 3.30.0.4 (2026-11-25). See
+[`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md). Last updated 2026-11-25._
 
 This document sizes the introduction of Path of Exile 1 as a second game
 profile. It is an engineering scope, not a delivery promise; the estimates
@@ -60,11 +59,11 @@ table without regressing it.
 - Normal/magic/rare prefix and suffix families: **1,200 mods, 182 families,
   and 135 normalized patterns** that map through the current PoE1
   `mods_by_base` equipment pools
-- Base implicits at class scope: **179 mods**
+- Base implicits at class scope: **178 mods**
 - Item-domain corrupted implicits: **233 mapped mods** out of 372 exported
   (the rest have no equipment class in `mods_by_base`)
-- **Catalog total: 1,612 mods across 23 classes**
-- **Exact table: 1,585 scopes, 0 unresolved, all verified strict** against the
+- **Catalog total: 1,611 mods across 23 classes**
+- **Exact table: 1,584 scopes, 0 unresolved, all verified strict** against the
   generated PoE1 foreign-line corpus
 - Ten equipment slots, All-gear union, per-slot pickers
 - Query compile, min values, exclusions, copy, explain, saved picks/share
@@ -103,18 +102,17 @@ What is currently PoE2-hardcoded and must become profile data:
 
 ## 3. Data source and survey
 
-The primary PoE1 export is the **root** RePoE export
+The PoE1 export is the **root** RePoE export
 (`https://repoe-fork.github.io/`, linked from `poe1.html`), not
-`/poe1`. RePoE was still on 3.29.3.6 when 3.30 launched, so the current
-catalog uses the secondary compatible ExileData export
-(<https://data.exiledata.dev/poe1/3.30.0.2>) while the primary catches up.
+`/poe1`. The current catalog uses RePoE 3.30.0.4 (2026-11-25); ExileData
+remains a documented fallback for the next patch window when RePoE lags.
 The raw files are pinned by size and SHA-256 in `data/poe1.snapshot.json`;
-see [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md) for the source and
-move-back procedure. `data/repoe.manifest.json` still classifies the root
-RePoE export's 90 entries; `data-audit --check` passes.
+see [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md) for the source-switch
+procedure. `data/repoe.manifest.json` classifies the root RePoE export's 90
+entries; `data-audit --check` passes.
 
 Live export survey (2026-11-12; raw surface counts are RePoE 3.29, mapped and
-shipped counts are the current 3.30.0.2 catalog):
+shipped counts reflect the current RePoE 3.30.0.4 catalog):
 
 | Surface | Count |
 |---|---:|
@@ -127,10 +125,10 @@ shipped counts are the current 3.30.0.2 catalog):
 | Distinct normalized affix texts | 1,013 |
 | Mapped normal equipment mods | 1,200 |
 | Mapped normal patterns | 135 |
-| Mapped base implicits | 179 |
+| Mapped base implicits | 178 |
 | Mapped corrupted mods | 233 |
-| Catalog entries (all sources) | 1,612 |
-| Exact-table scopes | 1,585 |
+| Catalog entries (all sources) | 1,611 |
+| Exact-table scopes | 1,584 |
 | Essence-only affixes | 458 |
 | Influence-tagged affixes | 1,933 |
 | Crafted mods | 1,637 |
@@ -142,12 +140,14 @@ shipped counts are the current 3.30.0.2 catalog):
 | Eldritch implicits (`eater`/`searing`) | 4,086 |
 | Crucible tree mods | 2,604 |
 
-Relevant equipment/flask/jewel bases total **1,086** across 29 classes,
-including 124 Body Armour, 99 Amulet, 98 Shield, 96 Helmet, 83 Boots, 80
-Gloves, 49 Ring, 18 Utility Flask, and 8 Jewel bases. Cluster jewels use a
-separate `cluster_jewels.json` export rather than base items.
+In the 3.29 survey, relevant equipment/flask/jewel bases totaled **1,086**
+across 29 classes, including 124 Body Armour, 99 Amulet, 98 Shield, 96 Helmet,
+83 Boots, 80 Gloves, 49 Ring, 18 Utility Flask, and 8 Jewel bases. The 3.30.0.4
+export has 5,670 base items, with release-state filtering applied by the
+builder. Cluster jewels use a separate `cluster_jewels.json` export rather
+than base items.
 
-Raw file sizes: `mods.min.json` 22 MB, `mods_by_base.min.json` 15 MB,
+Raw file sizes: `mods.min.json` 23 MB, `mods_by_base.min.json` 15 MB,
 `base_items.min.json` 3 MB, `stat_translations.min.json` 4.4 MB.
 
 ### Data quirks
@@ -200,21 +200,19 @@ work starts until these are signed off. The results above are now encoded in
   <https://repoe-fork.github.io>, audited through the generated
   <https://repoe-fork.github.io/poe1.html> index. All 90 entries are
   classified; seven RePoE inputs are `used`, of which the PoE1 builder reads
-  four. The current snapshot uses ExileData's four equivalent inputs.
-- Snapshot: `data/poe1.snapshot.json` pins the four used raw files by size
-  and SHA-256, with `sourceKind` `exiledata`, `sourceVersion` `3.30.0.2`, and
-  `dataVersion` `3.30.0.2` (generated 2026-11-15). The primary RePoE export
-  is still 3.29.3.6; the move-back procedure is in
-  [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
-- Catalog: `data/catalogs/poe1.catalog.json` — 23 item classes, 1,612 mods,
+  four. The snapshot pins all seven used inputs.
+- Snapshot: `data/poe1.snapshot.json` pins the seven used raw files by size
+  and SHA-256, with `sourceKind` `repoe`, `sourceVersion` `3.30.0.4`, and
+  `dataVersion` `3.30.0.4` (generated 2026-11-25).
+- Catalog: `data/catalogs/poe1.catalog.json` — 23 item classes, 1,611 mods,
   with source, family, tier order, classes, groups, and stat lines.
 - Foreign corpus: `data/catalogs/poe1.vendor-corpus.json` — deduplicated base
   names, properties, requirements, base implicits, affix names,
   advanced-description captions, class lines, and every plain/advanced mod
-  form (85,784 lines).
-- Exact data: `data/catalogs/poe1.fragments.json` — 1,585 scopes, 0
-  unresolved. The web copies live under `web/wwwroot/data/poe1/` and load
-  lazily.
+  form (85,668 lines).
+- Exact data: `data/catalogs/poe1.fragments.json` — 1,584 scopes, 0
+  unresolved, plus 5,330 precomputed range fragments and 503 tier plans. The
+  web copies live under `web/wwwroot/data/poe1/` and load lazily.
 - Safety fixtures: `data/catalogs/poe1.safety-items.txt` — captured item text
   used as foreign lines by the proof, including the reported `Sockets: G`
   boots item.
@@ -235,18 +233,17 @@ work starts until these are signed off. The results above are now encoded in
 Refresh the pinned raw snapshot, then rebuild:
 
 ```sh
-dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch \
-  --source exiledata --version 3.30.0.2 --refresh
+dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch --source repoe --refresh
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
 ```
 
-`poe1-fetch` downloads the selected source's used PoE1 inputs (four for the
-current builder), verifies their checksums, and rewrites
+`poe1-fetch` downloads the selected source's used PoE1 inputs (seven for
+RePoE, four for ExileData), verifies their checksums, and rewrites
 `data/poe1.snapshot.json`; `poe1-build` reads `data/raw/poe1` (gitignored)
-and writes the catalog and foreign corpus. Use `--source repoe` once the
-primary export is current. `poe1-matrix` regenerates the matrix, table,
+and writes the catalog and foreign corpus. Use `--source exiledata` only
+when RePoE lags the live patch. `poe1-matrix` regenerates the matrix, table,
 proof, and status;
 `poe1-status --check --check-shortest` fails if the table is stale or the proof is missing.
 
@@ -375,7 +372,7 @@ The repo has 436 commits; the main October–November run spans 31 days. The P2
 augment pass (catalog, 3,734-scope exact table, and picker/union work) landed
 in about two days. The offline PoE1 spike mapped the normal-equipment surface
 to **1,204 normal mods / 135 normal patterns / 764 class-pattern rows**, and
-the shipped MVP catalog now carries **1,612 mods across 1,585 table scopes**,
+the shipped MVP catalog now carries **1,611 mods across 1,584 table scopes**,
 versus 1,050 patterns / 2,480 class rows for the PoE2 P2 table. PoE1 is smaller and simpler
 to render because its mods already carry a `text` field. The real new cost is
 the profile/web refactor and the grammar/copy-text unknowns, not the stat
@@ -396,7 +393,7 @@ time. Add review, release, and upstream league churn separately.
 | **Normal-equipment MVP** | **7–14 (~1.5–2.5 focused weeks)** |
 
 The offline spike (1,204 normal mods / 135 patterns) and the normal-equipment
-MVP catalog/table (1,612 mods / 1,585 scopes) are complete. Engine/data/
+MVP catalog/table (1,611 mods / 1,584 scopes) are complete. Engine/data/
 table only, without the web switch, is **4–7 focused days**. Add
 influences/crafts/veils/flasks: **+5–9 days**. Add normal/abyss/cluster
 jewels: **+8–12 days**. Full normal gear + crafts + flasks + jewels is

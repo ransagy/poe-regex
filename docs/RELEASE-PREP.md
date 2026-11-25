@@ -97,9 +97,9 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
 - [ ] For PoE1 data changes, refresh the upstream export, rebuild, and verify:
 
   ```sh
-  # Use --source repoe once the primary export is current.
+  # Use --source exiledata only while RePoE lags the live patch.
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch \
-    --source exiledata --version 3.30.0.2 --refresh
+    --source repoe --refresh
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
@@ -108,7 +108,7 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   When switching between RePoE and ExileData, run `poe1-compare` against the
   previous catalog and review the diff before committing.
 
-  Required: 1,585 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
   `proof.failed: 0`. Copy the updated catalog/table/corpus into
   `web/wwwroot/data/poe1/`.
 

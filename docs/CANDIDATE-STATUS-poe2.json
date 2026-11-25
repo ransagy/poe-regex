@@ -1,26 +1,26 @@
 {
   "game": "poe2",
-  "dataVersion": "2026-11-08",
+  "dataVersion": "2026-11-25",
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-11 20:36:46Z",
-  "matrixGenerated": "2026-11-11 20:28:52Z",
+  "generatedAt": "2026-11-25 13:29:57Z",
+  "matrixGenerated": "2026-11-25 13:26:10Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe2.catalog.json",
       "bytes": 1304159,
-      "sha256": "949eabc0ba27b5a39930e38a74f0cabc923393458a4eae730036617267e49e1a"
+      "sha256": "ba2aa840b6bcc694bea1da32a1b9e0aec07e5cf8615aa928fe56c4dda31ee713"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe2.html",
-      "bytes": 1771735,
-      "sha256": "a91775190b5409eb4d464251edbc5f7efb54c8107f26f766ee416a2f9da83818"
+      "bytes": 1771942,
+      "sha256": "6402673f0286aafdecbff757f27c984d8f2d3802904880a0058ff15d46483638"
     },
     "table": {
       "path": "data/catalogs/poe2.fragments.json",
-      "bytes": 883043,
-      "sha256": "dac7a24defd03bbce6a2f3e819f4ed2b64538b3fdab56f1dead5f13ee9979318"
+      "bytes": 2016805,
+      "sha256": "5dec3ce70286626801e777a047b5fe7d2134a033425e8f621764e3778f74c09b"
     }
   },
   "matrix": {
@@ -29,15 +29,13 @@
     "scopes": 2658,
     "coverage": {
       "class/current-only": 866,
-      "global/current-only": 1047,
-      "global/strict": 3,
-      "per-class/current-only": 741,
-      "per-class/strict": 1
+      "global/current-only": 1050,
+      "per-class/current-only": 742
     },
     "bounds": {
       "250": 2658
     },
-    "boundCompleteCurrentOnly": 2654,
+    "boundCompleteCurrentOnly": 2658,
     "longCurrentOnlyCount": 0,
     "longCurrentOnly": []
   },
@@ -83,7 +81,7 @@
       "path": "docs/CANDIDATE-PROOF-poe2.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "a91775190b5409eb4d464251edbc5f7efb54c8107f26f766ee416a2f9da83818",
+      "matrixSha256": "6402673f0286aafdecbff757f27c984d8f2d3802904880a0058ff15d46483638",
       "checkedScopes": 3734,
       "workScopes": 3734,
       "failed": 0,

@@ -1,11 +1,11 @@
 {
   "game": "poe2",
-  "dataVersion": "2026-11-08",
+  "dataVersion": "2026-11-25",
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
-  "generatedAt": "2026-11-11 20:36:46Z",
+  "generatedAt": "2026-11-25 13:42:15Z",
   "matrix": "CANDIDATE-MATRIX-poe2.html",
-  "matrixSha256": "a91775190b5409eb4d464251edbc5f7efb54c8107f26f766ee416a2f9da83818",
+  "matrixSha256": "6402673f0286aafdecbff757f27c984d8f2d3802904880a0058ff15d46483638",
   "checkedScopes": 3734,
   "workScopes": 3734,
   "coveredKeys": [

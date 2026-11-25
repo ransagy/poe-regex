@@ -100,7 +100,7 @@ public class Poe1DataValidityTests
         var catalog = new FileCatalogSource(
             Path.Combine(root, "data", "catalogs", "poe1.catalog.json")).Load();
 
-        catalog.DataVersion.Should().Be("3.30.0.2");
+        catalog.DataVersion.Should().Be("3.30.0.4");
 
         string Line(string id) =>
             catalog.Mods.Single(m => m.Id == id).StatLines[0].Line;
@@ -138,19 +138,19 @@ public class Poe1DataValidityTests
 
         catalog.Mods.Should().NotContain(m => m.Id == "SummonTotemCastSpeedImplicit1");
 
-        // ExileData keeps keyword markup in its raw text; the shipped catalog
-        // must contain the display text only.
+        // Raw exports may carry keyword markup; the shipped catalog must
+        // contain the display text only.
         catalog.Mods.SelectMany(m => m.StatLines)
             .Should().OnlyContain(l => !l.Line.Contains('[') && !l.Line.Contains(']'));
 
-        // The crushed implicit's second stat is present in ExileData's stats
-        // but missing from its rendered text; the fallback restores it.
+        // The crushed implicit must carry every stat the client prints, not
+        // only the first rendered line.
         catalog.Mods.Single(m => m.Id == "MaxChaosResistanceCrushedImplicitR1")
             .StatLines.Select(l => l.Line)
             .Should().Contain("-15% additional Physical Damage Reduction");
 
         Line("MinionGrantsConvocation1")
-            .Should().Be("Grants Level 1 Convocation Skill");
+            .Should().Be("Grants Level 1 Convocation");
     }
 
     [Fact]

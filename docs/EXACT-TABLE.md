@@ -7,10 +7,10 @@ table has its own artifacts and proof:
 - Status: `docs/CANDIDATE-STATUS-poe1.json`
 - Proof: `docs/CANDIDATE-PROOF-poe1.json`
 - Table: `data/catalogs/poe1.fragments.json`
-- Scope: 1,585 entries (367 global, 1,218 class), 0 unresolved; proof 1,918
+- Scope: 1,584 entries (367 global, 1,217 class), 0 unresolved; proof 1,917
   expanded scopes, 0 failures.
-- Source: the current 3.30.0.2 catalog uses the secondary ExileData export;
-  see [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
+- Source: the current 3.30.0.4 catalog uses the root RePoE export; see
+  [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
 
 PoE2 artifacts:
 
