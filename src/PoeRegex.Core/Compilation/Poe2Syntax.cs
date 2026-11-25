@@ -1,7 +1,7 @@
 namespace PoeRegex.Core.Compilation;
 
 /// <summary>
-/// The PoE2 query dialect: quoted terms, per-line matching, <c>!"term"</c>
+/// The PoE2 query dialect: quoted terms, per-line matching, <c>"!term"</c>
 /// exclusions, the game's 250-character limit, and the custom keyword
 /// prefixes. Kept as the PoE2-named entry point; per-game code should use
 /// <see cref="EngineCorpus.Syntax"/> or <see cref="QuerySyntax.ForGame"/>.

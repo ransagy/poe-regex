@@ -95,7 +95,7 @@ public class MultiPasteTests
             new PasteSlotCriterion("Ring", [new ModifierRequirement("IncreasedLife6")], "weapon"),
         ],
         [new ModifierRequirement("reflect")]);
-        result.Query.Should().Contain("!\"reflect\"");
+        result.Query.Should().Contain("\"!reflect\"");
     }
 
     [Fact]

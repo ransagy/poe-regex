@@ -17,8 +17,7 @@ There are two ways to consume it:
   precomputed fragments.
 - Applies value floors (`--min`) as digit-range patterns.
 - ANDs quoted blocks, merges included mods into one `|` alternation, factors
-  common prefixes, and emits the game-specific exclusion shape (`!"..."` for
-  PoE2, `"!..."` for PoE1).
+  common prefixes, and emits the exclusion shape `"!..."` for both games.
 - Enforces the 250-character limit shared by both games.
 - Targets the advanced item-search text: ranged stats show `roll(min-max)`;
   normal display is presentation only. The shipped table declares
@@ -98,11 +97,17 @@ public sealed record QuerySpecification
 }
 ```
 
-`ModifierRequirement(Value, MinValue?)` accepts a catalog mod id or free text.
+`ModifierRequirement(Value, MinValue?, IsRegex?, MaxValue?, RangeModIds?)`
+accepts a catalog mod id or free text.
 
 - **Mod id** — resolves to the exact precomputed fragment. With `MinValue`,
   the fragment becomes a digit-range pattern that matches every roll at or
-  above the value.
+  above the value. With `MaxValue`, it becomes a bounded range (a floor alone
+  keeps the "this or higher" behavior).
+- **Tier range** — `RangeModIds` lists every covered tier variant. The engine
+  builds one combined family+range fragment and proves it against the catalog
+  by pattern and first-roll value. The range stays in the same quoted block as
+  the family text.
 - **Free text** — validated, escaped, and emitted as a literal quoted block.
 
 `IncludedModifiers` compile to one `|` alternation: an item needs any one of
@@ -185,17 +190,51 @@ corpus.PrecomputedFragments()
 
 `PrecomputedFragments()` is the reverse index used by the web importer.
 
-## 7. Threshold patterns
+## 7. Threshold and range patterns
 
-A `MinValue` produces a digit-range fragment from the catalog value span and
-validates it against the real display shapes in the scope:
+A `MinValue` expands to every family member whose span intersects the filter,
+then builds a proven range from the floor to the pattern’s catalog maximum:
 
 ```csharp
 new ModifierRequirement("IncreasedLife6", 80)
 ```
 
-The resulting term matches every roll at or above 80, including the advanced
-`roll(min-max)` display shape.
+The resulting term matches every roll at or above 80, including better tiers
+and the advanced `roll(min-max)` display shape, without matching a longer
+line such as “25% increased Movement Speed while Sprinting”.
+
+A `MaxValue` (with or without a floor) produces a bounded range:
+
+```csharp
+new ModifierRequirement("IncreasedLife8", 110, MaxValue: 119)
+```
+
+A tier range covers several variants with one fragment:
+
+```csharp
+new ModifierRequirement(
+    "IncreasedLife8", 100, MaxValue: 214,
+    RangeModIds: ["IncreasedLife8", "IncreasedLife9", "IncreasedLife10"])
+```
+
+The range candidate uses character classes/ranges/alternations when shorter;
+consecutive digits collapse into ranges (`1[2-7]\d`), and a pure
+concatenation is not wrapped in parentheses.
+Every matched catalog line must have an allowed pattern and its first roll
+must sit inside the requested intervals; a range endpoint in
+`roll(low-high)` cannot satisfy the roll. Integer stats use whole numbers;
+decimal stats keep the displayed precision and accept extra fractional digits
+(such as `2.03` in a `1.5–2.5` stat).
+
+`CompactionEngine.PlanMany` is the single entry point: it canonicalizes the
+requirements into `StatConstraint`s, merges exact tiers/“or better”/family
+picks into one interval set, and plans each family once. For integer stats it
+also synthesizes an exact candidate from the catalog rolls in the intervals;
+a fixed-tier range such as 15–35 becomes `15|[23][05]`, and the catalog proof
+still rejects any candidate that matches an out-of-range roll. Full-family coverage
+uses the exact table fragment; a multi-value subset prefers the proven range;
+a single-value family keeps the shortest form. The result is independent of
+requirement order.
 
 ## 8. Paste composition
 

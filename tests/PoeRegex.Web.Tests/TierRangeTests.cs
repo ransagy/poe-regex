@@ -1,0 +1,304 @@
+using PoeRegex.Core.Explain;
+using PoeRegex.Web.Core;
+
+namespace PoeRegex.Web.Tests;
+
+/// <summary>
+/// PoE2 tier range prototype: one combined family+range fragment, shortest
+/// safe representation, and min/max only when the stat really rolls.
+/// </summary>
+public class TierRangeTests
+{
+    private static readonly EngineService Engine = new();
+
+    private static ModFamily Family(string classId, string key) =>
+        ModFamilies.Group(Engine.ModsForClass(classId))
+            .First(f => f.Key == key);
+
+    [Fact]
+    public void BootsMovementSpeed_UpTier_IsOneRangeFragment()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.Single(t => t.Name == "Stallion's");
+
+        var pick = Engine.TierRangePick(fam, tier, up: true);
+        pick.Should().NotBeNull();
+        pick!.RangeModIds.Should().HaveCount(4);
+        pick.MinValue.Should().Be(20);
+        pick.MaxValue.Should().Be(35);
+        Engine.TierRangeLabel(pick, tier, "Boots")
+            .Should().Be("20–35% increased Movement Speed");
+
+        var fragment = Engine.PickFragment(pick, "Boots");
+        fragment.Should().NotBeNullOrEmpty();
+        fragment.Should().Contain("eed$");
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Boots").Query;
+        ItemMatcher.Match(query, ["Item Class: Boots", "20% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "35% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeFalse();
+        Engine.Explain(query, "Boots").Mods.Select(m => m.Id)
+            .Should().Contain("MovementVelocity3",
+                "the range fragment still recalls the selected tier from the catalog");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_TwoExactTiers_ComposeWithoutTheGap()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier2 = fam.Tiers.Single(t => t.Name == "Sprinter's");
+        var tier4 = fam.Tiers.Single(t => t.Name == "Gazelle's");
+        var pick2 = Engine.TierRangePick(fam, tier2, up: false)!;
+        var pick4 = Engine.TierRangePick(fam, tier4, up: false)!;
+
+        var query = Engine.CompilePicks([pick2, pick4], [], false, "Boots").Query;
+        query.Should().Be("\": Boo\" \"[12]5.*eed$\"");
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "25% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "20% increased Movement Speed"])
+            .Match.Should().BeFalse("the gap tier was not selected");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_SecondTierUp_CompressesFixedValues()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.OrderBy(t => t.RequiredLevel).ElementAt(1);
+        var pick = Engine.BestTierPick(fam, tier, up: true, cls: "Boots");
+
+        pick.Should().NotBeNull();
+        var query = Engine.CompilePicks([pick!], [], matchAll: false, itemClass: "Boots").Query;
+        query.Should().Contain("15|[23][05]");
+        query.Should().NotContain("15|20|25|30|35");
+
+        ItemMatcher.Match(query, ["Item Class: Boots", "15% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "35% increased Movement Speed"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Boots", "10% increased Movement Speed"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Boots", "40% increased Movement Speed"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_NonConsecutivePick_LabelListsTheValues()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.Single(t => t.Anchor.Id == "MovementVelocity2");
+        var pick = new WantedMod(
+            "MovementVelocity2",
+            MinValue: 15,
+            MaxValue: 25,
+            RangeModIds: ["MovementVelocity2", "MovementVelocity4"]);
+
+        Engine.PickIntervals(pick, "Boots").Should().HaveCount(2);
+        Engine.TierRangeLabel(pick, tier, "Boots")
+            .Should().Be("15 or 25% increased Movement Speed");
+    }
+
+    [Fact]
+    public void BootsMovementSpeed_ExactTier_PrefersTheRangeOverTheName()
+    {
+        var fam = Family("Boots", "MovementVelocity");
+        var tier = fam.Tiers.Single(t => t.Name == "Stallion's");
+
+        var pick = Engine.BestTierPick(fam, tier, up: false, cls: "Boots");
+
+        pick.Should().NotBeNull();
+        pick!.IsTierRange.Should().BeTrue("20.*eed$ is shorter than \"Stallion's\"");
+        Engine.TierRangeLabel(pick, tier, "Boots")
+            .Should().Be("20% increased Movement Speed");
+    }
+
+    [Fact]
+    public void BodyLife_ExactAndUpTiers_UseTheRange()
+    {
+        var fam = Family("Body Armour", "IncreasedLife");
+        var tier = fam.Tiers.Single(t => t.Name == "Virile");
+
+        var exact = Engine.BestTierPick(fam, tier, up: false, cls: "Body Armour");
+        exact.Should().NotBeNull();
+        exact!.IsTierRange.Should().BeTrue(
+            "the family covers multiple values, so exact tiers use the range form");
+        exact.MinValue.Should().Be(100);
+        exact.MaxValue.Should().Be(119);
+        Engine.TierRangeLabel(exact, tier, "Body Armour")
+            .Should().Be("+100–119 to maximum Life");
+
+        var up = Engine.BestTierPick(fam, tier, up: true, cls: "Body Armour");
+        up.Should().NotBeNull();
+        up!.IsTierRange.Should().BeTrue("the six-name set is longer than one 100–214 fragment");
+        up.MinValue.Should().Be(100);
+        up.MaxValue.Should().Be(214);
+        Engine.TierRangeLabel(up, tier, "Body Armour")
+            .Should().Be("+100–214 to maximum Life");
+        Engine.TierRangeLabel(up with { MinValue = 110, MaxValue = 119 }, tier, "Body Armour")
+            .Should().Be("+110–119 to maximum Life");
+    }
+
+    [Fact]
+    public void BodyLife_ShortRange_CompressesDigitsAndDropsRedundantGroup()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 179,
+            RangeModIds: ["IncreasedLife9", "IncreasedLife10", "IncreasedLife11"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        query.Should().Contain("1[2-7]\\d");
+        query.Should().NotContain("[234567]");
+        query.Should().NotContain("(1[2-7]");
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+120 to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+179(175-189) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+119 to maximum Life"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+180(175-189) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BodyLife_AdjacentTiers_DoNotMatchTheNextTier()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 174,
+            RangeModIds: ["IncreasedLife9", "IncreasedLife10"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+174(150-174) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+175(175-189) to maximum Life"])
+            .Match.Should().BeFalse("Vigorous 175–179 is outside Athlete's+Fecund");
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+179(175-189) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BodyLife_NarrowedWithinTier_MatchesOnlyTheFilter()
+    {
+        var pick = new WantedMod(
+            "IncreasedLife9",
+            MinValue: 120,
+            MaxValue: 130,
+            RangeModIds: ["IncreasedLife9"]);
+
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Body Armour").Query;
+
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+120 to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+130(120-149) to maximum Life"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+131(120-149) to maximum Life"])
+            .Match.Should().BeFalse();
+        ItemMatcher.Match(query, ["Item Class: Body Armours", "+149(120-149) to maximum Life"])
+            .Match.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BodyLifeRegen_TierRange_MatchesRolledPrecision()
+    {
+        var family = ModFamilies.Group(Engine.ModsForClass("Body Armour"))
+            .First(f => f.Members.Any(m => m.Id == "BodyArmourImplicitLifeRegenerationPercent1"));
+        var tier = family.Tiers.First(t =>
+            t.MemberIds.Contains("BodyArmourImplicitLifeRegenerationPercent1"));
+        var pick = Engine.TierRangePick(family, tier, up: false);
+        pick.Should().NotBeNull();
+
+        var query = Engine.CompilePicks([pick!], [], matchAll: false, itemClass: "Body Armour").Query;
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "Regenerate 2.03(1.5-2.5)% of maximum Life per second"])
+            .Match.Should().BeTrue("the roll can carry more decimals than the range endpoints");
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "Regenerate 1.5(1.5-2.5)% of maximum Life per second"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "Regenerate 2.5(1.5-2.5)% of maximum Life per second"])
+            .Match.Should().BeTrue();
+        ItemMatcher.Match(query,
+            ["Item Class: Body Armours", "Regenerate 0.5(1.5-2.5)% of maximum Life per second"])
+            .Match.Should().BeFalse("the range endpoint must not stand in for a worse roll");
+    }
+
+    [Fact]
+    public void MovementSpeedNameUp_HasCompactEquivalentRange()
+    {
+        var boots = Family("Boots", "MovementVelocity");
+        var tier = boots.Tiers.Single(t => t.Name == "Stallion's");
+        Engine.TierCoveredRangeLabel(boots, tier)
+            .Should().Be("20–35% increased Movement Speed");
+    }
+
+    [Fact]
+    public void MovementSpeedFamily_MinMax_FiltersFixedTiers()
+    {
+        var boots = Family("Boots", "MovementVelocity");
+        var pick = boots.Pick() with { MinValue = 20, MaxValue = 30 };
+        var query = Engine.CompilePicks([pick], [], matchAll: false, itemClass: "Boots").Query;
+
+        foreach (var value in new[] { 20, 25, 30 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeTrue($"{value}% is inside the 20–30 filter");
+        }
+        foreach (var value in new[] { 10, 15, 35 })
+        {
+            ItemMatcher.Match(query,
+                ["Item Class: Boots", $"{value}% increased Movement Speed"]).Match
+                .Should().BeFalse($"{value}% is outside the 20–30 filter");
+        }
+    }
+
+    [Fact]
+    public void NumericRange_UsesThePicksValueSpan()
+    {
+        // A single exact tier or a genuinely fixed mod has nothing to narrow.
+        Engine.NumericRange(new WantedMod("MovementVelocity3"), "Boots").Should().BeNull();
+        Engine.NumericRange(new WantedMod("GlobalSpellGemsLevel1"), "Focus").Should().BeNull();
+
+        // A fixed-tier family still covers several values.
+        var boots = Family("Boots", "MovementVelocity");
+        Engine.NumericRange(boots.Pick(), "Boots")
+            .Should().Be(new EngineService.NumericSpan(10, 35, 0));
+
+        Engine.NumericRange(new WantedMod("IncreasedLife8"), "Body Armour")
+            .Should().Be(new EngineService.NumericSpan(100, 119, 0));
+        Engine.NumericRange(new WantedMod("IncreasedLife8", ["Virile"]), "Body Armour")
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void SetRange_KeepsIdentityAndRoundTrips()
+    {
+        var state = new WorkbenchState();
+        state.AddInclude("body", new WantedMod("IncreasedLife8"));
+
+        state.SetRange("body", new WantedMod("IncreasedLife8"), 110, 119).Should().BeTrue();
+        var pick = state.CriteriaFor("body").Included[0];
+        pick.MinValue.Should().Be(110);
+        pick.MaxValue.Should().Be(119);
+        pick.SamePick(new WantedMod("IncreasedLife8")).Should().BeTrue();
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            WorkbenchSnapshot.Capture(state), WebJsonContext.Default.WorkbenchSnapshot);
+        var back = System.Text.Json.JsonSerializer.Deserialize(
+            json, WebJsonContext.Default.WorkbenchSnapshot)!;
+        var restored = new WorkbenchState();
+        WorkbenchSnapshot.Restore(restored, back);
+
+        var restoredPick = restored.CriteriaFor("body").Included[0];
+        restoredPick.MinValue.Should().Be(110);
+        restoredPick.MaxValue.Should().Be(119);
+    }
+}

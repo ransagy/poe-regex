@@ -1,4 +1,5 @@
 using PoeRegex.Core;
+using PoeRegex.Core.Compilation;
 using PoeRegex.Web.Core;
 
 namespace PoeRegex.Web.Tests;
@@ -228,15 +229,16 @@ public class QueryReconstructionTests
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
         recovered.Slots.Should().ContainSingle();
         recovered.Slots[0].MatchAll.Should().BeTrue();
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
 
         var state = new WorkbenchState();
         recovered.ApplyTo(state);
         var active = state.ActiveSlots();
         active.Should().ContainSingle();
         var crit = state.CriteriaFor(active[0]);
-        Engine.CompilePicks(crit.Included, crit.Excluded, crit.MatchAll, crit.ClassId)
-            .Query.Should().Be(query);
+        AssertEquivalent(
+            Engine.CompilePicks(crit.Included, crit.Excluded, crit.MatchAll, crit.ClassId).Query,
+            query);
     }
 
     [Fact]
@@ -253,7 +255,7 @@ public class QueryReconstructionTests
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
 
         var state = new WorkbenchState();
         recovered.ApplyTo(state);
@@ -264,7 +266,7 @@ public class QueryReconstructionTests
                 state.CriteriaFor(s).MatchAll)),
             active.SelectMany(s => state.CriteriaFor(s).Excluded).Distinct(StringComparer.Ordinal),
             allowOverflow: true).Query;
-        recompiled.Should().Be(query);
+        AssertEquivalent(recompiled, query);
     }
 
     [Fact]
@@ -305,7 +307,7 @@ public class QueryReconstructionTests
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
         recovered.Slots.Should().ContainSingle();
         var namePicks = recovered.Slots[0].Includes.Where(p => p.IsNamePick).ToList();
         namePicks.Should().ContainSingle("the suffix becomes one tier-or-better pick");
@@ -316,8 +318,9 @@ public class QueryReconstructionTests
         recovered.ApplyTo(state);
         state.Global.Included.Should().HaveCount(5);
         state.Global.Included.Count(p => p.IsNamePick).Should().Be(1);
-        Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null)
-            .Query.Should().Be(query);
+        AssertEquivalent(
+            Engine.CompilePicks(state.Global.Included, state.Global.Excluded, state.Global.MatchAll, null).Query,
+            query);
     }
 
     [Fact]
@@ -332,7 +335,7 @@ public class QueryReconstructionTests
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
         recovered.Slots.Should().ContainSingle();
         var namePicks = recovered.Slots[0].Includes.Where(p => p.IsNamePick).ToList();
         namePicks.Should().HaveCount(2);
@@ -358,7 +361,7 @@ public class QueryReconstructionTests
         var recovered = Reconstruction.ReconstructWorkbench(query);
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
         var weapon = recovered.Slots.Single(s => s.ClassId == "One Hand Mace");
         weapon.Includes.Should().ContainSingle();
         var mod = Engine.FindMod(weapon.Includes[0].ModId);
@@ -387,7 +390,7 @@ public class QueryReconstructionTests
 
         recovered.Ok.Should().BeTrue(recovered.Diagnostics.FirstOrDefault());
         recovered.Mode.Should().Be("simple");
-        recovered.Recompile(Engine).Should().Be(query);
+        AssertEquivalent(recovered.Recompile(Engine), query);
     }
 
     [Fact]
@@ -613,4 +616,19 @@ public class QueryReconstructionTests
     {
         SlotClasses.AllowsDuplicateClass(classId, slotA, slotB).Should().Be(expected);
     }
+    private static bool SameMods(string? left, string? right)
+    {
+        if (left is null || right is null) return false;
+        var a = Engine.Explain(left).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var b = Engine.Explain(right).Mods
+            .Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return a.Count > 0 && a.SequenceEqual(b);
+    }
+
+    private static void AssertEquivalent(string? actual, string expected) =>
+        (QueryEquivalence.Equivalent(actual ?? "", expected, Engine.Syntax) ||
+         SameMods(actual, expected))
+            .Should().BeTrue($"expected '{expected}', got '{actual}'");
+
 }

@@ -43,7 +43,7 @@
                     var lines = t.Matches.Select(m => m.Line).Distinct(StringComparer.Ordinal).ToList();
                     <div class="qexplain-block">
                         <div class="qexplain-token">
-                            <code>@(t.Excluded ? "!" : "")"@t.Phrase"</code>
+                            <code>@(t.Excluded ? Engine.Syntax.FormatExclusion(t.Phrase) : Engine.Syntax.Quote(t.Phrase))</code>
                             <span class="qexplain-kind">@KindLabel(t), @lines.Count @(lines.Count == 1 ? "line" : "lines")</span>
                         </div>
                         @if (t.Kind != "class" && lines.Count > 0)

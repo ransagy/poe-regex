@@ -565,6 +565,10 @@ input:disabled { opacity: 0.5; }
     font-size: 0.84rem; color: var(--muted);
 }
 .tier-row .suggest-line { font-size: 0.86rem; color: var(--text); }
+.preview-hint {
+    display: none; flex: none; margin-left: 0.1rem;
+    color: var(--muted); font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+}
 
 .suggest-row > button:not(.fam-toggle) {
     flex: none; width: 1.75rem; height: 1.75rem; padding: 0;
@@ -575,8 +579,10 @@ input:disabled { opacity: 0.5; }
 .suggest-row > button.active { color: var(--mod); background: var(--mod-soft); border-color: var(--mod); }
 .suggest-row > button.exc { color: var(--faint); }
 .suggest-row > button.exc.active { color: var(--no); background: var(--no-soft); border-color: var(--no); }
-.suggest-row > button.switch { color: var(--mod); font-weight: 700; border-color: var(--line-strong); }
-.suggest-row > button.exc.switch { color: var(--no); }
+/* Covered/claim-switch actions are neutral at rest; the row's covered
+   text and tier-name color carry the state. Only explicit picks are active. */
+.suggest-row > button.switch { color: var(--muted); font-weight: 700; border-color: transparent; }
+.suggest-row > button.exc.switch { color: var(--muted); }
 .suggest-row > button:disabled { color: var(--faint); cursor: not-allowed; border-color: transparent; opacity: 0.5; }
 .suggest-row > button.btn { width: 1.75rem; height: 1.75rem; }
 .suggest-row > button.btn:disabled { color: var(--faint); }
@@ -597,7 +603,118 @@ input:disabled { opacity: 0.5; }
         color: var(--no); background: var(--no-soft);
         border-color: rgba(236, 122, 101, 0.5);
     }
+    /* Add actions take mod on hover; remove-from-selection/change takes ember;
+       exclude is the only red action. Covered/switch actions keep a
+       high-contrast neutral affordance instead of a selection color. */
+    .suggest-row.tier-row > button.inc.add:hover:not(:disabled),
+    .suggest-row.tier-row > button.exc.reinclude:hover:not(:disabled),
+    .suggest-row.tier-row > button.up.add:hover:not(:disabled),
+    .suggest-row.tier-row > button.up.range:hover:not(:disabled) {
+        color: var(--mod); background: var(--mod-soft);
+        border-color: rgba(154, 166, 255, 0.5);
+    }
+    .suggest-row.tier-row > button.inc.remove:not(.switch):hover:not(:disabled),
+    .suggest-row.tier-row > button.up.active:hover:not(:disabled),
+    .suggest-row.tier-row > button.up.replace:hover:not(:disabled) {
+        color: var(--ember); background: var(--ember-soft);
+        border-color: rgba(240, 165, 65, 0.5);
+    }
+    .suggest-row.tier-row > button.exc.exclude:hover:not(:disabled) {
+        color: var(--no); background: var(--no-soft);
+        border-color: rgba(236, 122, 101, 0.5);
+    }
+    .suggest-row > button.switch:hover:not(:disabled),
+    .suggest-row.tier-row > button.inc.switch:hover:not(:disabled) {
+        color: var(--text); background: var(--raised); border-color: var(--text);
+    }
     .fam-toggle:hover .fam-caret { color: var(--text); }
+}
+
+/* Action preview: tint the affected rows and show a plain inline action hint
+   on the row with the hovered action. No rings, underlines, or badges. */
+.tier-list .tier-row:is(
+    :has(:is(.inc.remove, .up.active):is(:hover, :focus-visible)),
+    :has(.up.active:is(:hover, :focus-visible)) ~ .tier-row:not(.picked),
+    .up-covered:not(.picked):has(~ .tier-row .up.replace:is(:hover, :focus-visible))
+) {
+    background: var(--ember-soft);
+}
+.tier-list .tier-row:is(
+    :has(:is(.inc.remove, .up.active):is(:hover, :focus-visible)),
+    :has(.up.active:is(:hover, :focus-visible)) ~ .tier-row:not(.picked),
+    .up-covered:not(.picked):has(~ .tier-row .up.replace:is(:hover, :focus-visible))
+) :is(.suggest-line, .tier-name, .covered-note, .preview-hint) {
+    color: var(--ember);
+}
+
+.tier-list .tier-row:has(.exc.exclude:is(:hover, :focus-visible)) {
+    background: var(--no-soft);
+}
+.tier-list .tier-row:has(.exc.exclude:is(:hover, :focus-visible)) :is(.suggest-line, .tier-name, .covered-note, .preview-hint) {
+    color: var(--no);
+}
+
+.tier-list .tier-row:is(
+    :has(:is(.inc.add, .exc.reinclude):is(:hover, :focus-visible)),
+    :has(:is(.up.add, .up.range):is(:hover, :focus-visible)),
+    :has(:is(.up.add, .up.range):is(:hover, :focus-visible)) ~ .tier-row,
+    :has(.up.replace:is(:hover, :focus-visible)),
+    :has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row
+) {
+    background: var(--mod-soft);
+}
+.tier-list .tier-row:is(
+    :has(:is(.inc.add, .exc.reinclude):is(:hover, :focus-visible)),
+    :has(:is(.up.add, .up.range):is(:hover, :focus-visible)),
+    :has(:is(.up.add, .up.range):is(:hover, :focus-visible)) ~ .tier-row,
+    :has(.up.replace:is(:hover, :focus-visible)),
+    :has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row
+) :is(.suggest-line, .tier-name, .covered-note, .preview-hint) {
+    color: var(--mod);
+}
+
+/* The hint says what will happen; it is plain text, never a badge. */
+.tier-list .tier-row:has(> :is(.inc, .exc, .up):is(:hover, :focus-visible)) .preview-hint {
+    display: inline-block;
+}
+.tier-list .tier-row:has(> .inc.add:is(:hover, :focus-visible)) .preview-hint::after { content: "+ add"; }
+.tier-list .tier-row:has(> .inc.remove:is(:hover, :focus-visible)) .preview-hint::after { content: "− remove"; }
+.tier-list .tier-row:has(> .inc.switch:is(:hover, :focus-visible)) .preview-hint::after { content: "⇄ switch"; }
+.tier-list .tier-row:has(> .inc.add.switch:is(:hover, :focus-visible)) .preview-hint::after { content: "+ add"; }
+.tier-list .tier-row:has(> .exc.reinclude:is(:hover, :focus-visible)) .preview-hint::after { content: "+ add"; }
+.tier-list .tier-row:has(> .exc.exclude:is(:hover, :focus-visible)) .preview-hint::after { content: "⊘ exclude"; }
+.tier-list .tier-row:has(> .up.add:is(:hover, :focus-visible)) .preview-hint::after { content: "≥ add"; }
+.tier-list .tier-row:has(> .up.range:is(:hover, :focus-visible)) .preview-hint::after { content: "≥ add"; }
+.tier-list .tier-row:has(> .up.active:is(:hover, :focus-visible)) .preview-hint::after { content: "≥ remove"; }
+.tier-list .tier-row:has(> .up.replace:is(:hover, :focus-visible)) .preview-hint::after { content: "⇄ replace"; }
+.tier-list .tier-row:is(
+    :has(.up.replace:is(:hover, :focus-visible)),
+    :has(.up.replace:is(:hover, :focus-visible)) ~ .tier-row
+) .preview-hint {
+    color: var(--ember);
+}
+
+/* The family row reacts to a tier action so the "x picked"/covered/excluded
+   summary is part of the preview, not just the tier text. */
+.fam-block:has(> .tier-list :is(.inc.remove, .up.active, .up.replace):is(:hover, :focus-visible)) .fam-row {
+    background: var(--ember-soft);
+}
+.fam-block:has(> .tier-list :is(.inc.remove, .up.active, .up.replace):is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note) {
+    color: var(--ember);
+}
+
+.fam-block:has(> .tier-list .exc.exclude:is(:hover, :focus-visible)) .fam-row {
+    background: var(--no-soft);
+}
+.fam-block:has(> .tier-list .exc.exclude:is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note) {
+    color: var(--no);
+}
+
+.fam-block:has(> .tier-list :is(.inc.add, .exc.reinclude, .up.add, .up.range):is(:hover, :focus-visible)) .fam-row {
+    background: var(--mod-soft);
+}
+.fam-block:has(> .tier-list :is(.inc.add, .exc.reinclude, .up.add, .up.range):is(:hover, :focus-visible)) .fam-row :is(.fam-text, .picked-count, .excluded-count, .fam-status .covered-note) {
+    color: var(--mod);
 }
 
 /* ---------- Search string ---------- */
@@ -741,6 +858,7 @@ input:disabled { opacity: 0.5; }
 .bd-label .bd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .bd-label .mod-source { flex: none; }
 .bd-detail { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-warn { color: var(--ember); white-space: normal; }
 .bd-row.exc .bd-label { color: var(--exc-ink); }
 .bd-row.imported .bd-label { font-family: var(--mono); }
 .bd-row.imported:not(.exc) .bd-label { color: var(--ember); }
@@ -752,7 +870,8 @@ input:disabled { opacity: 0.5; }
 .bd-frag.missing { font-family: var(--sans); color: var(--no); background: none; }
 .bd-n { text-align: right; font-size: 0.78rem; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bd-unit { font-size: 0.7rem; color: var(--faint); }
-.bd-min { width: 3rem; height: 1.6rem; padding: 0 0.35rem; font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
+.bd-range { display: inline-flex; align-items: center; gap: 0.2rem; }
+.bd-min { width: 2.8rem; height: 1.6rem; padding: 0 0.3rem; font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
 .bd-min::placeholder { text-align: right; }
 .bd-min.noop { color: var(--muted); }
 .bd-min.working { opacity: 0.55; }

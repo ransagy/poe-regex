@@ -122,6 +122,42 @@
     private WantedMod? _minBusy;
     private int? _hotAnyOfIndex;
 
+    private static bool CoversTier(WantedMod pick, ModTier tier)
+    {
+        if (pick.IsTierRange)
+            return tier.MemberIds.All(pick.RangeModIds!.Contains);
+        if (pick.IsNamePick)
+            return tier.Name.Length > 0 &&
+                   pick.Names!.Contains(tier.Name, StringComparer.Ordinal);
+        if (pick.VariantModIds is { Count: > 0 } variants)
+            return tier.MemberIds.All(variants.Contains);
+        return tier.MemberIds.Contains(pick.ModId);
+    }
+
+    private static bool TierExcluded(
+        ModFamily family, ModTier tier, IReadOnlyList<string> excluded)
+    {
+        if (excluded.Count == 0) return false;
+        if (tier.Name.Length > 0 &&
+            excluded.Contains(tier.Name, StringComparer.Ordinal))
+            return true;
+        return tier.MemberIds.Any(id => excluded.Contains(id, StringComparer.Ordinal));
+    }
+
+    private static bool HasTierGap(ModFamily family, WantedMod pick)
+    {
+        if (!pick.IsTierRange || pick.RangeModIds is not { Count: > 1 } ids)
+            return false;
+        var indices = family.Tiers
+            .Select((tier, index) => (tier, index))
+            .Where(x => ids.Any(id => x.tier.MemberIds.Contains(id)))
+            .Select(x => x.index)
+            .OrderBy(index => index)
+            .ToList();
+        return indices.Count > 1 &&
+               indices[^1] - indices[0] + 1 != indices.Count;
+    }
+
     private bool HasPicks => State.Mode == "advanced"
         ? State.ActiveSlots().Count > 0 || State.ExternalIncludes.Count > 0 ||
           ImportedAnyOf().Count > 0 || ImportedExclusions().Count > 0
@@ -200,9 +236,63 @@
                         else if (inc.VariantModIds is not { Count: > 1 } && tier is not null)
                             label = string.Join(" / ", PickTierLines(family, tier));
                     }
+                    var familySpan = inc.IsTierRange ? Engine.NumericRange(inc, cls) : null;
+                    var fullFamilyRange = inc.IsTierRange && family is not null &&
+                        inc.RangeModIds!.Count >= family.MemberIds.Count &&
+                        inc.RangeModIds.All(family.MemberIds.Contains) &&
+                        (familySpan is null ||
+                         ((inc.MinValue is null ||
+                           Math.Abs(inc.MinValue.Value - familySpan.Min) < 1e-9) &&
+                          (inc.MaxValue is null ||
+                           Math.Abs(inc.MaxValue.Value - familySpan.Max) < 1e-9)));
+                    if (fullFamilyRange)
+                        label = SearchModel.FamilyText(families, mods, inc.ModId, Engine);
+                    else if (inc.IsTierRange && tier is not null &&
+                             Engine.TierRangeLabel(inc, tier, cls, family) is { } rangeLabel)
+                        label = rangeLabel;
                     var source = SourceFor(inc);
-                    var minIgnored = inc.MinValue is not null && frag is not null
-                        && frag == Model.PickFragment(inc with { MinValue = null }, cls);
+                    var numeric = inc.IsNamePick && inc.Names!.Count == 1 &&
+                        tier is { IsRanged: true, ValueRange: { } tierRange } &&
+                        family is not null &&
+                        Engine.TierRangeAvailable(family, tier, up: false, cls)
+                        ? new EngineService.NumericSpan(
+                            tierRange.Min, tierRange.Max, tier.Precision)
+                        : family is not null && HasTierGap(family, inc)
+                            ? null
+                            : Engine.NumericRange(inc, cls) is { IsRanged: true } span
+                                ? span
+                                : null;
+                    // The natural bound is the stat's own span; clearing it
+                    // changes nothing by design, so it is not a fallback.
+                    var minIgnored = inc.MinValue is { } minValue && frag is not null &&
+                        (numeric is null || minValue > numeric.Min + 1e-9) &&
+                        frag == Model.PickFragment(inc with { MinValue = null }, cls);
+                    var maxIgnored = inc.MaxValue is { } maxValue && frag is not null &&
+                        (numeric is null || maxValue < numeric.Max - 1e-9) &&
+                        frag == Model.PickFragment(inc with { MaxValue = null }, cls);
+                    var rangeUnavailable = inc.IsNamePick && inc.Names!.Count > 1 &&
+                        tier is not null && family is not null &&
+                        !Engine.TierRangeAvailable(family, tier, up: true, cls);
+                    var naturalNames = family is not null && tier is not null
+                        ? family.NamesFrom(tier)
+                        : [];
+                    var equivalentRange = inc.IsNamePick && inc.Names!.Count > 1 &&
+                        !rangeUnavailable &&
+                        tier is not null && family is not null &&
+                        inc.Names.Count == naturalNames.Count &&
+                        inc.Names.All(naturalNames.Contains)
+                        ? Engine.TierCoveredRangeLabel(family, tier)
+                        : null;
+                    var coveredExcluded = family is null
+                        ? []
+                        : family.Tiers
+                            .Where(t => CoversTier(inc, t) &&
+                                        TierExcluded(family, t, crit.Excluded))
+                            .Select(t => t.DisplayLabel.Length > 0
+                                ? t.DisplayLabel
+                                : t.Anchor.Id)
+                            .Distinct(StringComparer.Ordinal)
+                            .ToList();
                     var busy = _minBusy?.SamePick(inc) == true;
                     <li class="bd-row inc @(ReadOnly ? "ro" : "") @(own >= 0 && Model.IsHot(own) || Model.IsPickHot(inc) ? "hot" : "")" id="chip-inc-@scopeKey-@ChipKey(inc)"
                         @onmouseenter="() => { if (own >= 0) Model.Hot(own); else if (!Model.HotPick(inc)) Model.Hot(scopeBlocks); }">
@@ -214,7 +304,11 @@
                                     <span class="mod-source @tag.Css">@tag.Text</span>
                                 }
                             </span>
-                            @if (inc.IsNamePick && tier is not null)
+                            @if (equivalentRange is not null)
+                            {
+                                <span class="bd-detail" title="Equivalent range for these tier names">= @equivalentRange</span>
+                            }
+                            else if (inc.IsNamePick && tier is not null)
                             {
                                 <span class="bd-detail">@string.Join(" / ", PickTierLines(family, tier))</span>
                             }
@@ -222,16 +316,39 @@
                             {
                                 <span class="bd-detail">@tier.DisplayLabel</span>
                             }
+                            @if (rangeUnavailable)
+                            {
+                                <span class="bd-detail bd-warn">tier names (no safe range)</span>
+                            }
+                            @if (numeric is not null && (minIgnored || maxIgnored))
+                            {
+                                <span class="bd-detail bd-warn">range not enforceable; using the family fragment</span>
+                            }
+                            @if (coveredExcluded.Count > 0)
+                            {
+                                <span class="bd-detail bd-warn" title="Tiers excluded from this pick">excludes @string.Join(", ", coveredExcluded)</span>
+                            }
                         </span>
-                        @if (!ReadOnly && AcceptsMin(inc, cls))
+                        @if (!ReadOnly && numeric is not null)
                         {
-                            <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="numeric" min="0" step="1"
-                                   id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
-                                   aria-busy="@(busy ? "true" : "false")"
-                                   value="@inc.MinValue?.ToString(CultureInfo.InvariantCulture)"
-                                   title="@(busy ? "Applying the minimum…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher (a longer fragment)")"
-                                   aria-label="@($"Minimum value for {label}")"
-                                   @onchange="e => SetMin(slot, inc, cls, e)" />
+                            var step = numeric.Precision > 0 ? "any" : "1";
+                            var mode = numeric.Precision > 0 ? "decimal" : "numeric";
+                            <span class="bd-range">
+                                <input class="bd-min @(minIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
+                                       id="min-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "min")" autocomplete="off"
+                                       aria-busy="@(busy ? "true" : "false")"
+                                       value="@FormatRangeValue(fullFamilyRange ? null : inc.MinValue)"
+                                       title="@(busy ? "Applying the range…" : minIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or higher")"
+                                       aria-label="@($"Minimum value for {label}")"
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: true, family, tier)" />
+                                <input class="bd-min @(maxIgnored ? "noop" : "") @(busy ? "working" : "")" type="number" inputmode="@mode" min="0" step="@step"
+                                       id="max-@scopeKey-@ChipKey(inc)" placeholder="@(busy ? "…" : "max")" autocomplete="off"
+                                       aria-busy="@(busy ? "true" : "false")"
+                                       value="@FormatRangeValue(fullFamilyRange ? null : inc.MaxValue)"
+                                       title="@(busy ? "Applying the range…" : maxIgnored ? "No effect at this value: this pick already matches every value" : "Only match this value or lower")"
+                                       aria-label="@($"Maximum value for {label}")"
+                                       @onchange="e => SetRange(slot, inc, cls, e, min: false, family, tier)" />
+                            </span>
                         }
                         else
                         {
@@ -435,14 +552,8 @@
         }
     };
 
-    /// <summary>
-    /// Prefer the shipped capability table so the box appears immediately and
-    /// drawing a chip never triggers the value corpus. A missing table entry
-    /// falls back to the live probe only after the scope is warm.
-    /// </summary>
-    private bool AcceptsMin(WantedMod pick, string? cls) =>
-        Engine.PrecomputedMinCapability(pick, cls)
-        ?? (Engine.IsValueScopeReady(cls) && Engine.CanApplyMin(pick, cls));
+    private static string? FormatRangeValue(double? value) =>
+        value?.ToString("0.############", CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<string> PickTierLines(ModFamily? family, ModTier tier) =>
         family is { IsUnion: true } or { IsDesecrated: true } or { IsImplicit: true }
@@ -496,20 +607,67 @@
             : (string.Join(" / ", factions), "source-desecrated");
     }
 
-    private async Task SetMin(string? slot, WantedMod pick, string? cls, ChangeEventArgs e)
+    private async Task SetRange(
+        string? slot, WantedMod pick, string? cls, ChangeEventArgs e, bool min,
+        ModFamily? family = null, ModTier? tier = null)
     {
         var text = e.Value?.ToString()?.Trim();
-        double? value = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
-            ? Math.Floor(v)
-            : null;
+        var precision = tier?.Precision ?? Engine.NumericRange(pick, cls)?.Precision ?? 0;
+        double? value = null;
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0)
+        {
+            // Integer stats display whole numbers; decimal stats keep the
+            // game's precision (2.03 stays 2.03).
+            value = precision == 0 ? Math.Floor(v) : v;
+        }
+        var lo = min ? value : pick.MinValue;
+        var hi = min ? pick.MaxValue : value;
+
+        // A family pick with a numeric filter becomes a range pick in place,
+        // so its label, tier marks, and actions use the same representation
+        // as any other range.
+        if (!pick.IsNamePick && pick.VariantModIds is { Count: > 0 } &&
+            family is not null && (lo is not null || hi is not null))
+        {
+            var rangePick = new WantedMod(
+                pick.ModId,
+                MinValue: lo,
+                MaxValue: hi,
+                RangeModIds: family.MemberIds
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToList());
+            _minBusy = pick;
+            await InvokeAsync(StateHasChanged);
+            State.ReplaceInclude(slot, pick, rangePick);
+            _minBusy = null;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        // An exact ranged tier can keep its short affix-name form until the
+        // user actually filters; the first min/max entry converts it to the
+        // equivalent range pick in place.
+        if (pick.IsNamePick && pick.Names is { Count: 1 } &&
+            family is not null && tier is { IsRanged: true })
+        {
+            var rangePick = Engine.TierRangePick(family, tier, up: false);
+            if (rangePick is not null)
+            {
+                _minBusy = pick;
+                await InvokeAsync(StateHasChanged);
+                State.ReplaceInclude(
+                    slot, pick, rangePick with { MinValue = lo, MaxValue = hi });
+                _minBusy = null;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
         // Paint the working state before the (possibly first-use) compile, so
-        // the first minimum never looks like a frozen input.
+        // the first range entry never looks like a frozen input.
         _minBusy = pick;
         await InvokeAsync(StateHasChanged);
-        // A min typed before the background warm-up finishes waits for the
-        // chunked corpus load instead of blocking the UI thread.
-        await Engine.PrewarmValuePathAsync(cls);
-        State.SetMinValue(slot, pick, value);
+        State.SetRange(slot, pick, lo, hi);
         _minBusy = null;
         await InvokeAsync(StateHasChanged);
     }
@@ -536,6 +694,7 @@
     private static string ChipKey(WantedMod pick) => pick switch
     {
         { IsNamePick: true } => $"{pick.ModId}-n-{string.Join('-', pick.Names!)}".Replace(' ', '_'),
+        { IsTierRange: true } => $"{pick.ModId}-r",
         { VariantModIds.Count: > 0 } => $"{pick.ModId}-v",
         _ => pick.ModId,
     };
