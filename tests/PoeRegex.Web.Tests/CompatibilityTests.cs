@@ -39,6 +39,14 @@ public class CompatibilityTests
             Fixture(name), WebJsonContext.Default.WorkbenchSnapshot)!;
 
     [Fact]
+    public void CurrentSnapshots_UseTheRangeAwareSchemaVersion()
+    {
+        var snapshot = WorkbenchSnapshot.Capture(new WorkbenchState());
+        snapshot.Version.Should().Be(7);
+        SnapshotValidator.IsValid(snapshot).Should().BeTrue();
+    }
+
+    [Fact]
     public void PreviousReleasePoe2Snapshot_RestoresAndCompiles()
     {
         var engine = new EngineService();

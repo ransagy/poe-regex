@@ -201,6 +201,11 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   reference a mod that left the catalog are dropped with a visible notice;
   they are not recompiled as internal-id literals. Old raw strings using a
   retired fragment may need to be re-copied.
+- Workbench and share snapshots written from this release use version 7.
+  Older cached clients reject them instead of ignoring `RangeModIds` and
+  silently broadening a tier range. Version 6 links written by the first
+  tier-range release can still broaden in an older client; update or re-share
+  them before opening.
 
 ## Reproduce
 

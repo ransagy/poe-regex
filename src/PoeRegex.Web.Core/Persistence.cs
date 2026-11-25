@@ -18,7 +18,9 @@ public sealed record WorkbenchSnapshot(
     List<string>? ExternalIncludes = null,
     string Game = "poe2")
 {
-    public const int CurrentVersion = 6;
+    // v7 adds MaxValue/RangeModIds. Older cached clients reject v7 instead
+    // of silently broadening a tier-range pick; v6 and older still load here.
+    public const int CurrentVersion = 7;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state, string game = "poe2") => new(
         CurrentVersion,
