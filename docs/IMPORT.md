@@ -206,6 +206,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   silently broadening a tier range. Version 6 links written by the first
   tier-range release can still broaden in an older client; update or re-share
   them before opening.
+- Over-budget multi-slot pastes may union compatible any-of groups. Importing
+  such a string can recompile to a shorter equivalent grouping rather than
+  the exact original grouping; item matching is unchanged. Under-budget
+  strings keep their exact round-trip form.
 
 ## Reproduce
 

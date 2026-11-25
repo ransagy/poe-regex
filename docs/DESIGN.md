@@ -199,6 +199,12 @@ outer loop. It runs at data-build time, never in the browser.
   and min/max; cross-slot union merges the same anchor range only when the
   extra span does not exist for the narrower class. Different or gapped
   ranges stay separate.
+- Over-budget any-of pastes try a second plan: compatible slot groups may be
+  unioned when, for every target class, the union adds no valid catalog span
+  the class did not already allow. Terms that cannot roll on a class are
+  harmless; terms that can must be covered by that class's original
+  constraints. The shortest valid plan wins, and under-budget queries keep
+  their existing form.
 - A finite integer roll set is synthesized through a digit trie (identical
   subtrees merged, consecutive digits compressed). For a fixed-tier family
   this turns 15–35 into `15|[23][05]`; the catalog proof still rejects any

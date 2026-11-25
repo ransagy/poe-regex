@@ -1,0 +1,329 @@
+{
+  "Version": 6,
+  "Mode": "advanced",
+  "SelectedSlot": null,
+  "MultiFocus": "helmet",
+  "Slots": {
+    "weapon": {
+      "ClassId": "Two Hand Mace",
+      "Included": [
+        {
+          "ModId": "LocalIncreasedPhysicalDamagePercent1",
+          "Names": null,
+          "VariantModIds": [
+            "LocalIncreasedPhysicalDamagePercent1",
+            "LocalIncreasedPhysicalDamagePercent2",
+            "LocalIncreasedPhysicalDamagePercent3",
+            "LocalIncreasedPhysicalDamagePercent4",
+            "LocalIncreasedPhysicalDamagePercent5",
+            "LocalIncreasedPhysicalDamagePercent6",
+            "LocalIncreasedPhysicalDamagePercent7",
+            "LocalIncreasedPhysicalDamagePercent8"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "offhand": {
+      "ClassId": "Shield",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "helmet": {
+      "ClassId": "Helmet",
+      "Included": [
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 174,
+          "RangeModIds": [
+            "IncreasedLife10",
+            "IncreasedLife8",
+            "IncreasedLife9"
+          ]
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "body": {
+      "ClassId": "Body Armour",
+      "Included": [
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 214,
+          "RangeModIds": [
+            "IncreasedLife10",
+            "IncreasedLife11",
+            "IncreasedLife12",
+            "IncreasedLife13",
+            "IncreasedLife8",
+            "IncreasedLife9"
+          ]
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "gloves": {
+      "ClassId": "Gloves",
+      "Included": [
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 149,
+          "RangeModIds": [
+            "IncreasedLife8",
+            "IncreasedLife9"
+          ]
+        },
+        {
+          "ModId": "AddedColdDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedColdDamage1",
+            "AddedColdDamage2",
+            "AddedColdDamage3",
+            "AddedColdDamage4",
+            "AddedColdDamage5",
+            "AddedColdDamage6",
+            "AddedColdDamage7",
+            "AddedColdDamage8",
+            "AddedColdDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedFireDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedFireDamage1",
+            "AddedFireDamage2",
+            "AddedFireDamage3",
+            "AddedFireDamage4",
+            "AddedFireDamage5",
+            "AddedFireDamage6",
+            "AddedFireDamage7",
+            "AddedFireDamage8",
+            "AddedFireDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedLightningDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedLightningDamage1",
+            "AddedLightningDamage2",
+            "AddedLightningDamage3",
+            "AddedLightningDamage4",
+            "AddedLightningDamage5",
+            "AddedLightningDamage6",
+            "AddedLightningDamage7",
+            "AddedLightningDamage8",
+            "AddedLightningDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedPhysicalDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedPhysicalDamage1",
+            "AddedPhysicalDamage2",
+            "AddedPhysicalDamage3",
+            "AddedPhysicalDamage4",
+            "AddedPhysicalDamage5",
+            "AddedPhysicalDamage6",
+            "AddedPhysicalDamage7",
+            "AddedPhysicalDamage8",
+            "AddedPhysicalDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "boots": {
+      "ClassId": "Boots",
+      "Included": [
+        {
+          "ModId": "MovementVelocity3",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 20,
+          "MaxValue": 35,
+          "RangeModIds": [
+            "MovementVelocity3",
+            "MovementVelocity4",
+            "MovementVelocity5",
+            "MovementVelocity6"
+          ]
+        },
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 149,
+          "RangeModIds": [
+            "IncreasedLife8",
+            "IncreasedLife9"
+          ]
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "belt": {
+      "ClassId": "Belt",
+      "Included": [
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 174,
+          "RangeModIds": [
+            "IncreasedLife10",
+            "IncreasedLife8",
+            "IncreasedLife9"
+          ]
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "amulet": {
+      "ClassId": "Amulet",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring1": {
+      "ClassId": "Ring",
+      "Included": [
+        {
+          "ModId": "IncreasedLife8",
+          "Names": null,
+          "VariantModIds": null,
+          "MinValue": 100,
+          "MaxValue": 119,
+          "RangeModIds": [
+            "IncreasedLife8"
+          ]
+        },
+        {
+          "ModId": "AddedColdDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedColdDamage1",
+            "AddedColdDamage2",
+            "AddedColdDamage3",
+            "AddedColdDamage4",
+            "AddedColdDamage5",
+            "AddedColdDamage6",
+            "AddedColdDamage7",
+            "AddedColdDamage8",
+            "AddedColdDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedFireDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedFireDamage1",
+            "AddedFireDamage2",
+            "AddedFireDamage3",
+            "AddedFireDamage4",
+            "AddedFireDamage5",
+            "AddedFireDamage6",
+            "AddedFireDamage7",
+            "AddedFireDamage8",
+            "AddedFireDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedLightningDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedLightningDamage1",
+            "AddedLightningDamage2",
+            "AddedLightningDamage3",
+            "AddedLightningDamage4",
+            "AddedLightningDamage5",
+            "AddedLightningDamage6",
+            "AddedLightningDamage7",
+            "AddedLightningDamage8",
+            "AddedLightningDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        },
+        {
+          "ModId": "AddedPhysicalDamage1",
+          "Names": null,
+          "VariantModIds": [
+            "AddedPhysicalDamage1",
+            "AddedPhysicalDamage2",
+            "AddedPhysicalDamage3",
+            "AddedPhysicalDamage4",
+            "AddedPhysicalDamage5",
+            "AddedPhysicalDamage6",
+            "AddedPhysicalDamage7",
+            "AddedPhysicalDamage8",
+            "AddedPhysicalDamage9"
+          ],
+          "MinValue": null,
+          "MaxValue": null,
+          "RangeModIds": null
+        }
+      ],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring2": {
+      "ClassId": "Ring",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    }
+  },
+  "Global": {
+    "ClassId": "",
+    "Included": [],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": [],
+  "Game": "poe2"
+}

@@ -104,7 +104,42 @@ Current planned and parked work. Behavior is documented in
   harness, publishes the JSON/log artifact, and writes a step summary. It is
   observational; the local release-prep run remains the blocking gate.
 
+## Open work index
+
+This is the canonical list. Design details live in the linked docs; this table
+is the status source of truth.
+
+| ID | Item | Status | Notes |
+|---|---|---|---|
+| STR-1 | Any-of union for over-budget pastes | In review | Merge compatible slot groups with a per-class proof; 253→183 and 325→186 on the budget fixtures |
+| STR-2 | Shared-safe fragment selection | Parked | Current multi-class criteria use the global fragment; revisit shorter class-intersection forms |
+| STR-3 | Share payload compaction | Deferred | Token is 828 chars for a typical 10-slot state; not a current constraint |
+| DATA-1 | PoE2 jewels and socket/import/builder model | Parked | Normal/desecrated/crafted jewels; separate item slot/class |
+| DATA-2 | PoE2 Congealed Mist | Parked | After jewel/item-class work |
+| DATA-3 | PoE1 gems | MVP+1 | Copied gem text needs its own corpus/target-model review |
+| DATA-4 | PoE1 flasks/jewels/influenced/crafts/veils | Later phases | See `POE1-SCOPE.md` |
+| PERF-1 | Runtime proof for arbitrary min/max and cross-slot intervals | Parked | Only if observed; release smoke currently clean |
+| UX-1 | Reset workbench scope | Parked | Decide whether UI-local filters/panels reset too |
+| DIST-1 | Browser AOT / smaller publish | Parked | Current interpreter publish is ~25 MB |
+| DIST-2 | Compact/server share links | Parked | Current `#r=` snapshots work |
+| DIST-3 | Accounts / OIDC | Parked | Requires a backend |
+| OPS-1 | Pages middleware vs Cloudflare Access | Parked | Access login/audit versus current simple middleware |
+| OPS-2 | Retire legacy storage keys | Deferred | Keep until a deliberate deprecation window |
+| COMPAT-1 | Older clients and range-aware links | Documented | v7 snapshots reject safely; v6 range links can broaden until re-shared |
+
 ## Next
+
+### String budget
+
+- **STR-1 (in progress).** Over-budget multi-slot pastes may union compatible
+  any-of slot groups. A merged group is accepted only when every target
+  class's valid catalog span set is unchanged. Under-budget queries keep their
+  existing exact, round-trippable form. Fixtures cover the given 253-char
+  Boots/Gloves state and the 325-char variant with the same four damage
+  families on the ring.
+- **STR-2 (parked).** Once the grouping pass settles, revisit shorter
+  shared-safe fragment selection for criteria that span classes. Current
+  behavior uses the global fragment by design.
 
 ### Remaining mod-type scope
 
@@ -246,14 +281,13 @@ catalog/matrix/table/proof rebuild, stability pass, fragment report, and tests.
 
 ### Query compiler
 
-- **Combined-slot fragment middle ground.** A shared criterion across
+- **Combined-slot fragment middle ground (STR-2).** A shared criterion across
   multiple classes now uses the global fragment, which is proven safe across
   the class union, rather than one class's shortest fragment. That is
   intentionally conservative and can be slightly longer than a class-specific
-  minimal form. Parked: revisit only if query-budget pressure returns, and
-  look for a shorter shared-safe form (for example, intersecting the
-  class-safe forms or factoring per-class alternatives). Single-class queries
-  already use the minimal class fragment.
+  minimal form. Revisit shorter shared-safe forms (for example, intersecting
+  the class-safe forms or factoring per-class alternatives) after STR-1.
+  Single-class queries already use the minimal class fragment.
 
 ### Ops decisions
 
