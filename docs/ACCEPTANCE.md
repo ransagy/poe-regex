@@ -124,7 +124,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 139 core + 509 web + 53 data-build; the published
+- Current Release suite: 139 core + 513 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -133,6 +133,24 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   change ~82 ms; longest task ~164 ms with no task above 200 ms. Range
   proofs cache matched catalog lines and safe roll hits, so adding another
   slot to a cross-slot union re-checks the proof instead of rescanning it.
+
+## String budget
+
+- Over-budget multi-slot pastes may union compatible any-of groups. A merge
+  is accepted only when every target class's valid catalog line set is
+  unchanged; under-budget queries keep their existing exact,
+  round-trippable form.
+- The given Boots/Gloves fixture compiles in **183/250** characters (was 253).
+- The same fixture with the four damage families also on the ring compiles in
+  **186/250** characters (was 325).
+- A MatchAll Boots slot does not block the other normal any-of groups; the
+  mixed example compiles in **246/250** with four groups.
+- A narrowed Body Armour life range stays narrow: the union cannot import the
+  Gloves/Ring 120–149 span.
+- The mixed example’s first subsequent pick measured **~62 ms** locally
+  (production baseline **~38 ms**) after reusing the base plan and caching
+  canonical/merge/safety work.
+- Tests: `AnyOfUnionTests`.
 
 ## Performance
 

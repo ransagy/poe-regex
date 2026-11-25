@@ -1126,9 +1126,14 @@ input:disabled { opacity: 0.5; }
 .qactions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.55rem; flex-wrap: wrap; }
 .qcopy-status, .qwarn { font-size: 0.82rem; color: var(--muted); }
 .qdiag { font-size: 0.82rem; color: var(--ember); margin-top: 0.35rem; }
-.qparts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.8rem; margin: 0.55rem 0 0; font-size: 0.82rem; }
-.qparts dt { color: var(--muted); }
-.qparts dd { margin: 0; overflow-wrap: anywhere; }
+.qparts { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); gap: 0.2rem 0.8rem; margin: 0.55rem 0 0; font-size: 0.82rem; align-items: start; }
+.qparts dt { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.qparts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+    .qparts { grid-template-columns: minmax(0, 1fr); }
+    .qparts dt { margin-top: 0.35rem; }
+    .qparts dt:first-child { margin-top: 0; }
+}
 .qexplain { margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px solid var(--line); font-size: 0.84rem; }
 .qexplain-token { display: flex; gap: 0.6rem; align-items: baseline; }
 .qexplain-kind { color: var(--muted); font-size: 0.8rem; }

@@ -45,6 +45,12 @@ public sealed class PasteComposer
     private readonly CompactionEngine _compaction;
     private readonly Explainer _explainer;
     private readonly bool _validateRecall;
+    private readonly Dictionary<string, IReadOnlyList<StatConstraint>> _canonicalCache =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, GroupPlan?> _mergeCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _unionSafetyCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<ValueInterval>> _classSpansCache =
+        new(StringComparer.Ordinal);
 
     public PasteComposer(EngineCorpus corpus, bool validateRecall = true)
         : this(corpus, new CompactionEngine(corpus), validateRecall)
@@ -128,34 +134,119 @@ public sealed class PasteComposer
         if (anchorDiag is not null) diagnostics.Add(anchorDiag);
         ValidateAnchor(anchorInner, scope, diagnostics);
 
-        var groups = new List<PasteGroup>();
-        var blocks = new List<string> { _corpus.Syntax.Quote(anchorInner) };
-        // Group identical criteria (different classes, same mods) into one line.
+        var plans = BuildGroupPlans(merged);
+        var baseBuild = BuildPlan(
+            plans, scope, anchorInner, excluded, keywords, _validateRecall);
+        var best = baseBuild;
+        IReadOnlyList<GroupPlan>? bestPlans = null;
+        // Budget relief only: under-budget queries keep their exact
+        // round-trippable form. Over-budget UI pastes may use a shorter
+        // any-of union when the per-class proof accepts it.
+        if (allowOverflow &&
+            baseBuild.Query.Length > QuerySyntax.MaxCharacterLimit)
+        {
+            var candidates = new List<IReadOnlyList<GroupPlan>> { plans };
+            candidates.AddRange(BuildUnionPlans(plans));
+            foreach (var candidate in candidates.Skip(1))
+            {
+                var built = BuildPlan(
+                    candidate, scope, anchorInner, excluded, keywords,
+                    validateRecall: false);
+                if (built.Unresolved <= best.Unresolved &&
+                    (built.ShapeErrors < best.ShapeErrors ||
+                     (built.ShapeErrors == best.ShapeErrors &&
+                      built.Query.Length < best.Query.Length)))
+                {
+                    best = built;
+                    bestPlans = candidate;
+                }
+            }
+        }
+
+        var result = bestPlans is null
+            ? baseBuild
+            : BuildPlan(
+                bestPlans, scope, anchorInner, excluded, keywords, _validateRecall);
+        diagnostics.AddRange(result.Diagnostics);
+        var limit = QuerySyntax.MaxCharacterLimit;
+        if (result.Query.Length > limit && !allowOverflow)
+            throw new RegexLengthOverflowException(result.Query.Length, limit);
+        return new MultiPasteResult
+        {
+            Query = result.Query,
+            Length = result.Query.Length,
+            Limit = limit,
+            Anchor = anchorInner,
+            Groups = result.Groups,
+            Diagnostics = diagnostics,
+            MergedToAnyClasses = mergedToAnyClasses,
+        };
+    }
+
+    private sealed record GroupPlan(
+        IReadOnlyList<string> Targets,
+        IReadOnlyList<ModifierRequirement> Includes,
+        string Label,
+        IReadOnlyList<IReadOnlyList<ModifierRequirement>>? RequiredGroups = null)
+    {
+        public bool MatchAll => RequiredGroups is { Count: > 0 };
+    }
+
+    private sealed record PlanBuild(
+        string Query,
+        IReadOnlyList<PasteGroup> Groups,
+        IReadOnlyList<CompilerDiagnostic> Diagnostics,
+        int ShapeErrors,
+        int Unresolved);
+
+    private List<GroupPlan> BuildGroupPlans(IReadOnlyList<PasteSlotCriterion> merged)
+    {
+        var plans = new List<GroupPlan>();
         foreach (var bucket in merged.Where(s => s.Includes.Count > 0 || s.MatchAll)
                      .GroupBy(CriterionKey, StringComparer.Ordinal))
         {
-
-            var targets = bucket.Select(s => s.ItemClass).OrderBy(x => x, StringComparer.Ordinal).ToList();
-            var label = string.Join(", ", bucket.Select(s => s.Label).OrderBy(x => x, StringComparer.Ordinal));
-            var others = scope.Where(c => !targets.Contains(c, StringComparer.Ordinal)).ToList();
             var first = bucket.First();
-            IReadOnlyList<IReadOnlyList<ModifierRequirement>> required = first.MatchAll
-                ? first.RequiredGroups!
-                : [first.Includes.Distinct().ToList()];
+            plans.Add(new GroupPlan(
+                bucket.Select(s => s.ItemClass).OrderBy(x => x, StringComparer.Ordinal).ToList(),
+                first.Includes.Distinct().ToList(),
+                string.Join(", ", bucket.Select(s => s.Label).OrderBy(x => x, StringComparer.Ordinal)),
+                first.MatchAll ? first.RequiredGroups : null));
+        }
+        return plans;
+    }
+
+    private PlanBuild BuildPlan(
+        IReadOnlyList<GroupPlan> plans,
+        IReadOnlyList<string> scope,
+        string anchorInner,
+        IEnumerable<ModifierRequirement> excluded,
+        IEnumerable<string>? keywords,
+        bool validateRecall)
+    {
+        var diagnostics = new List<CompilerDiagnostic>();
+        var groups = new List<PasteGroup>();
+        var unresolved = 0;
+        var blocks = new List<string> { _corpus.Syntax.Quote(anchorInner) };
+        foreach (var plan in plans)
+        {
+            var required = plan.MatchAll
+                ? plan.RequiredGroups!
+                : [plan.Includes.Distinct().ToList()];
             foreach (var reqs in required)
             {
                 var frags = new List<string>();
                 var rawFrags = new List<string>();
                 var sources = new List<string>();
-                // A bucket that spans classes must use a fragment proven for
+                // A group that spans classes must use a fragment proven for
                 // every target, not just targets[0]. The global scope is the
                 // union corpus, so its fragment is safe for all of them.
-                var fragmentScope = targets.Count == 1 ? targets[0] : null;
+                var fragmentScope = plan.Targets.Count == 1 ? plan.Targets[0] : null;
                 foreach (var req in reqs.Distinct().ToList())
                 {
                     var frag = FragmentFor(req, fragmentScope, diagnostics);
                     if (frag is null)
                     {
+                        unresolved++;
                         diagnostics.Add(new CompilerDiagnostic(DiagnosticLevel.Warning, "unresolved-modifier",
                             $"Modifier '{req.Value}' could not be resolved; skipped."));
                         continue;
@@ -171,15 +262,19 @@ public sealed class PasteComposer
                 if (frags.Count == 0 && rawFrags.Count == 0) continue;
                 var terms = CompactionEngine.FactorCommonPrefixes(frags).ToList();
                 terms.AddRange(rawFrags);
+                var others = scope.Where(c => !plan.Targets.Contains(c, StringComparer.Ordinal)).ToList();
                 var token = others.Count > 0
                     ? ": (" + ClassAlternation.Build(_corpus, others) + ")|" + string.Join("|", terms)
                     : string.Join("|", terms);
                 var tokenDiag = _corpus.Syntax.ValidateFragment(token);
                 if (tokenDiag is not null) diagnostics.Add(tokenDiag);
-                groups.Add(new PasteGroup(label, targets, token));
+                groups.Add(new PasteGroup(plan.Label, plan.Targets, token));
                 blocks.Add(_corpus.Syntax.Quote(token));
-                if (_validateRecall)
-                    ValidateGroupRecall(token, targets, sources.Distinct(StringComparer.Ordinal).ToList(), label, diagnostics);
+                if (validateRecall)
+                    ValidateGroupRecall(
+                        token, plan.Targets,
+                        sources.Distinct(StringComparer.Ordinal).ToList(),
+                        plan.Label, diagnostics);
             }
         }
 
@@ -208,22 +303,261 @@ public sealed class PasteComposer
         }
 
         var query = string.Join(" ", blocks);
+        var shapeErrors = 0;
         foreach (var shapeError in QueryShape.Validate(query))
+        {
+            shapeErrors++;
             diagnostics.Add(new CompilerDiagnostic(
                 DiagnosticLevel.Warning, "query-shape", shapeError));
-        var limit = QuerySyntax.MaxCharacterLimit;
-        if (query.Length > limit && !allowOverflow)
-            throw new RegexLengthOverflowException(query.Length, limit);
-        return new MultiPasteResult
+        }
+        return new PlanBuild(query, groups, diagnostics, shapeErrors, unresolved);
+    }
+
+    /// <summary>
+    /// Partitions any-of groups into the fewest practical compatible buckets,
+    /// then merges each bucket. A group joins a bucket only when the union
+    /// adds no valid line to any target class. No query is built until the
+    /// partition is known, so an over-budget compile does not compile every
+    /// possible pair.
+    /// </summary>
+    private IEnumerable<IReadOnlyList<GroupPlan>> BuildUnionPlans(
+        IReadOnlyList<GroupPlan> basePlans)
+    {
+        if (basePlans.Count < 2) yield break;
+        // Special-source groups use their own scope rules; keep them as they
+        // are. Ordinary affixes can still union around them.
+        var mergeable = basePlans.Where(CanUnion).ToList();
+        if (mergeable.Count < 2 || !HasSharedFamily(mergeable)) yield break;
+
+        var buckets = new List<List<GroupPlan>>();
+        foreach (var plan in mergeable)
         {
-            Query = query,
-            Length = query.Length,
-            Limit = limit,
-            Anchor = anchorInner,
-            Groups = groups,
-            Diagnostics = diagnostics,
-            MergedToAnyClasses = mergedToAnyClasses,
-        };
+            var placed = false;
+            foreach (var bucket in buckets)
+            {
+                var merged = MergePlans([.. bucket, plan]);
+                if (merged is null || !IsUnionSafe([.. bucket, plan], merged)) continue;
+                bucket.Add(plan);
+                placed = true;
+                break;
+            }
+            if (!placed) buckets.Add([plan]);
+        }
+
+        if (buckets.Count == mergeable.Count) yield break;
+        var mergedPlans = new List<GroupPlan>(basePlans.Count);
+        foreach (var bucket in buckets)
+        {
+            var merged = bucket.Count == 1 ? bucket[0] : MergePlans(bucket);
+            if (merged is null || !IsUnionSafe(bucket, merged)) yield break;
+            mergedPlans.Add(merged);
+        }
+        mergedPlans.AddRange(basePlans.Where(plan => !mergeable.Contains(plan)));
+        mergedPlans.Sort((a, b) => string.CompareOrdinal(a.Targets[0], b.Targets[0]));
+        yield return mergedPlans;
+    }
+
+    private bool CanUnion(GroupPlan plan) =>
+        !plan.MatchAll &&
+        plan.Includes.Count > 0 &&
+        plan.Includes.All(req =>
+            _corpus.FindMod(req.Value) is { } mod &&
+            string.IsNullOrEmpty(mod.Source));
+
+    /// <summary>
+    /// A quick gate before any range proof: at least two groups must share a
+    /// family/pattern. Disjoint class-exclusive sets can still union, but they
+    /// are rare and not worth paying for on every over-budget keystroke.
+    /// </summary>
+    private bool HasSharedFamily(IReadOnlyList<GroupPlan> plans)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var plan in plans)
+        foreach (var req in plan.Includes)
+        {
+            var mod = _corpus.FindMod(req.Value);
+            if (mod is null) continue;
+            var key = (mod.Family ?? "") + "\u0001" +
+                      string.Join("\u0001", mod.StatLines
+                          .Select(line => line.Pattern)
+                          .Distinct(StringComparer.Ordinal)
+                          .OrderBy(pattern => pattern, StringComparer.Ordinal));
+            if (!seen.Add(key)) return true;
+        }
+        return false;
+    }
+
+    private IReadOnlyList<StatConstraint> Canonicalize(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass)
+    {
+        var key = RequirementsKey(requirements, itemClass);
+        if (_canonicalCache.TryGetValue(key, out var cached)) return cached;
+        var result = _compaction.Canonicalize(requirements, itemClass);
+        _canonicalCache[key] = result;
+        return result;
+    }
+
+    private GroupPlan? MergePlans(IReadOnlyList<GroupPlan> plans)
+    {
+        var key = PlanSetKey(plans);
+        if (_mergeCache.TryGetValue(key, out var cached)) return cached;
+        var result = MergePlansCore(plans);
+        _mergeCache[key] = result;
+        return result;
+    }
+
+    private bool IsUnionSafe(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
+    {
+        var key = PlanSetKey(originalPlans) + "\u0004" + PlanKey(merged);
+        if (_unionSafetyCache.TryGetValue(key, out var cached)) return cached;
+        var result = IsUnionSafeCore(originalPlans, merged);
+        _unionSafetyCache[key] = result;
+        return result;
+    }
+
+    private static string RequirementsKey(
+        IReadOnlyList<ModifierRequirement> requirements, string? itemClass) =>
+        (itemClass ?? "") + "\u0001" +
+        string.Join("\u0002", requirements.Select(RequirementKeyForCache));
+
+    private static string RequirementKeyForCache(ModifierRequirement requirement) =>
+        (requirement.IsRegex ? "r" : "m") + "\u0001" +
+        requirement.Value + "\u0001" +
+        (requirement.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
+        (requirement.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
+        string.Join(",", (requirement.RangeModIds ?? [])
+            .OrderBy(id => id, StringComparer.Ordinal));
+
+    private static string PlanKey(GroupPlan plan) =>
+        string.Join(",", plan.Targets) + "\u0001" + plan.Label + "\u0001" +
+        string.Join("\u0002", plan.Includes.Select(RequirementKeyForCache));
+
+    private static string PlanSetKey(IReadOnlyList<GroupPlan> plans) =>
+        string.Join("\u0003", plans.Select(PlanKey).OrderBy(key => key, StringComparer.Ordinal));
+
+    private GroupPlan? MergePlansCore(IReadOnlyList<GroupPlan> plans)
+    {
+        if (plans.Count < 2 || plans.Any(plan => plan.MatchAll)) return null;
+        var requirements = plans.SelectMany(plan => plan.Includes).ToList();
+        if (requirements.Count == 0 ||
+            requirements.Any(req => req.IsRegex || _corpus.FindMod(req.Value) is null))
+            return null;
+
+        var constraints = Canonicalize(requirements, null);
+        if (constraints.Count == 0) return null;
+        var merged = new List<ModifierRequirement>(constraints.Count);
+        foreach (var constraint in constraints)
+        {
+            var requirement = new ModifierRequirement(
+                constraint.AnchorModId,
+                MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
+                MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
+                RangeModIds: constraint.MemberIds);
+            merged.Add(requirement);
+        }
+
+        var targets = plans.SelectMany(plan => plan.Targets)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(target => target, StringComparer.Ordinal)
+            .ToList();
+        return new GroupPlan(
+            targets,
+            merged,
+            string.Join(", ", targets));
+    }
+
+    private bool IsUnionSafeCore(IReadOnlyList<GroupPlan> originalPlans, GroupPlan merged)
+    {
+        foreach (var plan in originalPlans)
+        foreach (var target in plan.Targets)
+        {
+            var original = Canonicalize(plan.Includes, target);
+            var union = Canonicalize(merged.Includes, target);
+            if (!UnionCoversClass(target, original, union)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// For one class, every union constraint that this class can actually roll
+    /// must already be covered by the class's original constraint set. A term
+    /// that is impossible on the class contributes nothing.
+    /// </summary>
+    private bool UnionCoversClass(
+        string itemClass,
+        IReadOnlyList<StatConstraint> original,
+        IReadOnlyList<StatConstraint> union)
+    {
+        foreach (var candidate in union)
+        {
+            var classSpans = ClassSpans(candidate, itemClass);
+            if (classSpans.Count == 0) continue;
+
+            var covered = original.Any(constraint =>
+                constraint.FamilyKey == candidate.FamilyKey &&
+                constraint.Patterns.SequenceEqual(candidate.Patterns, StringComparer.Ordinal));
+            if (candidate.Intervals.Count == 0)
+            {
+                if (covered) continue;
+                return false;
+            }
+
+            var clamped = Intersect(candidate.Intervals, classSpans);
+            if (clamped.Count == 0) continue;
+            var own = original.FirstOrDefault(constraint =>
+                constraint.FamilyKey == candidate.FamilyKey &&
+                constraint.Patterns.SequenceEqual(candidate.Patterns, StringComparer.Ordinal));
+            if (own is null) return false;
+            foreach (var interval in clamped)
+            {
+                if (!own.Intervals.Any(ownInterval => ownInterval.Contains(interval)))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private IReadOnlyList<ValueInterval> ClassSpans(StatConstraint constraint, string itemClass)
+    {
+        var key = constraint.FamilyKey + "\u0001" + itemClass;
+        if (_classSpansCache.TryGetValue(key, out var cached)) return cached;
+        var family = constraint.MemberIds
+            .Select(id => _corpus.FindMod(id))
+            .FirstOrDefault(mod => mod is not null)?.Family ?? "";
+        var intervals = new List<ValueInterval>();
+        foreach (var pattern in constraint.Patterns)
+        foreach (var mod in _corpus.ModsWithPattern(pattern))
+        {
+            if (!mod.Classes.Contains(itemClass, StringComparer.Ordinal)) continue;
+            if (!string.IsNullOrEmpty(family) &&
+                !string.Equals(mod.Family, family, StringComparison.Ordinal))
+                continue;
+            foreach (var line in mod.StatLines)
+            {
+                if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal)) continue;
+                if (line.MaxValue < line.MinValue) continue;
+                if (line.MinValue == 0 && line.MaxValue == 0) continue;
+                intervals.Add(new ValueInterval(line.MinValue, line.MaxValue));
+            }
+        }
+        var result = ConstraintCanonicalizer.MergeIntervals(intervals);
+        _classSpansCache[key] = result;
+        return result;
+    }
+
+    private static IReadOnlyList<ValueInterval> Intersect(
+        IReadOnlyList<ValueInterval> left,
+        IReadOnlyList<ValueInterval> right)
+    {
+        var result = new List<ValueInterval>();
+        foreach (var a in left)
+        foreach (var b in right)
+        {
+            var lo = Math.Max(a.Lo, b.Lo);
+            var hi = Math.Min(a.Hi, b.Hi);
+            if (hi >= lo - 1e-9) result.Add(new ValueInterval(lo, hi));
+        }
+        return ConstraintCanonicalizer.MergeIntervals(result);
     }
 
     /// <summary>One slot whose only include is a tier range.</summary>
@@ -247,7 +581,7 @@ public sealed class PasteComposer
         if (slot.Includes.Any(req =>
                 req.IsRegex || _corpus.FindMod(req.Value) is null))
             return slot;
-        var constraints = _compaction.Canonicalize(slot.Includes, slot.ItemClass);
+        var constraints = Canonicalize(slot.Includes, slot.ItemClass);
         if (constraints.Count == 0) return slot;
         var requirements = constraints.Select(constraint => new ModifierRequirement(
             constraint.AnchorModId,
