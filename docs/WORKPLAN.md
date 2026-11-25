@@ -119,14 +119,14 @@ socket/import/builder model. The coverage table below is the reference.
 Scoped in [`POE1-SCOPE.md`](POE1-SCOPE.md) and shipping with the current
 release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
-- Catalog: 23 equipment classes, 1,612 mods (1,200 normal, 179 implicit,
+- Catalog: 23 equipment classes, 1,611 mods (1,200 normal, 178 implicit,
   233 corrupted).
-- Exact table: 1,585 scopes, 0 unresolved; every entry verified strict over
+- Exact table: 1,584 scopes, 0 unresolved; every entry verified strict over
   the generated PoE1 foreign-line corpus.
 - Data: `data/repoe.manifest.json` classifies all 90 root-export entries;
-  `data/poe1.snapshot.json` pins the four used inputs. The current 3.30.0.2
-  snapshot uses the secondary ExileData export while RePoE remains on
-  3.29.3.6; see [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
+  `data/poe1.snapshot.json` pins the seven used inputs. The current 3.30.0.4
+  snapshot uses the root RePoE export; see
+  [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md).
   `poe1-build`, `poe1-matrix`, and `poe1-status` regenerate catalog, table,
   proof, and status.
 - Web: game switch, lazy PoE1 data load/warm, per-game workbench and saved

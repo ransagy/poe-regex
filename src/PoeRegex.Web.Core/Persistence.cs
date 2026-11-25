@@ -18,7 +18,9 @@ public sealed record WorkbenchSnapshot(
     List<string>? ExternalIncludes = null,
     string Game = "poe2")
 {
-    public const int CurrentVersion = 6;
+    // v7 adds MaxValue/RangeModIds. Older cached clients reject v7 instead
+    // of silently broadening a tier-range pick; v6 and older still load here.
+    public const int CurrentVersion = 7;
 
     public static WorkbenchSnapshot Capture(WorkbenchState state, string game = "poe2") => new(
         CurrentVersion,
@@ -31,15 +33,34 @@ public sealed record WorkbenchSnapshot(
         state.ExternalIncludes.ToList(),
         game);
 
-    /// <summary>Restore with light validation (unknown modes/slots/classes are dropped).</summary>
-    public static void Restore(WorkbenchState state, WorkbenchSnapshot snap) =>
+    /// <summary>
+    /// Restore with light validation (unknown modes/slots/classes are dropped).
+    /// When a catalog lookup is supplied, picks and exclusions whose mod ids
+    /// no longer exist are dropped and returned so the caller can explain.
+    /// </summary>
+    public static IReadOnlyList<string> Restore(
+        WorkbenchState state,
+        WorkbenchSnapshot snap,
+        Func<string, bool>? knownMod = null,
+        Func<string, bool>? knownExclusion = null)
+    {
+        var removed = new List<string>();
         // One batch: a single Changed fires when the state is whole again, so
         // the persistence listener saves the rebuilt snapshot — never a
         // half-applied one with the backpack still empty.
-        state.WithSuppressedNotifications(() => RestoreCore(state, snap));
+        state.WithSuppressedNotifications(() =>
+            RestoreCore(state, snap, removed, knownMod, knownExclusion));
+        return Removed(removed);
+    }
 
     /// <summary>Restores modes, classes and picks only; the backpack stays as it is.</summary>
-    public static void RestoreCriteria(WorkbenchState state, WorkbenchSnapshot snap) =>
+    public static IReadOnlyList<string> RestoreCriteria(
+        WorkbenchState state,
+        WorkbenchSnapshot snap,
+        Func<string, bool>? knownMod = null,
+        Func<string, bool>? knownExclusion = null)
+    {
+        var removed = new List<string>();
         state.WithSuppressedNotifications(() =>
         {
             foreach (var crit in state.Slots.Values)
@@ -48,8 +69,13 @@ public sealed record WorkbenchSnapshot(
                 crit.Excluded.Clear();
                 crit.MatchAll = false;
             }
-            RestoreCore(state, snap, items: false);
+            RestoreCore(state, snap, removed, knownMod, knownExclusion, items: false);
         });
+        return Removed(removed);
+    }
+
+    private static IReadOnlyList<string> Removed(List<string> removed) =>
+        removed.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToList();
 
     /// <summary>Maps retired mode names onto the two-mode model.</summary>
     private static (string Mode, string? Focus) ModeOf(WorkbenchSnapshot snap) => snap.Mode switch
@@ -61,7 +87,13 @@ public sealed record WorkbenchSnapshot(
         _ => ("simple", null),
     };
 
-    private static void RestoreCore(WorkbenchState state, WorkbenchSnapshot snap, bool items = true)
+    private static void RestoreCore(
+        WorkbenchState state,
+        WorkbenchSnapshot snap,
+        List<string>? removed = null,
+        Func<string, bool>? knownMod = null,
+        Func<string, bool>? knownExclusion = null,
+        bool items = true)
     {
         var (mode, focus) = ModeOf(snap);
         try { state.SetMode(mode); } catch (ArgumentOutOfRangeException) { /* keep default */ }
@@ -76,16 +108,18 @@ public sealed record WorkbenchSnapshot(
             var mine = state.CriteriaFor(slot);
             if (crit.ClassId.Length > 0) mine.ClassId = crit.ClassId;
             mine.Included.Clear();
-            mine.Included.AddRange(Picks(snap, crit.Included));
+            mine.Included.AddRange(Picks(snap, crit.Included, knownMod, removed));
             mine.Excluded.Clear();
-            mine.Excluded.AddRange(crit.Excluded.Where(e => e.Length > 0));
+            mine.Excluded.AddRange(
+                KnownExclusions(crit.Excluded, knownExclusion ?? knownMod, removed));
             mine.MatchAll = crit.MatchAll;
             mine.NormalizeMatchAll();
         }
         state.Global.Included.Clear();
-        state.Global.Included.AddRange(Picks(snap, snap.Global.Included));
+        state.Global.Included.AddRange(Picks(snap, snap.Global.Included, knownMod, removed));
         state.Global.Excluded.Clear();
-        state.Global.Excluded.AddRange(snap.Global.Excluded.Where(e => e.Length > 0));
+        state.Global.Excluded.AddRange(
+            KnownExclusions(snap.Global.Excluded, knownExclusion ?? knownMod, removed));
         state.Global.MatchAll = snap.Global.MatchAll;
         state.Global.NormalizeMatchAll();
         state.ExternalIncludes.Clear();
@@ -125,9 +159,31 @@ public sealed record WorkbenchSnapshot(
         state.TestItems.AddRange(placed);
     }
 
-    /// <summary>Snapshots before v4 carry floors from the retired min-roll box that nobody set on purpose; drop them, and any floor/ceiling out of range.</summary>
-    private static IEnumerable<WantedMod> Picks(WorkbenchSnapshot snap, IEnumerable<WantedMod> picks) =>
+    /// <summary>
+    /// Snapshots before v4 carry floors from the retired min-roll box that
+    /// nobody set on purpose; drop them, and any floor/ceiling out of range.
+    /// Picks with ids that no longer exist are dropped instead of being
+    /// compiled as raw literals.
+    /// </summary>
+    private static IEnumerable<WantedMod> Picks(
+        WorkbenchSnapshot snap,
+        IEnumerable<WantedMod> picks,
+        Func<string, bool>? knownMod,
+        List<string>? removed) =>
         picks.Where(m => m.ModId.Length > 0)
+            .Where(m =>
+            {
+                if (knownMod is null) return true;
+                if (m.IsRawText) return true;
+                var known =
+                    knownMod(m.ModId) &&
+                    (m.VariantModIds is not { Count: > 0 } variants ||
+                     variants.All(knownMod)) &&
+                    (m.RangeModIds is not { Count: > 0 } rangeIds ||
+                     rangeIds.All(knownMod));
+                if (!known) removed?.Add(m.ModId);
+                return known;
+            })
             .Select(m =>
             {
                 var min = m.MinValue;
@@ -138,6 +194,23 @@ public sealed record WorkbenchSnapshot(
                     min = max = null;
                 return m with { MinValue = min, MaxValue = max };
             });
+
+    private static IEnumerable<string> KnownExclusions(
+        IEnumerable<string> exclusions,
+        Func<string, bool>? knownMod,
+        List<string>? removed)
+    {
+        foreach (var exclusion in exclusions)
+        {
+            if (exclusion.Length == 0) continue;
+            if (knownMod is not null && !RawExclusion.IsRaw(exclusion) && !knownMod(exclusion))
+            {
+                removed?.Add(exclusion);
+                continue;
+            }
+            yield return exclusion;
+        }
+    }
 
     /// <summary>True when any already-placed item shares a cell with this one.</summary>
     private static bool Overlaps(IReadOnlyList<TestItem> placed, TestItem item)

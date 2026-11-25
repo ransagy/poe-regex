@@ -1,0 +1,28 @@
+[
+  {
+    "Name": "Legacy boots",
+    "SavedAt": "2026-11-20T12:00:00+00:00",
+    "Snapshot": {
+      "Version": 6,
+      "Mode": "simple",
+      "SelectedSlot": null,
+      "MultiFocus": null,
+      "Slots": {},
+      "Global": {
+        "ClassId": "",
+        "Included": [
+          {
+            "ModId": "MovementVelocity1",
+            "Names": ["Runner's"]
+          }
+        ],
+        "Excluded": [],
+        "MatchAll": false
+      },
+      "TestItems": [],
+      "ExternalIncludes": [],
+      "Game": "poe2"
+    },
+    "Game": "poe2"
+  }
+]

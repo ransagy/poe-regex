@@ -20,7 +20,7 @@ namespace PoeRegex.Data.Build;
 ///   dotnet run -- fetch [--refresh]
 ///   dotnet run -- data-audit [--check] [--out report.md]
 ///   dotnet run -- common-picks [--check] [--table]
-///   dotnet run -- poe1-fetch [--source repoe|exiledata] [--version 3.30.0.2] [--refresh]
+///   dotnet run -- poe1-fetch [--source repoe|exiledata] [--version <patch>] [--refresh]
 ///   dotnet run -- poe1-build [--raw data/raw/poe1]
 ///   dotnet run -- poe1-matrix [--from-scratch]
 ///   dotnet run -- poe1-status [--check]
@@ -331,7 +331,6 @@ public static class Program
         var catalogPath = GetValue(opts, "--catalog", CatalogPath);
         var vendorPath = GetValue(opts, "--vendor", VendorPath);
         var tablePath = GetValue(opts, "--table", TablePath);
-        var corpus = CorpusLoader.Load(catalogPath, vendorPath);
         if (!File.Exists(tablePath))
         {
             Console.Error.WriteLine($"table not found: {tablePath}");
@@ -345,6 +344,7 @@ public static class Program
             Console.Error.WriteLine($"table could not be read: {tablePath}");
             return 1;
         }
+        var corpus = CorpusLoader.Load(catalogPath, vendorPath, existing);
         var tierData = TierRangeBuilder.Build(corpus);
         var ranges = tierData.Fragments;
         var table = new FragmentTable
@@ -515,8 +515,17 @@ public static class Program
         var groups = ClassGroupOptimizer.Build(
             corpus, inGameWithMods.Select(c => c.Id).ToList());
 
+        var exactTable = new FragmentTable
+        {
+            Game = catalog.Game,
+            DataVersion = catalog.DataVersion,
+            TargetModel = FragmentTable.AdvancedRanges,
+            Global = global,
+            ByClass = byClass,
+        };
+        var tableCorpus = CorpusLoader.Load(catalogPath, vendorPath, exactTable);
         var compiler = new PoeRegexCompiler(corpus);
-        var tierData = TierRangeBuilder.Build(corpus);
+        var tierData = TierRangeBuilder.Build(tableCorpus);
         var table = new FragmentTable
         {
             Game = catalog.Game,

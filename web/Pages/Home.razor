@@ -293,7 +293,18 @@
             _engineStatus = $"Engine ready, {Engine.InGameClasses().Count()} item classes";
             var saved = await Persistence.LoadAsync(Games.Current);
             if (saved is not null)
-                WorkbenchSnapshot.Restore(State, saved);
+            {
+                var removed = WorkbenchSnapshot.Restore(
+                    State, saved,
+                    id => Engine.FindMod(id) is not null,
+                    Engine.IsKnownExclusion);
+                if (removed.Count > 0)
+                {
+                    _notice = RetiredNotice(removed.Count);
+                    await Persistence.SaveAsync(
+                        WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
+                }
+            }
             else if (Games.Current == "poe1")
                 State.Reset("poe1");
             // Silently refresh builder-assembled items against the current catalog so
@@ -372,7 +383,10 @@
                 _savedPicksVersion++;
             if (shared.Game != Games.Current)
                 await Games.SwitchAsync(shared.Game);
-            WorkbenchSnapshot.RestoreCriteria(State, shared);
+            var removed = WorkbenchSnapshot.RestoreCriteria(
+                State, shared,
+                id => Engine.FindMod(id) is not null,
+                Engine.IsKnownExclusion);
             // Persist before announcing the handoff so another tab cannot
             // reload into the previous workbench.
             await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
@@ -380,6 +394,7 @@
             _notice = hadPicks
                 ? "Opened shared picks. Your earlier picks are saved under Saved picks."
                 : "Opened shared picks.";
+            if (removed.Count > 0) _notice += " " + RetiredNotice(removed.Count);
         }
         finally
         {
@@ -451,11 +466,16 @@
         _savedPicksVersion++;
         _warmedValueKeys.Clear();
         _warmScheduled = false;
+        var removed = Games.TakeRemovedPicks();
+        if (removed.Count > 0) _notice = RetiredNotice(removed.Count);
         foreach (var item in State.TestItems)
             item.Reheal(Engine);
         Recompute();
         InvokeAsync(StateHasChanged);
     }
+
+    private static string RetiredNotice(int count) =>
+        $"{count} saved pick{(count == 1 ? "" : "s")} referenced a mod that is no longer in the current catalog and was removed.";
 
     private void CloseImport() => _importOpen = false;
     private void CloseQueryImport() => _queryImportOpen = false;

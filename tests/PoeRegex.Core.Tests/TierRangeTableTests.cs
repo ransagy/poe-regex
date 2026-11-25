@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using PoeRegex.Core.Compilation;
 
 namespace PoeRegex.Core.Tests;
@@ -52,5 +53,20 @@ public class TierRangeTableTests
             [(value, same)], 0, itemClass, ["\u0001% increased Movement Speed"]);
         corpus.TryPrecomputedRangeFragment(key, out var fragment).Should().BeTrue();
         fragment.Should().Be(expected);
+    }
+
+    [Fact]
+    public void RangedTierRange_UsesTheDisplayedRoll_NotARangeEndpoint()
+    {
+        var corpus = RealCatalog.Corpus();
+        const string pattern = "\u0001% increased Armour";
+        var key = CompactionEngine.RangePlanKey(
+            pattern, [(21d, 26d)], 0, null, [pattern]);
+
+        corpus.TryPrecomputedRangeFragment(key, out var fragment).Should().BeTrue();
+        Regex.IsMatch("21(18-22)% increased Armour", fragment!).Should().BeTrue();
+        Regex.IsMatch("26(23-28)% increased Armour", fragment!).Should().BeTrue();
+        Regex.IsMatch("30(27-32)% increased Armour", fragment!).Should().BeFalse(
+            "27 is a range endpoint, not the displayed roll");
     }
 }

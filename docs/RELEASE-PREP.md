@@ -97,9 +97,9 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
 - [ ] For PoE1 data changes, refresh the upstream export, rebuild, and verify:
 
   ```sh
-  # Use --source repoe once the primary export is current.
+  # Use --source exiledata only while RePoE lags the live patch.
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch \
-    --source exiledata --version 3.30.0.2 --refresh
+    --source repoe --refresh
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
   dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest
@@ -108,7 +108,7 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   When switching between RePoE and ExileData, run `poe1-compare` against the
   previous catalog and review the diff before committing.
 
-  Required: 1,585 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
+  Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
   `proof.failed: 0`. Copy the updated catalog/table/corpus into
   `web/wwwroot/data/poe1/`.
 
@@ -137,7 +137,31 @@ source of truth.
 - [ ] Keep the full report outside the repository and outside the PR. Do not
   commit, attach, link, or paste it; it is a local/CI release gate only.
 
-## 4. Tests and proof
+## 4. Compatibility
+
+Run when the catalog, pick schema, share codec, or query import changed.
+
+- [ ] Keep the previous shipped release fixtures under
+  `tests/PoeRegex.Web.Tests/Fixtures/Compatibility/`: workbench and saved-pick
+  JSON, share tokens, and sample query strings. Never regenerate them from the
+  branch under test.
+- [ ] Run the compatibility tests:
+
+  ```sh
+  dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release \
+    --filter FullyQualifiedName~CompatibilityTests
+  ```
+
+- [ ] Confirm old snapshots restore and recompile; retired mod ids are dropped
+  and reported, never compiled as internal ids.
+- [ ] Confirm old query strings either reconstruct or fail closed with
+  diagnostics; a retired fragment must not be reinterpreted as a different
+  mod silently.
+- [ ] If the snapshot schema changed, test an older cached client: it must
+  reject or visibly degrade instead of silently broadening a tier range. Open
+  one old and one new share link in the preview after a hard reload.
+
+## 5. Tests and proof
 
 - [ ] Run the full suite in Release:
 
@@ -157,7 +181,7 @@ source of truth.
   `poe1-matrix --from-scratch`, and `poe1-status --check --check-shortest`.
   If the source changed, run `poe1-compare` against the previous catalog.
 
-## 5. Web build and PWA
+## 6. Web build and PWA
 
 Run when the web app, shell, service worker, or data/table changed.
 
@@ -177,7 +201,7 @@ Run when the web app, shell, service worker, or data/table changed.
   the page, the cache has the shell and framework, and the offline reload
   boots.
 
-## 6. Performance
+## 7. Performance
 
 Run when data/table size or web code changed.
 
@@ -197,7 +221,7 @@ Run when data/table size or web code changed.
   It uploads the JSON/log and writes a step summary, but it is observational;
   the local run above remains the blocking gate.
 
-## 7. Merge
+## 8. Merge
 
 - [ ] All PRs are open, non-draft, and `CLEAN` / `MERGEABLE`.
 - [ ] Link the stack when there is more than one PR:
@@ -226,7 +250,7 @@ Run when data/table size or web code changed.
 
 - [ ] Confirm branch protection and CI passed on `main`.
 
-## 8. Production
+## 9. Production
 
 - [ ] Get explicit approval for the production deployment.
 - [ ] Run **Actions → deploy-production → Run workflow** from `main`.

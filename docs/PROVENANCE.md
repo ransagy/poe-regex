@@ -41,13 +41,13 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    CLI and web assemblies at build time, and
    `data/catalogs/poe1.catalog.json`, served lazily by the web app from
    `web/wwwroot/data/poe1/`. The PoE1 catalog covers normal equipment:
-   1,200 normal affixes, 179 base implicits, and 233 corrupted mods. The
-   current PoE1 3.30.0.2 catalog uses the secondary ExileData export while
-   RePoE remains on 3.29.3.6; the source and move-back procedure are in
-   [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md). The small
+   1,200 normal affixes, 178 base implicits, and 233 corrupted mods. The
+   current PoE1 3.30.0.4 catalog uses the root RePoE export; the source-switch
+   procedure is in [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md). The small
    `data/catalogs/poe1.mod-text-fallback.json` map supplies RePoE 3.29 text
-   for 21 records where ExileData's rendered text is null or incomplete; it is
-   used only for ExileData builds.
+   for 21 records where an ExileData snapshot renders text as null or
+   incomplete; it is ignored for RePoE builds and retained for future
+   fallbacks.
    They contain item class names, mod ids and affix names, generation type,
    source (`desecrated`, `implicit`, `corrupted`, `augment`, or empty for normal
    explicit affixes), augment type/target, family, required level,
@@ -61,7 +61,7 @@ exports, wiki/forum/guide text, or any content under a non-permissive license.
    without a positive base/spawn reference are excluded.
    `poe2.fragments.json` and `poe1.fragments.json` are the exact
    shortest-form tables derived from the same catalogs plus their foreign
-   corpora. PoE1 has 1,585 scopes and 0 unresolved; its proof includes the
+   corpora. PoE1 has 1,584 scopes and 0 unresolved; its proof includes the
    captured `poe1.safety-items.txt` item.
 6. **Vendor/stash safety corpus** — `poe2.vendor-corpus.json` and
    `poe1.vendor-corpus.json` are derived from the same raw exports. It adds the searchable line text that the selectable
@@ -98,7 +98,7 @@ and a `data/repoe.snapshot.json` with the download date, sizes and SHA-256
 hashes. The PoE1 snapshot (`data/poe1.snapshot.json`) records the selected
 source (`repoe` or `exiledata`), its version, generation time, and every used
 file's size and SHA-256. `build` records the snapshot's `dataVersion` as the
-catalog version (PoE2 currently `2026-11-08`; PoE1 `3.30.0.2`). The
+catalog version (PoE2 currently `2026-11-25`; PoE1 `3.30.0.4`). The
 manifest-backed audit checks the published RePoE file list before a refresh.
 This identifies the raw export, not the derived fragment table or solver
 revision; the candidate status records the table-generation time and matrix
@@ -112,7 +112,7 @@ dotnet run --project tools/PoeRegex.Data.Build -- corpus
 dotnet run --project tools/PoeRegex.Data.Build -- matrix-solve --from-scratch
 
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-fetch \
-  --source exiledata --version 3.30.0.2 --refresh
+  --source repoe --refresh
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-build
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-matrix --from-scratch
 dotnet run --project tools/PoeRegex.Data.Build -- poe1-status --check --check-shortest

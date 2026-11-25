@@ -33,18 +33,17 @@ RePoE augment lines, but the catalog is built from RePoE only.
 
 The PoE1 root export publishes generated index pages (`poe1.html`) rather than
 a browsable directory tree; `data-audit` reads that index. All 90 entries are
-classified (`used`, `known-unused`, or `not-relevant`). The RePoE fetch pins
-all seven `used` files; the current snapshot pins the four files the builder
-actually reads.
+classified (`used`, `known-unused`, or `not-relevant`). The current PoE1
+3.30.0.4 snapshot pins all seven `used` files; the builder reads four of them.
 
 ### Secondary source
 
 When RePoE lags a patch, `poe1-fetch --source exiledata --version <patch>`
 uses the compatible [ExileData](https://exiledata.dev) export
 (<https://data.exiledata.dev/poe1/>). ExileData publishes the same game-client
-files in the same shapes; the current 3.30.0.2 snapshot uses its four used
-files. See [`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md) for the source
-switch, comparison, and move-back procedure.
+files in the same shapes and supplies the four builder inputs. See
+[`POE1-DATA-SOURCES.md`](POE1-DATA-SOURCES.md) for the source switch,
+comparison, and move-back procedure.
 
 Rebuild with:
 

@@ -1,26 +1,26 @@
 {
   "game": "poe1",
-  "dataVersion": "3.30.0.2",
+  "dataVersion": "3.30.0.4",
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-15 17:23:03Z",
-  "matrixGenerated": "2026-11-15 17:18:58Z",
+  "generatedAt": "2026-11-25 13:43:05Z",
+  "matrixGenerated": "2026-11-25 13:18:26Z",
   "files": {
     "catalog": {
       "path": "data/catalogs/poe1.catalog.json",
-      "bytes": 767528,
-      "sha256": "7e3b7d44a29eee1b5e7dc572e5392f32728cee7e697576e673c1380c516920f0"
+      "bytes": 767611,
+      "sha256": "d474aa3b17a33b3b12589e0e101acec752c5e27ac2bfffb52a4d07249252707f"
     },
     "matrix": {
       "path": "docs/CANDIDATE-MATRIX-poe1.html",
-      "bytes": 576255,
-      "sha256": "3fc35b2e7336ec60d43d757e50289514db2fa24b9a2ce65685749a8f04f562b7"
+      "bytes": 576610,
+      "sha256": "2d1ed026d49d908d7f1c7bf6e187d07324dba20daf1f13c10ac3143c3b7c2da0"
     },
     "table": {
       "path": "data/catalogs/poe1.fragments.json",
-      "bytes": 95496,
-      "sha256": "93ad828a36679ca67ab18c7dd5cd5331e6b493dffc21e6bdfd8350cc0d314522"
+      "bytes": 1711119,
+      "sha256": "2099972cd7053f2f6abd01b4c461117b0e1b4a5575415c47dedc4f99701e0f93"
     }
   },
   "matrix": {
@@ -28,9 +28,9 @@
     "patterns": 477,
     "scopes": 1311,
     "coverage": {
-      "class/strict": 531,
+      "class/strict": 532,
       "global/strict": 477,
-      "per-class/strict": 303
+      "per-class/strict": 302
     },
     "bounds": {
       "250": 1311
@@ -67,7 +67,7 @@
   "table": {
     "global": 367,
     "classes": 23,
-    "classFragments": 1218,
+    "classFragments": 1217,
     "unresolvedGlobal": 0,
     "unresolvedClass": 0,
     "classAnchors": 23,
@@ -83,9 +83,9 @@
       "path": "docs/CANDIDATE-PROOF-poe1.json",
       "grammarVersion": "quoted-shortest-v1",
       "targetModel": "advanced-ranges-v1",
-      "matrixSha256": "3fc35b2e7336ec60d43d757e50289514db2fa24b9a2ce65685749a8f04f562b7",
-      "checkedScopes": 1918,
-      "workScopes": 1918,
+      "matrixSha256": "2d1ed026d49d908d7f1c7bf6e187d07324dba20daf1f13c10ac3143c3b7c2da0",
+      "checkedScopes": 1917,
+      "workScopes": 1917,
       "failed": 0,
       "proven": true
     }

@@ -38,8 +38,8 @@ dotnet run --project web/web.csproj
 The app loads the embedded PoE2 catalog and exact fragment table on boot. The
 PoE1 catalog, table, and foreign corpus live under `wwwroot/data/poe1/` and
 are fetched only when PoE1 is first opened (or when it was the last game).
-The current PoE1 snapshot is ExileData 3.30.0.2, used as the secondary
-compatible source while RePoE catches up; see
+The current PoE1 snapshot is RePoE 3.30.0.4; ExileData remains the compatible
+fallback when RePoE lags a patch. See
 [`POE1-DATA-SOURCES.md`](../docs/POE1-DATA-SOURCES.md).
 Compilation is local table lookup; suffix indexes for explain are built lazily
 on first use (~5 ms warm, ~165 ms cold in the interpreter build).
@@ -261,8 +261,8 @@ cd /tmp/webpub/wwwroot && python3 -m http.server 8080
 - **PoE1 is a separate game profile.** The top-bar switch stores
   the last game and keeps one workbench and saved-picks set per game; a
   dimmed overlay covers the page while game data loads. The PoE1 catalog has
-  23 equipment classes and 1,612 mods (1,200 normal, 179 base implicit, 233
-  corrupted). Its exact table has 1,585 scopes (367 global, 1,218 class
+  23 equipment classes and 1,611 mods (1,200 normal, 178 base implicit, 233
+  corrupted). Its exact table has 1,584 scopes (367 global, 1,217 class
   entries), 0 unresolved, and every entry is strict over the generated PoE1
   foreign corpus (`data/catalogs/poe1.vendor-corpus.json`) plus the captured
   `data/catalogs/poe1.safety-items.txt` item. Class anchors are at least two

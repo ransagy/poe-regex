@@ -1,4 +1,5 @@
 @using PoeRegex.Web.Core
+@inject EngineService Engine
 @inject web.Services.PersistenceService Persistence
 @inject web.Services.GameSession Games
 @inject NavigationManager Nav
@@ -29,7 +30,14 @@
                        value="@_name" @oninput="e => _name = e.Value?.ToString() ?? string.Empty" />
                 <button type="submit" class="btn btn-primary" id="saved-pick-save" disabled="@(!HasPicks)">Save</button>
             </form>
-            @if (_undo is { } undo)
+            @if (_loadNotice is { } loadNotice)
+            {
+                <p class="saved-picks-undo" role="status">
+                    @loadNotice
+                    <button type="button" class="link" id="saved-pick-undo" @onclick="Undo">Undo</button>
+                </p>
+            }
+            else if (_undo is { } undo)
             {
                 <p class="saved-picks-undo" role="status">
                     @undo.Message
@@ -77,6 +85,7 @@
     private bool _open;
     private string _name = "";
     private string? _shareState;
+    private string? _loadNotice;
     private UndoStep? _undo;
     private int _loadedVersion = -1;
     private int _shareStamp;
@@ -135,6 +144,7 @@
         }
         _open = true;
         _undo = null;
+        _loadNotice = null;
         _focusPending = true;
         var savedPicks = await Persistence.LoadSavedPicksAsync(Games.Current);
         if (!_disposed) _savedPicks = savedPicks;
@@ -144,6 +154,7 @@
     {
         if (!_open) return;
         _open = false;
+        _loadNotice = null;
         _restoreFocus = true;
     }
 
@@ -165,14 +176,21 @@
         await Persistence.SaveSavedPicksAsync(_savedPicks, Games.Current);
         if (_disposed) return;
         _undo = new UndoStep($"Saved “{name}”.", before, null);
+        _loadNotice = null;
         _name = "";
     }
 
     private void Load(SavedPick savedPick)
     {
         var before = SnapshotCodec.CaptureCriteria(State, Games.Current);
-        WorkbenchSnapshot.RestoreCriteria(State, savedPick.Snapshot);
+        var removed = WorkbenchSnapshot.RestoreCriteria(
+            State, savedPick.Snapshot,
+            id => Engine.FindMod(id) is not null,
+            Engine.IsKnownExclusion);
         _undo = new UndoStep($"Loaded “{savedPick.Name}”.", _savedPicks.ToList(), before);
+        _loadNotice = removed.Count == 0
+            ? null
+            : $"Loaded “{savedPick.Name}”. {removed.Count} saved pick{(removed.Count == 1 ? "" : "s")} referenced a mod that is no longer in the current catalog and was removed.";
     }
 
     private async Task Delete(SavedPick savedPick)
@@ -188,10 +206,15 @@
     private async Task Undo()
     {
         if (_disposed || _undo is null) return;
-        if (_undo.Picks is { } picks) WorkbenchSnapshot.RestoreCriteria(State, picks);
+        if (_undo.Picks is { } picks)
+            WorkbenchSnapshot.RestoreCriteria(
+                State, picks,
+                id => Engine.FindMod(id) is not null,
+                Engine.IsKnownExclusion);
         _savedPicks = _undo.SavedPicks;
         await Persistence.SaveSavedPicksAsync(_savedPicks, Games.Current);
         if (!_disposed) _undo = null;
+        _loadNotice = null;
     }
 
     private async Task Share()

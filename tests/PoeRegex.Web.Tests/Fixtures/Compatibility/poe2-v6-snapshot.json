@@ -1,0 +1,34 @@
+{
+  "Version": 6,
+  "Mode": "advanced",
+  "SelectedSlot": null,
+  "MultiFocus": "boots",
+  "Slots": {
+    "boots": {
+      "ClassId": "Boots",
+      "Included": [
+        {
+          "ModId": "MovementVelocity1",
+          "Names": ["Runner's"]
+        },
+        {
+          "ModId": "IncreasedLife6",
+          "VariantModIds": ["IncreasedLife6"],
+          "MinValue": 50,
+          "MaxValue": 89
+        }
+      ],
+      "Excluded": ["ManaRegeneration1"],
+      "MatchAll": true
+    }
+  },
+  "Global": {
+    "ClassId": "",
+    "Included": [],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": ["Item Class: (am|ri|be|Cross)"],
+  "Game": "poe2"
+}

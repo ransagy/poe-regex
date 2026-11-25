@@ -1,0 +1,23 @@
+{
+  "Version": 6,
+  "Mode": "simple",
+  "SelectedSlot": null,
+  "MultiFocus": null,
+  "Slots": {},
+  "Global": {
+    "ClassId": "",
+    "Included": [
+      {
+        "ModId": "MovementVelocity2",
+        "MinValue": 15,
+        "MaxValue": 25,
+        "RangeModIds": ["MovementVelocity2", "MovementVelocity4"]
+      }
+    ],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": [],
+  "Game": "poe2"
+}
