@@ -157,6 +157,23 @@ public sealed class EngineService
             InGameClasses().Select(c => ModsForClass(c.Id)));
 
     /// <summary>
+    /// Workbench exclusions are either catalog mod ids or normal-tier affix
+    /// names; both survive a save/load, while a retired id does not.
+    /// </summary>
+    public bool IsKnownExclusion(string value)
+    {
+        if (FindMod(value) is not null) return true;
+        _exclusionNames ??= PlayableMods()
+            .Select(mod => mod.Name)
+            .OfType<string>()
+            .Where(name => name.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+        return _exclusionNames.Contains(value);
+    }
+
+    private HashSet<string>? _exclusionNames;
+
+    /// <summary>
     /// Resolve a pasted `Item Class:` value to a catalog class id, matching
     /// the plural display name first (e.g. `Crossbows`), then the id.
     /// </summary>

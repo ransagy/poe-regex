@@ -16,6 +16,16 @@ public sealed class GameSession(
 
     public string? Error { get; private set; }
 
+    /// <summary>Picks dropped by the last per-game restore because their mod ids left the catalog.</summary>
+    public IReadOnlyList<string> RemovedPicks { get; private set; } = [];
+
+    public IReadOnlyList<string> TakeRemovedPicks()
+    {
+        var removed = RemovedPicks;
+        RemovedPicks = [];
+        return removed;
+    }
+
     public event Action? Changed;
 
     /// <summary>Raised when a game load starts and after it finishes (success or failure).</summary>
@@ -69,6 +79,7 @@ public sealed class GameSession(
     {
         if (game is not ("poe1" or "poe2") || game == Current || IsLoading) return;
         Error = null;
+        RemovedPicks = [];
         IsLoading = true;
         LoadingGame = game;
         NotifyLoading();
@@ -80,8 +91,20 @@ public sealed class GameSession(
             engine.LoadGame(data);
             Current = game;
             await persistence.SaveLastGameAsync(game);
-            if (saved is null) state.Reset(game);
-            else WorkbenchSnapshot.Restore(state, saved);
+            if (saved is null)
+            {
+                state.Reset(game);
+                RemovedPicks = [];
+            }
+            else
+            {
+                RemovedPicks = WorkbenchSnapshot.Restore(
+                    state, saved,
+                    id => engine.FindMod(id) is not null,
+                    engine.IsKnownExclusion);
+                if (RemovedPicks.Count > 0)
+                    await persistence.SaveAsync(Capture(), Current);
+            }
         }
         catch (Exception ex)
         {

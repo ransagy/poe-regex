@@ -393,7 +393,10 @@
     private void BuildPreview(ReconstructedWorkbench result)
     {
         var preview = new WorkbenchState();
-        WorkbenchSnapshot.RestoreCriteria(preview, WorkbenchSnapshot.Capture(State));
+        WorkbenchSnapshot.RestoreCriteria(
+            preview, WorkbenchSnapshot.Capture(State),
+            id => Engine.FindMod(id) is not null,
+            Engine.IsKnownExclusion);
         result.ApplyTo(preview);
         _previewState = preview;
         _previewModel = new SearchModel(Engine, preview);

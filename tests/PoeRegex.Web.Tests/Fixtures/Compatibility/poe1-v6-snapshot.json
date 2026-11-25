@@ -1,0 +1,20 @@
+{
+  "Version": 6,
+  "Mode": "simple",
+  "SelectedSlot": null,
+  "MultiFocus": null,
+  "Slots": {},
+  "Global": {
+    "ClassId": "",
+    "Included": [
+      {
+        "ModId": "AddedColdDamage1"
+      }
+    ],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": [],
+  "Game": "poe1"
+}

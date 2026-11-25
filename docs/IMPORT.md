@@ -196,6 +196,11 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   they still pass and remain shortest, so only forced changes retire old
   strings. Saved picks and share links store picks and recompile against the
   current table.
+- The PoE1 3.30.0.4 refresh retired the legacy quiver `Has 1 Socket` implicit
+  and changed support-gem/convocation text. Saved picks and share links that
+  reference a mod that left the catalog are dropped with a visible notice;
+  they are not recompiled as internal-id literals. Old raw strings using a
+  retired fragment may need to be re-copied.
 
 ## Reproduce
 
