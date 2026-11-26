@@ -188,6 +188,10 @@ outer loop. It runs at data-build time, never in the browser.
   family are range-first for exact and up tiers; a single-value family keeps
   the shorter affix-name form. Full-family coverage uses the table fragment,
   so the first tier’s “or better” and the family pick are the same query.
+  Inside one catalog span the plain pattern is also tried, so a narrow exact
+  range can use literal separators (`Adds 1 to ...`) instead of a wildcard
+  that would swallow 12. A multi-roll line only contributes its first roll to
+  the exact value set; multi-tier thresholds keep the full span walk.
 - Factoring is token-aware: fragments containing classes or groups are left
   unfactored rather than risk a malformed split such as `1[(234]...`; literal
   prefixes still factor. Value classes compress consecutive digits into
@@ -195,10 +199,14 @@ outer loop. It runs at data-build time, never in the browser.
   becomes `1[2-7]\d` and a pure concatenation is not wrapped.
 - Multi-slot paste criteria group by semantic key. Each slot is
   canonicalized first, so multiple exact tiers of one family become one range
-  requirement. A tier range keys by stat pattern, clamped covered intervals,
-  and min/max; cross-slot union merges the same anchor range only when the
-  extra span does not exist for the narrower class. Different or gapped
-  ranges stay separate.
+  requirement. A full-family pick becomes one marker requirement carrying its
+  class tiers, so slots whose class-specific tier counts differ (PoE1 Gloves
+  cold 1–6, Ring cold 1–9) still group by pattern and use the shared family
+  fragment without enumerating every tier. A tier range keys by stat pattern,
+  clamped covered intervals, and min/max; cross-slot union merges the same
+  anchor range only when the extra span does not exist for the narrower class.
+  Different or gapped ranges stay exact; the union still shortens the groups
+  it can prove.
 - Over-budget any-of pastes try a second plan: compatible slot groups may be
   unioned when, for every target class, the union adds no valid catalog span
   the class did not already allow. Terms that cannot roll on a class are

@@ -1,6 +1,6 @@
 # Acceptance
 
-_Last measured: 2026-11-25; data refreshed from RePoE 3.30.0.4._
+_Last measured: 2026-11-27; data refreshed from RePoE 3.30.0.4._
 
 Acceptance criteria and current evidence for the web workbench. Engine proof is
 covered separately in [`EXACT-TABLE.md`](EXACT-TABLE.md). The end-to-end gate
@@ -23,7 +23,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,666 forms, 0 failures).
-- Tests: 139 core + 509 web + 53 data-build pass.
+- Tests: 139 core + 516 web + 53 data-build pass.
 - Compatibility: previous-release PoE1/PoE2 saved picks, share tokens, and
   query-string fixtures load; retired PoE1 ids are dropped with a notice and
   are never compiled as internal-id literals.
@@ -124,13 +124,13 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 139 core + 513 web + 53 data-build; the published
+- Current Release suite: 139 core + 516 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
-  pick ~125 ms (subsequent picks 33–96 ms); first ring pick ~209 ms because
-  it builds that slot's cross-slot union; 10-slot paste update ~69 ms; class
-  change ~82 ms; longest task ~164 ms with no task above 200 ms. Range
+  pick ~125 ms (subsequent picks 33–96 ms); first ring pick ~80 ms after the
+  full-family union path; 10-slot paste update ~80 ms; class change ~82 ms;
+  longest task ~105 ms with no task above 200 ms. Range
   proofs cache matched catalog lines and safe roll hits, so adding another
   slot to a cross-slot union re-checks the proof instead of rescanning it.
 
@@ -150,7 +150,18 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
 - The mixed example’s first subsequent pick measured **~62 ms** locally
   (production baseline **~38 ms**) after reusing the base plan and caching
   canonical/merge/safety work.
-- Tests: `AnyOfUnionTests`.
+- The real PoE1 10-slot state (Two Hand Axe physical, Helmet/Body/Belt life,
+  Boots movement, Gloves/Ring four damage families) compiles in **211/250**
+  characters (was 261).
+- The same PoE1 state with Boots MatchAll movement + max-life keeps the other
+  groups unioned and compiles in **234/250**; a Boots item needs both lines and
+  one line alone does not match.
+- A narrowed PoE1 Ring cold tier stays exact while the other groups still
+  shorten: **238/250**. The Ring never picks up the shared cold union's wider
+  tiers.
+- PoE1 10-slot combine in the Release test host: first **~161 ms**, next
+  changed state **~39 ms**, cached combine **<1 ms**.
+- Tests: `AnyOfUnionTests`, `Poe1UnionTests`.
 
 ## Performance
 
@@ -171,9 +182,10 @@ Release wwwroot, headless Chromium, cache disabled.
 
 Advanced per-slot picks: **33–133 ms** after the first cross-class range;
 the first cross-class range is **~130 ms** because it builds the class
-safety corpus, and the first ring pick is **~189 ms** because it adds that
-slot to a new cross-slot union. Long tasks across two runs: **22 over 50 ms,
-0 over 200 ms, max ~144 ms**.
+safety corpus. The first ring pick is **~80 ms** after a full-family union
+uses the table fragment instead of rebuilding the range proof; the 8-slot
+advanced query also shortened from 344 to 296 characters. Long tasks across
+the latest run: **0 over 200 ms, max ~105 ms**.
 
 Fresh-bench first pick (both `Runner's or better` and the exact `+` on
 Sprinter's) measures **~65–68 ms p50** at 1× CPU with a **~55 ms** max long
@@ -200,17 +212,17 @@ those changes removed the 1.9 s first-pick and 0.7 s class-change long tasks.
 ### Narrow and low-end
 
 ```text
-900×1200: boot 1373 ms · bulk add 48 ms · advanced picks 39–128 ms
-          first ring pick 211 ms · explain 95 ms · import 37 ms
-          max long task 169 ms
+900×1200: boot 1811 ms · bulk add 52 ms · advanced picks 50–122 ms
+          first ring pick 81 ms · explain 106 ms · import 45 ms
+          max long task 97 ms
 
-4× CPU:   boot 6.0 s · bulk add 247 ms · advanced picks 141–382 ms
-          first ring pick 733 ms · explain 720 ms · import 147 ms
-          max long task 689 ms
+4× CPU:   boot 7.8 s · bulk add 233 ms · advanced picks 159–488 ms
+          first ring pick 197 ms · explain 826 ms · import 182 ms
+          max long task 777 ms
 ```
 
-The 4× CPU sample is one run on the current host and is informational; rerun
-it on a quiet host before treating it as a regression signal.
+The 4× CPU sample is three runs on the current host and is informational;
+rerun it on a quiet host before treating it as a regression signal.
 
 ## Accessibility
 

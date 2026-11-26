@@ -421,7 +421,7 @@ public sealed class PasteComposer
         string.Join("\u0002", requirements.Select(RequirementKeyForCache));
 
     private static string RequirementKeyForCache(ModifierRequirement requirement) =>
-        (requirement.IsRegex ? "r" : "m") + "\u0001" +
+        (requirement.IsRegex ? "r" : "m") + (requirement.FullFamily ? "f" : "") + "\u0001" +
         requirement.Value + "\u0001" +
         (requirement.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
         (requirement.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "") + "\u0001" +
@@ -448,12 +448,17 @@ public sealed class PasteComposer
         var merged = new List<ModifierRequirement>(constraints.Count);
         foreach (var constraint in constraints)
         {
-            var requirement = new ModifierRequirement(
-                constraint.AnchorModId,
-                MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
-                MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
-                RangeModIds: constraint.MemberIds);
-            merged.Add(requirement);
+            // Full-family picks keep the family fragment (one anchor id).
+            merged.Add(constraint.IsFullFamily
+                ? new ModifierRequirement(
+                    constraint.AnchorModId,
+                    RangeModIds: constraint.MemberIds,
+                    FullFamily: true)
+                : new ModifierRequirement(
+                    constraint.AnchorModId,
+                    MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
+                    MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
+                    RangeModIds: constraint.MemberIds));
         }
 
         var targets = plans.SelectMany(plan => plan.Targets)
@@ -583,11 +588,23 @@ public sealed class PasteComposer
             return slot;
         var constraints = Canonicalize(slot.Includes, slot.ItemClass);
         if (constraints.Count == 0) return slot;
-        var requirements = constraints.Select(constraint => new ModifierRequirement(
-            constraint.AnchorModId,
-            MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
-            MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
-            RangeModIds: constraint.MemberIds)).ToList();
+        var requirements = new List<ModifierRequirement>(constraints.Count);
+        foreach (var constraint in constraints)
+        {
+            // A full-family pick stays one requirement: the family fragment
+            // covers every tier and groups with the same family on other
+            // classes without enumerating each tier.
+            requirements.Add(constraint.IsFullFamily
+                ? new ModifierRequirement(
+                    constraint.AnchorModId,
+                    RangeModIds: constraint.MemberIds,
+                    FullFamily: true)
+                : new ModifierRequirement(
+                    constraint.AnchorModId,
+                    MinValue: constraint.Intervals.Count == 0 ? null : constraint.Min,
+                    MaxValue: constraint.Intervals.Count == 0 ? null : constraint.Max,
+                    RangeModIds: constraint.MemberIds));
+        }
         return new PasteSlotCriterion(slot.ItemClass, requirements, slot.Label);
     }
 
@@ -641,13 +658,24 @@ public sealed class PasteComposer
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(id => id, StringComparer.Ordinal)
                 .ToList();
-            var unionReq = new ModifierRequirement(
-                items[0].Requirement.Value,
-                MinValue: union.Min(x => x.Lo),
-                MaxValue: union.Max(x => x.Hi),
-                RangeModIds: unionIds);
-            // A union that cannot compile globally is not a safe merge.
-            if (_compaction.SelectFragment(unionReq, null) is null) continue;
+            var fullFamily = items.All(item => item.Requirement.FullFamily);
+            var unionReq = fullFamily
+                ? new ModifierRequirement(
+                    items[0].Requirement.Value,
+                    RangeModIds: unionIds,
+                    FullFamily: true)
+                : new ModifierRequirement(
+                    items[0].Requirement.Value,
+                    MinValue: union.Min(x => x.Lo),
+                    MaxValue: union.Max(x => x.Hi),
+                    RangeModIds: unionIds);
+            // A union that cannot compile globally is not a safe merge. A
+            // full-family union uses the table fragment, so it skips the
+            // expensive range proof entirely.
+            var fragment = fullFamily
+                ? _compaction.PlanMany([unionReq], null).FirstOrDefault()
+                : _compaction.SelectFragment(unionReq, null);
+            if (fragment is null) continue;
 
             foreach (var item in items)
             {
@@ -775,6 +803,19 @@ public sealed class PasteComposer
         var max = r.MaxValue?.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "";
         if (r.IsRegex)
             return "regex\u0001" + min + "\u0001" + max + "\u0001" + TextKey(r.Value);
+        if (r.FullFamily)
+        {
+            var fullPatterns = (r.RangeModIds ?? [])
+                .Select(_corpus.FindMod)
+                .Where(mod => mod is not null)
+                .SelectMany(mod => mod!.StatLines)
+                .Select(line => line.Pattern)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(pattern => pattern, StringComparer.Ordinal)
+                .Select(TextKey);
+            return "full\u0001" + min + "\u0001" + max + "\u0001" +
+                   string.Join("\u0001", fullPatterns);
+        }
         if (r.RangeModIds is { Count: > 0 } rangeIds)
             return RangeRequirementKey(r, rangeIds, min, max);
         var mod = _corpus.FindMod(r.Value);

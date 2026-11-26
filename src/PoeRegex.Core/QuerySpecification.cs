@@ -4,13 +4,18 @@ namespace PoeRegex.Core;
 /// One modifier requirement: a catalog ModId or free text, with an optional
 /// numeric range. <see cref="RangeModIds"/> turns the requirement into one
 /// combined family+range fragment covering every listed tier variant.
+/// <see cref="FullFamily"/> marks a picker family pick whose listed
+/// <see cref="RangeModIds"/> are every tier that class can roll: the family
+/// fragment covers it, and the requirement groups with the same family on
+/// other classes without enumerating each tier.
 /// </summary>
 public sealed record ModifierRequirement(
     string Value,
     double? MinValue = null,
     bool IsRegex = false,
     double? MaxValue = null,
-    IReadOnlyList<string>? RangeModIds = null);
+    IReadOnlyList<string>? RangeModIds = null,
+    bool FullFamily = false);
 
 /// <summary>
 /// The full description of a desired trade-filter query. Each included/excluded
