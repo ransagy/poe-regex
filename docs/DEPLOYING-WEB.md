@@ -277,6 +277,29 @@ Reproduce the Cloudflare build locally with:
   fallback). The Advanced panel shows the short commit + branch, so the
   deployed commit can be traced without exposing an internal deployment URL.
 
+## Update lifecycle
+
+- A new service worker installs and waits. It does not call `skipWaiting` or
+  `clients.claim`, so open tabs keep the old worker and cached shell until
+  the user accepts.
+- The page checks `/build-info.json` after boot, every 30 minutes, when the
+  tab becomes visible, and from **Options → Check**. A non-blocking toast
+  offers **Update now** or **Later**; the Options menu keeps an update action
+  and dot after Later.
+- **Update now** saves scroll state, sends `SKIP_WAITING`, waits for the new
+  worker to activate, and reloads once. The UI state is restored after boot.
+- **Automatic** waits for 60 seconds without interaction, no dialog, and no
+  focused input, then shows a five-second cancelable countdown before the
+  same update flow. Ask is the default.
+- A shared link (`#r=`) suspends automatic updates. The hash remains until
+  the shared state is restored and persisted, so an update reload retries the
+  handoff; a repeated snapshot is a no-op. The update can proceed after the
+  handoff, and the shared picks survive the reload.
+- Navigation serves the active shell from cache until the waiting worker is
+  accepted, avoiding a new `index.html` running against old cached assets.
+  The worker is registered with a build-versioned `/sw.js?v=<commit>` and
+  `updateViaCache: "none"`.
+
 ## CI
 
 `.github/workflows/ci.yml` runs the test suite on pull requests and on

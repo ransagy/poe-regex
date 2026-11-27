@@ -196,15 +196,18 @@ Run when the web app, shell, service worker, or data/table changed.
   ./build.sh
   ```
 
-- [ ] Run the PWA check:
+- [ ] Run the PWA checks:
 
   ```sh
   node tools/pwa-check/run.mjs --root out/web/wwwroot
+  node tools/pwa-update-check/run.mjs --root out/web/wwwroot
   ```
 
   Required: manifest and installability have no errors, the worker controls
-  the page, the cache has the shell and framework, and the offline reload
-  boots.
+  the page after a reload, the cache has the shell and framework, and the
+  offline reload boots. The update check covers the waiting worker, manual
+  Update now/Later, automatic idle, and a shared link opened while an update
+  is waiting.
 
 ## 7. Performance
 

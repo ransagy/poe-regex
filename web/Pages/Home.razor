@@ -9,6 +9,7 @@
 @inject web.Services.PersistenceService Persistence
 @inject GameSession Games
 @inject web.Services.IntroState Intro
+@inject web.Services.UpdateState Updates
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @implements IDisposable
@@ -338,6 +339,8 @@
             _tabRef.Dispose();
             _tabRef = null;
         }
+        try { await JS.InvokeVoidAsync("poeRegexUpdates.restoreScroll"); }
+        catch { /* scroll restore is best-effort */ }
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -367,14 +370,28 @@
         var token = SnapshotCodec.TokenFromFragment(new Uri(Nav.Uri).Fragment);
         if (token is null || _openingShared || _stale) return;
         _openingShared = true;
+        // A share link owns the state transition. Keep the URL hash until the
+        // restore is persisted so an update reload can retry instead of
+        // leaving the tab on the previous workbench.
+        Updates.SuspendAuto();
         try
         {
-            try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
-            catch { }
             var shared = SnapshotCodec.Decode(token);
             if (shared is null)
             {
                 _notice = "That share link could not be read, so your picks are unchanged.";
+                await ClearSharedFragmentAsync();
+                return;
+            }
+            var current = SnapshotCodec.CaptureCriteria(State, Games.Current);
+            if (string.Equals(
+                    SnapshotCodec.Encode(current),
+                    SnapshotCodec.Encode(shared),
+                    StringComparison.Ordinal))
+            {
+                // An update reload can retry the same link after the restore
+                // already reached storage. Make that retry a no-op.
+                await ClearSharedFragmentAsync();
                 return;
             }
             var hadPicks = State.Global.Included.Count + State.Global.Excluded.Count + State.ExternalIncludes.Count > 0 ||
@@ -391,6 +408,7 @@
             // reload into the previous workbench.
             await Persistence.SaveAsync(WorkbenchSnapshot.Capture(State, Games.Current), Games.Current);
             await Persistence.MarkSharedHandoffAsync();
+            await ClearSharedFragmentAsync();
             _notice = hadPicks
                 ? "Opened shared picks. Your earlier picks are saved under Saved picks."
                 : "Opened shared picks.";
@@ -399,7 +417,14 @@
         finally
         {
             _openingShared = false;
+            await Updates.ResumeAutoAsync();
         }
+    }
+
+    private async Task ClearSharedFragmentAsync()
+    {
+        try { await JS.InvokeVoidAsync("history.replaceState", null, "", Nav.BaseUri); }
+        catch { }
     }
 
     private async Task<BackupOutcome> BackupPicksAsync(string prefix)

@@ -59,8 +59,16 @@ self.addEventListener("install", (event) => {
         // Keep installing even if one optional shell file is unavailable.
       }
     }));
-    await self.skipWaiting();
+    // Wait here. The page shows an update prompt; it only sends SKIP_WAITING
+    // after the user accepts (or the automatic idle path fires). Existing
+    // tabs keep their old worker and cache until they reload on purpose.
   })());
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener("activate", (event) => {
@@ -71,7 +79,8 @@ self.addEventListener("activate", (event) => {
         .filter((key) => key.startsWith(CACHE_PREFIX) && key !== cacheName)
         .map((key) => caches.delete(key)),
     );
-    await self.clients.claim();
+    // Do not claim existing clients. A reload after activation picks up the
+    // new worker; other tabs stay on their old worker until they reload.
   })());
 });
 
@@ -93,14 +102,18 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {
+      // Serve the active build's shell. Fetching the network first would let
+      // the new deployment's index.html run against this worker's old cached
+      // assets. The update prompt controls when a tab moves to the new build.
+      const cached = await caches.match("/index.html");
+      if (cached) return cached;
       try {
         const response = await fetch(request);
         if (response.ok) return response;
       } catch {
-        // Offline: fall through to the cached shell.
+        // Fall through to the offline response.
       }
-      return (await caches.match("/index.html")) ||
-        new Response("Offline", { status: 503 });
+      return new Response("Offline", { status: 503 });
     })());
     return;
   }
