@@ -170,6 +170,11 @@ Run when the catalog, pick schema, share codec, or query import changed.
   ```
 
 - [ ] Confirm the counts in [`WORKPLAN.md`](WORKPLAN.md) match the run.
+- [ ] Update the docs that describe the change in the **same PR**: status and
+  evidence in [`WORKPLAN.md`](WORKPLAN.md), acceptance notes in
+  [`ACCEPTANCE.md`](ACCEPTANCE.md), and behavior notes in
+  [`DESIGN.md`](DESIGN.md) or the relevant scope doc. Do not merge code with
+  stale status/counts and defer the sync to a doc-only follow-up PR.
 - [ ] For common-shortlist changes, run `common-picks --check` and confirm
   the `ci` workflow's **Verify common picks** step is green.
 - [ ] Confirm new regression tests fail on the base branch and pass on the
