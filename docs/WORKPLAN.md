@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-25._
+_Last updated: 2026-11-27._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -111,7 +111,7 @@ is the status source of truth.
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| STR-1 | Any-of union for over-budget pastes | In review | Merge compatible slot groups with a per-class proof; 253→183 and 325→186 on the budget fixtures |
+| STR-1 | Any-of union for over-budget pastes | Done | Merge compatible slot groups with a per-class proof; 253→183 and 325→186 on the PoE2 fixtures, 261→211 on the real PoE1 state |
 | STR-2 | Shared-safe fragment selection | Parked | Current multi-class criteria use the global fragment; revisit shorter class-intersection forms |
 | STR-3 | Share payload compaction | Deferred | Token is 828 chars for a typical 10-slot state; not a current constraint |
 | DATA-1 | PoE2 jewels and socket/import/builder model | Parked | Normal/desecrated/crafted jewels; separate item slot/class |
@@ -131,12 +131,17 @@ is the status source of truth.
 
 ### String budget
 
-- **STR-1 (in progress).** Over-budget multi-slot pastes may union compatible
+- **STR-1 (done).** Over-budget multi-slot pastes may union compatible
   any-of slot groups. A merged group is accepted only when every target
   class's valid catalog span set is unchanged. Under-budget queries keep their
-  existing exact, round-trippable form. Fixtures cover the given 253-char
+  existing exact, round-trippable form. PoE2 fixtures cover the given 253-char
   Boots/Gloves state and the 325-char variant with the same four damage
-  families on the ring.
+  families on the ring. The real PoE1 10-slot state now compiles in 211/250
+  (was 261), and its Boots MatchAll movement + life variant in 234/250.
+  Full-family picks become one family requirement, so classes with different
+  legal tier counts (PoE1 Gloves cold 1–6, Ring cold 1–9) share one family
+  fragment without enumerating every tier. A narrowed Ring cold tier stays
+  exact while the other groups shorten: 238/250.
 - **STR-2 (parked).** Once the grouping pass settles, revisit shorter
   shared-safe fragment selection for criteria that span classes. Current
   behavior uses the global fragment by design.

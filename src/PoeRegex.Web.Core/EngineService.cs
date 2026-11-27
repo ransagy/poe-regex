@@ -406,8 +406,8 @@ public sealed class EngineService
         var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
             ? string.Join(",", rangeIds)
             : "";
-        return (requirement.IsRegex ? "r" : "m") + "\u0002" +
-               requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+        return (requirement.IsRegex ? "r" : "m") + (requirement.FullFamily ? "f" : "") +
+               "\u0002" + requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
     }
 
     private static string PickKey(WantedMod pick)

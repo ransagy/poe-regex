@@ -239,8 +239,15 @@ public sealed class CompactionEngine
         // `2.03(1.5-2.5)`. A plain-shape fragment would miss every advanced
         // item, so only range-aware shapes are eligible there. A fixed tier
         // must use the plain shape even when another mod shares its pattern
-        // and has a ranged variant.
-        if (shapes.Count == 0) shapes.Add(pattern);
+        // and has a ranged variant. Inside one catalog line the plain shape is
+        // also worth trying: its literal separators keep a one-digit exact
+        // range (`Adds 1 to ...`) from swallowing a longer roll such as 12,
+        // while multi-tier unions keep the advanced shape.
+        if (shapes.Count == 0 || IsWithinOneLine(intervals, allowedPatterns, itemClass))
+        {
+            shapes.Add(pattern);
+            shapes = shapes.Distinct(StringComparer.Ordinal).ToList();
+        }
 
         var anyNumber = precision > 0 ? @"\d+(?:\.\d+)?" : @"\d+";
         var familyFragment = Lookup(pattern, itemClass);
@@ -493,6 +500,35 @@ public sealed class CompactionEngine
     }
 
     /// <summary>
+    /// True when the request is one narrow span inside a single catalog line.
+    /// A multi-tier union must keep the advanced display shape, because its
+    /// copy text carries `roll(low-high)` even though each tier fits a line.
+    /// </summary>
+    private bool IsWithinOneLine(
+        IReadOnlyList<(double Lo, double Hi)> intervals,
+        IReadOnlyCollection<string> allowedPatterns,
+        string? itemClass)
+    {
+        if (intervals.Count != 1) return false;
+        var (lo, hi) = intervals[0];
+        foreach (var pattern in allowedPatterns)
+        foreach (var mod in _corpus.ModsWithPattern(pattern))
+        {
+            if (itemClass is not null &&
+                !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                continue;
+            foreach (var line in mod.StatLines)
+            {
+                if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                    continue;
+                if (lo >= line.MinValue - 1e-9 && hi <= line.MaxValue + 1e-9)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Integer rolls the allowed patterns can actually display inside the
     /// requested intervals. Used to synthesize an exact value regex; the
     /// catalog proof still validates the final fragment.
@@ -517,10 +553,22 @@ public sealed class CompactionEngine
                     if (line.MaxValue < line.MinValue ||
                         (line.MinValue == 0 && line.MaxValue == 0))
                         continue;
-                    var lo = (long)Math.Ceiling(line.MinValue - 1e-9);
-                    var hi = (long)Math.Floor(line.MaxValue + 1e-9);
-                    if (hi - lo > 5000) continue;
-                    for (var value = lo; value <= hi; value++)
+                    // The fragment replaces the first placeholder. On a
+                    // single-roll line that placeholder spans min..max, but on
+                    // a multi-roll line inside one catalog span it only shows
+                    // the first value: walking 1..2 for `Adds 1 to 2` would
+                    // treat 2 as a first roll and make a narrow exact range
+                    // impossible to prove. Multi-tier thresholds keep the
+                    // full span walk.
+                    var first = (long)Math.Ceiling(line.MinValue - 1e-9);
+                    var last = (long)Math.Floor(line.MaxValue + 1e-9);
+                    if (line.Pattern.Count(ch => ch == SuffixIndex.DigitPlaceholder) > 1 &&
+                        intervals.All(interval =>
+                            interval.Lo >= line.MinValue - 1e-9 &&
+                            interval.Hi <= line.MaxValue + 1e-9))
+                        last = first;
+                    if (last - first > 5000) continue;
+                    for (var value = first; value <= last; value++)
                     {
                         if (InIntervals(value, intervals)) values.Add(value);
                         if (values.Count > 5000) return [];
@@ -840,8 +888,8 @@ public sealed class CompactionEngine
             var ids = requirement.RangeModIds is { Count: > 0 } rangeIds
                 ? string.Join(",", rangeIds.OrderBy(id => id, StringComparer.Ordinal))
                 : "";
-            return (requirement.IsRegex ? "r" : "m") + "\u0002" +
-                   requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
+            return (requirement.IsRegex ? "r" : "m") + (requirement.FullFamily ? "f" : "") +
+                   "\u0002" + requirement.Value + "\u0002" + min + "\u0002" + max + "\u0002" + ids;
         });
         // Keep input order in the key: the canonicalizer already sorts the
         // planned constraints, but raw regex terms keep their order in the

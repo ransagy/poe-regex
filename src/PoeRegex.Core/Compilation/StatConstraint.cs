@@ -108,9 +108,11 @@ public static class ConstraintCanonicalizer
                       string.Join("\u0001", patterns);
             if (!groups.TryGetValue(key, out var builder))
                 groups[key] = builder = new Builder(key, requirement.Value, family, patterns);
-            if (requirement.RangeModIds is { Count: > 0 } ||
-                requirement.MinValue is not null ||
-                requirement.MaxValue is not null)
+            if (requirement.FullFamily) builder.FullFamily = true;
+            if (!requirement.FullFamily &&
+                (requirement.RangeModIds is { Count: > 0 } ||
+                 requirement.MinValue is not null ||
+                 requirement.MaxValue is not null))
                 builder.PreferRange = true;
 
             foreach (var member in covered)
@@ -138,7 +140,8 @@ public static class ConstraintCanonicalizer
             var intervals = MergeIntervals(builder.Intervals);
             // Non-numeric/fixed-unknown lines (0/0) have no interval but still
             // need the table/family representation. Do not drop them.
-            var fullFamily = intervals.Count == 0 ||
+            var fullFamily = builder.FullFamily ||
+                             intervals.Count == 0 ||
                              IsFullFamily(builder.Patterns, builder.Family, intervals, itemClass, corpus);
             var familyValues = FamilyValues(builder.Patterns, builder.Family, itemClass, corpus);
             result.Add(new StatConstraint(
@@ -250,6 +253,7 @@ public static class ConstraintCanonicalizer
         public List<ValueInterval> Intervals { get; } = [];
         public HashSet<string> MemberIds { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Names { get; } = new(StringComparer.Ordinal);
+        public bool FullFamily { get; set; }
         public bool PreferRange { get; set; }
     }
 }
