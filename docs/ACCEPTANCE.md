@@ -164,6 +164,10 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   inventory of the fixture corpus and common-pick groups found no existing
   fixture query changed; all changed multi-pick states got shorter, with no
   longer outputs.
+- Tier range plans now cover every tier span and store proven compact values
+  for contiguous unions. The Gloves 31–45% Fire Resistance “or better” pick
+  composes `\+(3[1-9]|4[0-5]).*o f.+ce$` from the plan without a runtime
+  proof; the first scoped proof drops from ~1.5 s to ~58 ms.
 - Runtime tier ranges and factored range queries reconstruct from the
   matched catalog lines and range plans: both the 45-char resistance form and
   its 85-char pre-factoring form apply as the same three range picks and
@@ -226,9 +230,11 @@ literal fast path.
 Factoring verification on the release build: cache-reset multi-pick compile
 adds ~10–35 µs and 6–25 KB; browser first/exact/up/post-first/disjoint actions
 stay within ±2.5 ms at 1× CPU and within run variance at 4×. First importing
-the resistance and added-damage forms parsed in 319–436 ms and applied in
-62–99 ms; import parse 5 items stayed at ~43 ms. No action added a >200 ms
-long task.
+the resistance and added-damage forms parsed in 345–437 ms and applied in
+68–99 ms; import parse 5 items stayed at ~45 ms. The first cold advanced
+class-scoped resistance `≥` pick measured **58.5 ms p50 / 59.6 ms p95** in the
+new web-perf action (was ~1.5 s before the plan/display fix). No action added
+a >200 ms long task.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are

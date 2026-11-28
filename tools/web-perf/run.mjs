@@ -228,6 +228,16 @@ function makeActions(sampleText) {
       `!document.querySelector('[id^="chip-inc-"]')`],
     ['advanced: mode', () => `document.querySelector('#mode-advanced').click()`,
       `!!document.querySelector('.doll')`],
+    ['advanced: focus gloves range', () => `document.querySelector('#slot-gloves').click()`,
+      `!!document.querySelector('#modpicker-gloves #mod-search')`],
+    ['advanced: gloves resistance up', () => `(async () => {
+        const wait=async(fn,ms=3000)=>{const t=Date.now();while(Date.now()-t<ms){if(fn())return true;await new Promise(r=>setTimeout(r,20));}return false;};
+        const e=document.querySelector('#modpicker-gloves #mod-search');
+        e.value='fire resistance'; e.dispatchEvent(new Event('input',{bubbles:true}));
+        await wait(()=>!!document.querySelector('#pick-tier-up-FireResist6'));
+        document.querySelector('#pick-tier-up-FireResist6')?.click();
+      })()`,
+      `!!document.querySelector('[id^="chip-inc-gloves"]')`],
     ['advanced: focus helmet', () => `document.querySelector('#slot-helmet').click()`,
       `!!document.querySelector('#mod-search')`],
     ['advanced: pick helmet', () => `(() => { const e=document.querySelector('#mod-search'); e.value='life'; e.dispatchEvent(new Event('input',{bubbles:true})); })(); setTimeout(()=>document.querySelector('.fam-row button[id^="pick-inc-"]')?.click(), 0)`,

@@ -576,38 +576,28 @@ public sealed class EngineCorpus
     /// </summary>
     public IReadOnlyList<string> DisplayPatternsFor(string pattern, string? itemClass)
     {
-        if (itemClass is null)
+        // Read the pattern's own catalog forms instead of building a whole
+        // class index. The class index also carries vendor/safety lines and
+        // made the first scoped range proof a multi-second task in the browser.
+        var shapes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var mod in ModsWithPattern(pattern))
         {
-            // Global display shapes come from the catalog's own forms. The
-            // previous path grouped the entire global corpus (including every
-            // vendor line) just to read one pattern's shapes, which made the
-            // first cross-class range a multi-second task in the browser.
-            var shapes = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var mod in ModsWithPattern(pattern))
+            if (itemClass is not null &&
+                !mod.Classes.Contains(itemClass, StringComparer.Ordinal))
+                continue;
+            foreach (var line in mod.StatLines)
             {
-                foreach (var line in mod.StatLines)
+                if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
+                    continue;
+                foreach (var real in RealForms(line))
                 {
-                    if (!string.Equals(line.Pattern, pattern, StringComparison.Ordinal))
-                        continue;
-                    foreach (var real in RealForms(line))
-                    {
-                        var normalized = CatalogLineNormalizer.Normalize(real);
-                        if (!string.Equals(normalized, pattern, StringComparison.Ordinal))
-                            shapes.Add(normalized);
-                    }
+                    var normalized = CatalogLineNormalizer.Normalize(real);
+                    if (!string.Equals(normalized, pattern, StringComparison.Ordinal))
+                        shapes.Add(normalized);
                 }
             }
-            return shapes.OrderBy(x => x, StringComparer.Ordinal).ToList();
         }
-
-        var lines = TryGetClassIndex(itemClass, out var ci)
-            ? ci.LinesWithPattern(pattern)
-            : [];
-        return lines
-            .Select(x => CatalogLineNormalizer.Normalize(x.Real))
-            .Where(x => !string.Equals(x, pattern, StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        return shapes.OrderBy(x => x, StringComparer.Ordinal).ToList();
     }
 
     /// <summary>

@@ -88,8 +88,9 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   ```
 
   `matrix-table` now also regenerates the precomputed exact tier ranges
-  (`RangeFragments`) and composable tier plans (`TierRangePlans`). To update
-  an existing table without re-solving, run:
+  (`RangeFragments`) and composable tier plans (`TierRangePlans`, including
+  compact proven contiguous-union values). To update an existing table
+  without re-solving, run:
 
   ```sh
   dotnet run --project tools/PoeRegex.Data.Build -- tier-ranges
@@ -248,8 +249,9 @@ Run on **every** release, and always after data/table size or web code changes.
 - [ ] Check advanced picks, bulk add, import parse, explain, builder open, and
   the 10-slot paste update against [`ACCEPTANCE.md`](ACCEPTANCE.md).
 - [ ] Run the targeted first-pick matrix: first family/exact/“or better”,
-  post-first exact, and post-first disjoint families; repeat at 4× CPU
-  throttling. No consistent p50 regression or >200 ms long task is allowed.
+  post-first exact, post-first disjoint families, and a fresh advanced
+  class-scoped resistance `≥` pick; repeat at 4× CPU throttling. No
+  consistent p50 regression or >200 ms long task is allowed.
 - [ ] Optional: run the manual **web-perf** workflow for a CI-host sample.
   It uploads the JSON/log and writes a step summary, but it is observational;
   the local run above remains the blocking gate.

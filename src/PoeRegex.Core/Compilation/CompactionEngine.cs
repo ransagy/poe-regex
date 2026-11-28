@@ -951,11 +951,29 @@ public sealed class CompactionEngine
             .DefaultIfEmpty(0)
             .Max();
         var intervals = constraint.Intervals.Select(i => (i.Lo, i.Hi)).ToList();
-        var range = _corpus.TryComposeTierRange(
-                pattern, intervals, itemClass, out var composed) &&
-            IsCleanFragment(composed)
-            ? composed
-            : CachedRangeFragment(pattern, intervals, precision, itemClass, [pattern]);
+        string? range;
+        if (intervals.Count == 1)
+        {
+            // A single tier is already in the exact RangeFragments table; do
+            // not replace its complete value class with a plan's per-tier
+            // value, which may have been derived from a narrower tail.
+            range = CachedRangeFragment(
+                    pattern, intervals, precision, itemClass, [pattern]) ??
+                (_corpus.TryComposeTierRange(
+                     pattern, intervals, itemClass, out var single) &&
+                 IsCleanFragment(single)
+                    ? single
+                    : null);
+        }
+        else
+        {
+            range = _corpus.TryComposeTierRange(
+                    pattern, intervals, itemClass, out var composed) &&
+                IsCleanFragment(composed)
+                ? composed
+                : CachedRangeFragment(
+                    pattern, intervals, precision, itemClass, [pattern]);
+        }
         if (!IsCleanFragment(range)) range = null;
 
         if (constraint.IsFullFamily)

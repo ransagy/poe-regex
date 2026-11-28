@@ -36,8 +36,9 @@ on port 9222. It clears localStorage before each run so the intro and workbench
 start clean.
 
 The action set covers boot, mode/slot switching, picker filter/expand, family
-and exclusion picks, copy, explain cold/warm, clear, bulk add, import open/parse,
-builder open/cancel, and long-task/memory metrics.
+and exclusion picks, the first cold advanced class-scoped resistance `≥` pick,
+copy, explain cold/warm, clear, bulk add, import open/parse, builder
+open/cancel, and long-task/memory metrics.
 
 For the latest results and interpretation, see
 [`docs/ACCEPTANCE.md`](../../docs/ACCEPTANCE.md).
