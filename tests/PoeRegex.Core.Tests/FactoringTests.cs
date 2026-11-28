@@ -59,6 +59,17 @@ public class FactoringTests
     }
 
     [Fact]
+    public void LeadingAnchor_IsFactored()
+    {
+        var fragments = new[] { @"^\d.+ed ca.*d$", @"^\d.+ll d.+g.$" };
+
+        var factored = CompactionEngine.FactorCommonPrefixes(fragments);
+
+        factored.Should().ContainSingle()
+            .Which.Should().Be(@"^\d.+(ed ca.*d$|ll d.+g.$)");
+    }
+
+    [Fact]
     public void CommonSuffix_FactorsValueFragments()
     {
         var fragments = new[]

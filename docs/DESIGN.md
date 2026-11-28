@@ -195,7 +195,8 @@ outer loop. It runs at data-build time, never in the browser.
 - Factoring is token-aware. Prefix and value-suffix passes back off to the
   longest common run ending on a complete regex token boundary, so range
   groups and character classes can be factored without ever cutting inside
-  one; top-level alternations, anchors, and repetition braces are left alone.
+  one; top-level alternations, trailing anchors, and repetition braces are
+  left alone, while a leading `^` stays in the factored prefix.
   The shortest of prefix-first and suffix-first wins. Three 31–45 resistance
   picks therefore collapse from `\+(3[1-9]|4[0-5]).*o Cold R|...` to
   `\+(3[1-9]|4[0-5]).*o (Cold R|Fire R|l.+ce$)`. Suffix factoring is limited

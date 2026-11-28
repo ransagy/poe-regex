@@ -1394,8 +1394,9 @@ public sealed class CompactionEngine
         var depth = 0;
         var inClass = false;
         var escaped = false;
-        foreach (var c in prefix)
+        for (var i = 0; i < prefix.Length; i++)
         {
+            var c = prefix[i];
             if (escaped)
             {
                 escaped = false;
@@ -1427,10 +1428,12 @@ public sealed class CompactionEngine
                 depth--;
                 continue;
             }
-            // A top-level alternation or anchor before the split would change
-            // meaning when the remainder is grouped.
-            if (depth == 0 && (c == '|' || c == '^' || c == '$')) return false;
-            if (c == '^' || c == '$') return false;
+            // A top-level alternation or trailing anchor before the split
+            // would change meaning when the remainder is grouped. A leading
+            // `^` is safe: every alternative still starts at the same anchor.
+            if (depth == 0 && c == '|') return false;
+            if (c == '$') return false;
+            if (c == '^' && i != 0) return false;
         }
         if (escaped || inClass || depth != 0) return false;
 

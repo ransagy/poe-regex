@@ -23,7 +23,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,666 forms, 0 failures).
-- Tests: 145 core + 518 web + 53 data-build pass.
+- Tests: 146 core + 518 web + 53 data-build pass.
 - Compatibility: previous-release PoE1/PoE2 saved picks, share tokens, and
   query-string fixtures load; retired PoE1 ids are dropped with a notice and
   are never compiled as internal-id literals.
@@ -124,7 +124,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 145 core + 518 web + 53 data-build; the published
+- Current Release suite: 146 core + 518 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -159,6 +159,11 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   suffix pass does not beat that form because the enclosing parentheses cost
   more than the repeated `ks` saves. The user’s `.*att` form is shorter
   because it is a broader category filter; that is parked as STR-5.
+- Leading anchors are preserved during factoring, so `^\d.+...` fragments
+  still merge instead of regressing to separate alternatives. A before/after
+  inventory of the fixture corpus and common-pick groups found no existing
+  fixture query changed; all changed multi-pick states got shorter, with no
+  longer outputs.
 - The real PoE1 10-slot state (Two Hand Axe physical, Helmet/Body/Belt life,
   Boots movement, Gloves/Ring four damage families) compiles in **211/250**
   characters (was 261).

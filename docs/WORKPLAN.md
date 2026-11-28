@@ -159,10 +159,11 @@ is the status source of truth.
   resistance state compiles in 45/250 (was 85) with the same range and
   families. A representative four-family added-damage exact selection drops
   96→88; the suffix pass cannot beat the prefix form because the enclosing
-  parentheses cost more than the repeated `ks` saves. The remaining difference
-  to the hand-written `.*att` snippet is a broader category filter. Suffix
-  factoring is limited to fragments containing digits so affix-name lists stay
-  round-trippable.
+  parentheses cost more than the repeated `ks` saves. Leading anchors are
+  preserved, so already-factored `^\d.+...` pairs do not regress. The remaining
+  difference to the hand-written `.*att` snippet is a broader category
+  filter. Suffix factoring is limited to fragments containing digits so
+  affix-name lists stay round-trippable.
 - **STR-5 (parked).** The broad `[3-9]\d.*resi` and `.*att` forms trade exact
   pick semantics for length. If users want them, add an explicit category
   threshold pick with its own match-set proof instead of silently widening
