@@ -23,7 +23,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,666 forms, 0 failures).
-- Tests: 150 core + 524 web + 53 data-build pass.
+- Tests: 150 core + 524 web + 56 data-build pass.
 - Compatibility: previous-release PoE1/PoE2 saved picks, share tokens, and
   query-string fixtures load; retired PoE1 ids are dropped with a notice and
   are never compiled as internal-id literals.
@@ -124,7 +124,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 150 core + 524 web + 53 data-build; the published
+- Current Release suite: 150 core + 524 web + 56 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -233,8 +233,11 @@ stay within ±2.5 ms at 1× CPU and within run variance at 4×. First importing
 the resistance and added-damage forms parsed in 345–437 ms and applied in
 68–99 ms; import parse 5 items stayed at ~45 ms. The first cold advanced
 class-scoped resistance `≥` pick measured **58.5 ms p50 / 59.6 ms p95** in the
-new web-perf action (was ~1.5 s before the plan/display fix). No action added
-a >200 ms long task.
+new web-perf action (was ~1.5 s before the plan/display fix). The tier matrix
+ran **1,691** first/middle/last tier actions with **0 errors**: exact p50
+17.3 / p95 26.3 / max 178.4 ms; `≥` p50 20.3 / p95 39.0 / max 87.1 ms. The
+matrix gate is 500 ms.
+No action added a >200 ms long task.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are

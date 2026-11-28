@@ -124,8 +124,16 @@ Run only when the catalog, vendor/safety corpus, or solver changed.
   previous catalog and review the diff before committing.
 
   Required: 1,584 scopes, 0 unresolved, `stale: false`, `shortestProven: true`,
-  `proof.failed: 0`. Copy the updated catalog/table/corpus into
-  `web/wwwroot/data/poe1/`.
+  `proof.failed: 0`. Sync the checked-in web copy and verify it:
+
+  ```sh
+  sh tools/sync-poe1-data.sh
+  dotnet test tests/PoeRegex.Data.Build.Tests/PoeRegex.Data.Build.Tests.csproj \
+    -c Release --filter FullyQualifiedName~Poe1WebCopyTests
+  ```
+
+  `build.sh` also syncs the published copy, so a stale `web/wwwroot/data/poe1`
+  file cannot ship; the test keeps the committed copy honest for local runs.
 
 ## 3. Fragment diff report
 
@@ -248,6 +256,16 @@ Run on **every** release, and always after data/table size or web code changes.
   recorded, not hidden.
 - [ ] Check advanced picks, bulk add, import parse, explain, builder open, and
   the 10-slot paste update against [`ACCEPTANCE.md`](ACCEPTANCE.md).
+- [ ] Run the tier matrix (first/middle/last tier per class/family, exact and
+  `≥`):
+
+  ```sh
+  node tools/web-perf/tier-matrix.mjs --root out/web/wwwroot \
+    --out /tmp/opencode/tier-matrix.json --max-ms 500
+  ```
+
+  Required: `errors: 0` and worst action under 500 ms. Review the slowest
+  entries; a repeatable regression above 500 ms blocks the merge.
 - [ ] Run the targeted first-pick matrix: first family/exact/“or better”,
   post-first exact, post-first disjoint families, and a fresh advanced
   class-scoped resistance `≥` pick; repeat at 4× CPU throttling. No
