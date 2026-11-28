@@ -1077,40 +1077,28 @@ public sealed class CompactionEngine
                 result.Add(new FactoredAlternative(items[0], sources[items[0]]));
                 continue;
             }
-            // Character classes and groups are multi-character tokens. A
-            // character-based prefix split can cut inside them and produce
-            // invalid regex such as `1[(234]\d...`. Leave those alternatives
-            // unfactored rather than risk a malformed query.
-            if (items.Any(ContainsStructuredRegex))
+            // The raw common prefix may end inside a group, class, or escape
+            // (for example "Adds ("). Walk back to the longest prefix that is
+            // a complete token boundary; the suffix split is then safe.
+            var rawPrefix = LongestCommonPrefix(items);
+            string? factored = null;
+            for (var length = rawPrefix.Length; length >= 2; length--)
             {
-                result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
-                continue;
+                if (items.Any(item => item.Length <= length)) continue;
+                var prefix = rawPrefix[..length];
+                var suffixes = items.Select(item => item[length..]).ToList();
+                if (!CanFactorPrefix(prefix, suffixes)) continue;
+                var candidate = prefix + "(" + string.Join("|", suffixes) + ")";
+                if (candidate.Length < string.Join("|", items).Length)
+                {
+                    factored = candidate;
+                    break;
+                }
             }
-            var prefix = LongestCommonPrefix(items);
-            var suffixes = prefix.Length >= 2 && items.All(s => s.Length > prefix.Length)
-                ? items.Select(s => s.Substring(prefix.Length)).ToList()
-                : null;
-            // Do not split an escape or a wildcard token, and do not put a
-            // quantifier at the start of an alternative (`\d` + `+...`).
-            var splittable = suffixes is not null
-                && prefix.Length >= 2
-                && !EndsWithOddBackslash(prefix)
-                && !prefix.EndsWith('.')
-                && suffixes.All(s => s.Length > 0 && s[0] is not ('*' or '+' or '?' or '{' or '|' or ')'));
-            if (splittable)
+            if (factored is not null)
             {
-                var factored = prefix + "(" + string.Join("|", suffixes!) + ")";
-                // Only use if actually shorter than the union.
-                var union = string.Join("|", items);
-                if (factored.Length < union.Length)
-                {
-                    result.Add(new FactoredAlternative(factored,
-                        items.SelectMany(t => sources[t]).Distinct().OrderBy(x => x).ToList()));
-                }
-                else
-                {
-                    result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
-                }
+                result.Add(new FactoredAlternative(factored,
+                    items.SelectMany(t => sources[t]).Distinct().OrderBy(x => x).ToList()));
             }
             else
             {
@@ -1120,8 +1108,117 @@ public sealed class CompactionEngine
         return result;
     }
 
-    private static bool ContainsStructuredRegex(string fragment) =>
-        fragment.IndexOfAny(['[', ']', '(', ')', '{', '}', '|']) >= 0;
+    /// <summary>
+    /// A shared prefix is safe to pull out only when it ends on a complete
+    /// regex token boundary and the remainders cannot be re-scoped by the new
+    /// group. Classes and groups are allowed here; the earlier character-only
+    /// guard was why repeated range+tail prefixes were never factored.
+    /// </summary>
+    private static bool CanFactorPrefix(string prefix, IReadOnlyList<string> suffixes)
+    {
+        if (prefix.Length < 2 || EndsWithOddBackslash(prefix) || prefix.EndsWith('.'))
+            return false;
+        // Repetition braces are multi-character tokens too. Back off rather
+        // than split a quantifier such as a{1,2}.
+        if (prefix.IndexOfAny(['{', '}']) >= 0) return false;
+        if (suffixes.Any(suffix =>
+                suffix.Length == 0 ||
+                suffix[0] is '*' or '+' or '?' or '{' or '|' or ')' or ']' or '^' or '$'))
+            return false;
+
+        var depth = 0;
+        var inClass = false;
+        var escaped = false;
+        foreach (var c in prefix)
+        {
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+            if (inClass)
+            {
+                if (c == ']') inClass = false;
+                continue;
+            }
+            if (c == '[')
+            {
+                inClass = true;
+                continue;
+            }
+            if (c == '(')
+            {
+                depth++;
+                continue;
+            }
+            if (c == ')')
+            {
+                if (depth == 0) return false;
+                depth--;
+                continue;
+            }
+            // A top-level alternation or anchor before the split would change
+            // meaning when the remainder is grouped.
+            if (depth == 0 && (c == '|' || c == '^' || c == '$')) return false;
+            if (c == '^' || c == '$') return false;
+        }
+        if (escaped || inClass || depth != 0) return false;
+
+        // The suffix itself must not carry a top-level alternation; `A X|Y`
+        // cannot become `A (X|Y)`.
+        return suffixes.All(SuffixCanFollowPrefix);
+    }
+
+    private static bool SuffixCanFollowPrefix(string suffix)
+    {
+        var depth = 0;
+        var inClass = false;
+        var escaped = false;
+        for (var i = 0; i < suffix.Length; i++)
+        {
+            var c = suffix[i];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+            if (inClass)
+            {
+                if (c == ']') inClass = false;
+                continue;
+            }
+            if (c == '[')
+            {
+                inClass = true;
+                continue;
+            }
+            if (c == '(')
+            {
+                depth++;
+                continue;
+            }
+            if (c == ')')
+            {
+                if (depth == 0) return false;
+                depth--;
+                continue;
+            }
+            if (depth == 0 && c == '|') return false;
+            if (c == '^') return false;
+            if (c == '$' && i != suffix.Length - 1) return false;
+        }
+        return !escaped && !inClass && depth == 0;
+    }
 
     private static bool EndsWithOddBackslash(string s)
     {

@@ -23,7 +23,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,666 forms, 0 failures).
-- Tests: 139 core + 516 web + 53 data-build pass.
+- Tests: 143 core + 517 web + 53 data-build pass.
 - Compatibility: previous-release PoE1/PoE2 saved picks, share tokens, and
   query-string fixtures load; retired PoE1 ids are dropped with a notice and
   are never compiled as internal-id literals.
@@ -124,7 +124,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 139 core + 516 web + 53 data-build; the published
+- Current Release suite: 143 core + 517 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -150,6 +150,14 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
 - The mixed example’s first subsequent pick measured **~62 ms** locally
   (production baseline **~38 ms**) after reusing the base plan and caching
   canonical/merge/safety work.
+- Structured prefix factoring collapses the 31–45 Cold/Fire/Lightning
+  resistance state from **85/250** to **45/250**:
+  `\+(3[1-9]|4[0-5]).*o (Cold R|Fire R|l.+ce$)`. The 31–45 span and the three
+  families are unchanged; 30, 46, and all-elemental lines do not match.
+- A representative four-family added-damage exact selection drops from
+  **96** to **88** characters after factoring the shared `Adds ` prefix. The
+  user’s `.*att` form is shorter because it is a broader category filter;
+  that is parked as STR-5.
 - The real PoE1 10-slot state (Two Hand Axe physical, Helmet/Body/Belt life,
   Boots movement, Gloves/Ring four damage families) compiles in **211/250**
   characters (was 261).
@@ -161,7 +169,8 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   tiers.
 - PoE1 10-slot combine in the Release test host: first **~161 ms**, next
   changed state **~39 ms**, cached combine **<1 ms**.
-- Tests: `AnyOfUnionTests`, `Poe1UnionTests`.
+- Tests: `AnyOfUnionTests`, `Poe1UnionTests`, `ResistanceFactoringTests`,
+  `FactoringTests`.
 
 ## Performance
 
