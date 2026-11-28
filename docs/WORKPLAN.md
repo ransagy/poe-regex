@@ -119,7 +119,7 @@ is the status source of truth.
 | STR-1 | Any-of union for over-budget pastes | Done | Merge compatible slot groups with a per-class proof; 253→183 and 325→186 on the PoE2 fixtures, 261→211 on the real PoE1 state |
 | STR-2 | Shared-safe fragment selection | Parked | Current multi-class criteria use the global fragment; revisit shorter class-intersection forms |
 | STR-3 | Share payload compaction | Deferred | Token is 828 chars for a typical 10-slot state; not a current constraint |
-| STR-4 | Safe cross-term regex factoring | Done | Token-aware prefix factoring; 31–45 Cold/Fire/Lightning resistance 85→45; representative four-family added-damage exact query 96→88 |
+| STR-4 | Safe cross-term regex factoring | Done | Token-aware prefix and value-suffix factoring; 31–45 Cold/Fire/Lightning resistance 85→45; representative four-family added-damage exact query 96→88. Name fragments stay unfactored for round-trip |
 | STR-5 | Category threshold picks | Parked | Broad hand forms such as `[3-9]\d.*resi` or `.*att` intentionally match more than exact picks; needs an explicit category/threshold pick |
 | DATA-1 | PoE2 jewels and socket/import/builder model | Parked | Normal/desecrated/crafted jewels; separate item slot/class |
 | DATA-2 | PoE2 Congealed Mist | Parked | After jewel/item-class work |
@@ -154,12 +154,15 @@ is the status source of truth.
 - **STR-2 (parked).** Once the grouping pass settles, revisit shorter
   shared-safe fragment selection for criteria that span classes. Current
   behavior uses the global fragment by design.
-- **STR-4 (done).** Structured common prefixes now factor at safe token
+- **STR-4 (done).** Prefix and value-suffix forms factor at safe token
   boundaries, including group/range prefixes. The 31–45 Cold/Fire/Lightning
   resistance state compiles in 45/250 (was 85) with the same range and
   families. A representative four-family added-damage exact selection drops
-  96→88; the remaining difference to the hand-written `.*att` snippet is a
-  broader category filter.
+  96→88; the suffix pass cannot beat the prefix form because the enclosing
+  parentheses cost more than the repeated `ks` saves. The remaining difference
+  to the hand-written `.*att` snippet is a broader category filter. Suffix
+  factoring is limited to fragments containing digits so affix-name lists stay
+  round-trippable.
 - **STR-5 (parked).** The broad `[3-9]\d.*resi` and `.*att` forms trade exact
   pick semantics for length. If users want them, add an explicit category
   threshold pick with its own match-set proof instead of silently widening
@@ -203,10 +206,12 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
 ## Recently completed
 
-- Cross-term prefix factoring (STR-4): structured regex prefixes now factor
-  at token boundaries. The 31–45 resistance state drops from 85 to 45
-  characters without changing its range or families; the representative
-  added-damage exact query drops from 96 to 88. The broad category forms are
+- Cross-term prefix/suffix factoring (STR-4): structured regex prefixes and
+  value-bearing suffixes now factor at token boundaries. The 31–45 resistance
+  state drops from 85 to 45 characters without changing its range or
+  families; the representative added-damage exact query drops from 96 to 88.
+  The suffix form does not beat the prefix form there because the enclosing
+  parentheses cost more than the repeated `ks`. The broad category forms are
   parked as STR-5.
 - Shell asset versioning (OPS-3): Cloudflare serves CSS/JS with a four-hour
   cache despite `_headers`; an old worker could pair new HTML with old CSS and

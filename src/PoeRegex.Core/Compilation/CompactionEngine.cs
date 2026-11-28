@@ -1063,23 +1063,55 @@ public sealed class CompactionEngine
             list.Add(i);
         }
         var distinct = fragments.Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
+        var units = distinct.Select(text => new FactoredUnit(text, sources[text])).ToList();
 
-        // Group by the first character; within a group find the longest common prefix
-        // of all members. If shared prefix is >= 2 chars and alternation is shorter,
-        // factor it.
+        // Try prefix-first and suffix-first, then keep whichever emits the
+        // shorter alternation. Resistance prefers the single prefix group;
+        // added-damage tails prefer the suffix group.
+        var prefixFirst = FactorPrefixUnits(units);
+        var suffixFirst = FactorPrefixUnits(FactorSuffixUnits(units));
+        return JoinLength(suffixFirst) < JoinLength(prefixFirst)
+            ? suffixFirst
+            : prefixFirst;
+    }
+
+    private static int JoinLength(IReadOnlyList<FactoredAlternative> alternatives) =>
+        alternatives.Sum(alternative => alternative.Text.Length) +
+        Math.Max(0, alternatives.Count - 1);
+
+    private static List<FactoredUnit> MergeUnits(IReadOnlyList<FactoredUnit> units)
+    {
+        var byText = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        foreach (var unit in units)
+        {
+            if (!byText.TryGetValue(unit.Text, out var indexes))
+                byText[unit.Text] = indexes = [];
+            indexes.AddRange(unit.Sources);
+        }
+        return byText
+            .Select(pair => new FactoredUnit(
+                pair.Key,
+                pair.Value.Distinct().OrderBy(index => index).ToList()))
+            .OrderBy(unit => unit.Text, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static List<FactoredAlternative> FactorPrefixUnits(
+        IReadOnlyList<FactoredUnit> input)
+    {
+        var units = MergeUnits(input);
         var result = new List<FactoredAlternative>();
-        var groups = distinct.GroupBy(s => s.Length > 0 ? s[0] : '\0').OrderBy(g => g.Key);
+        var groups = units.GroupBy(unit => unit.Text.Length > 0 ? unit.Text[0] : '\0')
+            .OrderBy(group => group.Key);
         foreach (var group in groups)
         {
-            var items = group.ToList();
+            var groupUnits = group.ToList();
+            var items = groupUnits.Select(unit => unit.Text).ToList();
             if (items.Count < 2)
             {
-                result.Add(new FactoredAlternative(items[0], sources[items[0]]));
+                result.Add(new FactoredAlternative(items[0], groupUnits[0].Sources));
                 continue;
             }
-            // The raw common prefix may end inside a group, class, or escape
-            // (for example "Adds ("). Walk back to the longest prefix that is
-            // a complete token boundary; the suffix split is then safe.
             var rawPrefix = LongestCommonPrefix(items);
             string? factored = null;
             for (var length = rawPrefix.Length; length >= 2; length--)
@@ -1095,17 +1127,250 @@ public sealed class CompactionEngine
                     break;
                 }
             }
+            var groupSources = groupUnits.SelectMany(unit => unit.Sources)
+                .Distinct().OrderBy(index => index).ToList();
             if (factored is not null)
             {
-                result.Add(new FactoredAlternative(factored,
-                    items.SelectMany(t => sources[t]).Distinct().OrderBy(x => x).ToList()));
+                result.Add(new FactoredAlternative(factored, groupSources));
             }
             else
             {
-                result.AddRange(items.Select(t => new FactoredAlternative(t, sources[t])));
+                result.AddRange(groupUnits.Select(unit =>
+                    new FactoredAlternative(unit.Text, unit.Sources)));
             }
         }
         return result;
+    }
+
+    private sealed record FactoredUnit(string Text, IReadOnlyList<int> Sources);
+
+    /// <summary>
+    /// Factors a common suffix in each last-character group, e.g.
+    /// `A X S | B X S` → `(A X|B X)S`. Prefix factoring runs inside the
+    /// remaining prefixes so shared `Adds ` text still collapses.
+    /// </summary>
+    private static List<FactoredUnit> FactorSuffixUnits(IReadOnlyList<FactoredUnit> units)
+    {
+        if (units.Count < 2) return units.ToList();
+        var result = new List<FactoredUnit>();
+        var groups = units
+            .GroupBy(unit => unit.Text.Length > 0 ? unit.Text[^1] : '\0')
+            .OrderBy(group => group.Key);
+        foreach (var group in groups)
+        {
+            var items = group.ToList();
+            if (items.Count < 2)
+            {
+                result.Add(items[0]);
+                continue;
+            }
+            var texts = items.Select(unit => unit.Text).ToList();
+            // Suffix factoring is for value/range fragments, not affix-name
+            // lists. A factored name (for example `(Flam|Scorch)ing`) is not
+            // round-trippable by query import and would change the picker's
+            // name semantics.
+            if (texts.All(text => text.Any(char.IsAsciiDigit)) &&
+                TryFactorSuffix(texts, out var candidate))
+            {
+                result.Add(new FactoredUnit(
+                    candidate,
+                    items.SelectMany(unit => unit.Sources)
+                        .Distinct().OrderBy(index => index).ToList()));
+            }
+            else
+            {
+                result.AddRange(items);
+            }
+        }
+        return result;
+    }
+
+    private static bool TryFactorSuffix(IReadOnlyList<string> items, out string candidate)
+    {
+        candidate = "";
+        if (items.Count < 2) return false;
+        var rawSuffix = LongestCommonSuffix(items);
+        var union = string.Join("|", items);
+        for (var length = rawSuffix.Length; length >= 2; length--)
+        {
+            var suffix = rawSuffix[^length..];
+            var prefixes = items.Select(item => item[..^length]).ToList();
+            if (prefixes.Any(prefix => prefix.Length == 0)) continue;
+            if (!CanFactorSuffix(prefixes, suffix)) continue;
+            // Prefix factoring inside the suffix group can add parentheses
+            // that cost more than the shared `Adds ` prefix saves. Try both
+            // and keep the shortest.
+            var rawPrefixText = string.Join("|", prefixes);
+            var factoredPrefixText = string.Join("|", FactorPrefixTexts(prefixes));
+            foreach (var prefixText in new[] { rawPrefixText, factoredPrefixText })
+            {
+                var value = "(" + prefixText + ")" + suffix;
+                if (value.Length < union.Length &&
+                    (candidate.Length == 0 || value.Length < candidate.Length))
+                    candidate = value;
+            }
+            if (candidate.Length > 0) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Prefix-only factoring used inside a suffix group.</summary>
+    private static IReadOnlyList<string> FactorPrefixTexts(IReadOnlyList<string> fragments)
+    {
+        if (fragments.Count < 2) return fragments;
+        var result = new List<string>();
+        var groups = fragments.Distinct().OrderBy(fragment => fragment, StringComparer.Ordinal)
+            .GroupBy(fragment => fragment.Length > 0 ? fragment[0] : '\0')
+            .OrderBy(group => group.Key);
+        foreach (var group in groups)
+        {
+            var items = group.ToList();
+            if (items.Count < 2)
+            {
+                result.Add(items[0]);
+                continue;
+            }
+            var rawPrefix = LongestCommonPrefix(items);
+            string? factored = null;
+            for (var length = rawPrefix.Length; length >= 2; length--)
+            {
+                if (items.Any(item => item.Length <= length)) continue;
+                var prefix = rawPrefix[..length];
+                var suffixes = items.Select(item => item[length..]).ToList();
+                if (!CanFactorPrefix(prefix, suffixes)) continue;
+                var candidate = prefix + "(" + string.Join("|", suffixes) + ")";
+                if (candidate.Length < string.Join("|", items).Length)
+                {
+                    factored = candidate;
+                    break;
+                }
+            }
+            if (factored is not null) result.Add(factored);
+            else result.AddRange(items);
+        }
+        return result;
+    }
+
+    private static string LongestCommonSuffix(IReadOnlyList<string> strings)
+    {
+        var first = strings[0];
+        var max = first.Length;
+        for (var i = 1; i < strings.Count && max > 0; i++)
+        {
+            var other = strings[i];
+            var n = 0;
+            while (n < max && n < other.Length &&
+                   first[^(n + 1)] == other[^(n + 1)])
+                n++;
+            max = n;
+        }
+        return first[^max..];
+    }
+
+    private static bool CanFactorSuffix(
+        IReadOnlyList<string> prefixes, string suffix)
+    {
+        if (suffix.Length < 2 || EndsWithOddBackslash(suffix) ||
+            suffix.IndexOfAny(['{', '}']) >= 0 ||
+            suffix[0] is '*' or '+' or '?' or '{' or '|' or ')' or ']' or '^' or '$')
+            return false;
+        if (!SuffixCanStandAlone(suffix)) return false;
+        return prefixes.All(PrefixCanPrecedeSuffix);
+    }
+
+    private static bool SuffixCanStandAlone(string suffix)
+    {
+        var depth = 0;
+        var inClass = false;
+        var escaped = false;
+        for (var i = 0; i < suffix.Length; i++)
+        {
+            var c = suffix[i];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+            if (inClass)
+            {
+                if (c == ']') inClass = false;
+                continue;
+            }
+            if (c == '[')
+            {
+                inClass = true;
+                continue;
+            }
+            if (c == '(')
+            {
+                depth++;
+                continue;
+            }
+            if (c == ')')
+            {
+                if (depth == 0) return false;
+                depth--;
+                continue;
+            }
+            if (depth == 0 && c == '|') return false;
+            if (c == '^') return false;
+            if (c == '$' && i != suffix.Length - 1) return false;
+        }
+        return !escaped && !inClass && depth == 0;
+    }
+
+    private static bool PrefixCanPrecedeSuffix(string prefix)
+    {
+        if (prefix.Length == 0 || EndsWithOddBackslash(prefix) ||
+            prefix.IndexOfAny(['{', '}']) >= 0)
+            return false;
+        var depth = 0;
+        var inClass = false;
+        var escaped = false;
+        for (var i = 0; i < prefix.Length; i++)
+        {
+            var c = prefix[i];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+            if (inClass)
+            {
+                if (c == ']') inClass = false;
+                continue;
+            }
+            if (c == '[')
+            {
+                inClass = true;
+                continue;
+            }
+            if (c == '(')
+            {
+                depth++;
+                continue;
+            }
+            if (c == ')')
+            {
+                if (depth == 0) return false;
+                depth--;
+                continue;
+            }
+            if (depth == 0 && c == '|') return false;
+            if (c == '$') return false;
+            if (c == '^' && i != 0) return false;
+        }
+        return !escaped && !inClass && depth == 0;
     }
 
     /// <summary>

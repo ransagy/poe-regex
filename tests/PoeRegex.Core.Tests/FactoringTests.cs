@@ -16,7 +16,7 @@ public class FactoringTests
         var factored = CompactionEngine.FactorCommonPrefixes(fragments);
 
         factored.Should().ContainSingle()
-            .Which.Should().Be(@"\+1([234]\d.*fe$|[567]\d.*fe$)");
+            .Which.Should().Be(@"(\+1([234]|[567]))\d.*fe$");
         QueryShape.Validate("\"" + string.Join("|", factored) + "\"")
             .Should().BeEmpty("factoring must never cut inside a character class");
     }
@@ -56,6 +56,37 @@ public class FactoringTests
                 @"Adds (([2-9]|[1-3]\d).*Ph.*ks|([5-9]|[1-3]\d).*ld.*ks|([6-9]|[1-4]\d).*ir.*ks$)");
         QueryShape.Validate("\"" + string.Join("|", factored) + "\"")
             .Should().BeEmpty("backing off to `Adds ` must produce a valid query");
+    }
+
+    [Fact]
+    public void CommonSuffix_FactorsValueFragments()
+    {
+        var fragments = new[]
+        {
+            "1 Physical Damage",
+            "2 Cold Damage",
+            "3 Fire Damage",
+        };
+
+        var factored = CompactionEngine.FactorCommonPrefixes(fragments);
+
+        factored.Should().ContainSingle()
+            .Which.Should().Be("(1 Physical|2 Cold|3 Fire) Damage");
+        QueryShape.Validate("\"" + string.Join("|", factored) + "\"")
+            .Should().BeEmpty("the suffix form must remain a valid query shape");
+    }
+
+    [Fact]
+    public void AnchoredSuffix_IsNotMixedWithUnanchoredText()
+    {
+        var fragments = new[]
+        {
+            "1 Xks",
+            "2 Yks$",
+        };
+
+        CompactionEngine.FactorCommonPrefixes(fragments)
+            .Should().BeEquivalentTo(fragments);
     }
 
     [Fact]

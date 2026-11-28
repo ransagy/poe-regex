@@ -192,18 +192,19 @@ outer loop. It runs at data-build time, never in the browser.
   range can use literal separators (`Adds 1 to ...`) instead of a wildcard
   that would swallow 12. A multi-roll line only contributes its first roll to
   the exact value set; multi-tier thresholds keep the full span walk.
-- Factoring is token-aware. The prefix pass backs off to the longest common
-  prefix that ends on a complete regex token boundary, so range groups and
-  character classes can be factored without ever cutting inside one; top-level
-  alternations, anchors, and repetition braces are left alone. Three 31–45
-  resistance picks therefore collapse from
-  `\+(3[1-9]|4[0-5]).*o Cold R|...` to
-  `\+(3[1-9]|4[0-5]).*o (Cold R|Fire R|l.+ce$)`. The suffix equivalent is
-  proof-gated: a shared `.*att` category form can match a broader set than the
-  exact picks, so it is parked for a future category/threshold pick. Value
-  classes compress consecutive digits into ranges and only add a group when
-  the value alternates, so `1[234567]\d` becomes `1[2-7]\d` and a pure
-  concatenation is not wrapped.
+- Factoring is token-aware. Prefix and value-suffix passes back off to the
+  longest common run ending on a complete regex token boundary, so range
+  groups and character classes can be factored without ever cutting inside
+  one; top-level alternations, anchors, and repetition braces are left alone.
+  The shortest of prefix-first and suffix-first wins. Three 31–45 resistance
+  picks therefore collapse from `\+(3[1-9]|4[0-5]).*o Cold R|...` to
+  `\+(3[1-9]|4[0-5]).*o (Cold R|Fire R|l.+ce$)`. Suffix factoring is limited
+  to fragments containing digits so affix-name lists stay round-trippable;
+  a shared `.*att` category form can still match a broader set than exact
+  picks, so it is parked for a future category/threshold pick. Value classes
+  compress consecutive digits into ranges and only add a group when the value
+  alternates, so `1[234567]\d` becomes `1[2-7]\d` and a pure concatenation is
+  not wrapped.
 - Multi-slot paste criteria group by semantic key. Each slot is
   canonicalized first, so multiple exact tiers of one family become one range
   requirement. A full-family pick becomes one marker requirement carrying its
