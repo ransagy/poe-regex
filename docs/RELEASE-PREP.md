@@ -13,6 +13,20 @@ Do not merge until every applicable gate is green. Do not run
 `deploy-production` without explicit approval for that deployment; merging to
 `main` runs CI and previews only.
 
+## Release vocabulary
+
+Use these phrases consistently:
+
+- **“merge it”** — merge the approved release candidate; do not deploy.
+- **“deploy current main”** — deploy production from the current `main`
+  commit without merging anything else.
+- **“release it”** — merge the approved release candidate, run the full
+  post-merge checklist, deploy that `main` commit to production, verify
+  `build-info.json` and the live app, and record the deployed commit. It does
+  **not** include tagging or publishing a CLI/GitHub release, merging
+  unrelated PRs, or skipping a failed gate. Stop and report if any gate
+  fails.
+
 ## 1. Provenance and scope
 
 - [ ] Confirm every new PoE2 mod family is PoE2 data.
