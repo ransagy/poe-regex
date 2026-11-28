@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace PoeRegex.Core.Compilation;
@@ -110,8 +111,24 @@ public sealed class TierRangePlan
     public string Template { get; init; } = "";
     public List<TierRangeValue> Tiers { get; init; } = [];
 
+    /// <summary>
+    /// Proven compact value classes for contiguous tier unions, keyed by
+    /// <see cref="UnionKey"/>. Joining per-tier classes is correct but can
+    /// emit <c>3[1-5]|3[6-9]|40|4[1-5]</c> where <c>3[1-9]|4[0-5]</c> fits.
+    /// </summary>
+    public Dictionary<string, string> UnionValues { get; init; } =
+        new(StringComparer.Ordinal);
+
     public static string Key(string pattern, string? itemClass) =>
         pattern + "\u0001" + (itemClass ?? "");
+
+    public static string UnionKey(IReadOnlyList<(double Lo, double Hi)> intervals) =>
+        string.Join(",", intervals
+            .OrderBy(interval => interval.Lo)
+            .ThenBy(interval => interval.Hi)
+            .Select(interval =>
+                interval.Lo.ToString("R", CultureInfo.InvariantCulture) + "-" +
+                interval.Hi.ToString("R", CultureInfo.InvariantCulture)));
 
     /// <summary>
     /// Compose the selected tier intervals through the common template.
@@ -131,6 +148,10 @@ public sealed class TierRangePlan
         }
         if (selected.Count == 0) return null;
 
+        var compact = plan.UnionValues is not null &&
+                      plan.UnionValues.TryGetValue(UnionKey(intervals), out var unionValue)
+            ? unionValue
+            : null;
         var distinct = selected
             .Select(tier => tier.Value)
             .Distinct(StringComparer.Ordinal)
@@ -154,6 +175,8 @@ public sealed class TierRangePlan
             value = distinct.Count == 1 ? distinct[0] : string.Join("|", distinct);
         }
         if (value.Length == 0) return null;
+        if (compact is not null && compact.Length < value.Length)
+            value = compact;
         if (value.Contains('|'))
             value = "(" + value + ")";
         return plan.Template.Replace("{0}", value, StringComparison.Ordinal);

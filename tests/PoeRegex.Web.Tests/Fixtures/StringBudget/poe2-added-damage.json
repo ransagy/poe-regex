@@ -1,0 +1,142 @@
+{
+  "Version": 7,
+  "Mode": "simple",
+  "SelectedSlot": null,
+  "MultiFocus": null,
+  "Slots": {
+    "weapon": {
+      "ClassId": "Crossbow",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "offhand": {
+      "ClassId": "Shield",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "helmet": {
+      "ClassId": "Helmet",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "body": {
+      "ClassId": "Body Armour",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "gloves": {
+      "ClassId": "Gloves",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "boots": {
+      "ClassId": "Boots",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "belt": {
+      "ClassId": "Belt",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "amulet": {
+      "ClassId": "Amulet",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring1": {
+      "ClassId": "Ring",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring2": {
+      "ClassId": "Ring",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    }
+  },
+  "Global": {
+    "ClassId": "",
+    "Included": [
+      {
+        "ModId": "AddedPhysicalDamage1",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 2,
+        "MaxValue": 32,
+        "RangeModIds": [
+          "AddedPhysicalDamage3",
+          "AddedPhysicalDamage4",
+          "AddedPhysicalDamage5",
+          "AddedPhysicalDamage6",
+          "AddedPhysicalDamage7",
+          "AddedPhysicalDamage8",
+          "AddedPhysicalDamage9"
+        ]
+      },
+      {
+        "ModId": "AddedColdDamage1",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 5,
+        "MaxValue": 37,
+        "RangeModIds": [
+          "AddedColdDamage3",
+          "AddedColdDamage4",
+          "AddedColdDamage5",
+          "AddedColdDamage6",
+          "AddedColdDamage7",
+          "AddedColdDamage8",
+          "AddedColdDamage9"
+        ]
+      },
+      {
+        "ModId": "AddedFireDamage1",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 6,
+        "MaxValue": 45,
+        "RangeModIds": [
+          "AddedFireDamage3",
+          "AddedFireDamage4",
+          "AddedFireDamage5",
+          "AddedFireDamage6",
+          "AddedFireDamage7",
+          "AddedFireDamage8",
+          "AddedFireDamage9"
+        ]
+      },
+      {
+        "ModId": "AddedLightningDamage1",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 1,
+        "MaxValue": 71,
+        "RangeModIds": [
+          "AddedLightningDamage3",
+          "AddedLightningDamage4",
+          "AddedLightningDamage5",
+          "AddedLightningDamage6",
+          "AddedLightningDamage7",
+          "AddedLightningDamage8",
+          "AddedLightningDamage9"
+        ]
+      }
+    ],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": [],
+  "Game": "poe2"
+}

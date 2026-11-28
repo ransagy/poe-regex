@@ -1,0 +1,114 @@
+{
+  "Version": 7,
+  "Mode": "simple",
+  "SelectedSlot": null,
+  "MultiFocus": null,
+  "Slots": {
+    "weapon": {
+      "ClassId": "Crossbow",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "offhand": {
+      "ClassId": "Shield",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "helmet": {
+      "ClassId": "Helmet",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "body": {
+      "ClassId": "Body Armour",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "gloves": {
+      "ClassId": "Gloves",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "boots": {
+      "ClassId": "Boots",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "belt": {
+      "ClassId": "Belt",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "amulet": {
+      "ClassId": "Amulet",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring1": {
+      "ClassId": "Ring",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    },
+    "ring2": {
+      "ClassId": "Ring",
+      "Included": [],
+      "Excluded": [],
+      "MatchAll": false
+    }
+  },
+  "Global": {
+    "ClassId": "",
+    "Included": [
+      {
+        "ModId": "LightningResist6",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 31,
+        "MaxValue": 45,
+        "RangeModIds": [
+          "LightningResist6",
+          "LightningResist7",
+          "LightningResist8"
+        ]
+      },
+      {
+        "ModId": "FireResist6",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 31,
+        "MaxValue": 45,
+        "RangeModIds": [
+          "FireResist6",
+          "FireResist7",
+          "FireResist8"
+        ]
+      },
+      {
+        "ModId": "ColdResist6",
+        "Names": null,
+        "VariantModIds": null,
+        "MinValue": 31,
+        "MaxValue": 45,
+        "RangeModIds": [
+          "ColdResist6",
+          "ColdResist7",
+          "ColdResist8"
+        ]
+      }
+    ],
+    "Excluded": [],
+    "MatchAll": false
+  },
+  "TestItems": [],
+  "ExternalIncludes": [],
+  "Game": "poe2"
+}

@@ -33,6 +33,11 @@ rm -rf out/web
 
 find out/web/wwwroot -type f \( -name '*.br' -o -name '*.gz' \) -delete
 
+# PoE1 data is served from /data/poe1 and is not embedded. Copy the
+# source-of-truth artifacts over the checked-in web copy so a stale file can
+# never ship; Poe1ArtifactTests verifies the committed copy stays in sync.
+sh tools/sync-poe1-data.sh out/web/wwwroot/data/poe1
+
 # index.html always links web.styles.css, but the SDK only emits that file
 # when the project has scoped CSS (.razor.css). Ship an empty one so the
 # link resolves as text/css instead of falling through the SPA rewrite to

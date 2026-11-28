@@ -23,7 +23,7 @@ internal static class TierRangeBuilder
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         var planEntries = new Dictionary<string, List<(double Lo, double Hi, string Template, string Value)>>(
             StringComparer.Ordinal);
-        var planMeta = new Dictionary<string, (string Pattern, string? Class)>(StringComparer.Ordinal);
+        var planMeta = new Dictionary<string, (string Pattern, string? Class, int Precision)>(StringComparer.Ordinal);
         var engine = new CompactionEngine(corpus);
         var scopes = new List<string?> { null };
         scopes.AddRange(corpus.InGameClasses.Select(c => (string?)c.Id));
@@ -75,7 +75,7 @@ internal static class TierRangeBuilder
                         pattern, intervals, precision, classId, [pattern]);
                     result.TryAdd(key, fragment);
                     var planKey = TierRangePlan.Key(pattern, classId);
-                    planMeta[planKey] = (pattern, classId);
+                    planMeta[planKey] = (pattern, classId, precision);
                     if (!planEntries.TryGetValue(planKey, out var entries))
                         planEntries[planKey] = entries = [];
                     foreach (var split in DeriveValueSplits(
@@ -97,7 +97,8 @@ internal static class TierRangeBuilder
                 .ThenBy(group => group.Key, StringComparer.Ordinal)
                 .FirstOrDefault();
             if (chosen is null) continue;
-            var tiers = chosen
+            var meta = planMeta[key];
+            var chosenTiers = chosen
                 .GroupBy(entry => (entry.Lo, entry.Hi))
                 .Select(group => new TierRangeValue
                 {
@@ -108,43 +109,182 @@ internal static class TierRangeBuilder
                 .OrderBy(tier => tier.Lo)
                 .ThenBy(tier => tier.Hi)
                 .ToList();
-            if (tiers.Count < 2) continue;
-            var plan = new TierRangePlan
+
+            var filledTiers = new List<TierRangeValue>();
+            foreach (var interval in entries
+                         .Select(entry => (entry.Lo, entry.Hi))
+                         .Distinct()
+                         .OrderBy(item => item.Lo)
+                         .ThenBy(item => item.Hi))
             {
-                Template = chosen.Key,
-                Tiers = tiers,
-            };
-            if (!VerifyPlan(engine, plan, planMeta[key]))
-                continue;
-            plans[key] = plan;
+                var value = FindPlanValue(
+                    engine, chosen.Key, meta.Pattern, meta.Class, meta.Precision,
+                    interval, entries);
+                if (value is null)
+                {
+                    filledTiers = null;
+                    break;
+                }
+                filledTiers.Add(new TierRangeValue
+                {
+                    Lo = interval.Lo,
+                    Hi = interval.Hi,
+                    Value = value,
+                });
+            }
+
+            TierRangePlan? plan = null;
+            if (filledTiers is { Count: >= 2 })
+            {
+                var filled = new TierRangePlan
+                {
+                    Template = chosen.Key,
+                    Tiers = filledTiers,
+                    UnionValues = BuildUnionValues(
+                        engine, chosen.Key, meta.Pattern, meta.Class,
+                        meta.Precision, filledTiers),
+                };
+                if (VerifyPlan(engine, filled, meta))
+                    plan = filled;
+            }
+            if (plan is null && chosenTiers.Count >= 2)
+            {
+                var original = new TierRangePlan
+                {
+                    Template = chosen.Key,
+                    Tiers = chosenTiers,
+                };
+                if (VerifyPlanLegacy(engine, original, meta))
+                    plan = original;
+            }
+            if (plan is not null)
+                plans[key] = plan;
         }
         return new TierRangeData(result, plans);
     }
 
+    private static IEnumerable<string> ValueCandidates(
+        IReadOnlyList<(double Lo, double Hi)> intervals, int precision)
+    {
+        var candidates = new List<string>();
+        if (precision <= 0)
+        {
+            var values = new HashSet<long>();
+            foreach (var (lo, hi) in intervals)
+            {
+                var first = (long)Math.Ceiling(lo - 1e-9);
+                var last = (long)Math.Floor(hi + 1e-9);
+                if (last - first > 5000) { values.Clear(); break; }
+                for (var value = first; value <= last; value++) values.Add(value);
+            }
+            if (values.Count > 0)
+                candidates.AddRange(RangeRegex.ExactIntegerCandidates(
+                    values.OrderBy(value => value).ToList()));
+        }
+        candidates.AddRange(RangeRegex.Candidates(intervals, precision));
+        return candidates.Distinct(StringComparer.Ordinal);
+    }
+
+    private static string? FindPlanValue(
+        CompactionEngine engine, string template, string pattern, string? itemClass,
+        int precision, (double Lo, double Hi) interval,
+        IReadOnlyList<(double Lo, double Hi, string Template, string Value)> entries)
+    {
+        var candidates = entries
+            .Where(entry => entry.Lo == interval.Lo && entry.Hi == interval.Hi)
+            .Select(entry => entry.Value)
+            .Concat(ValueCandidates([interval], precision))
+            .Distinct(StringComparer.Ordinal)
+            .Where(value => value.Length > 0 &&
+                RangeRegex.MatchesIntervals(value, [interval], precision))
+            .OrderBy(value => value.Length)
+            .ThenBy(value => value, StringComparer.Ordinal);
+        foreach (var value in candidates)
+        {
+            var valueText = value.Contains('|') ? "(" + value + ")" : value;
+            var fragment = template.Replace("{0}", valueText, StringComparison.Ordinal);
+            if (engine.ProveRangeFragment(
+                    fragment, [pattern], [interval], itemClass,
+                    exact: IsExact(interval.Lo, interval.Hi)))
+                return value;
+        }
+        return null;
+    }
+
+    private static Dictionary<string, string> BuildUnionValues(
+        CompactionEngine engine, string template, string pattern, string? itemClass,
+        int precision, IReadOnlyList<TierRangeValue> tiers)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var start = 0; start < tiers.Count; start++)
+        for (var end = start + 1; end < tiers.Count; end++)
+        {
+            var selected = tiers.Skip(start).Take(end - start + 1).ToList();
+            if (selected.All(tier => IsExact(tier.Lo, tier.Hi))) continue;
+            var intervals = selected.Select(tier => (tier.Lo, tier.Hi)).ToList();
+            var exact = false;
+            var candidate = ValueCandidates(intervals, precision)
+                .Distinct(StringComparer.Ordinal)
+                .Where(value => RangeRegex.MatchesIntervals(value, intervals, precision))
+                .OrderBy(value => value.Length)
+                .ThenBy(value => value, StringComparer.Ordinal)
+                .FirstOrDefault(value =>
+                {
+                    var valueText = value.Contains('|') ? "(" + value + ")" : value;
+                    var fragment = template.Replace(
+                        "{0}", valueText, StringComparison.Ordinal);
+                    return engine.ProveRangeFragment(
+                        fragment, [pattern], intervals, itemClass, exact);
+                });
+            if (candidate is not null)
+                result[TierRangePlan.UnionKey(intervals)] = candidate;
+        }
+        return result;
+    }
+
     private static bool VerifyPlan(
-        CompactionEngine engine, TierRangePlan plan, (string Pattern, string? Class) meta)
+        CompactionEngine engine, TierRangePlan plan,
+        (string Pattern, string? Class, int Precision) meta)
+    {
+        var intervals = plan.Tiers.Select(tier => (tier.Lo, tier.Hi)).ToList();
+        for (var start = 0; start < intervals.Count; start++)
+        for (var end = start + 1; end < intervals.Count; end++)
+        {
+            var subset = intervals.GetRange(start, end - start + 1);
+            var fragment = TierRangePlan.Compose(plan, subset);
+            if (fragment is null ||
+                !engine.ProveRangeFragment(
+                    fragment, [meta.Pattern], subset, meta.Class,
+                    exact: plan.Tiers
+                        .Skip(start)
+                        .Take(end - start + 1)
+                        .All(tier => IsExact(tier.Lo, tier.Hi))))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool VerifyPlanLegacy(
+        CompactionEngine engine, TierRangePlan plan,
+        (string Pattern, string? Class, int Precision) meta)
     {
         var intervals = plan.Tiers.Select(tier => (tier.Lo, tier.Hi)).ToList();
         var full = TierRangePlan.Compose(plan, intervals);
         if (full is null ||
             !engine.ProveRangeFragment(full, [meta.Pattern], intervals, meta.Class,
-                exact: plan.Tiers.All(tier =>
-                    Math.Abs(tier.Lo - tier.Hi) < 1e-9 &&
-                    Math.Abs(tier.Lo - Math.Round(tier.Lo)) < 1e-9)))
+                exact: plan.Tiers.All(tier => IsExact(tier.Lo, tier.Hi))))
             return false;
-        if (intervals.Count >= 2)
-        {
-            var pairIntervals = intervals.Take(2).ToList();
-            var pair = TierRangePlan.Compose(plan, pairIntervals);
-            if (pair is null ||
-                !engine.ProveRangeFragment(pair, [meta.Pattern], pairIntervals, meta.Class,
-                    exact: plan.Tiers.Take(2).All(tier =>
-                        Math.Abs(tier.Lo - tier.Hi) < 1e-9 &&
-                        Math.Abs(tier.Lo - Math.Round(tier.Lo)) < 1e-9)))
-                return false;
-        }
-        return true;
+        if (intervals.Count < 2) return true;
+        var pairIntervals = intervals.Take(2).ToList();
+        var pair = TierRangePlan.Compose(plan, pairIntervals);
+        return pair is not null &&
+               engine.ProveRangeFragment(pair, [meta.Pattern], pairIntervals, meta.Class,
+                   exact: plan.Tiers.Take(2).All(tier => IsExact(tier.Lo, tier.Hi)));
     }
+
+    private static bool IsExact(double lo, double hi) =>
+        Math.Abs(lo - hi) < 1e-9 &&
+        Math.Abs(lo - Math.Round(lo)) < 1e-9;
 
     private static IEnumerable<(string Template, string Value)> DeriveValueSplits(
         string fragment,
@@ -179,7 +319,8 @@ internal static class TierRangeBuilder
                     "0." + new string('#', precision), CultureInfo.InvariantCulture));
         }
         foreach (var candidate in candidates
-                     .Where(candidate => candidate.Length > 0 && !candidate.Contains('|'))
+                     .Where(candidate => candidate.Length > 0 &&
+                         RangeRegex.MatchesIntervals(candidate, intervals, precision))
                      .OrderByDescending(candidate => candidate.Length)
                      .ThenBy(candidate => candidate, StringComparer.Ordinal))
         {
