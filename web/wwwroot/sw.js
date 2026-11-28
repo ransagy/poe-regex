@@ -119,7 +119,10 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith((async () => {
-    const cached = await caches.match(request);
+    // Shell assets carry ?v=<build> in index.html. The precached copy may be
+    // unversioned (fallback) or versioned; either way, the build cache is the
+    // source of truth for this worker.
+    const cached = await caches.match(request, { ignoreSearch: true });
     if (cached) return cached;
     try {
       const response = await fetch(request);

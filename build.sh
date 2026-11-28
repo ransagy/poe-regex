@@ -71,7 +71,12 @@ sed -i "s/__BUILD_COMMIT__/$COMMIT/g" out/web/wwwroot/index.html
     ! -path 'out/web/wwwroot/data/poe1/*' \
     -printf '/%P\n' \
     | LC_ALL=C sort \
-    | awk 'BEGIN { printf "[" } { printf "%s\"%s\"", sep, $0; sep = "," } END { print "]" }'
+    | awk -v v="$COMMIT" 'BEGIN { printf "[" } {
+        p = $0
+        if (p ~ /^\/(css|js)\// || p == "/web.styles.css") p = p "?v=" v
+        printf "%s\"%s\"", sep, p
+        sep = ","
+      } END { print "]" }'
 } > out/web/wwwroot/precache-manifest.json
 
 # Change the worker bytes on every build so the browser installs the new
