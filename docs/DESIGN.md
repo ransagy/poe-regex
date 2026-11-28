@@ -205,7 +205,9 @@ outer loop. It runs at data-build time, never in the browser.
   picks, so it is parked for a future category/threshold pick. Value classes
   compress consecutive digits into ranges and only add a group when the value
   alternates, so `1[234567]\d` becomes `1[2-7]\d` and a pure concatenation is
-  not wrapped.
+  not wrapped. Reconstruction expands plain alternation groups for comparison,
+  and resolves runtime range branches from matched catalog lines, so
+  pre-factoring and factored forms import to the same range picks.
 - Multi-slot paste criteria group by semantic key. Each slot is
   canonicalized first, so multiple exact tiers of one family become one range
   requirement. A full-family pick becomes one marker requirement carrying its

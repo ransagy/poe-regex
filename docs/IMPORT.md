@@ -179,6 +179,10 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
   display unit of tolerance, reversed ranges (`10(15-10)`) are accepted, and
   decimal stats use the catalog's two-placeholder pattern shape (`0.17` ->
   `\x01.\x01`).
+- Runtime tier ranges are reconstructed from the matched catalog lines.
+  Factored range queries and their pre-factoring forms apply to the same
+  range picks and recompile to the current shortest form. Saved picks and
+  share links store the picks and are unaffected by the emitted string.
 - Multi-line stat descriptions are mapped line by line; a wrapped first line
   can remain approximate (the Focus infusion line).
 - Genuine ambiguity, such as two desecrated Cost Efficiency suffixes sharing
@@ -209,7 +213,8 @@ anchors are not mapped to slots; `s:` class filters are preserved as raw
 - Over-budget multi-slot pastes may union compatible any-of groups. Importing
   such a string can recompile to a shorter equivalent grouping rather than
   the exact original grouping; item matching is unchanged. Under-budget
-  strings keep their exact round-trip form.
+  strings keep an equivalent round-trip form; the current build may re-emit a
+  shorter factored form.
 
 ## Reproduce
 

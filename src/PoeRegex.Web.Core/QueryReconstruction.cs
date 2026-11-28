@@ -1129,13 +1129,15 @@ public sealed class QueryReconstructionService
         pick = null;
         var matches = _anchors.FragmentsFor(branch);
         if (matches.Count == 0)
-            return TryRawFragmentPick(branch, itemClass, used, out pick);
+            return TryRangePick(branch, itemClass, used, out pick, forbiddenIds) ||
+                   TryRawFragmentPick(branch, itemClass, used, out pick);
 
         var scoped = itemClass is null
             ? matches
             : matches.Where(m => m.Class is null || string.Equals(m.Class, itemClass, StringComparison.Ordinal)).ToList();
         if (scoped.Count == 0)
-            return TryRawFragmentPick(branch, itemClass, used, out pick);
+            return TryRangePick(branch, itemClass, used, out pick, forbiddenIds) ||
+                   TryRawFragmentPick(branch, itemClass, used, out pick);
 
         // A fragment is class-specific in the table (`o Ev` vs `^\+.*on` for
         // the same line), so try the class-scoped pattern(s) before global.
@@ -1147,7 +1149,8 @@ public sealed class QueryReconstructionService
             .OrderBy(m => m.Id, StringComparer.Ordinal)
             .ToList();
         if (mods.Count == 0)
-            return TryRawFragmentPick(branch, itemClass, used, out pick);
+            return TryRangePick(branch, itemClass, used, out pick, forbiddenIds) ||
+                   TryRawFragmentPick(branch, itemClass, used, out pick);
 
         // Prefer the tierless family form: the query has no tier information.
         var familyKeys = mods
@@ -1194,7 +1197,82 @@ public sealed class QueryReconstructionService
             return true;
         }
 
-        return TryRawFragmentPick(branch, itemClass, used, out pick);
+        return TryRangePick(branch, itemClass, used, out pick, forbiddenIds) ||
+               TryRawFragmentPick(branch, itemClass, used, out pick);
+    }
+
+    /// <summary>
+    /// Runtime tier ranges are compiled from proven value plans, not stored in
+    /// the plain fragment table. Rebuild them as range picks before falling
+    /// back to raw text, so import/apply can recompile the same factored query.
+    /// </summary>
+    private bool TryRangePick(
+        string branch, string? itemClass, IReadOnlyList<WantedMod> used,
+        out WantedMod? pick, ISet<string>? forbiddenIds = null)
+    {
+        // Explain already knows which real lines match the branch. Build the
+        // range pick from those exact mods; this is the common path and avoids
+        // enumerating every tier subset.
+        if (TryRangeFromExplain(branch, itemClass, used, out pick, forbiddenIds))
+            return true;
+
+        pick = null;
+        return false;
+    }
+
+    private bool TryRangeFromExplain(
+        string branch, string? itemClass, IReadOnlyList<WantedMod> used,
+        out WantedMod? pick, ISet<string>? forbiddenIds)
+    {
+        pick = null;
+        ExplainResult explanation;
+        Regex regex;
+        try
+        {
+            explanation = _engine.Explain(_engine.Syntax.Quote(branch), itemClass);
+            regex = new Regex(branch,
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(1));
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        foreach (var match in explanation.Tokens.SelectMany(token => token.Matches))
+        {
+            var matching = match.ModIds
+                .Select(id => _engine.FindMod(id))
+                .Where(mod => mod is not null &&
+                              mod.StatLines.Count == 1 &&
+                              string.Equals(mod.StatLines[0].Pattern, match.Pattern,
+                                  StringComparison.Ordinal) &&
+                              regex.IsMatch(mod.StatLines[0].Line) &&
+                              (mod.StatLines[0].RangeLine.Length == 0 ||
+                               regex.IsMatch(mod.StatLines[0].RangeLine)))
+                .Select(mod => mod!)
+                .GroupBy(ModFamilies.KeyOf)
+                .ToList();
+            foreach (var group in matching)
+            {
+                var ids = group.Select(mod => mod.Id)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToList();
+                if (ids.Count == 0) continue;
+                var candidate = new WantedMod(
+                    ids[0],
+                    MinValue: group.Min(mod => mod.StatLines[0].MinValue),
+                    MaxValue: group.Max(mod => mod.StatLines[0].MaxValue),
+                    RangeModIds: ids);
+                if (forbiddenIds?.Contains(candidate.ModId) == true) continue;
+                if (Conflicts(candidate, used)) continue;
+                if (!CompilesToTerm(candidate, branch, itemClass)) continue;
+                pick = candidate;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>

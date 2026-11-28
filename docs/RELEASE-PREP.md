@@ -151,23 +151,30 @@ source of truth.
 - [ ] Keep the full report outside the repository and outside the PR. Do not
   commit, attach, link, or paste it; it is a local/CI release gate only.
 
-## 4. Compatibility
+## 4. Compatibility, saved picks, and round-trip
 
-Run when the catalog, pick schema, share codec, or query import changed.
+Run on **every** release, even when the catalog, pick schema, share codec, or
+query import did not change.
 
 - [ ] Keep the previous shipped release fixtures under
   `tests/PoeRegex.Web.Tests/Fixtures/Compatibility/`: workbench and saved-pick
   JSON, share tokens, and sample query strings. Never regenerate them from the
   branch under test.
-- [ ] Run the compatibility tests:
+- [ ] Run the compatibility and round-trip tests:
 
   ```sh
   dotnet test tests/PoeRegex.Web.Tests/PoeRegex.Web.Tests.csproj -c Release \
-    --filter FullyQualifiedName~CompatibilityTests
+    --filter "FullyQualifiedName~CompatibilityTests|FullyQualifiedName~RangeQueryRoundTripTests|FullyQualifiedName~QueryRoundTripTests"
   ```
 
 - [ ] Confirm old snapshots restore and recompile; retired mod ids are dropped
   and reported, never compiled as internal ids.
+- [ ] Save the current picks, clear them, and reload; confirm the same query
+  and match semantics. Do the same through an old share token from
+  `Fixtures/Compatibility/`.
+- [ ] Import a current factored range query and its pre-factoring form; both
+  must apply to the same picks and recompile to the current shortest query.
+  Confirm an oversized share link fails closed while saved picks still load.
 - [ ] Confirm old query strings either reconstruct or fail closed with
   diagnostics; a retired fragment must not be reinterpreted as a different
   mod silently.
@@ -226,7 +233,7 @@ Run when the web app, shell, service worker, or data/table changed.
 
 ## 7. Performance
 
-Run when data/table size or web code changed.
+Run on **every** release, and always after data/table size or web code changes.
 
 - [ ] Run the release build with the same host and viewport as the baseline:
 
@@ -240,6 +247,9 @@ Run when data/table size or web code changed.
   recorded, not hidden.
 - [ ] Check advanced picks, bulk add, import parse, explain, builder open, and
   the 10-slot paste update against [`ACCEPTANCE.md`](ACCEPTANCE.md).
+- [ ] Run the targeted first-pick matrix: first family/exact/“or better”,
+  post-first exact, and post-first disjoint families; repeat at 4× CPU
+  throttling. No consistent p50 regression or >200 ms long task is allowed.
 - [ ] Optional: run the manual **web-perf** workflow for a CI-host sample.
   It uploads the JSON/log and writes a step summary, but it is observational;
   the local run above remains the blocking gate.

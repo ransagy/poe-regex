@@ -92,7 +92,10 @@ public class CompatibilityTests
         snap.Should().NotBeNull();
         var state = new WorkbenchState();
         WorkbenchSnapshot.Restore(state, snap!, id => engine.FindMod(id) is not null);
-        state.CriteriaFor("boots").Included.Should().HaveCount(2);
+        var boots = state.CriteriaFor("boots");
+        boots.Included.Should().HaveCount(2);
+        engine.CompilePicks(boots.Included, boots.Excluded, boots.MatchAll, boots.ClassId)
+            .Query.Should().NotBeEmpty("an old share link must still recompile");
     }
 
     [Fact]
@@ -113,6 +116,10 @@ public class CompatibilityTests
             state, picks[0].Snapshot, id => engine.FindMod(id) is not null);
         removed.Should().BeEmpty();
         state.Global.Included.Should().ContainSingle();
+        engine.CompilePicks(
+                state.Global.Included, state.Global.Excluded,
+                state.Global.MatchAll, null)
+            .Query.Should().NotBeEmpty("old saved picks must still recompile");
     }
 
     [Fact]

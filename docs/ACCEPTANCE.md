@@ -23,7 +23,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   Class anchors are at least two characters, and `Gloves` uses `Gl`.
 - Import audit: every PoE1 catalog mod/class/display form maps back to its
   source mod (18,666 forms, 0 failures).
-- Tests: 146 core + 518 web + 53 data-build pass.
+- Tests: 150 core + 523 web + 53 data-build pass.
 - Compatibility: previous-release PoE1/PoE2 saved picks, share tokens, and
   query-string fixtures load; retired PoE1 ids are dropped with a notice and
   are never compiled as internal-id literals.
@@ -124,7 +124,7 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   (integer ranges), body armour life regeneration (decimal advanced range),
   cross-width ranges, the Athlete’s/Fecund slot matrix, and both exclusion
   shapes.
-- Current Release suite: 146 core + 518 web + 53 data-build; the published
+- Current Release suite: 150 core + 523 web + 53 data-build; the published
   PWA shell boots and reloads offline with the new picker.
 - Perf smoke (published Release, two runs): boot ~1.35 s (p95 ~1.42 s);
   picker expand ~25 ms; advanced family pick ~71 ms; first cross-class range
@@ -164,6 +164,15 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
   inventory of the fixture corpus and common-pick groups found no existing
   fixture query changed; all changed multi-pick states got shorter, with no
   longer outputs.
+- Runtime tier ranges and factored range queries reconstruct from the
+  matched catalog lines and range plans: both the 45-char resistance form and
+  its 85-char pre-factoring form apply as the same three range picks and
+  recompile to the 45-char form; the four-family added-damage form likewise
+  recompiles to 88.
+  Saved picks and share links store the picks, not the string, and recompile
+  against the current factoring. A family-agnostic sweep covers every normal
+  family’s tier ranges, random cross-family groups, and snapshot/share
+  round-trip. Oversized share links remain fail-closed; saved picks still work.
 - The real PoE1 10-slot state (Two Hand Axe physical, Helmet/Body/Belt life,
   Boots movement, Gloves/Ring four damage families) compiles in **211/250**
   characters (was 261).
@@ -176,7 +185,8 @@ update; the current catalog is sourced from RePoE 3.30.0.4 (2026-11-25):
 - PoE1 10-slot combine in the Release test host: first **~161 ms**, next
   changed state **~39 ms**, cached combine **<1 ms**.
 - Tests: `AnyOfUnionTests`, `Poe1UnionTests`, `ResistanceFactoringTests`,
-  `AddedDamageFactoringTests`, `FactoringTests`.
+  `AddedDamageFactoringTests`, `RangeQueryRoundTripTests`, `FactoringTests`,
+  `QueryEquivalenceTests`.
 
 ## Performance
 
@@ -212,6 +222,13 @@ union without another range proof. The click still pays the combined-paste
 plan and the picker refresh; the action render is no longer duplicated by
 the parent's state-change render, and single-class anchor validation uses a
 literal fast path.
+
+Factoring verification on the release build: cache-reset multi-pick compile
+adds ~10–35 µs and 6–25 KB; browser first/exact/up/post-first/disjoint actions
+stay within ±2.5 ms at 1× CPU and within run variance at 4×. First importing
+the resistance and added-damage forms parsed in 319–436 ms and applied in
+62–99 ms; import parse 5 items stayed at ~43 ms. No action added a >200 ms
+long task.
 
 The PoE1 profile, lazy data loader, and game rail raised boot to about
 1.4 s, still under the 2.5 s budget. Bulk add, builder open, explain, and import are

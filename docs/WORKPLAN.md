@@ -160,7 +160,9 @@ is the status source of truth.
   families. A representative four-family added-damage exact selection drops
   96→88; the suffix pass cannot beat the prefix form because the enclosing
   parentheses cost more than the repeated `ks` saves. Leading anchors are
-  preserved, so already-factored `^\d.+...` pairs do not regress. The remaining
+  preserved, so already-factored `^\d.+...` pairs do not regress. Runtime range
+  branches reconstruct from matched catalog lines, so both factored and
+  pre-factoring range strings import to the same range picks. The remaining
   difference to the hand-written `.*att` snippet is a broader category
   filter. Suffix factoring is limited to fragments containing digits so
   affix-name lists stay round-trippable.
