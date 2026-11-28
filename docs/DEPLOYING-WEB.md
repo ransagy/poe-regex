@@ -245,9 +245,10 @@ The Pages build image does not include .NET, so `build.sh`:
    (`index.html` links it unconditionally; without this the request falls
    through the SPA fallback to `index.html` and the browser blocks it on
    the MIME type),
-5. stamps `build-info.json`, substitutes the commit into the versioned
-   service-worker registration in `index.html`, generates
-   `precache-manifest.json`, and appends the build commit to `sw.js`,
+5. stamps `build-info.json`, substitutes the commit into the service-worker
+   registration and the non-fingerprinted CSS/JS URLs in `index.html`,
+   generates `precache-manifest.json` with the same versioned asset URLs, and
+   appends the build commit to `sw.js`,
 6. leaves the static site in `out/web/wwwroot`.
 
 Reproduce the Cloudflare build locally with:
@@ -269,9 +270,13 @@ Reproduce the Cloudflare build locally with:
   content-fingerprinted in .NET 10, and fingerprints change per build);
   `X-Robots-Tag: noindex` on the generated Pages hosts so internal preview
   URLs stay out of search engines (the app is link-only). A custom domain is
-  not matched and stays indexable. Cloudflare can ignore the `/sw.js`
-  `no-cache` rule, so `index.html` registers
-  `/sw.js?v=<build-commit>` instead of relying on that header.
+  not matched and stays indexable. Cloudflare can override the
+  `no-cache` rules for JS/CSS and serve them with a four-hour cache, so
+  `build.sh` appends `?v=<build-commit>` to the non-fingerprinted CSS/JS in
+  `index.html` and `precache-manifest.json`. A new build therefore uses new
+  asset URLs; the old service worker/browser cache cannot pair new HTML with
+  old CSS/JS. `index.html` also registers `/sw.js?v=<build-commit>` for the
+  same reason.
 - `build-info.json` is generated into the output on every build (commit and
   branch from Cloudflare's `CF_PAGES_*` build variables, with a local `git`
   fallback). The Advanced panel shows the short commit + branch, so the
@@ -303,9 +308,10 @@ Reproduce the Cloudflare build locally with:
   handoff; a repeated snapshot is a no-op. The update can proceed after the
   handoff, and the shared picks survive the reload.
 - Navigation serves the active shell from cache until the waiting worker is
-  accepted, avoiding a new `index.html` running against old cached assets.
-  The worker is registered with a build-versioned `/sw.js?v=<commit>` and
-  `updateViaCache: "none"`.
+  accepted. Non-fingerprinted shell assets are build-versioned in the HTML and
+  precache manifest, so even an old worker with a stale cache misses the new
+  URLs and fetches the new CSS/JS. The worker is registered with a
+  build-versioned `/sw.js?v=<commit>` and `updateViaCache: "none"`.
 
 ## CI
 

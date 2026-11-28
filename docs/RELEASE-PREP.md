@@ -220,8 +220,9 @@ Run when the web app, shell, service worker, or data/table changed.
   Required: manifest and installability have no errors, the worker controls
   the page after a reload, the cache has the shell and framework, and the
   offline reload boots. The update check covers the waiting worker, manual
-  Update now/Later, automatic idle, and a shared link opened while an update
-  is waiting.
+  Update now/Later, automatic idle, a shared link opened while an update is
+  waiting, build-versioned CSS/JS in the HTML and precache manifest, and the
+  update toast CSS after the switch.
 
 ## 7. Performance
 

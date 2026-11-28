@@ -271,13 +271,16 @@ rerun it on a quiet host before treating it as a regression signal.
   retry of the same snapshot is a no-op. After the handoff, automatic mode may
   update; the shared picks survive the reload.
 - Navigation serves the active shell from cache until the waiting worker is
-  accepted, so old JS cannot be mixed with new cached assets. The browser
+  accepted. Non-fingerprinted CSS/JS (including `app.css`, `web.styles.css`,
+  and `js/*`) are build-versioned in `index.html` and the precache manifest,
+  so an old worker/cache cannot pair new HTML with old styles. The browser
   registers with `updateViaCache: "none"` and a build-versioned `/sw.js`.
   Registration is skipped on `localhost`/`127.0.0.1`.
-- `build.sh` generates `precache-manifest.json` and substitutes the commit
-  into the registration; `_headers` marks the manifest, precache manifest,
-  build info, CSS, JS, and `web.styles.css` no-cache, and `_framework/*`
-  immutable.
+- `build.sh` generates `precache-manifest.json` with those versioned URLs,
+  substitutes the commit into the registration, and leaves `_framework/*`
+  fingerprinted/immutable. `_headers` remains best-effort: Cloudflare can
+  override `no-cache` for CSS/JS, which is why the build-versioned URLs are
+  the rollout mechanism.
 - Icon fallbacks: `favicon.ico`, SVG favicon, 180×180 Apple touch icon, and
   manifest 192/512/maskable icons. Firefox desktop has no PWA install UI; it
   uses the normal site icon. Firefox Android uses the manifest icons for
@@ -292,9 +295,11 @@ node tools/pwa-check/run.mjs --root /tmp/webpwa/wwwroot
 Check the update lifecycle with
 [`tools/pwa-update-check/run.mjs`](../tools/pwa-update-check/run.mjs). It
 serves the published build as A, simulates B by changing `build-info.json`,
-`sw.js`, and `index.html`, and runs manual, automatic-idle, and shared-link
-scenarios in fresh browser profiles. It also checks the label and button text,
-the 5-second **Up to date** hold, and the post-update reset:
+`sw.js`, `precache-manifest.json`, and `index.html`, and runs manual,
+automatic-idle, and shared-link scenarios in fresh browser profiles. It also
+checks the label and button text, the 5-second **Up to date** hold, the
+build-versioned CSS/JS URLs, the post-update reset, and that the update toast
+still has its fixed-position CSS after switching builds:
 
 ```sh
 node tools/pwa-update-check/run.mjs --root out/web/wwwroot

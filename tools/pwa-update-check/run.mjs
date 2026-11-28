@@ -88,6 +88,9 @@ const server = http.createServer((req, res) => {
   if (override && pathname === '/index.html') {
     body = Buffer.from(body.toString('utf8').split(aCommit).join(override));
   }
+  if (override && pathname === '/precache-manifest.json') {
+    body = Buffer.from(body.toString('utf8').split(aCommit).join(override));
+  }
   res.writeHead(200, {
     'Content-Type': mime[path.extname(file)] ?? 'application/octet-stream',
     'Cache-Control': 'no-store',
@@ -253,6 +256,14 @@ try {
     assert(await page.wait("!!document.querySelector('#update-check')", 5000), 'manual: Options did not open');
     assert(await page.checkLabel() === 'Check for updates', 'manual: initial label is not check-for-updates');
     assert(await page.checkText() === 'Check', 'manual: initial button is not Check');
+    const aLinks = await page.ev(`(() => ({
+      css: document.querySelector('link[href*="app.css"]')?.getAttribute('href') ?? '',
+      updates: document.querySelector('script[src*="updates.js"]')?.getAttribute('src') ?? '',
+    }))()`);
+    assert(aLinks.css.includes(`?v=${aCommit}`), 'manual: A stylesheet is not build-versioned');
+    assert(aLinks.updates.includes(`?v=${aCommit}`), 'manual: A updates script is not build-versioned');
+    const aManifest = await page.ev("fetch('/precache-manifest.json', { cache: 'no-store' }).then(r => r.json())");
+    assert(aManifest.includes(`/css/app.css?v=${aCommit}`), 'manual: precache manifest is not build-versioned');
 
     // A no-update check keeps the label stable and holds "Up to date" for 5s.
     await page.ev("document.querySelector('#update-check').click()");
@@ -313,6 +324,23 @@ try {
     assert(await page.checkLabel() === 'An update is ready', 'manual: Later changed the update-ready label');
     await page.ev("document.querySelector('#update-check').click()");
     assert(await page.waitBuild(b, 30000), 'manual: update did not reload to the new build');
+    assert(await page.wait("!!document.querySelector('#mod-search')", 30000), 'manual: app did not reload after the update');
+    const bLinks = await page.ev(`(() => ({
+      css: document.querySelector('link[href*="app.css"]')?.getAttribute('href') ?? '',
+      updates: document.querySelector('script[src*="updates.js"]')?.getAttribute('src') ?? '',
+    }))()`);
+    assert(bLinks.css.includes(`?v=${b}`), 'manual: B stylesheet is not build-versioned');
+    assert(bLinks.updates.includes(`?v=${b}`), 'manual: B updates script is not build-versioned');
+    const toastPosition = await page.ev(`(() => {
+      const probe = document.createElement('div');
+      probe.className = 'update-toast';
+      probe.id = 'css-probe';
+      document.body.appendChild(probe);
+      const position = getComputedStyle(probe).position;
+      probe.remove();
+      return position;
+    })()`);
+    assert(toastPosition === 'fixed', 'manual: update toast CSS is missing after the update');
   });
 
   await withPage('auto', { idleMs: 1200, countdownSeconds: 1 }, async (page) => {

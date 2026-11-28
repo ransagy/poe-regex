@@ -131,6 +131,7 @@ is the status source of truth.
 | DIST-3 | Accounts / OIDC | Parked | Requires a backend |
 | OPS-1 | Pages middleware vs Cloudflare Access | Parked | Access login/audit versus current simple middleware |
 | OPS-2 | Retire legacy storage keys | Deferred | Keep until a deliberate deprecation window |
+| OPS-3 | Build-version non-fingerprinted shell assets | Done | Cloudflare can override `_headers` for CSS/JS; `?v=<commit>` on CSS/JS in index and precache fixes stale-cache transitions |
 | COMPAT-1 | Older clients and range-aware links | Documented | v7 snapshots reject safely; v6 range links can broaden until re-shared |
 
 ## Next
@@ -190,6 +191,12 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
 ## Recently completed
 
+- Shell asset versioning (OPS-3): Cloudflare serves CSS/JS with a four-hour
+  cache despite `_headers`; an old worker could pair new HTML with old CSS and
+  leave the update toast unstyled. Non-fingerprinted CSS/JS now carry
+  `?v=<commit>` in `index.html` and the precache manifest, and the update
+  harness asserts the versioned URLs and the styled toast after switching
+  builds.
 - PWA update flow (UX-2): the new service worker waits instead of claiming or
   reloading open tabs. A non-blocking toast and a single Options Check/Update
   button offer Update now/Later or Check; the row says **An update is ready**
