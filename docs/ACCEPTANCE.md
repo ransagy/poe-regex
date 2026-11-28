@@ -260,7 +260,9 @@ rerun it on a quiet host before treating it as a regression signal.
   button shows **Check**, **Checking…**, **Up to date**, **Retry**, or
   **Update**; **Up to date** and **Retry** hold for at least 5 seconds. A
   background check never shows **Checking…**, and a background update changes
-  the button to **Update** immediately.
+  the button to **Update** immediately. The orange Options dot sits after the
+  label in the full header and is capped to a small overlap on the icon-only
+  header.
 - Automatic mode waits for 60s idle, refuses to reload while a dialog or text
   field is active, and shows a 5s cancelable countdown. Manual mode never
   reloads without user action.

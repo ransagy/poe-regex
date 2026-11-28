@@ -274,6 +274,33 @@ try {
     assert(await page.checkLabel() === 'An update is ready', 'manual: label did not become update-ready');
     assert(await page.ev("!!document.querySelector('#update-now') && !document.querySelector('#update-now').disabled"),
       'manual: toast update button missing or disabled');
+    const headerLayout = await page.ev(`(() => {
+      const text = document.querySelector('#options-open .shell-link-text');
+      const dot = document.querySelector('#options-open .options-dot');
+      const github = document.querySelector('.shell-github');
+      if (!text || !dot || !github) return { ok: false };
+      const t = text.getBoundingClientRect();
+      const d = dot.getBoundingClientRect();
+      const g = github.getBoundingClientRect();
+      return { ok: d.left >= t.right - 3 && d.right <= g.left, text: t.right, dot: d.left, github: g.left };
+    })()`);
+    assert(headerLayout.ok, 'manual: update dot is not between Options and GitHub');
+    await page.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
+    await sleep(300);
+    const compactLayout = await page.ev(`(() => {
+      const icon = document.querySelector('#options-open .shell-options-icon');
+      const dot = document.querySelector('#options-open .options-dot');
+      if (!icon || !dot) return { ok: false };
+      const i = icon.getBoundingClientRect();
+      const d = dot.getBoundingClientRect();
+      return {
+        ok: d.width <= i.width * 0.6 && d.height <= i.height * 0.6 &&
+            d.left < i.right && d.right > i.left && d.top < i.bottom && d.bottom > i.top,
+      };
+    })()`);
+    assert(compactLayout.ok, 'manual: compact update dot is too large or misses the icon');
+    await page.send('Emulation.clearDeviceMetricsOverride');
+    await sleep(300);
     assert(await page.buildCommit() === aCommit, 'manual: update applied before the user asked');
     await sleep(700);
     assert(await page.buildCommit() === aCommit, 'manual: update reloaded without user action');

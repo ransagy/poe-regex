@@ -207,8 +207,10 @@ h1:focus { outline: none; }
 .options-seg button.on { background: var(--surface); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .options-note { margin: 0; color: var(--muted); font-size: 0.75rem; }
 .options-dot {
-    position: absolute; top: 0.15rem; right: 0.1rem;
+    /* Inline after the Options label in the full header. */
+    flex: none;
     width: 0.48rem; height: 0.48rem; border-radius: 50%;
+    margin-left: -0.15rem;
     background: var(--ember); box-shadow: 0 0 0 2px var(--raised);
     pointer-events: none;
 }
@@ -1267,6 +1269,13 @@ body.compact .hero + .drawer {
     .shell-github .shell-link-text { display: none; }
     .shell-help-icon, .shell-options-icon { display: inline; }
     .shell-link-icon { width: 1.2rem; height: 1.2rem; }
+    .shell-options { position: relative; }
+    .options-dot {
+        position: absolute; top: -0.05rem; right: -0.05rem;
+        width: 0.4rem; height: 0.4rem;
+        margin-left: 0;
+        box-shadow: 0 0 0 1.5px var(--page-bg);
+    }
 }
 
 @media (max-width: 540px) {
