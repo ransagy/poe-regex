@@ -4,7 +4,7 @@
   "targetModel": "advanced-ranges-v1",
   "grammarVersion": "quoted-shortest-v1",
   "oracleVersion": "exact-term-v1",
-  "generatedAt": "2026-11-25 13:43:05Z",
+  "generatedAt": "2026-11-28 20:16:24Z",
   "matrixGenerated": "2026-11-25 13:18:26Z",
   "files": {
     "catalog": {
@@ -19,8 +19,8 @@
     },
     "table": {
       "path": "data/catalogs/poe1.fragments.json",
-      "bytes": 1711119,
-      "sha256": "2099972cd7053f2f6abd01b4c461117b0e1b4a5575415c47dedc4f99701e0f93"
+      "bytes": 2181031,
+      "sha256": "d30b2ed7aed1dd89fc5b54c6fe2ba4a9e9cad3be90ab3f525442aff5d4dad38b"
     }
   },
   "matrix": {
