@@ -88,6 +88,31 @@ public class RangeQueryRoundTripTests
     }
 
     [Fact]
+    public void EveryClassFamilyTierRange_Compiles()
+    {
+        var checkedCount = 0;
+        foreach (var itemClass in Engine.InGameClasses())
+        {
+            var families = ModFamilies.Group(Engine.ModsForClass(itemClass.Id))
+                .Where(family => family.Source.Length == 0 && !family.IsUnion &&
+                                 family.Tiers.Count > 0)
+                .GroupBy(family => family.Key)
+                .Select(group => group.First())
+                .ToList();
+            foreach (var family in families)
+            {
+                var pick = Engine.TierRangePick(family, family.Tiers[0], up: true);
+                if (pick is null) continue;
+                var query = Engine.CompilePicks([pick], [], false, itemClass.Id).Query;
+                query.Should().NotBeEmpty($"{itemClass.Id}/{family.Key}");
+                checkedCount++;
+            }
+        }
+        checkedCount.Should().BeGreaterThan(400,
+            "the class-family sweep must cover the simple range picks");
+    }
+
+    [Fact]
     public void RandomRangeGroups_ReconstructApplyAndRecompile()
     {
         var rng = new Random(20261128);
