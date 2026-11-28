@@ -207,6 +207,10 @@ async function withPage(name, options, body) {
       return false;
     };
     const page = { send, ev, wait };
+    const checkText = () => ev("document.querySelector('#update-check')?.textContent?.trim() ?? ''");
+    const checkLabel = () => ev("document.querySelector('#update-check-status')?.textContent?.trim() ?? ''");
+    const waitCheck = (text, timeoutMs = 10000) =>
+      wait(`document.querySelector('#update-check')?.textContent?.trim() === ${JSON.stringify(text)}`, timeoutMs);
     const open = async (url = baseUrl) => {
       await send('Page.navigate', { url });
       assert(await wait("!!document.querySelector('#mod-search')", 30000), `${name}: app did not load`);
@@ -229,7 +233,7 @@ async function withPage(name, options, body) {
     const buildCommit = () => ev("document.querySelector('meta[name=build-commit]')?.content ?? ''");
     const waitBuild = (commit, timeoutMs = 20000) =>
       wait(`document.querySelector('meta[name=build-commit]')?.content === '${commit}'`, timeoutMs);
-    await body({ ...page, open, chooseIdle, buildCommit, waitBuild });
+    await body({ ...page, open, chooseIdle, buildCommit, waitBuild, checkText, checkLabel, waitCheck });
     console.log(`${name}: ok`);
   } finally {
     try { ws?.close(); } catch { /* already closed */ }
@@ -245,21 +249,42 @@ try {
 
   await withPage('manual', null, async (page) => {
     await page.open();
+    await page.ev("document.querySelector('#options-open').click()");
+    assert(await page.wait("!!document.querySelector('#update-check')", 5000), 'manual: Options did not open');
+    assert(await page.checkLabel() === 'Check for updates', 'manual: initial label is not check-for-updates');
+    assert(await page.checkText() === 'Check', 'manual: initial button is not Check');
+
+    // A no-update check keeps the label stable and holds "Up to date" for 5s.
+    await page.ev("document.querySelector('#update-check').click()");
+    assert(await page.waitCheck('Up to date', 15000), 'manual: no-update check did not show Up to date');
+    assert(await page.checkLabel() === 'Check for updates', 'manual: no-update check changed the label');
+    await sleep(2000);
+    assert(await page.checkText() === 'Up to date', 'manual: Up to date did not hold for at least 2s');
+    assert(await page.waitCheck('Check', 6000), 'manual: Up to date did not revert to Check after 5s');
+    await page.ev("document.querySelector('.options-backdrop')?.click()");
+    await sleep(200);
+
     const b = commitFor('b');
     override = b;
-    await page.ev('poeRegexUpdates.check(true)');
+    await page.ev("document.querySelector('#options-open').click()");
+    assert(await page.wait("!!document.querySelector('#update-check')", 5000), 'manual: Options did not reopen');
+    await page.ev("document.querySelector('#update-check').click()");
     assert(await page.wait("window.__poeUpdate?.waiting === true", 30000), 'manual: worker did not wait');
+    assert(await page.waitCheck('Update', 5000), 'manual: button did not become Update');
+    assert(await page.checkLabel() === 'An update is ready', 'manual: label did not become update-ready');
     assert(await page.ev("!!document.querySelector('#update-now') && !document.querySelector('#update-now').disabled"),
-      'manual: update button missing or disabled');
+      'manual: toast update button missing or disabled');
     assert(await page.buildCommit() === aCommit, 'manual: update applied before the user asked');
     await sleep(700);
     assert(await page.buildCommit() === aCommit, 'manual: update reloaded without user action');
+    await page.ev("document.querySelector('.options-backdrop')?.click()");
     await page.ev("document.querySelector('#update-later').click()");
     assert(await page.wait("!document.querySelector('#update-toast')", 5000), 'manual: Later did not hide the toast');
     assert(await page.ev("!!document.querySelector('.options-dot')"), 'manual: Options did not keep the update dot');
     await page.ev("document.querySelector('#options-open').click()");
-    assert(await page.wait("!!document.querySelector('#update-apply-options')", 5000), 'manual: Options update action missing');
-    await page.ev("document.querySelector('#update-apply-options').click()");
+    assert(await page.waitCheck('Update', 5000), 'manual: Options lost the pending Update action');
+    assert(await page.checkLabel() === 'An update is ready', 'manual: Later changed the update-ready label');
+    await page.ev("document.querySelector('#update-check').click()");
     assert(await page.waitBuild(b, 30000), 'manual: update did not reload to the new build');
   });
 
@@ -270,6 +295,10 @@ try {
     override = b;
     await page.ev('poeRegexUpdates.check(true)');
     assert(await page.wait("window.__poeUpdate?.waiting === true", 30000), 'auto: worker did not wait');
+    await page.ev("document.querySelector('#options-open').click()");
+    assert(await page.waitCheck('Update', 5000), 'auto: button did not become Update');
+    assert(await page.checkLabel() === 'An update is ready', 'auto: label did not become update-ready');
+    await page.ev("document.querySelector('.options-backdrop')?.click()");
     await sleep(500);
     assert(await page.buildCommit() === aCommit, 'auto: update applied before the idle window');
     assert(await page.waitBuild(b, 15000), 'auto: idle update did not reload');
@@ -282,6 +311,10 @@ try {
     override = b;
     await page.ev('poeRegexUpdates.check(true)');
     assert(await page.wait("window.__poeUpdate?.waiting === true", 30000), 'share: worker did not wait');
+    await page.ev("document.querySelector('#options-open').click()");
+    assert(await page.waitCheck('Update', 5000), 'share: button did not become Update');
+    assert(await page.checkLabel() === 'An update is ready', 'share: label did not become update-ready');
+    await page.ev("document.querySelector('.options-backdrop')?.click()");
 
     const token = shareToken();
     await page.send('Page.navigate', { url: `${baseUrl}?shared=1#r=${token}` });
@@ -294,8 +327,13 @@ try {
     assert(atApply.hash === '', 'share: share hash was not cleared after the handoff');
     assert(atApply.notice.includes('Opened shared picks'), 'share: handoff notice missing');
     assert(await page.waitBuild(b, 20000), 'share: update did not reload after the handoff');
+    assert(await page.wait("!!document.querySelector('#mod-search')", 30000), 'share: app did not reload after the update');
     const after = await page.ev("(() => { try { return JSON.parse(localStorage.getItem('poe-regex.workbench.v2.poe2')).Slots.helmet.Included.length; } catch { return 0; } })()");
     assert(after > 0, 'share: shared picks were lost across the update reload');
+    await page.ev("document.querySelector('#options-open').click()");
+    assert(await page.checkLabel() === 'Check for updates', 'share: label did not reset after the update');
+    assert(await page.checkText() === 'Check', 'share: button did not reset after the update');
+    await page.ev("document.querySelector('.options-backdrop')?.click()");
 
     const savedBefore = await page.ev("localStorage.getItem('poe-regex.saved-picks.v2.poe2') ?? ''");
     await page.send('Page.navigate', { url: `${baseUrl}?shared=2#r=${token}` });

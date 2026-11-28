@@ -286,6 +286,11 @@ Reproduce the Cloudflare build locally with:
   tab becomes visible, and from **Options → Check**. A non-blocking toast
   offers **Update now** or **Later**; the Options menu keeps an update action
   and dot after Later.
+- The Options row label is **Check for updates**, becoming **An update is
+  ready** once a waiting or reload-only worker is confirmed. One fixed-width
+  button shows **Check**, **Checking…**, **Up to date**, **Retry**, or
+  **Update**. **Up to date** and **Retry** hold for at least five seconds;
+  **Update** persists. Background checks never show **Checking…**.
 - **Update now** saves scroll state, sends `SKIP_WAITING`, waits for the new
   worker to activate, and reloads once. The UI state is restored after boot.
 - **Automatic** waits for 60 seconds without interaction, no dialog, and no

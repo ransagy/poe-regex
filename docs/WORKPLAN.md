@@ -87,11 +87,12 @@ Current planned and parked work. Behavior is documented in
   `deploy-production`; previews remain automatic.
 - PWA: installable offline shell with a build-versioned service-worker
   registration. A new worker waits instead of taking over; a non-blocking
-  toast offers Update now/Later, Options has Check and an Ask/Automatic
-  setting, automatic mode waits for 60s idle and a 5s countdown, and a shared
-  link finishes applying before an update may reload. Installability, offline
-  reload, cache replacement, manual update, automatic update, and shared-link
-  update pass locally.
+  toast offers Update now/Later, Options has a single Check/Update button and
+  an Ask/Automatic setting, the row says **An update is ready** when a worker
+  is pending, automatic mode waits for 60s idle and a 5s countdown, and a
+  shared link finishes applying before an update may reload. Installability,
+  offline reload, cache replacement, manual update, automatic update, and
+  shared-link update pass locally.
 - Import: advanced item lines are range-first; rounded display rolls,
   reversed ranges, and decimal patterns map exactly. Fuzzy fallback remains
   only for unmatched wording, and genuine ambiguity keeps a deterministic
@@ -190,12 +191,14 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 ## Recently completed
 
 - PWA update flow (UX-2): the new service worker waits instead of claiming or
-  reloading open tabs. A non-blocking toast and Options action offer Update
-  now/Later or Check; Automatic waits for 60s idle with a cancelable countdown.
-  Share links suspend auto-update until the handoff is persisted and the hash
-  is cleared. `sw.js` keeps cache-first navigation for the active shell, and
+  reloading open tabs. A non-blocking toast and a single Options Check/Update
+  button offer Update now/Later or Check; the row says **An update is ready**
+  once a worker is pending, and **Up to date**/**Retry** hold for 5 seconds.
+  Automatic waits for 60s idle with a cancelable countdown. Share links suspend
+  auto-update until the handoff is persisted and the hash is cleared. `sw.js`
+  keeps cache-first navigation for the active shell, and
   `tools/pwa-update-check/run.mjs` covers manual, automatic, and shared-link
-  updates.
+  updates plus the label/button state.
 - Release docs gate (#96): the pre-merge checklist now requires WORKPLAN,
   ACCEPTANCE, and DESIGN/scope docs to move in the same PR as the change.
 - PoE1 budget parity (#95): full-family pick markers and the full-family union

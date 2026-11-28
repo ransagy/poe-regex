@@ -33,6 +33,10 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
     private int? _countdown;
     private int _countdownSeconds = 5;
     private Timer? _countdownTimer;
+    private string _checkFeedback = "";
+    private DateTime _feedbackUntil;
+    private Timer? _feedbackTimer;
+    private int _feedbackVersion;
 
     public event Action? Changed;
 
@@ -40,10 +44,36 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
     public string CurrentCommit => _current;
     public string LatestCommit => _latest;
     public bool Available => Status is "available" or "countdown" or "downloading" or "applying";
+    public bool UpdateReady => _waiting || _reloadOnly;
     public bool Suspended => _suspended;
     public bool Checking => _checking;
     public bool CanCheck => _bound && !_checking && !_applying && !_suspended;
     public bool CanApply => _bound && !_suspended && Status is "available" or "countdown";
+
+    public string CheckLabel => UpdateReady ? "An update is ready" : "Check for updates";
+
+    public string CheckButtonText
+    {
+        get
+        {
+            if (_checking) return "Checking…";
+            if (UpdateReady) return "Update";
+            if (FeedbackActive("uptodate")) return "Up to date";
+            if (FeedbackActive("retry")) return "Retry";
+            return "Check";
+        }
+    }
+
+    public bool CheckButtonEnabled
+    {
+        get
+        {
+            if (_checking) return false;
+            if (UpdateReady) return CanApply;
+            if (FeedbackActive("uptodate")) return false;
+            return CanCheck;
+        }
+    }
 
     public string Status =>
         _applying ? "applying" :
@@ -72,16 +102,6 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
         "downloading" => "The new version is downloading.",
         "error" => string.IsNullOrWhiteSpace(_error) ? "Try again." : _error,
         _ => "A new version is ready. Your picks are saved.",
-    };
-
-    public string CheckLabel => Status switch
-    {
-        "checking" => "Checking…",
-        "uptodate" => "Up to date",
-        "available" or "countdown" or "applying" => "Update available",
-        "downloading" => "Preparing…",
-        "error" => "Check failed",
-        _ => "Not checked yet",
     };
 
     public string BuildLabel
@@ -144,6 +164,7 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
     {
         if (!CanCheck) return;
         _checking = true;
+        ClearFeedback();
         Changed?.Invoke();
         try
         {
@@ -157,6 +178,9 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
         finally
         {
             _checking = false;
+            if (UpdateReady) ClearFeedback();
+            else if (_status == "error") StartFeedback("retry");
+            else StartFeedback("uptodate");
             Changed?.Invoke();
         }
     }
@@ -218,6 +242,7 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
     {
         _suspended = true;
         StopCountdown();
+        ClearFeedback();
         Changed?.Invoke();
     }
 
@@ -310,6 +335,37 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
         Changed?.Invoke();
     }
 
+    private bool FeedbackActive(string kind) =>
+        string.Equals(_checkFeedback, kind, StringComparison.Ordinal) &&
+        DateTime.UtcNow < _feedbackUntil;
+
+    private void StartFeedback(string kind)
+    {
+        _checkFeedback = kind;
+        _feedbackUntil = DateTime.UtcNow.AddSeconds(5);
+        _feedbackVersion++;
+        var version = _feedbackVersion;
+        _feedbackTimer?.Dispose();
+        _feedbackTimer = new Timer(_ => ExpireFeedback(version), null, 5000, Timeout.Infinite);
+    }
+
+    private void ExpireFeedback(int version)
+    {
+        if (version != _feedbackVersion) return;
+        _checkFeedback = "";
+        _feedbackUntil = default;
+        Changed?.Invoke();
+    }
+
+    private void ClearFeedback()
+    {
+        _feedbackVersion++;
+        _checkFeedback = "";
+        _feedbackUntil = default;
+        _feedbackTimer?.Dispose();
+        _feedbackTimer = null;
+    }
+
     private static string GetString(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString() ?? ""
@@ -327,5 +383,7 @@ public sealed class UpdateState(IJSRuntime js) : IDisposable
         _reference = null;
         _countdownTimer?.Dispose();
         _countdownTimer = null;
+        _feedbackTimer?.Dispose();
+        _feedbackTimer = null;
     }
 }

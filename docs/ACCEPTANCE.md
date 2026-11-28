@@ -255,6 +255,12 @@ rerun it on a quiet host before treating it as a regression signal.
   tabs. A non-blocking toast offers Update now/Later, and Options adds Check
   and an Ask/Automatic update setting. Update now skips waiting, reloads once,
   and the new worker deletes the previous cache on activation.
+- The Options update row keeps the label **Check for updates** until a worker
+  is confirmed pending, then shows **An update is ready**. One fixed-width
+  button shows **Check**, **Checking…**, **Up to date**, **Retry**, or
+  **Update**; **Up to date** and **Retry** hold for at least 5 seconds. A
+  background check never shows **Checking…**, and a background update changes
+  the button to **Update** immediately.
 - Automatic mode waits for 60s idle, refuses to reload while a dialog or text
   field is active, and shows a 5s cancelable countdown. Manual mode never
   reloads without user action.
@@ -285,7 +291,8 @@ Check the update lifecycle with
 [`tools/pwa-update-check/run.mjs`](../tools/pwa-update-check/run.mjs). It
 serves the published build as A, simulates B by changing `build-info.json`,
 `sw.js`, and `index.html`, and runs manual, automatic-idle, and shared-link
-scenarios in fresh browser profiles:
+scenarios in fresh browser profiles. It also checks the label and button text,
+the 5-second **Up to date** hold, and the post-update reset:
 
 ```sh
 node tools/pwa-update-check/run.mjs --root out/web/wwwroot

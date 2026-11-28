@@ -111,16 +111,12 @@
                             </div>
                         </div>
                         <div class="options-row options-update-check">
-                            <span id="update-check-status">@Updates.CheckLabel</span>
-                            <div class="options-update-actions">
-                                <button type="button" class="btn btn-small" id="update-check"
-                                        disabled="@(!Updates.CanCheck)" @onclick="CheckUpdates">Check</button>
-                                @if (Updates.CanApply)
-                                {
-                                    <button type="button" class="btn btn-small btn-primary" id="update-apply-options"
-                                            @onclick="ApplyUpdate">Update</button>
-                                }
-                            </div>
+                            <span id="update-check-status" aria-live="polite">@Updates.CheckLabel</span>
+                            <button type="button"
+                                    class="btn btn-small update-check-button @(Updates.UpdateReady ? "btn-primary" : "")"
+                                    id="update-check"
+                                    disabled="@(!Updates.CheckButtonEnabled)"
+                                    @onclick="UpdateButtonClick">@Updates.CheckButtonText</button>
                         </div>
                         <p class="options-note">Automatic waits for 60s idle and lets shared links finish first. Saved in this browser.</p>
                     </div>
@@ -256,6 +252,11 @@
 
     private async Task SetUpdateMode(string mode) => await Updates.SetModeAsync(mode);
     private async Task CheckUpdates() => await Updates.CheckAsync();
+    private async Task UpdateButtonClick()
+    {
+        if (Updates.UpdateReady) await Updates.ApplyAsync();
+        else await Updates.CheckAsync();
+    }
     private async Task ApplyUpdate() => await Updates.ApplyAsync();
     private void DismissUpdate() => Updates.Dismiss();
 
