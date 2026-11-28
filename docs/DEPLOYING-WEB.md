@@ -277,6 +277,36 @@ Reproduce the Cloudflare build locally with:
   fallback). The Advanced panel shows the short commit + branch, so the
   deployed commit can be traced without exposing an internal deployment URL.
 
+## Update lifecycle
+
+- A new service worker installs and waits. It does not call `skipWaiting` or
+  `clients.claim`, so open tabs keep the old worker and cached shell until
+  the user accepts.
+- The page checks `/build-info.json` after boot, every 30 minutes, when the
+  tab becomes visible, and from **Options → Check**. A non-blocking toast
+  offers **Update now** or **Later**; the Options menu keeps an update action
+  and dot after Later.
+- The Options row label is **Check for updates**, becoming **An update is
+  ready** once a waiting or reload-only worker is confirmed. One fixed-width
+  button shows **Check**, **Checking…**, **Up to date**, **Retry**, or
+  **Update**. **Up to date** and **Retry** hold for at least five seconds;
+  **Update** persists. Background checks never show **Checking…**. The update
+  dot follows the Options label in the full header and only overlaps the icon
+  in the compact header.
+- **Update now** saves scroll state, sends `SKIP_WAITING`, waits for the new
+  worker to activate, and reloads once. The UI state is restored after boot.
+- **Automatic** waits for 60 seconds without interaction, no dialog, and no
+  focused input, then shows a five-second cancelable countdown before the
+  same update flow. Ask is the default.
+- A shared link (`#r=`) suspends automatic updates. The hash remains until
+  the shared state is restored and persisted, so an update reload retries the
+  handoff; a repeated snapshot is a no-op. The update can proceed after the
+  handoff, and the shared picks survive the reload.
+- Navigation serves the active shell from cache until the waiting worker is
+  accepted, avoiding a new `index.html` running against old cached assets.
+  The worker is registered with a build-versioned `/sw.js?v=<commit>` and
+  `updateViaCache: "none"`.
+
 ## CI
 
 `.github/workflows/ci.yml` runs the test suite on pull requests and on

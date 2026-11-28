@@ -196,6 +196,7 @@ h1:focus { outline: none; }
     background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
     color: var(--text); text-align: left;
+    max-height: calc(100vh - 4.5rem); overflow-y: auto;
 }
 .options-title { font-weight: 600; font-size: 0.95rem; }
 .options-row { display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; color: var(--muted); font-size: 0.84rem; }
@@ -205,6 +206,35 @@ h1:focus { outline: none; }
 .options-seg button:hover { color: var(--text); }
 .options-seg button.on { background: var(--surface); color: var(--ember); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .options-note { margin: 0; color: var(--muted); font-size: 0.75rem; }
+.options-dot {
+    /* Inline after the Options label in the full header. */
+    flex: none;
+    width: 0.48rem; height: 0.48rem; border-radius: 50%;
+    margin-left: -0.15rem;
+    background: var(--ember); box-shadow: 0 0 0 2px var(--raised);
+    pointer-events: none;
+}
+.options-update-check .btn-small { padding: 0.2rem 0.55rem; font-size: 0.78rem; }
+.update-check-button { min-width: 7.5rem; text-align: center; }
+.update-toast {
+    position: fixed; right: 1rem; bottom: 1rem; z-index: 44;
+    display: flex; align-items: flex-start; gap: 0.9rem;
+    width: min(25rem, calc(100vw - 2rem));
+    padding: 0.75rem 0.85rem;
+    background: var(--raised); border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    color: var(--text);
+}
+.update-copy { display: grid; gap: 0.18rem; min-width: 0; }
+.update-copy strong { font-size: 0.88rem; }
+.update-copy span { color: var(--muted); font-size: 0.78rem; line-height: 1.35; }
+.update-copy .update-build { font-size: 0.72rem; opacity: 0.8; }
+.update-actions { display: flex; align-items: center; gap: 0.35rem; margin-left: auto; flex: none; }
+.update-actions .btn { white-space: nowrap; }
+@media (max-width: 700px) {
+    .update-toast { left: 0.75rem; right: 0.75rem; bottom: 0.75rem; width: auto; }
+    .update-actions { flex-direction: column; align-items: stretch; }
+}
 
 .shell-body { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--page-bg); }
 
@@ -1239,6 +1269,13 @@ body.compact .hero + .drawer {
     .shell-github .shell-link-text { display: none; }
     .shell-help-icon, .shell-options-icon { display: inline; }
     .shell-link-icon { width: 1.2rem; height: 1.2rem; }
+    .shell-options { position: relative; }
+    .options-dot {
+        position: absolute; top: -0.05rem; right: -0.05rem;
+        width: 0.4rem; height: 0.4rem;
+        margin-left: 0;
+        box-shadow: 0 0 0 1.5px var(--page-bg);
+    }
 }
 
 @media (max-width: 540px) {

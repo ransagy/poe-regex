@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @inject web.Services.IntroState Intro
 @inject web.Services.PreferencesState Prefs
+@inject web.Services.UpdateState Updates
 <div class="shell">
     <header class="shell-bar">
         <svg class="shell-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
@@ -49,8 +50,9 @@
             <div class="options-wrap" @onkeydown="OnOptionsKeyDown">
                 <button type="button" class="shell-link shell-options" id="options-open"
                         aria-haspopup="dialog" aria-expanded="@(_optionsOpen ? "true" : "false")"
-                        aria-controls="options-pop" aria-label="Options"
-                        title="Theme, display size, and copy behavior"
+                        aria-controls="options-pop"
+                        aria-label="@(Updates.Available ? "Options, update available" : "Options")"
+                        title="Theme, display size, copy behavior, and updates"
                         @ref="_optionsButton" @onclick="OpenOptions">
                     <svg class="shell-link-icon shell-options-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                         <path d="M2 4h7.2M12.2 4H14M2 8h2.2M7.2 8H14M2 12h7.2M12.2 12H14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
@@ -59,6 +61,10 @@
                         <circle cx="10.7" cy="12" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3" />
                     </svg>
                     <span class="shell-link-text">Options</span>
+                    @if (Updates.Available)
+                    {
+                        <span class="options-dot" aria-hidden="true"></span>
+                    }
                 </button>
                 @if (_optionsOpen)
                 {
@@ -93,7 +99,26 @@
                                         @onclick="() => SetAutoCopy(true)">On</button>
                             </div>
                         </div>
-                        <p class="options-note">Saved in this browser.</p>
+                        <div class="options-row" title="Update behavior">
+                            <span id="update-mode-label">Updates</span>
+                            <div class="options-seg" role="group" aria-labelledby="update-mode-label">
+                                <button type="button" id="update-mode-ask" class="@(Updates.Mode == "ask" ? "on" : "")"
+                                        aria-pressed="@(Updates.Mode == "ask" ? "true" : "false")"
+                                        @onclick='() => SetUpdateMode("ask")'>Ask</button>
+                                <button type="button" id="update-mode-idle" class="@(Updates.Mode == "idle" ? "on" : "")"
+                                        aria-pressed="@(Updates.Mode == "idle" ? "true" : "false")"
+                                        @onclick='() => SetUpdateMode("idle")'>Automatic</button>
+                            </div>
+                        </div>
+                        <div class="options-row options-update-check">
+                            <span id="update-check-status" aria-live="polite">@Updates.CheckLabel</span>
+                            <button type="button"
+                                    class="btn btn-small update-check-button @(Updates.UpdateReady ? "btn-primary" : "")"
+                                    id="update-check"
+                                    disabled="@(!Updates.CheckButtonEnabled)"
+                                    @onclick="UpdateButtonClick">@Updates.CheckButtonText</button>
+                        </div>
+                        <p class="options-note">Automatic waits for 60s idle and lets shared links finish first. Saved in this browser.</p>
                     </div>
                 }
             </div>
@@ -106,6 +131,39 @@
             </a>
         </div>
     </header>
+    @if (Updates.Visible)
+    {
+        <div class="update-toast" id="update-toast" role="status" aria-live="polite">
+            <div class="update-copy">
+                <strong>@Updates.Title</strong>
+                <span>@Updates.Detail</span>
+                <span class="update-build">@Updates.BuildLabel</span>
+            </div>
+            <div class="update-actions">
+                @if (Updates.Status == "countdown")
+                {
+                    <button type="button" class="btn btn-primary" id="update-now"
+                            disabled="@(!Updates.CanApply)" @onclick="ApplyUpdate">Update now</button>
+                    <button type="button" class="btn" id="update-later" @onclick="DismissUpdate">Not now</button>
+                }
+                else if (Updates.Status == "available")
+                {
+                    <button type="button" class="btn btn-primary" id="update-now"
+                            disabled="@(!Updates.CanApply)" @onclick="ApplyUpdate">Update now</button>
+                    <button type="button" class="btn" id="update-later" @onclick="DismissUpdate">Later</button>
+                }
+                else if (Updates.Status == "downloading")
+                {
+                    <button type="button" class="btn" id="update-later" @onclick="DismissUpdate">Later</button>
+                }
+                else if (Updates.Status == "error")
+                {
+                    <button type="button" class="btn" id="update-retry" @onclick="CheckUpdates">Retry</button>
+                    <button type="button" class="btn" id="update-later" @onclick="DismissUpdate">Dismiss</button>
+                }
+            </div>
+        </div>
+    }
     <main class="shell-body">
         @Body
     </main>
@@ -126,17 +184,21 @@
     protected override async Task OnInitializedAsync()
     {
         await Intro.InitializeAsync();
+        await Updates.EnsureLoadedAsync();
         Intro.Changed += OnIntroChanged;
         Prefs.Changed += OnPrefsChanged;
+        Updates.Changed += OnUpdatesChanged;
     }
 
     private void OnIntroChanged() => InvokeAsync(StateHasChanged);
     private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+    private void OnUpdatesChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
         Intro.Changed -= OnIntroChanged;
         Prefs.Changed -= OnPrefsChanged;
+        Updates.Changed -= OnUpdatesChanged;
         _themeRef?.Dispose();
     }
 
@@ -163,6 +225,7 @@
             // JS not ready/failed: the inline bootstrap defaults remain.
         }
         await Prefs.EnsureLoadedAsync();
+        await Updates.BindAsync();
     }
 
     private void OpenOptions()
@@ -186,6 +249,16 @@
 
     private async Task SetAutoCopy(bool value) =>
         await Prefs.SetAutoCopyAsync(value);
+
+    private async Task SetUpdateMode(string mode) => await Updates.SetModeAsync(mode);
+    private async Task CheckUpdates() => await Updates.CheckAsync();
+    private async Task UpdateButtonClick()
+    {
+        if (Updates.UpdateReady) await Updates.ApplyAsync();
+        else await Updates.CheckAsync();
+    }
+    private async Task ApplyUpdate() => await Updates.ApplyAsync();
+    private void DismissUpdate() => Updates.Dismiss();
 
     private async Task SetTheme(ChangeEventArgs e)
     {

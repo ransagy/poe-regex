@@ -31,6 +31,7 @@ public class WebComponentTests
         ctx.Services.AddSingleton(persistence);
         AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new UpdateState(ctx.JSInterop.JSRuntime));
         return ctx;
     }
 
@@ -47,6 +48,7 @@ public class WebComponentTests
         AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new UpdateState(ctx.JSInterop.JSRuntime));
         return ctx;
     }
 
@@ -130,6 +132,7 @@ public class WebComponentTests
         AddGames(ctx, engine, state, persistence);
         ctx.Services.AddSingleton(new IntroState(persistence));
         ctx.Services.AddSingleton(new PreferencesState(ctx.JSInterop.JSRuntime));
+        ctx.Services.AddSingleton(new UpdateState(ctx.JSInterop.JSRuntime));
 
         var cut = ctx.Render<Home>();
         cut.WaitForElement("#slot-query-simple");

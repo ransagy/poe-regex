@@ -1,6 +1,6 @@
 # Workplan
 
-_Last updated: 2026-11-27._
+_Last updated: 2026-11-28._
 
 Current planned and parked work. Behavior is documented in
 [`DESIGN.md`](DESIGN.md), [`EXACT-TABLE.md`](EXACT-TABLE.md), and
@@ -86,8 +86,13 @@ Current planned and parked work. Behavior is documented in
   daily deployment cleanup. Production deploys are manual via
   `deploy-production`; previews remain automatic.
 - PWA: installable offline shell with a build-versioned service-worker
-  registration; a normal reload adopts a new build without a hard refresh,
-  and installability, offline reload, and cache replacement pass locally.
+  registration. A new worker waits instead of taking over; a non-blocking
+  toast offers Update now/Later, Options has a single Check/Update button and
+  an Ask/Automatic setting, the row says **An update is ready** when a worker
+  is pending, automatic mode waits for 60s idle and a 5s countdown, and a
+  shared link finishes applying before an update may reload. Installability,
+  offline reload, cache replacement, manual update, automatic update, and
+  shared-link update pass locally.
 - Import: advanced item lines are range-first; rounded display rolls,
   reversed ranges, and decimal patterns map exactly. Fuzzy fallback remains
   only for unmatched wording, and genuine ambiguity keeps a deterministic
@@ -120,6 +125,7 @@ is the status source of truth.
 | DATA-4 | PoE1 flasks/jewels/influenced/crafts/veils | Later phases | See `POE1-SCOPE.md` |
 | PERF-1 | Runtime proof for arbitrary min/max and cross-slot intervals | Parked | Only if observed; release smoke currently clean |
 | UX-1 | Reset workbench scope | Parked | Decide whether UI-local filters/panels reset too |
+| UX-2 | Smoother PWA update flow | Done | Waiting worker, update toast/Options check, Ask/Automatic idle, shared-link pause; covered by `tools/pwa-update-check/run.mjs` |
 | DIST-1 | Browser AOT / smaller publish | Parked | Current interpreter publish is ~25 MB |
 | DIST-2 | Compact/server share links | Parked | Current `#r=` snapshots work |
 | DIST-3 | Accounts / OIDC | Parked | Requires a backend |
@@ -184,6 +190,22 @@ release. PoE1 is a separate game profile, not a retrofit of the PoE2 catalog.
 
 ## Recently completed
 
+- PWA update flow (UX-2): the new service worker waits instead of claiming or
+  reloading open tabs. A non-blocking toast and a single Options Check/Update
+  button offer Update now/Later or Check; the row says **An update is ready**
+  once a worker is pending, and **Up to date**/**Retry** hold for 5 seconds.
+  Automatic waits for 60s idle with a cancelable countdown. Share links suspend
+  auto-update until the handoff is persisted and the hash is cleared. `sw.js`
+  keeps cache-first navigation for the active shell, and
+  `tools/pwa-update-check/run.mjs` covers manual, automatic, and shared-link
+  updates plus the label/button state.
+- Release docs gate (#96): the pre-merge checklist now requires WORKPLAN,
+  ACCEPTANCE, and DESIGN/scope docs to move in the same PR as the change.
+- PoE1 budget parity (#95): full-family pick markers and the full-family union
+  path bring the real PoE1 10-slot state to 211/250, the MatchAll Boots variant
+  to 234/250, and the narrowed Ring case to 238/250 without widening the Ring.
+- STR-1 (#94): over-budget any-of groups merge with a per-class proof; PoE2
+  253→183 and 325→186.
 - Both-game data refresh: PoE1 moved back to the root RePoE export at
   3.30.0.4; PoE2 refreshed to the 2026-11-25 snapshot. Catalogs, corpora,
   exact tables, proofs, status, and the lazy PoE1 web payload were regenerated
